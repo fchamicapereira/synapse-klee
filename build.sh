@@ -27,7 +27,7 @@ function debug {
                          -DENABLE_DOXYGEN=ON \
                          ..
 
-  make -kj $(nproc) || exit 1
+  make -k || exit 1
 }
 
 function release {
@@ -54,7 +54,7 @@ function release {
                          -DENABLE_DOXYGEN=OFF \
                          ..
 
-  make -kj $(nproc) || exit 1
+  make -k || exit 1
 }
 
 if [ $# -ge 1 ] && [[ "$1" == "debug" ]]; then
