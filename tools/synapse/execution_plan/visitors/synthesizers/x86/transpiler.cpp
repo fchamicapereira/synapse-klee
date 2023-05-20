@@ -145,6 +145,11 @@ std::string Transpiler::transpile(const klee::ref<klee::Expr> &expr) {
   }
 
   auto simplified = kutil::simplify(expr);
+  auto variable_result = try_transpile_variable(simplified);
+
+  if (variable_result.first) {
+    return variable_result.second;
+  }
 
   auto transpiler = InternalTranspiler(generator, *this);
   transpiler.visit(simplified);
@@ -227,13 +232,6 @@ std::string InternalTranspiler::transpile(const klee::ref<klee::Expr> &expr) {
 klee::ExprVisitor::Action
 InternalTranspiler::visitRead(const klee::ReadExpr &e) {
   auto eref = const_cast<klee::ReadExpr *>(&e);
-  auto variable_result = transpiler.try_transpile_variable(eref);
-
-  if (variable_result.first) {
-    code << variable_result.second;
-    return klee::ExprVisitor::Action::skipChildren();
-  }
-
   auto expr_width = eref->getWidth();
 
   auto symbol = kutil::get_symbol(eref);
@@ -274,12 +272,6 @@ InternalTranspiler::visitSelect(const klee::SelectExpr &e) {
 klee::ExprVisitor::Action
 InternalTranspiler::visitConcat(const klee::ConcatExpr &e) {
   auto eref = const_cast<klee::ConcatExpr *>(&e);
-  auto variable_result = transpiler.try_transpile_variable(eref);
-
-  if (variable_result.first) {
-    code << variable_result.second;
-    return klee::ExprVisitor::Action::skipChildren();
-  }
 
   if (kutil::is_readLSB(eref)) {
     auto symbol = kutil::get_symbol(eref);
