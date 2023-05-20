@@ -151,6 +151,11 @@ std::vector<BDD::Node_ptr> Module::get_prev_fn(
     if (found_it != functions_names.end()) {
       prev_functions.push_back(node);
     }
+
+    // TODO: this is a hack to deal with consolidated BDDs
+    if(call.function_name == "current_time") {
+      break;
+    }
   }
 
   return prev_functions;
