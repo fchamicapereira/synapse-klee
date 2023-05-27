@@ -8,9 +8,9 @@
 
 namespace Clone {
 	/* Constructors and destructors */
-	Network::Network(DeviceMap &&devices, NFMap &&nfs, LinkList &&links, PortMap &&ports): 
-						devices(move(devices)), nfs(move(nfs)), links(move(links)), ports(move(ports)) {}
-	
+	Network::Network(DeviceMap &&devices, NFMap &&nfs, LinkList &&links, PortMap &&ports):
+		Infrastructure(move(devices), move(links), move(ports)), nfs(move(nfs)) {}
+
 	Network::~Network() = default;
 
 	/* Private methods */
@@ -63,15 +63,14 @@ namespace Clone {
 		q_transitions.push_front(transition);
 
 		while(!q_transitions.empty()) {
-			const unsigned port = q_transitions.front()->input_port;
-			const NodePtr node = q_transitions.front()->node;
-			const Node_ptr tail = q_transitions.front()->tail;
-			assert(nfs.find(node->get_name()) != nfs.end());
+			const NodeTransitionPtr transition = q_transitions.front();
+			const unsigned port = transition->input_port;
+			const NodePtr node = transition->node;
+			const Node_ptr tail = transition->tail;
 			const NFPtr nf = nfs.at(node->get_name());
 			assert(nf != nullptr);
 
 			q_transitions.pop_front();
-
 			builder->join_init(nf);
 			Tails tails = builder->join_process(nf, port, tail);
 
@@ -83,14 +82,14 @@ namespace Clone {
 
 				if(node->has_child(port_next)) {
 					const pair<unsigned, NodePtr> &child = node->get_child(port_next);
-					const unsigned local_port = child.first;
+					const unsigned port = child.first;
 					const NodePtr node = child.second;
 
 					if(node->get_node_type() == NodeType::NF) {
-						q_transitions.push_front(make_shared<NodeTransition>(local_port, node, tail));
+						q_transitions.push_front(make_shared<NodeTransition>(port, node, tail));
 					} 
 					else {
-						return_process->set_return_value(local_port);
+						return_process->set_return_value(port);
 					}
 				} 
 				else {
@@ -143,7 +142,6 @@ namespace Clone {
 		}
 
 		GraphvizGenerator::visualize(*builder->get_bdd(), false, false);
-		string bdd_name = name + ".bdd";
 		builder->dump(name + ".bdd");
 	}
 

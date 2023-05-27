@@ -25,7 +25,7 @@ namespace Clone {
 		const string name;
 		const NodeType node_type;
 
-		unordered_map<unsigned, pair<unsigned, shared_ptr<Node>>> children;
+		unordered_map<unsigned, pair<unsigned, shared_ptr<Node>>> children; // Port -> (Port, Node)
 
 	public:
 		Node(const string &name, NodeType node_type);

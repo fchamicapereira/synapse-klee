@@ -110,6 +110,9 @@ public:
     case TargetType::x86:
       output_file += "x86.c";
       break;
+    case TargetType::CloNe:
+      output_file += "clone.c";
+      break;
     }
 
     found_it->second.generator->output_to_file(output_file);

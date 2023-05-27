@@ -35,6 +35,8 @@ namespace Clone {
 		inline unsigned get_global_port() const {
 			return global_port;
 		}
+
+		void print() const;
 	};
 
 	typedef shared_ptr<Port> PortPtr;

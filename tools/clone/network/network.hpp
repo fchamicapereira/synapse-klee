@@ -6,15 +6,11 @@
 #include <unordered_set>
 #include <unordered_map>
 
-#include "../models/device.hpp"
+#include "call-paths-to-bdd.h"
+
+#include "../parser/infrastructure.hpp"
 #include "../models/nf.hpp"
-#include "../models/link.hpp"
-#include "../models/port.hpp"
 #include "../bdd/builder.hpp"
-#include "bdd/nodes/branch.h"
-#include "bdd/nodes/node.h"
-#include "bdd/nodes/return_process.h"
-#include "bdd/visitors/graphviz-generator.h"
 #include "node.hpp"
 
 namespace BDD {
@@ -43,18 +39,15 @@ namespace Clone {
 		NodePtr node;
 		Node_ptr tail;
 
-		NodeTransition(unsigned input_port, const NodePtr &node, Node_ptr tail)
+		NodeTransition(unsigned input_port, NodePtr node, Node_ptr tail)
 			: input_port(input_port), node(node), tail(tail) {}
 	};
 
 	typedef shared_ptr<NodeTransition> NodeTransitionPtr;
 
-	class Network {
+	class Network : public Infrastructure {
 	private:
-		const DeviceMap devices;
 		const NFMap nfs;
-		const LinkList links;
-		const PortMap ports;
 
 		NodeMap nodes;
 		NodePtr source;

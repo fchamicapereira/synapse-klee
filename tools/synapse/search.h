@@ -1,12 +1,15 @@
 #pragma once
 
 #include "execution_plan/execution_plan.h"
+#include "execution_plan/modules/clone/clone.h"
 #include "execution_plan/visitors/graphviz/graphviz.h"
 #include "heuristics/heuristic.h"
 #include "log.h"
+#include "parser/infrastructure.hpp"
 #include "search_space.h"
 
 namespace synapse {
+using Clone::Infrastructure;
 
 class SearchEngine {
 private:
@@ -18,6 +21,8 @@ private:
   int max_reordered;
 
   SearchSpace search_space;
+
+  std::string topology;
 
   // Internal use only
   struct report_t {
@@ -67,6 +72,9 @@ public:
       break;
     case TargetType::x86:
       targets.push_back(targets::x86::x86Target::build());
+      break;
+    case TargetType::CloNe:
+      targets.push_back(targets::clone::CloneTarget::build());
       break;
     }
   }
@@ -123,6 +131,10 @@ public:
   }
 
   const SearchSpace &get_search_space() const { return search_space; }
+
+  inline void set_infrastructure(const std::unique_ptr<Infrastructure> infrastructure) {
+    this->topology = topology;
+  }
 
 private:
   void log_search_iteration(const report_t &report) {

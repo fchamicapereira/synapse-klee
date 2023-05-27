@@ -28,7 +28,6 @@ namespace Clone {
         std::cout << "\033[37m";
         print_arg(std::forward<Args>(args)...);
         std::cout << std::endl;
-        std::exit(EXIT_FAILURE);
     }
 
     template<typename... Args>

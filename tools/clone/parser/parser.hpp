@@ -5,7 +5,9 @@
 
 namespace Clone {
 	using std::string;
+	using std::unique_ptr;
 	class Network;
+	class Infrastructure;
 
 	constexpr char STRING_DEVICE[] = "device";
 	constexpr char STRING_NF[] =  "nf";
@@ -23,5 +25,6 @@ namespace Clone {
 	 * @param network_file the path to the file containing the network description
 	 * @return a single Network object, representing the network described in the file
 	*/
-	std::unique_ptr<Network> parse(const std::string &input_file);
+	unique_ptr<Network> parse_network(const string &input_file);
+	unique_ptr<Infrastructure> parse_infrastructure(const string &input_file);
 }

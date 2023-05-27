@@ -1,3 +1,4 @@
+#include "execution_plan/target.h"
 #include "klee/ExprBuilder.h"
 #include "klee/perf-contracts.h"
 #include "klee/util/ArrayCache.h"
@@ -23,12 +24,14 @@
 
 #include "call-paths-to-bdd.h"
 #include "load-call-paths.h"
+#include "clone.h"
 
 #include "code_generator.h"
 #include "execution_plan/execution_plan.h"
 #include "execution_plan/visitors/graphviz/graphviz.h"
 #include "heuristics/heuristics.h"
 #include "log.h"
+#include "parser/parser.hpp"
 #include "search.h"
 
 using llvm::cl::cat;
@@ -53,6 +56,7 @@ llvm::cl::list<TargetType> TargetList(
            clEnumValN(TargetType::FPGA, "fpga", "FPGA (veriLog)"),
            clEnumValN(TargetType::Netronome, "netronome", "Netronome (uC)"),
            clEnumValN(TargetType::Tofino, "tofino", "Tofino (P4)"),
+           clEnumValN(TargetType::CloNe, "clone", "CloNE"),
            clEnumValN(TargetType::x86_Tofino, "x86-tofino",
                       "Tofino ctrl (C++)"),
            clEnumValN(TargetType::x86, "x86", "x86 (DPDK C)"), clEnumValEnd),
@@ -65,6 +69,10 @@ llvm::cl::opt<std::string>
 llvm::cl::opt<std::string>
     Out("out", desc("Output directory for every generated file."),
         cat(SyNAPSE));
+
+llvm::cl::opt<std::string>
+    InputTopologyFile("topology", desc("Input file for network topology."),
+                      cat(SyNAPSE));
 
 llvm::cl::opt<int> MaxReordered(
     "max-reordered",
@@ -110,6 +118,18 @@ std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd) {
   for (unsigned i = 0; i != TargetList.size(); ++i) {
     auto target = TargetList[i];
     search_engine.add_target(target);
+    if(target == TargetType::CloNe) {
+      if(TargetList.size() > 1) {
+        Log::err() << "CloNe can only be specified as the single target\n";
+        exit(1);
+      }
+      if(InputTopologyFile.size() == 0) {
+        Log::err() << "Please provide a topology file for CloNe\n";
+        exit(1);
+      }
+      auto infrastructure = Clone::parse_infrastructure(InputTopologyFile);
+      search_engine.set_infrastructure(move(infrastructure));
+    }
   }
 
   Biggest biggest;
@@ -120,9 +140,9 @@ std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd) {
 
   // auto winner = search_engine.search(biggest);
   // auto winner = search_engine.search(least_reordered);
-  // auto winner = search_engine.search(dfs);
+   auto winner = search_engine.search(dfs);
   // auto winner = search_engine.search(most_compact);
-  auto winner = search_engine.search(maximize_switch_nodes);
+  //auto winner = search_engine.search(maximize_switch_nodes);
   const auto &ss = search_engine.get_search_space();
 
   return {winner, ss};

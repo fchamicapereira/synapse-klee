@@ -211,6 +211,8 @@ public:
       return "BMv2";
     case x86:
       return "x86";
+    case CloNe:
+      return "CloNe";
     }
 
     assert(false && "I should not be here");

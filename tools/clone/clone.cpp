@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
 
 	assert(InputNetworkFile.size() != 0 && "Please provide an input file");
 
-	auto network = Clone::parse(InputNetworkFile);
+	auto network = Clone::parse_network(InputNetworkFile);
 
 	string name = Out;
 	if(Out.size() == 0) {

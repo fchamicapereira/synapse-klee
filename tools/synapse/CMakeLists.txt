@@ -22,6 +22,10 @@ file(GLOB_RECURSE bdd-reorderer-sources
   "../bdd-reorderer/*.cpp"
 )
 
+file(GLOB_RECURSE clone-sources
+  "../clone/*.cpp"
+)
+
 file(GLOB_RECURSE klee-util-sources
   "../klee-util/*.cpp"
 )
@@ -30,6 +34,7 @@ list(FILTER synapse-sources EXCLUDE REGEX ".*boilerplate.*$")
 list(FILTER load-call-paths-sources EXCLUDE REGEX ".*main\\.cpp$")
 list(FILTER call-paths-to-bdd-sources EXCLUDE REGEX ".*main\\.cpp$")
 list(FILTER bdd-reorderer-sources EXCLUDE REGEX ".*main\\.cpp$")
+list(FILTER clone-sources EXCLUDE REGEX ".*clone\\.cpp$")
 list(FILTER klee-util-sources EXCLUDE REGEX ".*main\\.cpp$")
 
 add_executable(synapse
@@ -37,6 +42,7 @@ add_executable(synapse
   ${load-call-paths-sources}
   ${bdd-reorderer-sources}
   ${call-paths-to-bdd-sources}
+  ${clone-sources}
   ${klee-util-sources}
 )
 
@@ -45,7 +51,7 @@ set(KLEE_LIBS
   kleeCore
 )
 
-target_include_directories(synapse PRIVATE ../load-call-paths ../call-paths-to-bdd ../klee-util)
+target_include_directories(synapse PRIVATE ../load-call-paths ../call-paths-to-bdd ../klee-util ../clone)
 target_link_libraries(synapse ${KLEE_LIBS})
 
 install(TARGETS synapse RUNTIME DESTINATION bin)
