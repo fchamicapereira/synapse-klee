@@ -26,6 +26,8 @@ ExecutionPlanNode_ptr ExecutionPlanNode::get_prev() const { return prev; }
 int ExecutionPlanNode::get_id() const { return id; }
 void ExecutionPlanNode::set_id(int _id) { id = _id; }
 
+bool ExecutionPlanNode::is_terminal_node() const { return next.size() == 0; }
+
 void ExecutionPlanNode::replace_next(ExecutionPlanNode_ptr before,
                                      ExecutionPlanNode_ptr after) {
   for (auto &branch : next) {
@@ -57,7 +59,7 @@ ExecutionPlanNode_ptr ExecutionPlanNode::clone(bool recursive) const {
 
   if (recursive) {
     auto next_clones = Branches();
-    
+
     for (auto n : next) {
       auto cloned_next = n->clone(true);
       next_clones.push_back(cloned_next);

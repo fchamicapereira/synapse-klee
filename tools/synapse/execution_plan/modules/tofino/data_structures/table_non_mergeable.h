@@ -28,6 +28,14 @@ public:
 
   bool can_merge(const Table *other) const override { return false; }
   void merge(const Table *other) override {}
+
+  static TableRef build(const std::vector<key_t> &_keys,
+                        const std::vector<param_t> &_params,
+                        const std::vector<BDD::symbol_t> &_hit,
+                        const std::unordered_set<obj_addr_t> &_objs,
+                        const std::unordered_set<BDD::node_id_t> &_nodes) {
+    return TableRef(new TableNonMergeable(_keys, _params, _hit, _objs, _nodes));
+  }
 };
 
 } // namespace tofino

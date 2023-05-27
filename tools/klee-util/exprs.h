@@ -14,7 +14,7 @@ namespace kutil {
 
 bool get_bytes_read(klee::ref<klee::Expr> expr, std::vector<unsigned> &bytes);
 bool is_readLSB(klee::ref<klee::Expr> expr);
-bool is_readLSB(klee::ref<klee::Expr> expr, std::string& symbol);
+bool is_readLSB(klee::ref<klee::Expr> expr, std::string &symbol);
 bool is_packet_readLSB(klee::ref<klee::Expr> expr);
 bool is_packet_readLSB(klee::ref<klee::Expr> expr, bytes_t &offset,
                        int &n_bytes);

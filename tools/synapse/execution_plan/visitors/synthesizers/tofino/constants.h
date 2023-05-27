@@ -13,6 +13,7 @@ constexpr char MARKER_EGRESS_METADATA[] = "EGRESS METADATA";
 constexpr char MARKER_INGRESS_PARSER[] = "INGRESS PARSER";
 constexpr char MARKER_INGRESS_STATE[] = "INGRESS STATE";
 constexpr char MARKER_INGRESS_APPLY[] = "INGRESS APPLY";
+constexpr char MARKER_CPU_HEADER_FIELDS[] = "CPU HEADER FIELDS";
 
 constexpr char INGRESS_FORWARD_ACTION[] = "fwd";
 constexpr char INGRESS_DROP_ACTION[] = "drop";
@@ -27,6 +28,8 @@ constexpr char PARSER_CONDITIONAL_LABEL[] = "conditional_state_t_";
 constexpr char PARSER_PACKET_VARIABLE_LABEL[] = "pkt";
 constexpr char PARSER_INITIAL_STATE_LABEL[] = "parse_headers";
 constexpr char KEY_BYTE_LABEL[] = "key_byte_free";
+
+constexpr char CPU_HEADER_LABEL[] = "cpu";
 
 constexpr char INGRESS_USER_METADATA_VARIABLE[] = "meta";
 constexpr char INGRESS_PACKET_HEADER_VARIABLE[] = "hdr";

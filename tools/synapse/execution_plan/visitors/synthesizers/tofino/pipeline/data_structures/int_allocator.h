@@ -23,32 +23,41 @@ struct integer_allocator_t {
   Variable out_of_space;
   Variable allocated;
 
-  table_t allocated_values;
+  table_t query;
+  table_t rejuvenation;
 
   integer_allocator_t(obj_addr_t _dchain, uint64_t _capacity,
                       bits_t _value_size, Variable _head, Variable _tail,
                       Variable _out_of_space, Variable _allocated,
-                      table_t _allocated_values)
+                      table_t _query, table_t _rejuvenation)
       : dchain(_dchain), capacity(_capacity), value_size(_value_size),
         head(_head), tail(_tail), out_of_space(_out_of_space),
-        allocated(_allocated), allocated_values(_allocated_values) {}
+        allocated(_allocated), query(_query), rejuvenation(_rejuvenation) {}
 
-  static std::string get_expected_label(obj_addr_t dchain) {
+  static std::string get_label(obj_addr_t dchain) {
     std::stringstream label_builder;
     label_builder << "int_allocator_";
     label_builder << dchain;
     return label_builder.str();
   }
 
-  static std::string get_expected_table_label(obj_addr_t dchain) {
+  static std::string get_query_table_label(obj_addr_t dchain) {
     std::stringstream label_builder;
     label_builder << "int_allocator_";
     label_builder << dchain;
-    label_builder << "_allocated_values";
+    label_builder << "_query";
     return label_builder.str();
   }
 
-  static std::string get_expected_head_label(obj_addr_t dchain) {
+  static std::string get_rejuvenation_table_label(obj_addr_t dchain) {
+    std::stringstream label_builder;
+    label_builder << "int_allocator_";
+    label_builder << dchain;
+    label_builder << "_rejuvenation";
+    return label_builder.str();
+  }
+
+  static std::string get_head_label(obj_addr_t dchain) {
     std::stringstream label_builder;
     label_builder << "int_allocator_";
     label_builder << dchain;
@@ -56,7 +65,7 @@ struct integer_allocator_t {
     return label_builder.str();
   }
 
-  static std::string get_expected_tail_label(obj_addr_t dchain) {
+  static std::string get_tail_label(obj_addr_t dchain) {
     std::stringstream label_builder;
     label_builder << "int_allocator_";
     label_builder << dchain;
@@ -323,7 +332,7 @@ struct integer_allocator_t {
     builder.append("// integer allocator: rejuvenate");
     builder.append_new_line();
 
-    allocated_values.synthesize_apply(builder);
+    rejuvenation.synthesize_apply(builder);
   }
 
   void synthesize_query(CodeBuilder &builder, Variable hit) const {
@@ -331,7 +340,7 @@ struct integer_allocator_t {
     builder.append("// integer allocator: query");
     builder.append_new_line();
 
-    allocated_values.synthesize_apply(builder, hit);
+    query.synthesize_apply(builder, hit);
   }
 
   bool operator==(const integer_allocator_t &other) const {

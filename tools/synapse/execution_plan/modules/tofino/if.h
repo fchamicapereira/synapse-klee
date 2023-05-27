@@ -1,7 +1,6 @@
 #pragma once
 
 #include "else.h"
-#include "if_header_valid.h"
 #include "ignore.h"
 #include "then.h"
 #include "tofino_module.h"
@@ -93,7 +92,7 @@ private:
     assert(!casted->get_condition().isNull());
     auto _condition = casted->get_condition();
 
-    if (IfHeaderValid::is_packet_header_conditional_node(casted)) {
+    if (is_parser_condition(node)) {
       return result;
     }
 

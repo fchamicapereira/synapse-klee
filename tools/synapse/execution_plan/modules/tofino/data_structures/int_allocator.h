@@ -18,7 +18,8 @@ typedef std::shared_ptr<IntegerAllocator> IntegerAllocatorRef;
 
 class IntegerAllocator : public DataStructure {
 private:
-  Table table;
+  Table query;
+  Table rejuvenation;
   std::vector<klee::ref<klee::Expr>> integer;
   BDD::symbols_t out_of_space;
 
@@ -38,7 +39,8 @@ public:
   IntegerAllocator(uint64_t _capacity, obj_addr_t _obj,
                    const std::unordered_set<BDD::node_id_t> &_nodes)
       : DataStructure(Type::INTEGER_ALLOCATOR, {_obj}, _nodes),
-        table("int_allocator", {}, {}, {}, {_obj}, _nodes),
+        query("int_allocator_query", {}, {}, {}, {_obj}, _nodes),
+        rejuvenation("int_allocator_rejuvenation", {}, {}, {}, {_obj}, _nodes),
         capacity(_capacity) {
     integer_size = bits_required_for_capacity(capacity);
   }
@@ -53,7 +55,8 @@ public:
   }
 
   void add_is_allocated(const BDD::symbol_t &is_allocated) {
-    table.add_hit({is_allocated});
+    query.add_hit({is_allocated});
+    rejuvenation.add_hit({is_allocated});
   }
 
   bool operator==(const IntegerAllocator &other) const {
@@ -62,7 +65,8 @@ public:
     return *objs.begin() == *other.objs.begin();
   }
 
-  const Table &get_table() const { return table; }
+  const Table &get_query_table() const { return query; }
+  const Table &get_rejuvenation_table() const { return rejuvenation; }
 
   const std::vector<klee::ref<klee::Expr>> &get_integer() const {
     return integer;

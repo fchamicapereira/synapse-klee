@@ -7,10 +7,14 @@ namespace synapse {
 namespace symbex {
 
 constexpr char CHUNK[] = "packet_chunks";
-constexpr char PORT[] = "VIGOR_DEVICE";
 constexpr char PORT2[] = "device";
 constexpr char CPU_CODE_PATH[] = "cpu_code_path";
+
+constexpr char TIME[] = "next_time";
+constexpr char RECEIVED_PACKET[] = "received_a_packet";
+constexpr char BUFFER_LENGTH[] = "data_len";
 constexpr char PACKET_LENGTH[] = "pkt_len";
+constexpr char PORT[] = "VIGOR_DEVICE";
 
 constexpr char MAP_TYPE[] = "struct Map";
 constexpr char VECTOR_TYPE[] = "struct Vector";
@@ -130,6 +134,11 @@ constexpr char FN_EXPIRE_MAP_ARG_TIME[] = "time";
 constexpr char FN_LOADBALANCEDFLOW_HASH[] = "LoadBalancedFlow_hash";
 constexpr char FN_LOADBALANCEDFLOW_HASH_ARG_OBJ[] = "obj";
 constexpr char LOADBALANCEDFLOW_HASH_SYMBOL[] = "LoadBalancedFlow_hash";
+
+constexpr char FN_HASH_OBJ[] = "hash_obj";
+constexpr char FN_HASH_OBJ_ARG_OBJ[] = "obj";
+constexpr char FN_HASH_OBJ_ARG_SIZE[] = "size";
+constexpr char HASH_OBJ_HASH_SYMBOL[] = "hash";
 
 constexpr char KLEE_EXPR_IPV4_CONDITION[] =
     "(Eq (w32 0) (Or w32 (ZExt w32 (Eq false (Eq (w16 8) (ReadLSB w16 (w32 12) "

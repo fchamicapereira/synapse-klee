@@ -15,12 +15,13 @@
 
 #define DEFAULT_VISIT_PRINT_MODULE_NAME(M)                                     \
   void Graphviz::visit(const ExecutionPlanNode *ep_node, const M *node) {      \
-    function_call(node->get_node(), node->get_target(), node->get_name());     \
+    function_call(ep_node, node->get_node(), node->get_target(),               \
+                  node->get_name());                                           \
   }
 
 #define DEFAULT_BRANCH_VISIT_PRINT_MODULE_NAME(M)                              \
   void Graphviz::visit(const ExecutionPlanNode *ep_node, const M *node) {      \
-    branch(node->get_node(), node->get_target(), node->get_name());            \
+    branch(ep_node, node->get_node(), node->get_target(), node->get_name());   \
   }
 
 namespace synapse {
@@ -90,32 +91,29 @@ void Graphviz::open() {
   system(cmd.c_str());
 }
 
-void Graphviz::function_call(BDD::Node_ptr node, TargetType target,
-                             std::string label) {
+void Graphviz::function_call(const ExecutionPlanNode *ep_node,
+                             BDD::Node_ptr node, TargetType target,
+                             const std::string &label) {
   assert(node_colors.find(target) != node_colors.end());
   ofs << "[label=\"";
 
-  if (node) {
-    ofs << "[";
-    ofs << node->get_id();
-    ofs << "] ";
-  }
+  ofs << "[";
+  ofs << ep_node->get_id();
+  ofs << "] ";
 
   ofs << label << "\", ";
   ofs << "color=" << node_colors[target] << "];";
   ofs << "\n";
 }
 
-void Graphviz::branch(BDD::Node_ptr node, TargetType target,
-                      std::string label) {
+void Graphviz::branch(const ExecutionPlanNode *ep_node, BDD::Node_ptr node,
+                      TargetType target, const std::string &label) {
   assert(node_colors.find(target) != node_colors.end());
   ofs << "[shape=Mdiamond, label=\"";
 
-  if (node) {
-    ofs << "[";
-    ofs << node->get_id();
-    ofs << "] ";
-  }
+  ofs << "[";
+  ofs << ep_node->get_id();
+  ofs << "] ";
 
   ofs << label << "\", ";
   ofs << "color=" << node_colors[target] << "];";
@@ -606,10 +604,9 @@ void Graphviz::visit(const ExecutionPlanNode *ep_node,
   auto label = label_builder.str();
   find_and_replace(label, {{"\n", "\\n"}});
 
-  branch(bdd_node, target, label);
+  branch(ep_node, bdd_node, target, label);
 }
 
-DEFAULT_BRANCH_VISIT_PRINT_MODULE_NAME(targets::tofino::IfHeaderValid)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::Then)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::Else)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::Forward)
@@ -631,7 +628,7 @@ void Graphviz::visit(const ExecutionPlanNode *ep_node,
   auto label = label_builder.str();
   find_and_replace(label, {{"\n", "\\n"}});
 
-  function_call(bdd_node, target, label);
+  function_call(ep_node, bdd_node, target, label);
 }
 
 void Graphviz::visit(const ExecutionPlanNode *ep_node,
@@ -651,22 +648,14 @@ void Graphviz::visit(const ExecutionPlanNode *ep_node,
   auto label = label_builder.str();
   find_and_replace(label, {{"\n", "\\n"}});
 
-  branch(bdd_node, target, label);
+  branch(ep_node, bdd_node, target, label);
 }
 
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::ModifyCustomHeader)
-
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::EthernetConsume)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::EthernetModify)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::IPv4Consume)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::IPv4Modify)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::IPv4OptionsConsume)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::IPv4OptionsModify)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::TCPUDPConsume)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::TCPUDPModify)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::IPv4TCPUDPChecksumsUpdate)
 
-void Graphviz::visit_table(const targets::tofino::TableLookup *node,
+void Graphviz::visit_table(const ExecutionPlanNode *ep_node,
+                           const targets::tofino::MergeableTableLookup *node,
                            bool simple) {
   std::stringstream label_builder;
 
@@ -746,17 +735,17 @@ void Graphviz::visit_table(const targets::tofino::TableLookup *node,
   auto label = label_builder.str();
   find_and_replace(label, {{"\n", "\\l"}});
 
-  function_call(bdd_node, target, label);
+  function_call(ep_node, bdd_node, target, label);
+}
+
+void Graphviz::visit(const ExecutionPlanNode *ep_node,
+                     const targets::tofino::MergeableTableLookup *node) {
+  visit_table(ep_node, node, false);
 }
 
 void Graphviz::visit(const ExecutionPlanNode *ep_node,
                      const targets::tofino::TableLookup *node) {
-  visit_table(node, false);
-}
-
-void Graphviz::visit(const ExecutionPlanNode *ep_node,
-                     const targets::tofino::TableLookupSimple *node) {
-  visit_table(node, true);
+  visit_table(ep_node, node, true);
 }
 
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::RegisterRead)
@@ -764,8 +753,32 @@ DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::IntegerAllocatorAllocate)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::IntegerAllocatorRejuvenate)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::IntegerAllocatorQuery)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::Drop)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::SendToController)
+
+void Graphviz::visit(const ExecutionPlanNode *ep_node,
+                     const targets::tofino::SendToController *node) {
+  std::stringstream label_builder;
+
+  auto bdd_node = node->get_node();
+  auto target = node->get_target();
+  auto cpu_path = node->get_cpu_code_path();
+  auto state = node->get_dataplane_state();
+
+  label_builder << "Send To Controller\n";
+  label_builder << "\tPath ID: " << cpu_path << "\n";
+  label_builder << "\tDataplane state:\n";
+  for (auto s : state) {
+    label_builder << "\t" << s.label << "\n";
+  }
+
+  auto label = label_builder.str();
+  find_and_replace(label, {{"\n", "\\l"}});
+
+  function_call(ep_node, bdd_node, target, label);
+}
+
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::SetupExpirationNotifications)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::CounterRead)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::CounterIncrement)
 
 /********************************************
  *
@@ -774,10 +787,32 @@ DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::SetupExpirationNotifications)
  ********************************************/
 
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::Ignore)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::PacketParseCPU)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::PacketParseEthernet)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::PacketModifyEthernet)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::ForwardThroughTofino)
+
+void Graphviz::visit(const ExecutionPlanNode *ep_node,
+                     const targets::x86_tofino::PacketParseCPU *node) {
+  std::stringstream label_builder;
+
+  auto bdd_node = node->get_node();
+  auto target = node->get_target();
+  auto state = node->get_dataplane_state();
+
+  label_builder << "Parse CPU Header\n";
+  label_builder << "  Dataplane state:\n";
+  for (auto s : state) {
+    label_builder << "    [";
+    label_builder << s.label;
+    label_builder << "]\n";
+  }
+
+  auto label = label_builder.str();
+  find_and_replace(label, {{"\n", "\\l"}});
+
+  function_call(ep_node, bdd_node, target, label);
+}
+
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::PacketParseIPv4)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::PacketModifyIPv4)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::PacketParseIPv4Options)
@@ -832,5 +867,6 @@ DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86::MapErase)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86::DchainFreeIndex)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86::LoadBalancedFlowHash)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86::ChtFindBackend)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86::HashObj)
 
 } // namespace synapse

@@ -15,6 +15,7 @@ namespace synthesizer {
 namespace x86_tofino {
 
 enum hdr_field_id_t {
+  CPU_DATA_FIELD,
   CPU_CODE_PATH,
   CPU_IN_PORT,
   CPU_OUT_PORT,

@@ -11,18 +11,19 @@ struct MaximizeSwitchNodesComparator : public HeuristicConfiguration {
         ep,
         {
             // {Score::Category::NumberOfIntAllocatorOps, Score::MAX},
-            {Score::Category::NumberOfMergedTables, Score::MAX},
+            // {Score::Category::NumberOfMergedTables, Score::MAX},
             // {Score::Category::NumberOfSimpleTables, Score::MAX},
+            {Score::Category::NumberOfCounters, Score::MAX},
             {Score::Category::NumberOfSwitchNodes, Score::MAX},
             {Score::Category::NumberOfSwitchLeaves, Score::MAX},
-            {Score::Category::HasNextStatefulOperationInSwitch, Score::MAX},
+            // {Score::Category::HasNextStatefulOperationInSwitch, Score::MAX},
             {Score::Category::ConsecutiveObjectOperationsInSwitch, Score::MAX},
 
             // Let's add this one to just speed up the process when we are
             // generating controller nodes. After all, we only get to this point
             // if all the metrics behind this one are the same, and by that
             // point who cares.
-            {Score::Category::NumberOfControllerNodes, Score::MAX},
+            {Score::Category::ProcessedBDDPercentage, Score::MAX},
         });
 
     return score;

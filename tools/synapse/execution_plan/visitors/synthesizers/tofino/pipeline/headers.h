@@ -38,8 +38,7 @@ public:
 
   unsigned get_num_headers() const { return headers.size(); }
 
-  variable_query_t
-  query_hdr_field_from_chunk(klee::ref<klee::Expr> chunk) const {
+  variable_query_t get_field(klee::ref<klee::Expr> chunk) const {
     auto symbol = kutil::get_symbol(chunk);
 
     if (!symbol.first || symbol.second != symbex::CHUNK) {
@@ -51,16 +50,6 @@ public:
 
       if (varq.valid) {
         return varq;
-      }
-    }
-
-    return variable_query_t();
-  }
-
-  variable_query_t get_header(hdr_id_t hdr_id) const {
-    for (const auto &hdr : headers) {
-      if (hdr.get_id() == hdr_id) {
-        return variable_query_t(hdr, 0);
       }
     }
 

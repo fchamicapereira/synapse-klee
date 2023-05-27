@@ -110,6 +110,7 @@ std::map<std::string, bool> fn_has_side_effects_lookup{
     {"sketch_refresh", true},
     {"sketch_fetch", false},
     {"sketch_touch_buckets", true},
+    {"hash_obj", false},
 };
 
 std::vector<std::string> fn_cannot_reorder_lookup{
@@ -910,8 +911,7 @@ struct reordered {
   reordered(const BDD &_bdd, std::vector<Node_ptr> _next, int _times)
       : bdd(_bdd), next(_next), times(_times) {}
 
-  reordered(const BDD &_bdd, Node_ptr _on_true, Node_ptr _on_false,
-            int _times)
+  reordered(const BDD &_bdd, Node_ptr _on_true, Node_ptr _on_false, int _times)
       : bdd(_bdd), next(std::vector<Node_ptr>{_on_true, _on_false}),
         times(_times) {}
 

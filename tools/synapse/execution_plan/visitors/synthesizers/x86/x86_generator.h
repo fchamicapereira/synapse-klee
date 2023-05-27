@@ -111,6 +111,8 @@ public:
              const target::LoadBalancedFlowHash *node) override;
   void visit(const ExecutionPlanNode *ep_node,
              const target::ChtFindBackend *node) override;
+  void visit(const ExecutionPlanNode *ep_node,
+             const target::HashObj *node) override;
 
 private:
   void map_init(obj_addr_t addr, const symbex::map_config_t &cfg);

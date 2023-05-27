@@ -92,26 +92,19 @@ public:
   symbols_t get_generated_symbols(
       const std::unordered_set<node_id_t> &furthest_back_nodes) const;
 
-  virtual symbols_t get_local_generated_symbols() const;
-
   void update_id(node_id_t new_id);
-
-  static std::string process_call_path_filename(std::string call_path_filename);
   void process_call_paths(std::vector<call_path_t *> call_paths);
+  bool is_reachable_by_node(node_id_t id) const;
 
-  virtual std::vector<node_id_t> get_terminating_node_ids() const {
-    if (!next) {
-      return std::vector<node_id_t>{id};
-    }
-
-    return next->get_terminating_node_ids();
-  }
-
+  virtual symbols_t get_local_generated_symbols() const;
+  virtual std::vector<node_id_t> get_terminating_node_ids() const;
   virtual Node_ptr clone(bool recursive = false) const = 0;
   virtual void recursive_update_ids(node_id_t &new_id) = 0;
   virtual void visit(BDDVisitor &visitor) const = 0;
   virtual std::string dump(bool one_liner = false) const = 0;
   virtual std::string dump_recursive(int lvl = 0) const;
+
+  static std::string process_call_path_filename(std::string call_path_filename);
 
 protected:
   friend class Call;

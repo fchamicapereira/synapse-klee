@@ -73,12 +73,11 @@ private:
 
     auto new_module = std::make_shared<IntegerAllocatorRejuvenate>(
         node, _int_allocator, _index);
-    auto new_ep = ep.add_leaves(new_module, node->get_next());
 
-    save_decision(new_ep, _int_allocator);
+    result = postpone(ep, node, new_module);
+    assert(result.next_eps.size() == 1);
 
-    result.module = new_module;
-    result.next_eps.push_back(new_ep);
+    save_decision(*result.next_eps.begin(), _int_allocator);
 
     return result;
   }

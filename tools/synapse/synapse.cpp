@@ -87,6 +87,10 @@ llvm::cl::opt<bool> ShowSS("ss", desc("Show the entire search space."),
                            llvm::cl::ValueDisallowed, llvm::cl::init(false),
                            cat(SyNAPSE));
 
+llvm::cl::opt<int> Peek("peek",
+                        desc("Peek search space at the given BDD node."),
+                        llvm::cl::Optional, llvm::cl::init(-1), cat(SyNAPSE));
+
 llvm::cl::opt<bool> Verbose("v", desc("Verbose mode."),
                             llvm::cl::ValueDisallowed, llvm::cl::init(false),
                             cat(SyNAPSE));
@@ -112,7 +116,8 @@ BDD::BDD build_bdd() {
   return BDD::BDD(call_paths);
 }
 
-std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd) {
+std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd,
+                                             BDD::node_id_t peek) {
   SearchEngine search_engine(bdd, MaxReordered);
 
   for (unsigned i = 0; i != TargetList.size(); ++i) {
@@ -137,12 +142,14 @@ std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd) {
   MostCompact most_compact;
   LeastReordered least_reordered;
   MaximizeSwitchNodes maximize_switch_nodes;
+  Gallium gallium;
 
-  // auto winner = search_engine.search(biggest);
-  // auto winner = search_engine.search(least_reordered);
-  // auto winner = search_engine.search(dfs);
-  // auto winner = search_engine.search(most_compact);
-  auto winner = search_engine.search(maximize_switch_nodes);
+  // auto winner = search_engine.search(biggest, peek);
+  // auto winner = search_engine.search(least_reordered, peek);
+  // auto winner = search_engine.search(dfs, peek);
+  // auto winner = search_engine.search(most_compact, peek);
+  // auto winner = search_engine.search(maximize_switch_nodes, peek);
+  auto winner = search_engine.search(gallium, peek);
   const auto &ss = search_engine.get_search_space();
 
   return {winner, ss};
@@ -171,7 +178,7 @@ int main(int argc, char **argv) {
   BDD::BDD bdd = build_bdd();
 
   auto start_search = std::chrono::steady_clock::now();
-  auto search_results = search(bdd);
+  auto search_results = search(bdd, Peek);
   auto end_search = std::chrono::steady_clock::now();
 
   auto search_dt = std::chrono::duration_cast<std::chrono::seconds>(

@@ -85,6 +85,7 @@ private:
   symbols_t nf_set_rte_ipv4_udptcp_checksum(call_t call, const Node *node,
                                             bool save);
   symbols_t dchain_allocate(call_t call, const Node *node, bool save);
+  symbols_t hash_obj(call_t call, const Node *node, bool save);
 
 public:
   SymbolFactory() {
@@ -133,6 +134,7 @@ public:
         {"rte_ether_addr_hash", &SymbolFactory::rte_ether_addr_hash},
         {"nf_set_rte_ipv4_udptcp_checksum",
          &SymbolFactory::nf_set_rte_ipv4_udptcp_checksum},
+        {"hash_obj", &SymbolFactory::hash_obj},
     };
 
     stack.emplace_back();

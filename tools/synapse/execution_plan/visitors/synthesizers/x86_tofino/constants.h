@@ -8,7 +8,8 @@ constexpr char BOILERPLATE_FILE[] = "boilerplate.cpp";
 
 constexpr char MARKER_STATE_DECL[] = "NF STATE DECL";
 constexpr char MARKER_STATE_INIT[] = "NF STATE INIT";
-constexpr char MARKER_NF_PROCESS[] = "NF_PROCESS";
+constexpr char MARKER_NF_PROCESS[] = "NF PROCESS";
+constexpr char MARKER_CPU_HEADER[] = "CPU HEADER DATAPLANE STATE FIELDS";
 
 constexpr char DROP_PORT_VALUE[] = "DROP";
 

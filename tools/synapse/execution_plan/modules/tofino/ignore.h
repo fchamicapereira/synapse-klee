@@ -21,6 +21,7 @@ public:
     functions_to_ignore = {
         {symbex::FN_CURRENT_TIME, &Ignore::always_ignore},
         {symbex::FN_ETHER_HASH, &Ignore::always_ignore},
+        {symbex::FN_SET_CHECKSUM, &Ignore::always_ignore},
         {symbex::FN_VECTOR_RETURN, &Ignore::read_only_vector_op},
     };
   }
@@ -36,8 +37,7 @@ private:
 
   call_t get_previous_vector_borrow(const ExecutionPlan &ep, BDD::Node_ptr node,
                                     klee::ref<klee::Expr> wanted_vector) const {
-    auto prev_vector_borrows =
-        get_prev_fn(ep, node, symbex::FN_VECTOR_BORROW);
+    auto prev_vector_borrows = get_prev_fn(ep, node, symbex::FN_VECTOR_BORROW);
 
     for (auto prev_node : prev_vector_borrows) {
       assert(prev_node->get_type() == BDD::Node::NodeType::CALL);

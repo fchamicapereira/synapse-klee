@@ -79,7 +79,7 @@ public:
     }
   }
 
-  template <class T> ExecutionPlan search(Heuristic<T> h) {
+  template <class T> ExecutionPlan search(Heuristic<T> h, BDD::node_id_t peek) {
     auto first_execution_plan = ExecutionPlan(bdd);
 
     for (auto target : targets) {
@@ -95,7 +95,6 @@ public:
       auto next_node = next_ep.get_next_node();
       assert(next_node);
 
-      search_space.submit_leaves();
       search_space.set_winner(next_ep);
 
       report_t report(available, next_ep, next_node);
@@ -121,7 +120,13 @@ public:
         }
       }
 
+      search_space.submit_leaves();
+
       log_search_iteration(report);
+
+      if (next_node->get_id() == peek) {
+        Graphviz::visualize(search_space);
+      }
     }
 
     Log::log() << "Solutions:      " << h.get_all().size() << "\n";
@@ -147,8 +152,7 @@ private:
     Log::dbg() << "Available      " << report.available_execution_plans << "\n";
     Log::dbg() << "Execution Plan " << report.chosen.get_id() << "\n";
     Log::dbg() << "BDD progress   " << std::fixed << std::setprecision(2)
-               << 100 * report.chosen.get_percentage_of_processed_bdd_nodes()
-               << " %\n";
+               << 100 * report.chosen.get_bdd_processing_progress() << " %\n";
     Log::dbg() << "Current target " << Module::target_to_string(platform)
                << "\n";
     if (leaf && leaf->get_module()) {
@@ -174,9 +178,12 @@ private:
                    << "\n";
       }
     } else {
-      Log::wrn() << "No module can handle this BDD node"
+      Log::dbg() << "\n";
+      Log::dbg() << "\n";
+      Log::dbg() << "**DEAD END**: No module can handle this BDD node"
                     " in the current context.\n";
-      Log::wrn() << "Deleting solution from search space.\n";
+      Log::dbg() << "Deleting solution from search space.\n";
+      Log::dbg() << "\n";
     }
 
     Log::dbg() << "=======================================================\n";

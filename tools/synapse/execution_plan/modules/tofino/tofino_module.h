@@ -49,7 +49,7 @@ protected:
     }
 
     auto future_borrows =
-        get_all_functions_after_node(node, symbex::FN_BORROW_CHUNK);
+        get_all_functions_after_node(node, {symbex::FN_BORROW_CHUNK});
 
     if (future_borrows.size() == 0) {
       return false;
@@ -60,6 +60,11 @@ protected:
 
     return only_looks_at_packet;
   }
+
+  processing_result_t postpone(const ExecutionPlan &ep, BDD::Node_ptr node,
+                               Module_ptr new_module) const;
+  ExecutionPlan apply_postponed(ExecutionPlan ep, BDD::Node_ptr current_node,
+                                BDD::Node_ptr next_node) const;
 
 public:
   virtual void visit(ExecutionPlanVisitor &visitor,

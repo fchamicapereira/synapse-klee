@@ -591,6 +591,16 @@ symbols_t SymbolFactory::dchain_allocate(call_t call, const Node *node,
   return symbols;
 }
 
+symbols_t SymbolFactory::hash_obj(call_t call, const Node *node, bool save) {
+  symbols_t symbols;
+
+  klee::ref<klee::Expr> none;
+  auto hash_label = build_label("hash", node, save);
+  symbols.emplace(hash_label, "hash", none);
+
+  return symbols;
+}
+
 void SymbolFactory::translate(Node *current, Node *translation_source,
                               kutil::RenameSymbols renamer) {
   assert(current);

@@ -28,6 +28,7 @@ private:
   CodeBuilder state_decl_builder;
   CodeBuilder state_init_builder;
   CodeBuilder nf_process_builder;
+  CodeBuilder cpu_hdr_fields_builder;
 
   Transpiler transpiler;
 
@@ -41,23 +42,14 @@ public:
         state_decl_builder(get_indentation_level(MARKER_STATE_DECL)),
         state_init_builder(get_indentation_level(MARKER_STATE_INIT)),
         nf_process_builder(get_indentation_level(MARKER_NF_PROCESS)),
-        transpiler(*this), pending_ifs(nf_process_builder) {
-
-    const hdr_field_t cpu_code_path{CPU_CODE_PATH, HDR_CPU_CODE_PATH_FIELD, 16};
-    const hdr_field_t cpu_in_port{CPU_IN_PORT, HDR_CPU_IN_PORT_FIELD, 16};
-    const hdr_field_t cpu_out_port{CPU_OUT_PORT, HDR_CPU_OUT_PORT_FIELD, 16};
-
-    std::vector<hdr_field_t> fields = {cpu_code_path, cpu_in_port,
-                                       cpu_out_port};
-
-    auto header = Header(CPU, HDR_CPU_VARIABLE, fields);
-    headers.add(header);
-  }
+        cpu_hdr_fields_builder(get_indentation_level(MARKER_CPU_HEADER)),
+        transpiler(*this), pending_ifs(nf_process_builder) {}
 
   std::string transpile(klee::ref<klee::Expr> expr);
   virtual void generate(ExecutionPlan &target_ep) override { visit(target_ep); }
 
   void init_state(ExecutionPlan ep);
+
   variable_query_t search_variable(std::string symbol) const;
   variable_query_t search_variable(klee::ref<klee::Expr> expr) const;
 
@@ -88,8 +80,7 @@ public:
              const target::PacketModifyTCPUDP *node) override;
   void visit(const ExecutionPlanNode *ep_node,
              const target::PacketModifyChecksums *node) override;
-  void visit(const ExecutionPlanNode *ep_node,
-             const target::If *node) override;
+  void visit(const ExecutionPlanNode *ep_node, const target::If *node) override;
   void visit(const ExecutionPlanNode *ep_node,
              const target::Then *node) override;
   void visit(const ExecutionPlanNode *ep_node,

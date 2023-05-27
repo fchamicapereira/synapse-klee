@@ -15,39 +15,15 @@ namespace synapse {
 namespace synthesizer {
 namespace tofino {
 
-enum hdr_field_id_t {
-  DATA,
-  ETH_DST_ADDR,
-  ETH_SRC_ADDR,
-  ETH_ETHER_TYPE,
-  IPV4_VERSION,
-  IPV4_IHL,
-  IPV4_DSCP,
-  IPV4_TOT_LEN,
-  IPV4_ID,
-  IPV4_FRAG_OFF,
-  IPV4_TTL,
-  IPV4_PROTOCOL,
-  IPV4_CHECK,
-  IPV4_SRC_IP,
-  IPV4_DST_IP,
-  IPV4_OPTIONS_VALUE,
-  TCPUDP_SRC_PORT,
-  TCPUDP_DST_PORT,
-};
-
 struct hdr_field_t : public Variable {
-  hdr_field_id_t hdr_field_id;
   klee::ref<klee::Expr> var_length;
 
-  hdr_field_t(hdr_field_id_t _hdr_field_id, const std::string &_label,
-              unsigned _size_bits)
-      : Variable(_label, _size_bits), hdr_field_id(_hdr_field_id) {}
+  hdr_field_t(const std::string &_label, unsigned _size_bits)
+      : Variable(_label, _size_bits) {}
 
-  hdr_field_t(hdr_field_id_t _hdr_field_id, const std::string &_label,
-              unsigned _size_bits, klee::ref<klee::Expr> _var_length)
-      : Variable(_label, _size_bits), hdr_field_id(_hdr_field_id),
-        var_length(_var_length) {}
+  hdr_field_t(const std::string &_label, unsigned _size_bits,
+              klee::ref<klee::Expr> _var_length)
+      : Variable(_label, _size_bits), var_length(_var_length) {}
 
   std::string get_type() const override {
     std::stringstream type;
@@ -64,24 +40,16 @@ struct hdr_field_t : public Variable {
   }
 };
 
-enum hdr_id_t {
-  CUSTOM,
-  ETHERNET,
-  IPV4,
-  IPV4_OPTIONS,
-  TCPUDP,
-};
-
 class Header : public Variable {
 protected:
-  hdr_id_t hdr_id;
   std::vector<hdr_field_t> fields;
 
 public:
-  Header(hdr_id_t _hdr_id, const std::string &_label,
-         const klee::ref<klee::Expr> &_chunk,
+  Header(const std::string &_label) : Variable(_label, 0) {}
+
+  Header(const std::string &_label, const klee::ref<klee::Expr> &_chunk,
          const std::vector<hdr_field_t> &_fields)
-      : Variable(_label, _chunk->getWidth()), hdr_id(_hdr_id), fields(_fields) {
+      : Variable(_label, _chunk->getWidth()), fields(_fields) {
     assert(!_chunk.isNull());
     exprs.push_back(_chunk);
 
@@ -110,7 +78,7 @@ public:
     assert(!size_check || total_size_bits == _chunk->getWidth());
   }
 
-  void synthesize_def(CodeBuilder& builder) const {
+  void synthesize_def(CodeBuilder &builder) const {
     builder.indent();
     builder.append("header ");
     builder.append(label);
@@ -136,7 +104,7 @@ public:
     builder.append_new_line();
   }
 
-  void synthesize_decl(CodeBuilder& builder) const {
+  void synthesize_decl(CodeBuilder &builder) const {
     builder.indent();
     builder.append(label);
     builder.append("_h");
@@ -147,35 +115,7 @@ public:
   }
 
 public:
-  hdr_id_t get_id() const { return hdr_id; }
-
   const std::vector<hdr_field_t> &query_fields() const { return fields; }
-
-  variable_query_t query_field_var(hdr_field_id_t hdr_field_id) const {
-    for (const auto &field : fields) {
-      if (field.hdr_field_id != hdr_field_id) {
-        continue;
-      }
-
-      std::stringstream field_label;
-
-      field_label << INGRESS_PACKET_HEADER_VARIABLE;
-      field_label << ".";
-      field_label << label;
-      field_label << ".";
-      field_label << field.get_label();
-
-      auto label = field_label.str();
-      auto size_bits = field.get_size_bits();
-      auto expr = field.get_expr();
-
-      auto var = Variable(label, size_bits, expr);
-
-      return variable_query_t(var, 0);
-    }
-
-    return variable_query_t();
-  }
 
   variable_query_t query_field(klee::ref<klee::Expr> expr) const {
     auto symbol = kutil::get_symbol(expr);
@@ -185,13 +125,54 @@ public:
     }
 
     for (const auto &field : fields) {
-      auto field_expr = field.get_expr();
-      auto contains_result = kutil::solver_toolbox.contains(field_expr, expr);
+      for (auto field_expr : field.get_exprs()) {
+        auto contains_result = kutil::solver_toolbox.contains(field_expr, expr);
 
-      if (contains_result.contains) {
-        auto field_var = query_field_var(field.hdr_field_id);
-        field_var.offset_bits = contains_result.offset_bits;
-        return field_var;
+        if (contains_result.contains) {
+          std::stringstream field_label;
+
+          field_label << INGRESS_PACKET_HEADER_VARIABLE;
+          field_label << ".";
+          field_label << label;
+          field_label << ".";
+          field_label << field.get_label();
+
+          auto label = field_label.str();
+          auto size_bits = field.get_size_bits();
+          auto exprs = field.get_exprs();
+
+          auto field_var = Variable(label, size_bits);
+          field_var.add_exprs(exprs);
+
+          auto offset_bits = contains_result.offset_bits;
+
+          return variable_query_t(field_var, offset_bits);
+        }
+      }
+    }
+
+    return variable_query_t();
+  }
+
+  variable_query_t query_field(const std::string &symbol) const {
+    for (const auto &field : fields) {
+      if (field.match(symbol)) {
+        std::stringstream field_label;
+
+        field_label << INGRESS_PACKET_HEADER_VARIABLE;
+        field_label << ".";
+        field_label << label;
+        field_label << ".";
+        field_label << field.get_label();
+
+        auto label = field_label.str();
+        auto size_bits = field.get_size_bits();
+        auto exprs = field.get_exprs();
+
+        auto field_var = Variable(label, size_bits);        
+        field_var.add_exprs(exprs);
+
+        return variable_query_t(field_var, 0);
       }
     }
 
@@ -220,7 +201,14 @@ class CustomHeader : public Header {
 public:
   CustomHeader(const std::string &_label, const klee::ref<klee::Expr> &_chunk,
                bits_t size)
-      : Header(CUSTOM, _label, _chunk, {hdr_field_t(DATA, "data", size)}) {}
+      : Header(_label, _chunk, {hdr_field_t("data", size)}) {}
+};
+
+class CpuHeader : public Header {
+public:
+  CpuHeader() : Header(CPU_HEADER_LABEL) {}
+
+  void add_field(const hdr_field_t &field) { fields.push_back(field); }
 };
 
 } // namespace tofino

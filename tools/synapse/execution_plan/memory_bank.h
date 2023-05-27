@@ -29,10 +29,11 @@ struct reorder_data_t {
 };
 
 enum PlacementDecision {
-  TofinoTable = 1,
-  TofinoTableSimple = 2,
-  TofinoRegister = 3,
-  IntegerAllocator = 4,
+  TofinoTable,
+  TofinoTableSimple,
+  TofinoRegister,
+  IntegerAllocator,
+  Counter,
 };
 
 struct expiration_data_t {
@@ -41,7 +42,7 @@ struct expiration_data_t {
   BDD::symbol_t number_of_freed_flows;
 
   expiration_data_t() : valid(false) {}
-  
+
   expiration_data_t(time_ns_t _expiration_time,
                     const BDD::symbol_t &_number_of_freed_flows)
       : valid(true), expiration_time(_expiration_time),

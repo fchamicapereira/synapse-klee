@@ -10,6 +10,7 @@
 #include "domain/table.h"
 #include "domain/variable.h"
 
+#include "data_structures/counter.h"
 #include "data_structures/int_allocator.h"
 
 #include "headers.h"
@@ -27,21 +28,26 @@ private:
 
   tables_t tables;
   integer_allocators_t int_allocators;
+  counters_t counters;
 
 public:
   CodeBuilder state_builder;
   CodeBuilder apply_block_builder;
   CodeBuilder user_metadata_builder;
+  CodeBuilder cpu_header_fields_builder;
 
   Parser parser;
 
   stack_t local_vars;
+  CpuHeader cpu_header;
   PendingIfs pending_ifs;
 
   Ingress(int headers_def_ind, int headers_decl_ind, int parser_ind,
-          int user_meta_ind, int state_ind, int apply_block_ind)
+          int user_meta_ind, int state_ind, int apply_block_ind,
+          int cpu_header_fields_ind)
       : state_builder(state_ind), apply_block_builder(apply_block_ind),
         user_metadata_builder(user_meta_ind),
+        cpu_header_fields_builder(cpu_header_fields_ind),
         parser(headers_def_ind, headers_decl_ind, parser_ind),
         pending_ifs(apply_block_builder) {
     intrinsic_metadata = std::vector<Variable>{
@@ -281,6 +287,36 @@ public:
     return var;
   }
 
+  void set_cpu_hdr_fields(const BDD::symbols_t &fields) {
+    for (auto field : fields) {
+      auto label = field.label;
+      auto size = field.expr->getWidth();
+
+      auto hdr_field = hdr_field_t(label, size);
+      hdr_field.add_expr(field.expr);
+      hdr_field.add_symbols({field.label});
+
+      cpu_header.add_field(hdr_field);
+
+      cpu_header_fields_builder.indent();
+      cpu_header_fields_builder.append(hdr_field.get_type());
+      cpu_header_fields_builder.append(" ");
+      cpu_header_fields_builder.append(hdr_field.get_label());
+      cpu_header_fields_builder.append(";");
+      cpu_header_fields_builder.append_new_line();
+    }
+  }
+
+  variable_query_t get_cpu_hdr_field(const BDD::symbol_t &symbol) {
+    auto varq = cpu_header.query_field(symbol.label);
+
+    if (varq.valid) {
+      return varq;
+    }
+
+    return cpu_header.query_field(symbol.expr);
+  }
+
   void add_table(const table_t &table) { tables.insert(table); }
 
   const table_t &get_table(const std::string &label) const {
@@ -297,6 +333,8 @@ public:
     int_allocators.insert(int_allocator);
   }
 
+  void add_counter(const counter_t &counter) { counters.insert(counter); }
+
   const integer_allocator_t &get_int_allocator(obj_addr_t obj) const {
     auto it = std::find_if(int_allocators.begin(), int_allocators.end(),
                            [&](const integer_allocator_t &int_allocator) {
@@ -307,6 +345,15 @@ public:
     return *it;
   }
 
+  const counter_t &get_counter(obj_addr_t obj) const {
+    auto it = std::find_if(
+        counters.begin(), counters.end(),
+        [&](const counter_t &counter) { return counter.vector == obj; });
+
+    assert(it != counters.end());
+    return *it;
+  }
+
   void synthesize_state(std::ostream &os) {
     for (const auto &table : tables) {
       table.synthesize_declaration(state_builder);
@@ -314,6 +361,10 @@ public:
 
     for (const auto &int_allocator : int_allocators) {
       int_allocator.synthesize_declaration(state_builder);
+    }
+
+    for (const auto &counter : counters) {
+      counter.synthesize_declaration(state_builder);
     }
 
     state_builder.dump(os);
@@ -336,6 +387,10 @@ public:
   }
 
   void synthesize_parser(std::ostream &os) { parser.synthesize(os); }
+
+  void synthesize_cpu_header(std::ostream &os) {
+    cpu_header_fields_builder.dump(os);
+  }
 }; // namespace tofino
 
 } // namespace tofino

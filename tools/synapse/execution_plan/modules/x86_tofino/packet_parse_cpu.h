@@ -7,26 +7,21 @@ namespace synapse {
 namespace targets {
 namespace x86_tofino {
 
+typedef uint16_t cpu_code_path_t;
+
 class PacketParseCPU : public Module {
 private:
-  BDD::symbol_t cpu_code_path;
+  BDD::symbols_t dataplane_state;
 
 public:
   PacketParseCPU()
       : Module(ModuleType::x86_Tofino_PacketParseCPU, TargetType::x86_Tofino,
                "PacketParseCPU") {}
 
-  PacketParseCPU(BDD::Node_ptr node)
+  PacketParseCPU(const BDD::symbols_t &_dataplane_state)
       : Module(ModuleType::x86_Tofino_PacketParseCPU, TargetType::x86_Tofino,
-               "PacketParseCPU", node) {
-    auto label = symbex::CPU_CODE_PATH;
-    auto cpu_code_path_expr =
-        kutil::solver_toolbox.create_new_symbol(label, 16);
-
-    cpu_code_path.label = label;
-    cpu_code_path.label_base = label;
-    cpu_code_path.expr = cpu_code_path_expr;
-  }
+               "PacketParseCPU", nullptr),
+        dataplane_state(_dataplane_state) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
@@ -42,15 +37,19 @@ public:
   }
 
   virtual Module_ptr clone() const override {
-    auto cloned = new PacketParseCPU(node);
+    auto cloned = new PacketParseCPU(dataplane_state);
     return std::shared_ptr<Module>(cloned);
   }
 
   virtual bool equals(const Module *other) const override {
-    return other->get_type() == type;
+    if (other->get_type() != type) {
+      return false;
+    }
+
+    return true;
   }
 
-  BDD::symbol_t get_cpu_code_path() const { return cpu_code_path; }
+  const BDD::symbols_t &get_dataplane_state() const { return dataplane_state; }
 };
 } // namespace x86_tofino
 } // namespace targets

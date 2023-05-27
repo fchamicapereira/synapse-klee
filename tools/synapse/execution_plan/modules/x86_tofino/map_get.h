@@ -129,8 +129,6 @@ private:
         x86TofinoMemoryBank::vector_borrow_t{_vector_addr, _borrowed_cell};
 
     auto mb = ep.get_memory_bank<x86TofinoMemoryBank>(x86_Tofino);
-    mb->set_vector_borrow(vector_borrow_data);
-
     auto saved = mb->has_data_structure(_vector_addr);
 
     if (!saved) {

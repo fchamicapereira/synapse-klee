@@ -160,9 +160,9 @@ private:
     auto rhs = casted->get_on_false();
 
     auto lhs_borrows =
-        get_all_functions_after_node(lhs, symbex::FN_BORROW_CHUNK, true);
+        get_all_functions_after_node(lhs, {symbex::FN_BORROW_CHUNK}, true);
     auto rhs_borrows =
-        get_all_functions_after_node(rhs, symbex::FN_BORROW_CHUNK, true);
+        get_all_functions_after_node(rhs, {symbex::FN_BORROW_CHUNK}, true);
 
     if (lhs_borrows.size() == 0 && rhs_borrows.size() == 0) {
       generate_parser_condition(ep, node, _parsing_cond, false, result);

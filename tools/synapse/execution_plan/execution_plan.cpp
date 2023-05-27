@@ -420,6 +420,11 @@ ExecutionPlan ExecutionPlan::ignore_leaf(const BDD::Node_ptr &next,
   return new_ep;
 }
 
+void ExecutionPlan::force_termination() {
+  assert(leaves.size());
+  leaves.erase(leaves.begin());
+}
+
 ExecutionPlan ExecutionPlan::add_leaves(Module_ptr new_module,
                                         const BDD::Node_ptr &next,
                                         bool is_terminal,
@@ -483,7 +488,7 @@ void ExecutionPlan::replace_active_leaf_node(BDD::Node_ptr next,
   leaves[0].next = next;
 }
 
-float ExecutionPlan::get_percentage_of_processed_bdd_nodes() const {
+float ExecutionPlan::get_bdd_processing_progress() const {
   auto process = bdd.get_process();
   assert(process);
   auto total_nodes = process->count_children() + 1;

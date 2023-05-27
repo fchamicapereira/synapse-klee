@@ -16,7 +16,29 @@ std::string TofinoGenerator::transpile(klee::ref<klee::Expr> expr) {
   return code;
 }
 
-variable_query_t TofinoGenerator::search_variable(std::string symbol) const {
+variable_query_t
+TofinoGenerator::search_variable(const BDD::symbol_t &symbol) const {
+  auto ingress_var = ingress.search_variable(symbol.label);
+
+  if (ingress_var.valid) {
+    return ingress_var;
+  }
+
+  if (symbol.expr.isNull()) {
+    return variable_query_t();
+  }
+
+  auto res = kutil::get_symbol(symbol.expr);
+
+  if (!res.first || res.second != symbol.label) {
+    return variable_query_t();
+  }
+
+  return ingress.search_variable(symbol.expr);
+}
+
+variable_query_t
+TofinoGenerator::search_variable(const std::string &symbol) const {
   auto ingress_var = ingress.search_variable(symbol);
 
   if (ingress_var.valid) {
@@ -34,7 +56,7 @@ TofinoGenerator::search_variable(klee::ref<klee::Expr> expr) const {
     return ingress_var;
   }
 
-  auto hdr_field = ingress.parser.headers.query_hdr_field_from_chunk(expr);
+  auto hdr_field = ingress.parser.headers.get_field(expr);
 
   if (hdr_field.valid) {
     return hdr_field;
@@ -50,6 +72,12 @@ TofinoGenerator::search_variable(klee::ref<klee::Expr> expr) const {
   }
 
   return variable_query_t();
+}
+
+void TofinoGenerator::build_cpu_header(const ExecutionPlan &ep) {
+  auto tmb = ep.get_memory_bank<target::TofinoMemoryBank>(Tofino);
+  auto dp_state = tmb->get_dataplane_state();
+  ingress.set_cpu_hdr_fields(dp_state);
 }
 
 void TofinoGenerator::allocate_table(const target::Table *_table) {
@@ -83,6 +111,21 @@ void TofinoGenerator::allocate_table(const target::Table *_table) {
   ingress.add_table(table);
 }
 
+void TofinoGenerator::allocate_counter(const target::Counter *_counter) {
+  assert(_counter);
+
+  auto objs = _counter->get_objs();
+  assert(objs.size() == 1);
+
+  auto vector = *objs.begin();
+  auto capacity = _counter->get_capacity();
+  auto value_size = _counter->get_value_size();
+  auto max_value = _counter->get_max_value();
+
+  auto counter = counter_t(vector, capacity, value_size, max_value);
+  ingress.add_counter(counter);
+}
+
 void TofinoGenerator::allocate_int_allocator(
     const target::IntegerAllocator *_int_allocator) {
   assert(_int_allocator);
@@ -98,9 +141,11 @@ void TofinoGenerator::allocate_int_allocator(
 
   assert(integer.size() > 0);
 
-  auto head_label = integer_allocator_t::get_expected_head_label(dchain);
-  auto tail_label = integer_allocator_t::get_expected_tail_label(dchain);
-  auto table_label = integer_allocator_t::get_expected_table_label(dchain);
+  auto head_label = integer_allocator_t::get_head_label(dchain);
+  auto tail_label = integer_allocator_t::get_tail_label(dchain);
+  auto query_table_label = integer_allocator_t::get_query_table_label(dchain);
+  auto rejuvenation_table_label =
+      integer_allocator_t::get_rejuvenation_table_label(dchain);
 
   auto head_var = ingress.allocate_local_auxiliary(head_label, integer_size);
   auto tail_var = ingress.allocate_meta(tail_label, integer_size);
@@ -115,13 +160,17 @@ void TofinoGenerator::allocate_int_allocator(
 
   auto allocated_var = ingress.allocate_meta("allocated", integer);
 
-  auto allocated_values =
-      table_t(table_label, {allocated_var.get_label()}, {}, capacity);
-  ingress.add_table(allocated_values);
+  auto query_table =
+      table_t(query_table_label, {allocated_var.get_label()}, {}, capacity);
+  ingress.add_table(query_table);
 
-  auto int_allocator =
-      integer_allocator_t(dchain, capacity, integer_size, head_var, tail_var,
-                          out_of_space_var, allocated_var, allocated_values);
+  auto rejuvenation_table = table_t(rejuvenation_table_label,
+                                    {allocated_var.get_label()}, {}, capacity);
+  ingress.add_table(rejuvenation_table);
+
+  auto int_allocator = integer_allocator_t(
+      dchain, capacity, integer_size, head_var, tail_var, out_of_space_var,
+      allocated_var, query_table, rejuvenation_table);
   ingress.add_integer_allocator(int_allocator);
 }
 
@@ -139,6 +188,10 @@ void TofinoGenerator::allocate_state(const ExecutionPlan &ep) {
     case target::DataStructure::INTEGER_ALLOCATOR: {
       auto int_allocator = static_cast<target::IntegerAllocator *>(impl.get());
       allocate_int_allocator(int_allocator);
+    } break;
+    case target::DataStructure::COUNTER: {
+      auto counter = static_cast<target::Counter *>(impl.get());
+      allocate_counter(counter);
     } break;
     }
   }
@@ -160,10 +213,12 @@ void TofinoGenerator::visit(ExecutionPlan ep) {
     ingress.local_vars.append(var);
   }
 
+  build_cpu_header(ep);
   allocate_state(ep);
 
   ExecutionPlanVisitor::visit(ep);
 
+  std::stringstream cpu_header_fields_code;
   std::stringstream ingress_headers_decl_code;
   std::stringstream ingress_headers_def_code;
   std::stringstream ingress_metadata_code;
@@ -172,6 +227,7 @@ void TofinoGenerator::visit(ExecutionPlan ep) {
   std::stringstream ingress_state_code;
   std::stringstream ingress_apply_code;
 
+  ingress.synthesize_cpu_header(cpu_header_fields_code);
   ingress.synthesize_headers(ingress_headers_def_code,
                              ingress_headers_decl_code);
   ingress.synthesize_user_metadata(ingress_metadata_code);
@@ -179,6 +235,7 @@ void TofinoGenerator::visit(ExecutionPlan ep) {
   ingress.synthesize_state(ingress_state_code);
   ingress.synthesize_apply_block(ingress_apply_code);
 
+  fill_mark(MARKER_CPU_HEADER_FIELDS, cpu_header_fields_code.str());
   fill_mark(MARKER_INGRESS_HEADERS_DEF, ingress_headers_def_code.str());
   fill_mark(MARKER_INGRESS_HEADERS_DECL, ingress_headers_decl_code.str());
   fill_mark(MARKER_INGRESS_PARSER, ingress_parser_code.str());
@@ -195,6 +252,13 @@ void TofinoGenerator::visit(const ExecutionPlanNode *ep_node) {
   log(ep_node);
 
   mod->visit(*this, ep_node);
+
+  if (ep_node->is_terminal_node()) {
+    auto closed = ingress.pending_ifs.close();
+    for (auto i = 0; i < closed; i++) {
+      ingress.local_vars.pop();
+    }
+  }
 
   for (auto branch : next) {
     branch->visit(*this);
@@ -281,54 +345,6 @@ void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
 }
 
 void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
-                            const target::IfHeaderValid *node) {
-  assert(node);
-
-  auto header = node->get_header();
-
-  std::stringstream ingress_condition_builder;
-
-  ingress_condition_builder << INGRESS_PACKET_HEADER_VARIABLE;
-  ingress_condition_builder << ".";
-
-  switch (header) {
-  case target::IfHeaderValid::PacketHeader::ETHERNET: {
-    ingress_condition_builder << HDR_ETH;
-    ingress_condition_builder << ".isValid()";
-  } break;
-  case target::IfHeaderValid::PacketHeader::IPV4: {
-    ingress_condition_builder << HDR_IPV4;
-    ingress_condition_builder << ".isValid()";
-  } break;
-  case target::IfHeaderValid::PacketHeader::NOT_IPV4_OPTIONS: {
-    ingress_condition_builder << HDR_IPV4;
-    ingress_condition_builder << ".";
-    ingress_condition_builder << HDR_IPV4_IHL_FIELD;
-    ingress_condition_builder << " <= 5";
-  } break;
-  case target::IfHeaderValid::PacketHeader::TCPUDP: {
-    ingress_condition_builder << HDR_TCPUDP;
-    ingress_condition_builder << ".isValid()";
-  } break;
-  default:
-    assert(false && "Should not be here.");
-  }
-
-  auto transpiled = ingress_condition_builder.str();
-
-  ingress.apply_block_builder.indent();
-  ingress.apply_block_builder.append("if (");
-  ingress.apply_block_builder.append(transpiled);
-  ingress.apply_block_builder.append(") {");
-  ingress.apply_block_builder.append_new_line();
-
-  ingress.apply_block_builder.inc_indentation();
-
-  ingress.local_vars.push();
-  ingress.pending_ifs.push();
-}
-
-void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
                             const target::Then *node) {
   assert(node);
 }
@@ -356,12 +372,6 @@ void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
   ingress.apply_block_builder.append(port);
   ingress.apply_block_builder.append(");");
   ingress.apply_block_builder.append_new_line();
-
-  auto closed = ingress.pending_ifs.close();
-
-  for (auto i = 0; i < closed; i++) {
-    ingress.local_vars.pop();
-  }
 }
 
 bool has_pending_parsing_ops(const ExecutionPlanNode *node) {
@@ -467,101 +477,18 @@ void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
 }
 
 void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
-                            const target::EthernetModify *node) {
-  assert(node);
-
-  auto ethernet_chunk = node->get_ethernet_chunk();
-  auto modifications = node->get_modifications();
-
-  for (auto mod : modifications) {
-    auto byte = mod.byte;
-    auto expr = mod.expr;
-
-    auto modified_byte = kutil::solver_toolbox.exprBuilder->Extract(
-        ethernet_chunk, byte * 8, klee::Expr::Int8);
-
-    auto transpiled_byte = transpile(modified_byte);
-    auto transpiled_expr = transpile(expr);
-
-    ingress.apply_block_builder.indent();
-    ingress.apply_block_builder.append(transpiled_byte);
-    ingress.apply_block_builder.append(" = ");
-    ingress.apply_block_builder.append(transpiled_expr);
-    ingress.apply_block_builder.append(";");
-    ingress.apply_block_builder.append_new_line();
-  }
-}
-
-void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
-                            const target::IPv4Modify *node) {
-  assert(node);
-
-  auto ipv4_chunk = node->get_ipv4_chunk();
-  auto modifications = node->get_modifications();
-
-  for (auto mod : modifications) {
-    auto byte = mod.byte;
-    auto expr = mod.expr;
-
-    if (byte >= 10 && byte <= 11) {
-      // We don't care about changes to the checksum here
-      continue;
-    }
-
-    auto modified_byte = kutil::solver_toolbox.exprBuilder->Extract(
-        ipv4_chunk, byte * 8, klee::Expr::Int8);
-
-    auto transpiled_byte = transpile(modified_byte);
-    auto transpiled_expr = transpile(expr);
-
-    ingress.apply_block_builder.indent();
-    ingress.apply_block_builder.append(transpiled_byte);
-    ingress.apply_block_builder.append(" = ");
-    ingress.apply_block_builder.append(transpiled_expr);
-    ingress.apply_block_builder.append(";");
-    ingress.apply_block_builder.append_new_line();
-  }
-}
-
-void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
-                            const target::TCPUDPModify *node) {
-  assert(node);
-
-  auto tcpudp_chunk = node->get_tcpudp_chunk();
-  auto modifications = node->get_modifications();
-
-  for (auto mod : modifications) {
-    auto byte = mod.byte;
-    auto expr = mod.expr;
-
-    auto modified_byte = kutil::solver_toolbox.exprBuilder->Extract(
-        tcpudp_chunk, byte * 8, klee::Expr::Int8);
-
-    auto transpiled_byte = transpile(modified_byte);
-    auto transpiled_expr = transpile(expr);
-
-    ingress.apply_block_builder.indent();
-    ingress.apply_block_builder.append(transpiled_byte);
-    ingress.apply_block_builder.append(" = ");
-    ingress.apply_block_builder.append(transpiled_expr);
-    ingress.apply_block_builder.append(";");
-    ingress.apply_block_builder.append_new_line();
-  }
-}
-
-void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
                             const target::IPv4TCPUDPChecksumsUpdate *node) {
   // TODO: implement
 }
 
 void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
-                            const target::TableLookupSimple *node) {
-  auto simple_table = static_cast<const target::TableLookup *>(node);
+                            const target::TableLookup *node) {
+  auto simple_table = static_cast<const target::MergeableTableLookup *>(node);
   visit(ep_node, simple_table);
 }
 
 void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
-                            const target::TableLookup *node) {
+                            const target::MergeableTableLookup *node) {
   assert(node);
 
   auto _table = node->get_table();
@@ -709,12 +636,6 @@ void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
   ingress.apply_block_builder.indent();
   ingress.apply_block_builder.append("drop();");
   ingress.apply_block_builder.append_new_line();
-
-  auto closed = ingress.pending_ifs.close();
-
-  for (auto i = 0; i < closed; i++) {
-    ingress.local_vars.pop();
-  }
 }
 
 void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
@@ -725,6 +646,7 @@ void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
 void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
                             const target::SendToController *node) {
   auto cpu_code_path = node->get_cpu_code_path();
+  auto dataplane_state = node->get_dataplane_state();
 
   ingress.apply_block_builder.indent();
   ingress.apply_block_builder.append(INGRESS_SEND_TO_CPU_ACTION);
@@ -733,11 +655,106 @@ void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
   ingress.apply_block_builder.append(");");
   ingress.apply_block_builder.append_new_line();
 
-  auto closed = ingress.pending_ifs.close();
+  for (auto dps : dataplane_state) {
+    auto hdr_field = ingress.get_cpu_hdr_field(dps);
+    assert(hdr_field.valid);
 
-  for (auto i = 0; i < closed; i++) {
-    ingress.local_vars.pop();
+    auto local_var = search_variable(dps);
+    assert(local_var.valid);
+
+    if (local_var.var->get_size_bits() == 1) {
+      auto actual_size = hdr_field.var->get_size_bits();
+      // HACK :<
+      // true ? 1 : 0
+
+      ingress.apply_block_builder.indent();
+      ingress.apply_block_builder.append("if (");
+      ingress.apply_block_builder.append(local_var.var->get_label());
+      ingress.apply_block_builder.append(") {");
+      ingress.apply_block_builder.append_new_line();
+      ingress.apply_block_builder.inc_indentation();
+
+      ingress.apply_block_builder.indent();
+      ingress.apply_block_builder.append(hdr_field.var->get_label());
+      ingress.apply_block_builder.append(" = ");
+      ingress.apply_block_builder.append(actual_size);
+      ingress.apply_block_builder.append("w1;");
+      ingress.apply_block_builder.append_new_line();
+
+      ingress.apply_block_builder.dec_indentation();
+
+      ingress.apply_block_builder.indent();
+      ingress.apply_block_builder.append("} else {");
+      ingress.apply_block_builder.append_new_line();
+      ingress.apply_block_builder.inc_indentation();
+
+      ingress.apply_block_builder.indent();
+      ingress.apply_block_builder.append(hdr_field.var->get_label());
+      ingress.apply_block_builder.append(" = ");
+      ingress.apply_block_builder.append(actual_size);
+      ingress.apply_block_builder.append("w0;");
+      ingress.apply_block_builder.append_new_line();
+
+      ingress.apply_block_builder.dec_indentation();
+
+      ingress.apply_block_builder.indent();
+      ingress.apply_block_builder.append("}");
+      ingress.apply_block_builder.append_new_line();
+    } else {
+      ingress.apply_block_builder.indent();
+      ingress.apply_block_builder.append(hdr_field.var->get_label());
+      ingress.apply_block_builder.append(" = ");
+      ingress.apply_block_builder.append(local_var.var->get_label());
+      ingress.apply_block_builder.append(";");
+      ingress.apply_block_builder.append_new_line();
+    }
   }
+}
+
+void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
+                            const target::CounterRead *node) {
+  assert(node);
+
+  auto _counter = node->get_counter();
+  auto index = node->get_index();
+  auto value = node->get_value();
+
+  auto objs = _counter->get_objs();
+  assert(objs.size() == 1);
+
+  auto vector = *objs.begin();
+
+  auto value_label = counter_t::get_value_label(vector);
+  auto value_var = ingress.allocate_local_auxiliary(
+      value_label, _counter->get_value_size(), {value}, {});
+
+  const auto &counter = ingress.get_counter(vector);
+  auto transpiled_integer = transpile(index);
+
+  counter.synthesize_read(ingress.apply_block_builder, transpiled_integer, value_var);
+}
+
+void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
+                            const target::CounterIncrement *node) {
+  assert(node);
+
+  auto _counter = node->get_counter();
+  auto index = node->get_index();
+  auto value = node->get_value();
+
+  auto objs = _counter->get_objs();
+  assert(objs.size() == 1);
+
+  auto vector = *objs.begin();
+
+  auto value_label = counter_t::get_value_label(vector);
+  auto value_var = ingress.allocate_local_auxiliary(
+      value_label, _counter->get_value_size(), {value}, {});
+
+  const auto &counter = ingress.get_counter(vector);
+  auto transpiled_integer = transpile(index);
+
+  counter.synthesize_inc(ingress.apply_block_builder, transpiled_integer, value_var);
 }
 
 } // namespace tofino

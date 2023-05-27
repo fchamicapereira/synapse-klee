@@ -60,6 +60,10 @@ public:
 
   void add_expr(klee::ref<klee::Expr> expr) { exprs.push_back(expr); }
 
+  void add_exprs(const std::vector<klee::ref<klee::Expr>> &_exprs) {
+    exprs.insert(exprs.end(), _exprs.begin(), _exprs.end());
+  }
+
   void add_symbols(const std::vector<std::string> &symbols) {
     vigor_symbols.insert(vigor_symbols.end(), symbols.begin(), symbols.end());
   }
@@ -68,6 +72,8 @@ public:
     assert(exprs.size() == 0);
     return exprs.push_back(expr);
   }
+
+  const std::vector<klee::ref<klee::Expr>> &get_exprs() const { return exprs; }
 
   klee::ref<klee::Expr> get_expr() const {
     assert(exprs.size() == 1);
@@ -88,7 +94,7 @@ public:
     return type.str();
   }
 
-  bool match(std::string s) const {
+  bool match(const std::string &s) const {
     for (const auto &symbol : vigor_symbols) {
       if (symbol == s) {
         return true;

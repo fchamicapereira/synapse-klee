@@ -322,6 +322,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node) {
 void x86Generator::visit(const ExecutionPlanNode *ep_node,
                          const target::MapGet *node) {
   auto map_addr = node->get_map_addr();
+  auto key_addr = node->get_key_addr();
   auto key = node->get_key();
   auto value_out = node->get_value_out();
   auto success = node->get_success();
@@ -347,6 +348,9 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
 
   auto key_label_base = map.var->get_label() + "_key";
   auto key_label = vars.get_new_label(key_label_base);
+  auto key_var = Variable(key_label, key);
+  key_var.set_addr(key_addr);
+  vars.append(key_var);
 
   assert(key->getWidth() > 0);
   assert(key->getWidth() % 8 == 0);
@@ -695,7 +699,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   auto vector_addr = node->get_vector_addr();
   auto index = node->get_index();
   auto value_addr = node->get_value_addr();
-  auto value = node->get_value();
+  auto modifications = node->get_modifications();
 
   auto vector = vars.get(vector_addr);
   assert(vector.valid);
@@ -705,16 +709,13 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   auto value_varq = vars.get(value_addr);
   assert(value_varq.valid);
 
-  for (auto bit_offset = 0u; bit_offset < value->getWidth(); bit_offset += 8) {
-    auto new_byte = kutil::solver_toolbox.exprBuilder->Extract(
-        value, bit_offset, klee::Expr::Int8);
-
-    auto new_byte_transpiled = transpile(new_byte);
+  for (auto modification : modifications) {
+    auto new_byte_transpiled = transpile(modification.expr);
 
     nf_process_builder.indent();
     nf_process_builder.append(value_varq.var->get_label());
     nf_process_builder.append("[");
-    nf_process_builder.append(bit_offset / 8);
+    nf_process_builder.append(modification.byte);
     nf_process_builder.append("]");
     nf_process_builder.append(" = ");
     nf_process_builder.append(new_byte_transpiled);
@@ -1083,6 +1084,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
     nf_process_builder.append_new_line();
   }
 
+  nf_process_builder.indent();
   nf_process_builder.append(symbex::FN_MAP_ERASE);
   nf_process_builder.append("(");
   nf_process_builder.append(map.var->get_label());
@@ -1200,6 +1202,36 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   nf_process_builder.append(", ");
   nf_process_builder.append("&");
   nf_process_builder.append(chosen_backend_var.get_label());
+  nf_process_builder.append(");");
+  nf_process_builder.append_new_line();
+}
+
+void x86Generator::visit(const ExecutionPlanNode *ep_node,
+                         const target::HashObj *node) {
+  auto obj_addr = node->get_obj_addr();
+  auto size = node->get_size();
+  auto hash = node->get_hash();
+
+  auto obj = vars.get(obj_addr);
+  assert(obj.valid);
+
+  auto hash_label = vars.get_new_label(HASH_BASE_LABEL);
+  auto hash_var = Variable(hash_label, hash);
+  vars.append(hash_var);
+
+  auto size_transpiled = transpile(size);
+
+  nf_process_builder.indent();
+  nf_process_builder.append(hash_var.get_type());
+  nf_process_builder.append(" ");
+  nf_process_builder.append(hash_var.get_label());
+  nf_process_builder.append(" = ");
+  nf_process_builder.append(symbex::FN_HASH_OBJ);
+  nf_process_builder.append("(");
+  nf_process_builder.append("(void*)");
+  nf_process_builder.append(obj.var->get_label());
+  nf_process_builder.append(", ");
+  nf_process_builder.append(size_transpiled);
   nf_process_builder.append(");");
   nf_process_builder.append_new_line();
 }

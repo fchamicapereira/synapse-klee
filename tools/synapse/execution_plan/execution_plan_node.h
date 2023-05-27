@@ -42,11 +42,13 @@ public:
   int get_id() const;
   void set_id(int _id);
 
+  bool is_terminal_node() const;
+
   void replace_next(ExecutionPlanNode_ptr before, ExecutionPlanNode_ptr after);
   void replace_prev(ExecutionPlanNode_ptr _prev);
   void replace_node(BDD::Node_ptr node);
-  ExecutionPlanNode_ptr clone(bool recursive = false) const;
 
+  ExecutionPlanNode_ptr clone(bool recursive = false) const;
   void visit(ExecutionPlanVisitor &visitor) const;
 
   static ExecutionPlanNode_ptr build(Module_ptr _module);

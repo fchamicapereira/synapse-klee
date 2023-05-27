@@ -37,6 +37,7 @@ constexpr char OBJ_BASE_LABEL[] = "obj";
 constexpr char LOADBALANCED_FLOW_HASH_BASE_LABEL[] = "lb_hash";
 constexpr char PREFERED_BACKEND_BASE_LABEL[] = "prefered_backend";
 constexpr char CHOSEN_BACKEND_BASE_LABEL[] = "chosen_backend";
+constexpr char HASH_BASE_LABEL[] = "hash";
 
 constexpr char KEY_EQ_MACRO[] = "KEY_EQ";
 constexpr char KEY_HASH_MACRO[] = "KEY_HASH";

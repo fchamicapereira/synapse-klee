@@ -47,11 +47,11 @@ Score::get_nodes_with_type(const ExecutionPlan &ep,
 
 Score::score_value_t
 Score::get_nr_merged_tables(const ExecutionPlan &ep) const {
-  auto nodes =
-      get_nodes_with_type(ep, {
-                                  Module::ModuleType::BMv2_TableLookup,
-                                  Module::ModuleType::Tofino_TableLookup,
-                              });
+  auto nodes = get_nodes_with_type(
+      ep, {
+              Module::ModuleType::BMv2_TableLookup,
+              Module::ModuleType::Tofino_MergeableTableLookup,
+          });
 
   int num_merged_tables = 0;
 
@@ -69,9 +69,10 @@ Score::get_nr_merged_tables(const ExecutionPlan &ep) const {
       }
     }
 
-    else if (module->get_type() == Module::ModuleType::Tofino_TableLookup) {
+    else if (module->get_type() ==
+             Module::ModuleType::Tofino_MergeableTableLookup) {
       auto table_lookup =
-          static_cast<targets::tofino::TableLookup *>(module.get());
+          static_cast<targets::tofino::MergeableTableLookup *>(module.get());
 
       auto table = table_lookup->get_table();
       auto nodes = table->get_nodes();
@@ -82,10 +83,17 @@ Score::get_nr_merged_tables(const ExecutionPlan &ep) const {
   return num_merged_tables;
 }
 
+Score::score_value_t Score::get_nr_counters(const ExecutionPlan &ep) const {
+  auto nodes =
+      get_nodes_with_type(ep, {Module::ModuleType::Tofino_CounterRead,
+                               Module::ModuleType::Tofino_CounterIncrement});
+  return nodes.size();
+}
+
 Score::score_value_t
 Score::get_nr_simple_tables(const ExecutionPlan &ep) const {
   auto nodes =
-      get_nodes_with_type(ep, {Module::ModuleType::Tofino_TableLookupSimple});
+      get_nodes_with_type(ep, {Module::ModuleType::Tofino_TableLookup});
   return nodes.size();
 }
 
@@ -259,6 +267,11 @@ Score::next_op_is_stateful_in_switch(const ExecutionPlan &ep) const {
   }
 
   return 0;
+}
+
+Score::score_value_t
+Score::get_percentage_of_processed_bdd(const ExecutionPlan &ep) const {
+  return 100 * ep.get_bdd_processing_progress();
 }
 
 } // namespace synapse

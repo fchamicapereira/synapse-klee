@@ -216,14 +216,17 @@ void x86TofinoGenerator::visit(ExecutionPlan ep) {
   std::stringstream state_decl_code;
   std::stringstream state_init_code;
   std::stringstream nf_process_code;
+  std::stringstream cpu_hdr_fields_code;
 
   state_decl_builder.dump(state_decl_code);
   state_init_builder.dump(state_init_code);
   nf_process_builder.dump(nf_process_code);
+  cpu_hdr_fields_builder.dump(cpu_hdr_fields_code);
 
   fill_mark(MARKER_STATE_DECL, state_decl_code.str());
   fill_mark(MARKER_STATE_INIT, state_init_code.str());
   fill_mark(MARKER_NF_PROCESS, nf_process_code.str());
+  fill_mark(MARKER_CPU_HEADER, cpu_hdr_fields_code.str());
 }
 
 void x86TofinoGenerator::visit(const ExecutionPlanNode *ep_node) {
@@ -235,6 +238,13 @@ void x86TofinoGenerator::visit(const ExecutionPlanNode *ep_node) {
   ADD_NODE_COMMENT(ep_node->get_module());
   mod->visit(*this, ep_node);
 
+  if (ep_node->is_terminal_node()) {
+    auto closed = pending_ifs.close();
+    for (auto i = 0; i < closed; i++) {
+      vars.pop();
+    }
+  }
+
   for (auto branch : next) {
     branch->visit(*this);
   }
@@ -242,7 +252,61 @@ void x86TofinoGenerator::visit(const ExecutionPlanNode *ep_node) {
 
 void x86TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
                                const target::PacketParseCPU *node) {
-  assert(false && "TODO");
+  auto dataplane_state = node->get_dataplane_state();
+  auto fields = std::vector<hdr_field_t>();
+
+  fields.emplace_back(CPU_CODE_PATH, HDR_CPU_CODE_PATH_FIELD, 16);
+  fields.emplace_back(CPU_IN_PORT, HDR_CPU_IN_PORT_FIELD, 16);
+  fields.emplace_back(CPU_OUT_PORT, HDR_CPU_OUT_PORT_FIELD, 16);
+
+  for (auto state : dataplane_state) {
+    auto label = state.label;
+    auto expr = state.expr;
+    auto size = expr->getWidth();
+
+    auto field = hdr_field_t(CPU_DATA_FIELD, label, size);
+    auto var =
+        Variable(std::string(HDR_CPU_VARIABLE) + "->" + label, size, {label});
+    auto hs = kutil::get_symbol(expr);
+    if (hs.first && hs.second == label) {
+      var.add_expr(expr);
+    }
+
+    fields.push_back(field);
+    vars.append(var);
+
+    cpu_hdr_fields_builder.indent();
+
+    if (is_primitive_type(field.get_size_bits())) {
+      cpu_hdr_fields_builder.append(field.get_type());
+    } else {
+      cpu_hdr_fields_builder.append("uint8_t");
+    }
+
+    cpu_hdr_fields_builder.append(" ");
+    cpu_hdr_fields_builder.append(field.get_label());
+
+    if (!is_primitive_type(field.get_size_bits())) {
+      assert(field.get_size_bits() % 8 == 0);
+      cpu_hdr_fields_builder.append("[");
+      cpu_hdr_fields_builder.append(field.get_size_bits() / 8);
+      cpu_hdr_fields_builder.append("]");
+    }
+
+    cpu_hdr_fields_builder.append(";");
+    cpu_hdr_fields_builder.append_new_line();
+  }
+
+  auto header = Header(CPU, HDR_CPU_VARIABLE, fields);
+  headers.add(header);
+
+  nf_process_builder.indent();
+  nf_process_builder.append("auto ");
+  nf_process_builder.append(HDR_CPU_VARIABLE);
+  nf_process_builder.append(" = ");
+  nf_process_builder.append(PACKET_VAR_LABEL);
+  nf_process_builder.append(".parse_cpu();");
+  nf_process_builder.append_new_line();
 }
 
 void x86TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
@@ -250,16 +314,8 @@ void x86TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
   assert(node);
 
   nf_process_builder.indent();
-  nf_process_builder.append("return ");
-  nf_process_builder.append(DROP_PORT_VALUE);
-  nf_process_builder.append(";");
+  nf_process_builder.append("return false;");
   nf_process_builder.append_new_line();
-
-  auto closed = pending_ifs.close();
-
-  for (auto i = 0; i < closed; i++) {
-    vars.pop();
-  }
 }
 
 void x86TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
@@ -267,17 +323,19 @@ void x86TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
   assert(node);
   auto port = node->get_port();
 
+  auto out_port_var = headers.query_hdr_field(CPU, CPU_OUT_PORT);
+  assert(out_port_var.valid);
+
   nf_process_builder.indent();
-  nf_process_builder.append("return ");
+  nf_process_builder.append(out_port_var.var->get_label());
+  nf_process_builder.append(" = ");
   nf_process_builder.append(port);
   nf_process_builder.append(";");
   nf_process_builder.append_new_line();
 
-  auto closed = pending_ifs.close();
-
-  for (auto i = 0; i < closed; i++) {
-    vars.pop();
-  }
+  nf_process_builder.indent();
+  nf_process_builder.append("return true;");
+  nf_process_builder.append_new_line();
 }
 
 void x86TofinoGenerator::visit(const ExecutionPlanNode *ep_node,

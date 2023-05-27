@@ -66,6 +66,16 @@ private:
       return result;
     }
 
+    auto mb = ep.get_memory_bank<x86TofinoMemoryBank>(x86_Tofino);
+    auto saved = mb->has_data_structure(_map_addr);
+
+    if (!saved) {
+      auto map_ds = std::shared_ptr<x86TofinoMemoryBank::ds_t>(
+          new x86TofinoMemoryBank::map_t(_map_addr, _value->getWidth(),
+                                         node->get_id()));
+      mb->add_data_structure(map_ds);
+    }
+
     auto new_module = std::make_shared<MapPut>(node, _map_addr, _key, _value);
     auto new_ep = ep.add_leaves(new_module, node->get_next());
 
@@ -73,6 +83,41 @@ private:
     result.next_eps.push_back(new_ep);
 
     return result;
+  }
+
+  klee::ref<klee::Expr> get_original_vector_value(const ExecutionPlan &ep,
+                                                  BDD::Node_ptr node,
+                                                  obj_addr_t target_addr) {
+    // Ignore targets to allow the control plane to lookup vector_borrow
+    // operations performed on the data plane.
+    auto all_prev_vector_borrow =
+        get_prev_fn(ep, node, symbex::FN_VECTOR_BORROW, true);
+
+    for (auto prev_vector_borrow : all_prev_vector_borrow) {
+      auto call_node = BDD::cast_node<BDD::Call>(prev_vector_borrow);
+      assert(call_node);
+
+      auto call = call_node->get_call();
+
+      assert(!call.args[symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
+      assert(!call.extra_vars[symbex::FN_VECTOR_EXTRA].second.isNull());
+
+      auto _vector = call.args[symbex::FN_VECTOR_ARG_VECTOR].expr;
+      auto _borrowed_cell = call.extra_vars[symbex::FN_VECTOR_EXTRA].second;
+
+      auto _vector_addr = kutil::expr_addr_to_obj_addr(_vector);
+
+      if (_vector_addr != target_addr) {
+        continue;
+      }
+
+      return _borrowed_cell;
+    }
+
+    assert(false && "Expecting a previous vector borrow but not found.");
+    Log::err() << "Expecting a previous vector borrow but not found. Run with "
+                  "debug.\n";
+    exit(1);
   }
 
   processing_result_t process_vector_return(const ExecutionPlan &ep,
@@ -102,27 +147,35 @@ private:
       return result;
     }
 
-    // auto mb = ep.get_memory_bank<x86TofinoMemoryBank>(x86_Tofino);
-    // auto last_value = mb->get_vector_borrow_value(_vector_addr);
-    // assert(!last_value.isNull());
+    auto last_value = get_original_vector_value(ep, node, _vector_addr);
+    assert(!last_value.isNull());
 
-    // auto eq = kutil::solver_toolbox.are_exprs_always_equal(last_value,
-    // _value);
+    auto eq = kutil::solver_toolbox.are_exprs_always_equal(last_value, _value);
 
-    // if (eq) {
-    //   auto new_module = std::make_shared<Ignore>(node);
-    //   auto new_ep = ep.ignore_leaf(node->get_next(), TargetType::x86_Tofino);
+    if (eq) {
+      auto new_module = std::make_shared<Ignore>(node);
+      auto new_ep = ep.ignore_leaf(node->get_next(), TargetType::x86_Tofino);
 
-    //   result.module = new_module;
-    //   result.next_eps.push_back(new_ep);
-    // } else {
-    auto new_module =
-        std::make_shared<MapPut>(node, _vector_addr, _index, _value);
-    auto new_ep = ep.add_leaves(new_module, node->get_next());
+      result.module = new_module;
+      result.next_eps.push_back(new_ep);
+    } else {
+      auto mb = ep.get_memory_bank<x86TofinoMemoryBank>(x86_Tofino);
+      auto saved = mb->has_data_structure(_vector_addr);
 
-    result.module = new_module;
-    result.next_eps.push_back(new_ep);
-    // }
+      if (!saved) {
+        auto map_ds = std::shared_ptr<x86TofinoMemoryBank::ds_t>(
+            new x86TofinoMemoryBank::map_t(_vector_addr, _value->getWidth(),
+                                           node->get_id()));
+        mb->add_data_structure(map_ds);
+      }
+
+      auto new_module =
+          std::make_shared<MapPut>(node, _vector_addr, _index, _value);
+      auto new_ep = ep.add_leaves(new_module, node->get_next());
+
+      result.module = new_module;
+      result.next_eps.push_back(new_ep);
+    }
 
     return result;
   }

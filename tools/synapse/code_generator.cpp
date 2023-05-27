@@ -5,6 +5,8 @@
 #include "execution_plan/visitors/graphviz/graphviz.h"
 
 namespace synapse {
+using targets::tofino::TofinoMemoryBank;
+using targets::x86_tofino::x86TofinoMemoryBank;
 
 bool all_x86_no_controller(const ExecutionPlan &execution_plan) {
   auto nodes = std::vector<ExecutionPlanNode_ptr>{execution_plan.get_root()};
@@ -275,8 +277,12 @@ CodeGenerator::fpga_extractor(const ExecutionPlan &execution_plan) const {
   exit(1);
 }
 
-typedef std::vector<
-    std::pair<ExecutionPlanNode_ptr, targets::tofino::cpu_code_path_t>>
+struct x86_tofino_root_info_t {
+  targets::tofino::cpu_code_path_t cpu_code_path;
+  BDD::symbols_t dataplane_state;
+};
+
+typedef std::vector<std::pair<ExecutionPlanNode_ptr, x86_tofino_root_info_t>>
     x86_tofino_roots_t;
 
 x86_tofino_roots_t get_roots(const ExecutionPlan &execution_plan) {
@@ -298,12 +304,15 @@ x86_tofino_roots_t get_roots(const ExecutionPlan &execution_plan) {
     if (module->get_type() == Module::ModuleType::Tofino_SendToController) {
       auto send_to_controller =
           static_cast<targets::tofino::SendToController *>(module.get());
+
       auto cpu_code_path = send_to_controller->get_cpu_code_path();
+      auto dataplane_state = send_to_controller->get_dataplane_state();
+      auto info = x86_tofino_root_info_t{cpu_code_path, dataplane_state};
 
       assert(next.size() == 1);
       auto cloned_node = next[0]->clone(true);
 
-      roots.emplace_back(cloned_node, cpu_code_path);
+      roots.emplace_back(cloned_node, info);
       continue;
     }
 
@@ -336,7 +345,7 @@ CodeGenerator::x86_tofino_extractor(const ExecutionPlan &execution_plan) const {
     auto root = roots[i];
 
     auto path_id = kutil::solver_toolbox.exprBuilder->Constant(
-        root.second, code_path->getWidth());
+        root.second.cpu_code_path, code_path->getWidth());
 
     auto path_eq_path_id =
         kutil::solver_toolbox.exprBuilder->Eq(code_path, path_id);
@@ -352,7 +361,6 @@ CodeGenerator::x86_tofino_extractor(const ExecutionPlan &execution_plan) const {
     auto else_ep_node = ExecutionPlanNode::build(else_module);
 
     auto then_else_ep_nodes = Branches{then_ep_node, else_ep_node};
-
     if_ep_node->set_next(then_else_ep_nodes);
 
     then_ep_node->set_prev(if_ep_node);
@@ -381,6 +389,18 @@ CodeGenerator::x86_tofino_extractor(const ExecutionPlan &execution_plan) const {
       new_leaf = else_ep_node;
     }
   }
+
+  auto tmb = execution_plan.get_memory_bank<TofinoMemoryBank>(Tofino);
+  auto dp_state = tmb->get_dataplane_state();
+
+  auto parse_cpu_module =
+      std::make_shared<targets::x86_tofino::PacketParseCPU>(dp_state);
+  auto parse_cpu_ep_node = ExecutionPlanNode::build(parse_cpu_module);
+
+  parse_cpu_ep_node->set_next(new_root);
+  new_root->set_prev(parse_cpu_ep_node);
+
+  new_root = parse_cpu_ep_node;
 
   auto extracted = ExecutionPlan(execution_plan, new_root);
   // Graphviz::visualize(extracted);

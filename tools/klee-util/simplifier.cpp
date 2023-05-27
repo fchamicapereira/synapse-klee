@@ -175,6 +175,29 @@ private:
     return false;
   }
 
+  bool can_be_negated(klee::ref<klee::Expr> expr) {
+    auto allowed = std::unordered_set<klee::Expr::Kind>{
+        {klee::Expr::Eq},  {klee::Expr::Ne},  {klee::Expr::Ult},
+        {klee::Expr::Uge}, {klee::Expr::Ule}, {klee::Expr::Ugt},
+        {klee::Expr::Slt}, {klee::Expr::Sge}, {klee::Expr::Sle},
+        {klee::Expr::Sgt},
+    };
+
+    if (allowed.find(expr->getKind()) != allowed.end()) {
+      return true;
+    }
+
+    auto num_kids = expr->getNumKids();
+    for (auto i = 0u; i < num_kids; i++) {
+      auto kid = expr->getKid(i);
+      if (allowed.find(kid->getKind()) == allowed.end()) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   klee::ref<klee::Expr> negate(klee::ref<klee::Expr> expr) {
     klee::ref<klee::Expr> other;
 
@@ -207,16 +230,26 @@ private:
     case klee::Expr::Or: {
       auto lhs = expr->getKid(0);
       auto rhs = expr->getKid(1);
-      lhs = negate(lhs);
-      rhs = negate(rhs);
-      return kutil::solver_toolbox.exprBuilder->Or(lhs, rhs);
+
+      if (can_be_negated(lhs) && can_be_negated(rhs)) {
+        lhs = negate(lhs);
+        rhs = negate(rhs);
+        return kutil::solver_toolbox.exprBuilder->Or(lhs, rhs);
+      }
+
+      return kutil::solver_toolbox.exprBuilder->Not(expr);
     } break;
     case klee::Expr::And: {
       auto lhs = expr->getKid(0);
       auto rhs = expr->getKid(1);
-      lhs = negate(lhs);
-      rhs = negate(rhs);
-      return kutil::solver_toolbox.exprBuilder->And(lhs, rhs);
+
+      if (can_be_negated(lhs) && can_be_negated(rhs)) {
+        lhs = negate(lhs);
+        rhs = negate(rhs);
+        return kutil::solver_toolbox.exprBuilder->And(lhs, rhs);
+      }
+
+      return kutil::solver_toolbox.exprBuilder->Not(expr);
     } break;
     case klee::Expr::Eq: {
       auto lhs = expr->getKid(0);
@@ -271,14 +304,24 @@ private:
     case klee::Expr::ZExt: {
       auto kid = expr->getKid(0);
       auto width = expr->getWidth();
-      kid = negate(kid);
-      return kutil::solver_toolbox.exprBuilder->ZExt(kid, width);
+
+      if (can_be_negated(kid)) {
+        kid = negate(kid);
+        return kutil::solver_toolbox.exprBuilder->ZExt(kid, width);
+      }
+
+      return kutil::solver_toolbox.exprBuilder->Not(expr);
     } break;
     case klee::Expr::SExt: {
       auto kid = expr->getKid(0);
       auto width = expr->getWidth();
-      kid = negate(kid);
-      return kutil::solver_toolbox.exprBuilder->SExt(kid, width);
+
+      if (can_be_negated(kid)) {
+        kid = negate(kid);
+        return kutil::solver_toolbox.exprBuilder->SExt(kid, width);
+      }
+
+      return kutil::solver_toolbox.exprBuilder->Not(expr);
     } break;
     default:
       assert(false && "TODO");

@@ -19,6 +19,7 @@ public:
     TABLE,
     TABLE_NON_MERGEABLE,
     INTEGER_ALLOCATOR,
+    COUNTER,
   };
 
 protected:

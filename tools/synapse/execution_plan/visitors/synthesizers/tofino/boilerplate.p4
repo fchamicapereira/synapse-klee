@@ -24,15 +24,6 @@ const port_t RECIRCULATING_PORT = 68;
 // PCIe port when using the tofino model
 const PortId_t CPU_PCIE_PORT = 320;
 
-const ether_type_t  ETHERTYPE_IPV4 = 0x0800;
-const ether_type_t  ETHERTYPE_ARP  = 0x0806;
-const ether_type_t  ETHERTYPE_IPV6 = 0x86dd;
-const ether_type_t  ETHERTYPE_VLAN = 0x8100;
-
-const ip_protocol_t IP_PROTOCOLS_ICMP = 1;
-const ip_protocol_t IP_PROTOCOLS_TCP  = 6;
-const ip_protocol_t IP_PROTOCOLS_UDP  = 17;
-
 #define INT_ALLOCATOR_BITS 16
 #define INT_ALLOCATOR_CAPACITY 65536
 typedef bit<INT_ALLOCATOR_BITS> index_t;
@@ -43,38 +34,7 @@ header cpu_h {
   port_t in_port;
   bit<7> pad1;
   port_t out_port;
-}
-
-header ethernet_h {
-  mac_addr_t   dst_addr;
-  mac_addr_t   src_addr;
-  ether_type_t ether_type;
-}
-
-header ipv4_h {
-  bit<4>        version;
-  bit<4>        ihl;
-  bit<8>        dscp;
-  bit<16>       total_len;
-  bit<16>       identification;
-  bit<3>        flags;
-  bit<13>       frag_offset;
-  bit<8>        ttl;
-  ip_protocol_t protocol;
-  bit<16>       hdr_checksum;
-  ipv4_addr_t   src_addr;
-  ipv4_addr_t   dst_addr;
-}
-
-header ipv4_options_h {
-  bit<32> data;
-}
-
-typedef ipv4_options_h[10] ipv4_options_t;
-
-header tcpudp_h {
-  bit<16> src_port;
-  bit<16> dst_port;
+  /*@{CPU HEADER FIELDS}@*/
 }
 
 /*@{INGRESS HEADERS DEFINITIONS}@*/
@@ -92,13 +52,7 @@ struct my_egress_metadata_t {
   /*@{EGRESS METADATA}@*/
 }
 
-struct my_egress_headers_t {
-  cpu_h          cpu;
-  ethernet_h     ethernet;
-  ipv4_h         ipv4;
-  ipv4_options_h ipv4_options;
-  tcpudp_h       tcpudp;
-}
+struct my_egress_headers_t {}
 
 parser TofinoIngressParser(
     packet_in pkt,

@@ -4,6 +4,7 @@
 #include "../module.h"
 
 #include "broadcast.h"
+#include "cht_find_backend.h"
 #include "current_time.h"
 #include "dchain_allocate_new_index.h"
 #include "dchain_free_index.h"
@@ -14,6 +15,7 @@
 #include "expire_items_single_map.h"
 #include "expire_items_single_map_iteratively.h"
 #include "forward.h"
+#include "hash_obj.h"
 #include "if.h"
 #include "load_balanced_flow_hash.h"
 #include "map_erase.h"
@@ -32,7 +34,6 @@
 #include "then.h"
 #include "vector_borrow.h"
 #include "vector_return.h"
-#include "cht_find_backend.h"
 
 #include "memory_bank.h"
 
@@ -75,6 +76,7 @@ public:
                    MODULE(MapErase),
                    MODULE(LoadBalancedFlowHash),
                    MODULE(ChtFindBackend),
+                   MODULE(HashObj),
                },
                MemoryBank_ptr(new x86MemoryBank())) {}
 

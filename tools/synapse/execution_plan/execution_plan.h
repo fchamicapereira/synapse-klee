@@ -61,12 +61,14 @@ public:
   ExecutionPlan(const ExecutionPlan &ep);
   ExecutionPlan(const ExecutionPlan &ep, ExecutionPlanNode_ptr _root);
 
+  ExecutionPlan &operator=(const ExecutionPlan &) = default;
+
   unsigned get_depth() const;
   unsigned get_nodes() const;
 
   const std::unordered_map<TargetType, std::unordered_set<BDD::node_id_t>> &
   get_targets_bdd_starting_points() const;
-  
+
   std::unordered_set<BDD::node_id_t>
   get_current_target_bdd_starting_points() const;
 
@@ -106,12 +108,10 @@ public:
   ExecutionPlanNode_ptr get_active_leaf() const;
   TargetType get_current_platform() const;
 
-  ExecutionPlan replace_leaf(Module_ptr new_module,
-                             const BDD::Node_ptr &next,
+  ExecutionPlan replace_leaf(Module_ptr new_module, const BDD::Node_ptr &next,
                              bool process_bdd_node = true) const;
 
-  ExecutionPlan ignore_leaf(const BDD::Node_ptr &next,
-                            TargetType next_target,
+  ExecutionPlan ignore_leaf(const BDD::Node_ptr &next, TargetType next_target,
                             bool process_bdd_node = true) const;
 
   ExecutionPlan add_leaves(Module_ptr new_module, const BDD::Node_ptr &next,
@@ -127,7 +127,9 @@ public:
   void replace_active_leaf_node(BDD::Node_ptr next,
                                 bool process_bdd_node = true);
 
-  float get_percentage_of_processed_bdd_nodes() const;
+  void force_termination();
+  
+  float get_bdd_processing_progress() const;
   void remove_from_processed_bdd_nodes(BDD::node_id_t id);
   void add_processed_bdd_node(BDD::node_id_t id);
   void replace_current_target_starting_points(BDD::node_id_t _old,

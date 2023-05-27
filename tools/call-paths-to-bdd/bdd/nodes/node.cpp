@@ -50,6 +50,28 @@ symbols_t Node::get_generated_symbols() const {
 
 symbols_t Node::get_local_generated_symbols() const { return symbols_t(); }
 
+std::vector<node_id_t> Node::get_terminating_node_ids() const {
+  if (!next) {
+    return std::vector<node_id_t>{id};
+  }
+
+  return next->get_terminating_node_ids();
+}
+
+bool Node::is_reachable_by_node(node_id_t id) const {
+  auto node = this;
+
+  while (node) {
+    if (node->get_id() == id) {
+      return true;
+    }
+
+    node = node->get_prev().get();
+  }
+
+  return false;
+}
+
 void Node::update_id(node_id_t new_id) {
   SymbolFactory factory;
   auto symbols = factory.get_symbols(this);
@@ -136,7 +158,8 @@ unsigned Node::count_code_paths() const {
     case Node::NodeType::RETURN_PROCESS:
     case Node::NodeType::RETURN_RAW:
       paths++;
-    } break;
+    }
+    break;
   }
 
   return paths;

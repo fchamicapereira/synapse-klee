@@ -48,6 +48,7 @@ struct cpu_t {
   uint16_t code_path;
   uint16_t in_port;
   uint16_t out_port;
+  /*@{CPU HEADER DATAPLANE STATE FIELDS}@*/  
 
   void dump() const {
     printf("###[ CPU ]###\n");
@@ -176,6 +177,82 @@ unsigned ether_addr_hash(uint8_t *addr) {
   return hash;
 }
 
+uint32_t __raw_cksum(const void *buf, size_t len, uint32_t sum) {
+  /* workaround gcc strict-aliasing warning */
+  uintptr_t ptr = (uintptr_t)buf;
+  typedef uint16_t __attribute__((__may_alias__)) u16_p;
+  const u16_p *u16_buf = (const u16_p *)ptr;
+
+  while (len >= (sizeof(*u16_buf) * 4)) {
+    sum += u16_buf[0];
+    sum += u16_buf[1];
+    sum += u16_buf[2];
+    sum += u16_buf[3];
+    len -= sizeof(*u16_buf) * 4;
+    u16_buf += 4;
+  }
+  while (len >= sizeof(*u16_buf)) {
+    sum += *u16_buf;
+    len -= sizeof(*u16_buf);
+    u16_buf += 1;
+  }
+
+  /* if length is in odd bytes */
+  if (len == 1) {
+    uint16_t left = 0;
+    *(uint8_t *)&left = *(const uint8_t *)u16_buf;
+    sum += left;
+  }
+
+  return sum;
+}
+
+uint16_t __raw_cksum_reduce(uint32_t sum) {
+  sum = ((sum & 0xffff0000) >> 16) + (sum & 0xffff);
+  sum = ((sum & 0xffff0000) >> 16) + (sum & 0xffff);
+  return (uint16_t)sum;
+}
+
+uint16_t raw_cksum(const void *buf, size_t len) {
+  uint32_t sum;
+
+  sum = __raw_cksum(buf, len, 0);
+  return __raw_cksum_reduce(sum);
+}
+
+uint16_t ipv4_cksum(const ipv4_t *ipv4_hdr) {
+  uint16_t cksum;
+  cksum = raw_cksum(ipv4_hdr, sizeof(ipv4_t));
+  return (uint16_t)~cksum;
+}
+
+uint16_t update_ipv4_tcpudp_checksums(const ipv4_t *ipv4_hdr,
+                                      const void *l4_hdr) {
+  uint32_t cksum;
+  uint32_t l3_len, l4_len;
+
+  l3_len = __bswap_16(ipv4_hdr->tot_len);
+  if (l3_len < sizeof(ipv4_t))
+    return 0;
+
+  l4_len = l3_len - sizeof(ipv4_t);
+
+  cksum = raw_cksum(l4_hdr, l4_len);
+  cksum += ipv4_cksum(ipv4_hdr);
+
+  cksum = ((cksum & 0xffff0000) >> 16) + (cksum & 0xffff);
+  cksum = (~cksum) & 0xffff;
+  /*
+   * Per RFC 768:If the computed checksum is zero for UDP,
+   * it is transmitted as all ones
+   * (the equivalent in one's complement arithmetic).
+   */
+  if (cksum == 0 && ipv4_hdr->protocol == IPPROTO_UDP)
+    cksum = 0xffff;
+
+  return (uint16_t)cksum;
+}
+
 char *get_env_var_value(const char *env_var) {
   auto env_var_value = getenv(env_var);
 
@@ -202,7 +279,7 @@ typedef uint16_t port_t;
 constexpr port_t DROP = 0xffff;
 constexpr port_t BCAST = 0xfffe;
 
-port_t nf_process(time_ns_t now, cpu_t *cpu, pkt_t &pkt);
+bool nf_process(time_ns_t now, pkt_t &pkt);
 
 void pcie_tx(bf_dev_id_t device, uint8_t *pkt, uint32_t packet_size) {
   bf_pkt *tx_pkt = nullptr;
@@ -266,14 +343,12 @@ bf_status_t pcie_rx(bf_dev_id_t device, bf_pkt *pkt, void *data,
 
   auto now = get_time();
   auto p = pkt_t((uint8_t *)in_packet, packet_size);
-  auto cpu = p.parse_cpu();
 
   session->beginTransaction(atomic);
-  auto port = nf_process(now, cpu, p);
+  auto fwd = nf_process(now, p);
   session->commitTransaction(hw_sync);
 
-  if (port != DROP) {
-    cpu->out_port = port;
+  if (fwd) {
     p.commit();
     pcie_tx(device, (uint8_t *)in_packet, packet_size);
   }
@@ -1585,6 +1660,6 @@ std::unique_ptr<state_t> state;
 
 void state_init() { state = std::unique_ptr<state_t>(new state_t()); }
 
-port_t nf_process(time_ns_t now, cpu_t *cpu, pkt_t &pkt) {
-  /*@{NF_PROCESS}@*/
+bool nf_process(time_ns_t now, pkt_t &pkt) {
+  /*@{NF PROCESS}@*/
 }

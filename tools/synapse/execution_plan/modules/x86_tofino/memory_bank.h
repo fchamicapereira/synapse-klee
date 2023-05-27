@@ -94,28 +94,6 @@ public:
 
   expiration_t get_expiration() const { return expiration; }
 
-  void set_vector_borrow(const vector_borrow_t &vector_borrow) {
-    auto found_it = find_vector_borrow(vector_borrow.vector_addr);
-
-    if (found_it != vector_borrows.end()) {
-      found_it->value_out = vector_borrow.value_out;
-    } else {
-      vector_borrows.push_back(vector_borrow);
-    }
-  }
-
-  klee::ref<klee::Expr>
-  get_vector_borrow_value(obj_addr_t vector_addr) {
-    auto found_it = find_vector_borrow(vector_addr);
-
-    if (found_it == vector_borrows.end()) {
-      return nullptr;
-    }
-
-    auto value = found_it->value_out;
-    return value;
-  }
-
   bool has_data_structure(obj_addr_t addr) const {
     for (auto ds : data_structures) {
       if (ds->matches(addr)) {
@@ -138,18 +116,6 @@ public:
   virtual MemoryBank_ptr clone() const {
     auto clone = new x86TofinoMemoryBank(*this);
     return MemoryBank_ptr(clone);
-  }
-
-private:
-  std::vector<vector_borrow_t>::iterator
-  find_vector_borrow(obj_addr_t vector_addr) {
-    for (auto it = vector_borrows.begin(); it != vector_borrows.end(); it++) {
-      if (it->vector_addr == vector_addr) {
-        return it;
-      }
-    }
-
-    return vector_borrows.end();
   }
 };
 

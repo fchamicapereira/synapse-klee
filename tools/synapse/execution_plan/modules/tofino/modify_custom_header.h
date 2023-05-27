@@ -68,6 +68,7 @@ private:
     auto _original_chunk = get_original_chunk(ep, node);
 
     auto _modifications = build_modifications(_original_chunk, _current_chunk);
+    _modifications = ignore_checksum_modifications(_modifications);
 
     if (_modifications.size() == 0) {
       auto new_module = std::make_shared<Ignore>(node);

@@ -64,31 +64,24 @@ class VectorReturn;
 namespace tofino {
 class Ignore;
 class If;
-class IfHeaderValid;
 class Then;
 class Else;
 class Forward;
 class ParseCustomHeader;
 class ModifyCustomHeader;
-class EthernetConsume;
-class EthernetModify;
 class ParserCondition;
-class IPv4Consume;
-class IPv4Modify;
-class IPv4OptionsConsume;
-class IPv4OptionsModify;
-class TCPUDPConsume;
-class TCPUDPModify;
 class IPv4TCPUDPChecksumsUpdate;
 class Drop;
 class SendToController;
 class SetupExpirationNotifications;
+class MergeableTableLookup;
 class TableLookup;
-class TableLookupSimple;
 class RegisterRead;
 class IntegerAllocatorAllocate;
 class IntegerAllocatorRejuvenate;
 class IntegerAllocatorQuery;
+class CounterRead;
+class CounterIncrement;
 } // namespace tofino
 
 namespace x86_tofino {
@@ -148,6 +141,7 @@ class MapErase;
 class DchainFreeIndex;
 class LoadBalancedFlowHash;
 class ChtFindBackend;
+class HashObj;
 } // namespace x86
 
 } // namespace targets
@@ -218,31 +212,24 @@ public:
 
   VISIT(targets::tofino::Ignore)
   VISIT(targets::tofino::If)
-  VISIT(targets::tofino::IfHeaderValid)
   VISIT(targets::tofino::Then)
   VISIT(targets::tofino::Else)
   VISIT(targets::tofino::Forward)
   VISIT(targets::tofino::ParseCustomHeader)
   VISIT(targets::tofino::ModifyCustomHeader)
   VISIT(targets::tofino::ParserCondition)
-  VISIT(targets::tofino::EthernetConsume)
-  VISIT(targets::tofino::EthernetModify)
   VISIT(targets::tofino::Drop)
   VISIT(targets::tofino::SendToController)
   VISIT(targets::tofino::SetupExpirationNotifications)
-  VISIT(targets::tofino::IPv4Consume)
-  VISIT(targets::tofino::IPv4Modify)
-  VISIT(targets::tofino::IPv4OptionsConsume)
-  VISIT(targets::tofino::IPv4OptionsModify)
-  VISIT(targets::tofino::TCPUDPConsume)
-  VISIT(targets::tofino::TCPUDPModify)
   VISIT(targets::tofino::IPv4TCPUDPChecksumsUpdate)
+  VISIT(targets::tofino::MergeableTableLookup)
   VISIT(targets::tofino::TableLookup)
-  VISIT(targets::tofino::TableLookupSimple)
   VISIT(targets::tofino::RegisterRead)
   VISIT(targets::tofino::IntegerAllocatorAllocate)
   VISIT(targets::tofino::IntegerAllocatorRejuvenate)
   VISIT(targets::tofino::IntegerAllocatorQuery)
+  VISIT(targets::tofino::CounterRead)
+  VISIT(targets::tofino::CounterIncrement)
 
   /*************************************
    *
@@ -310,6 +297,7 @@ public:
   VISIT(targets::x86::DchainFreeIndex)
   VISIT(targets::x86::LoadBalancedFlowHash)
   VISIT(targets::x86::ChtFindBackend)
+  VISIT(targets::x86::HashObj)
 
 protected:
   virtual void log(const ExecutionPlanNode *ep_node) const;
