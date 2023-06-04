@@ -6,7 +6,8 @@
 #include "../../../code_builder.h"
 #include "../../constants.h"
 #include "../../util.h"
-#include "../domain/table.h"
+#include "table.h"
+
 #include "../domain/variable.h"
 
 namespace synapse {
@@ -14,7 +15,7 @@ namespace synthesizer {
 namespace tofino {
 
 struct integer_allocator_t {
-  obj_addr_t dchain;
+  addr_t dchain;
   uint64_t capacity;
   bits_t value_size;
 
@@ -26,7 +27,7 @@ struct integer_allocator_t {
   table_t query;
   table_t rejuvenation;
 
-  integer_allocator_t(obj_addr_t _dchain, uint64_t _capacity,
+  integer_allocator_t(addr_t _dchain, uint64_t _capacity,
                       bits_t _value_size, Variable _head, Variable _tail,
                       Variable _out_of_space, Variable _allocated,
                       table_t _query, table_t _rejuvenation)
@@ -34,14 +35,14 @@ struct integer_allocator_t {
         head(_head), tail(_tail), out_of_space(_out_of_space),
         allocated(_allocated), query(_query), rejuvenation(_rejuvenation) {}
 
-  static std::string get_label(obj_addr_t dchain) {
+  static std::string get_label(addr_t dchain) {
     std::stringstream label_builder;
     label_builder << "int_allocator_";
     label_builder << dchain;
     return label_builder.str();
   }
 
-  static std::string get_query_table_label(obj_addr_t dchain) {
+  static std::string get_query_table_label(addr_t dchain) {
     std::stringstream label_builder;
     label_builder << "int_allocator_";
     label_builder << dchain;
@@ -49,7 +50,7 @@ struct integer_allocator_t {
     return label_builder.str();
   }
 
-  static std::string get_rejuvenation_table_label(obj_addr_t dchain) {
+  static std::string get_rejuvenation_table_label(addr_t dchain) {
     std::stringstream label_builder;
     label_builder << "int_allocator_";
     label_builder << dchain;
@@ -57,7 +58,7 @@ struct integer_allocator_t {
     return label_builder.str();
   }
 
-  static std::string get_head_label(obj_addr_t dchain) {
+  static std::string get_head_label(addr_t dchain) {
     std::stringstream label_builder;
     label_builder << "int_allocator_";
     label_builder << dchain;
@@ -65,7 +66,7 @@ struct integer_allocator_t {
     return label_builder.str();
   }
 
-  static std::string get_tail_label(obj_addr_t dchain) {
+  static std::string get_tail_label(addr_t dchain) {
     std::stringstream label_builder;
     label_builder << "int_allocator_";
     label_builder << dchain;
@@ -349,7 +350,7 @@ struct integer_allocator_t {
 
   struct IntegerAllocatorHashing {
     size_t operator()(const integer_allocator_t &allocator) const {
-      return std::hash<obj_addr_t>()(allocator.dchain);
+      return std::hash<addr_t>()(allocator.dchain);
     }
   };
 };

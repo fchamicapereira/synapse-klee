@@ -4,7 +4,6 @@
 
 #include "int_allocator.h"
 #include "table.h"
-#include "table_non_mergeable.h"
 #include "counter.h"
 
 namespace synapse {
@@ -49,7 +48,7 @@ public:
     return filtered;
   }
 
-  std::vector<DataStructureRef> get(obj_addr_t obj) const {
+  std::vector<DataStructureRef> get(addr_t obj) const {
     std::vector<DataStructureRef> implementations;
 
     for (auto ds : data_structures) {

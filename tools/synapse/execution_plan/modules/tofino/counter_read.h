@@ -24,7 +24,7 @@ public:
   }
 
 private:
-  bool can_implement(const ExecutionPlan &ep, obj_addr_t obj) const {
+  bool can_implement(const ExecutionPlan &ep, addr_t obj) const {
     auto mb = ep.get_memory_bank<TofinoMemoryBank>(Tofino);
     auto compatible = mb->check_implementation_compatibility(
         obj, {DataStructure::Type::COUNTER});
@@ -44,7 +44,7 @@ private:
   }
 
   CounterRef get_or_build_counter(const ExecutionPlan &ep, BDD::Node_ptr node,
-                                  obj_addr_t obj,
+                                  addr_t obj,
                                   std::pair<bool, uint64_t> max_value,
                                   klee::ref<klee::Expr> value) const {
     auto mb = ep.get_memory_bank<TofinoMemoryBank>(Tofino);

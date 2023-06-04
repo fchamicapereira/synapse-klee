@@ -20,12 +20,12 @@ TofinoMemoryBank::get_implementations(DataStructure::Type ds_type) const {
 }
 
 std::vector<DataStructureRef>
-TofinoMemoryBank::get_implementations(obj_addr_t obj) const {
+TofinoMemoryBank::get_implementations(addr_t obj) const {
   return implementations.get(obj);
 }
 
 bool TofinoMemoryBank::check_implementation_compatibility(
-    obj_addr_t obj,
+    addr_t obj,
     const std::vector<DataStructure::Type> &compatible_types) const {
   DataStructureRef implementation;
 

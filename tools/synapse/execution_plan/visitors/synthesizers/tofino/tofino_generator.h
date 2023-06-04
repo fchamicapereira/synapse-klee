@@ -60,9 +60,13 @@ public:
   void visit(const ExecutionPlanNode *ep_node,
              const target::SendToController *node) override;
   void visit(const ExecutionPlanNode *ep_node,
-             const target::MergeableTableLookup *node) override;
+             const target::TableModule *node) override;
   void visit(const ExecutionPlanNode *ep_node,
              const target::TableLookup *node) override;
+  void visit(const ExecutionPlanNode *ep_node,
+             const target::TableIsAllocated *node) override;
+  void visit(const ExecutionPlanNode *ep_node,
+             const target::TableRejuvenation *node) override;
   void visit(const ExecutionPlanNode *ep_node,
              const target::IntegerAllocatorAllocate *node) override;
   void visit(const ExecutionPlanNode *ep_node,
@@ -73,6 +77,8 @@ public:
              const target::CounterRead *node) override;
   void visit(const ExecutionPlanNode *ep_node,
              const target::CounterIncrement *node) override;
+  void visit(const ExecutionPlanNode *ep_node,
+             const target::HashObj *node) override;
 
   std::string transpile(klee::ref<klee::Expr> expr);
 

@@ -19,7 +19,6 @@ public:
     NumberOfSwitchLeaves,
     NumberOfNodes,
     NumberOfControllerNodes,
-    NumberOfMergedTables,
     NumberOfCounters,
     NumberOfSimpleTables,
     NumberOfIntAllocatorOps,
@@ -57,7 +56,6 @@ public:
         {NumberOfReorderedNodes, &Score::get_nr_reordered_nodes},
         {NumberOfNodes, &Score::get_nr_nodes},
         {NumberOfCounters, &Score::get_nr_counters},
-        {NumberOfMergedTables, &Score::get_nr_merged_tables},
         {NumberOfSimpleTables, &Score::get_nr_simple_tables},
         {NumberOfSwitchNodes, &Score::get_nr_switch_nodes},
         {NumberOfSwitchLeaves, &Score::get_nr_switch_leaves},
@@ -167,7 +165,6 @@ private:
 
   score_value_t get_nr_nodes(const ExecutionPlan &ep) const;
   score_value_t get_nr_counters(const ExecutionPlan &ep) const;
-  score_value_t get_nr_merged_tables(const ExecutionPlan &ep) const;
   score_value_t get_nr_int_allocator_ops(const ExecutionPlan &ep) const;
   score_value_t get_nr_simple_tables(const ExecutionPlan &ep) const;
   score_value_t get_depth(const ExecutionPlan &ep) const;

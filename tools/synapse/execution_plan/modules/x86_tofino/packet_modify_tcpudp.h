@@ -81,8 +81,10 @@ private:
     auto curr_tcpudp_chunk = call.args[symbex::FN_BORROW_CHUNK_EXTRA].in;
     auto prev_tcpudp_chunk = get_tcpudp_chunk(borrow_tcpudp);
 
-    assert(curr_tcpudp_chunk->getWidth() == 4 * 8);
-    assert(prev_tcpudp_chunk->getWidth() == 4 * 8);
+    if (curr_tcpudp_chunk->getWidth() != 4 * 8 ||
+        prev_tcpudp_chunk->getWidth() != 4 * 8) {
+      return result;
+    }
 
     auto _modifications =
         build_modifications(prev_tcpudp_chunk, curr_tcpudp_chunk);

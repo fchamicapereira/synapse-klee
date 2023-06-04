@@ -8,16 +8,16 @@ namespace x86 {
 
 class VectorReturn : public x86Module {
 private:
-  obj_addr_t vector_addr;
+  addr_t vector_addr;
   klee::ref<klee::Expr> index;
-  obj_addr_t value_addr;
+  addr_t value_addr;
   std::vector<modification_t> modifications;
 
 public:
   VectorReturn() : x86Module(ModuleType::x86_VectorReturn, "VectorReturn") {}
 
-  VectorReturn(BDD::Node_ptr node, obj_addr_t _vector_addr,
-               klee::ref<klee::Expr> _index, obj_addr_t _value_addr,
+  VectorReturn(BDD::Node_ptr node, addr_t _vector_addr,
+               klee::ref<klee::Expr> _index, addr_t _value_addr,
                const std::vector<modification_t> &_modifications)
       : x86Module(ModuleType::x86_VectorReturn, "VectorReturn", node),
         vector_addr(_vector_addr), index(_index), value_addr(_value_addr),
@@ -121,9 +121,9 @@ public:
     return true;
   }
 
-  obj_addr_t get_vector_addr() const { return vector_addr; }
+  addr_t get_vector_addr() const { return vector_addr; }
   klee::ref<klee::Expr> get_index() const { return index; }
-  obj_addr_t get_value_addr() const { return value_addr; }
+  addr_t get_value_addr() const { return value_addr; }
 
   const std::vector<modification_t> &get_modifications() const {
     return modifications;

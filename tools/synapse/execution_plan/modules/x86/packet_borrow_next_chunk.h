@@ -8,8 +8,8 @@ namespace x86 {
 
 class PacketBorrowNextChunk : public x86Module {
 private:
-  obj_addr_t p_addr;
-  obj_addr_t chunk_addr;
+  addr_t p_addr;
+  addr_t chunk_addr;
   klee::ref<klee::Expr> chunk;
   klee::ref<klee::Expr> length;
 
@@ -18,8 +18,8 @@ public:
       : x86Module(ModuleType::x86_PacketBorrowNextChunk,
                   "PacketBorrowNextChunk") {}
 
-  PacketBorrowNextChunk(BDD::Node_ptr node, obj_addr_t _p_addr,
-                        obj_addr_t _chunk_addr, klee::ref<klee::Expr> _chunk,
+  PacketBorrowNextChunk(BDD::Node_ptr node, addr_t _p_addr,
+                        addr_t _chunk_addr, klee::ref<klee::Expr> _chunk,
                         klee::ref<klee::Expr> _length)
       : x86Module(ModuleType::x86_PacketBorrowNextChunk,
                   "PacketBorrowNextChunk", node),
@@ -104,8 +104,8 @@ public:
     return true;
   }
 
-  const obj_addr_t &get_p_addr() const { return p_addr; }
-  const obj_addr_t &get_chunk_addr() const { return chunk_addr; }
+  const addr_t &get_p_addr() const { return p_addr; }
+  const addr_t &get_chunk_addr() const { return chunk_addr; }
   const klee::ref<klee::Expr> &get_chunk() const { return chunk; }
   const klee::ref<klee::Expr> &get_length() const { return length; }
 };

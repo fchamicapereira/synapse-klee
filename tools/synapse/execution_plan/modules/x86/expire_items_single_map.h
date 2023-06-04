@@ -8,9 +8,9 @@ namespace x86 {
 
 class ExpireItemsSingleMap : public x86Module {
 private:
-  obj_addr_t dchain_addr;
-  obj_addr_t vector_addr;
-  obj_addr_t map_addr;
+  addr_t dchain_addr;
+  addr_t vector_addr;
+  addr_t map_addr;
   klee::ref<klee::Expr> time;
   klee::ref<klee::Expr> number_of_freed_flows;
 
@@ -19,8 +19,8 @@ public:
       : x86Module(ModuleType::x86_ExpireItemsSingleMap,
                   "ExpireItemsSingleMap") {}
 
-  ExpireItemsSingleMap(BDD::Node_ptr node, obj_addr_t _dchain_addr,
-                       obj_addr_t _vector_addr, obj_addr_t _map_addr,
+  ExpireItemsSingleMap(BDD::Node_ptr node, addr_t _dchain_addr,
+                       addr_t _vector_addr, addr_t _map_addr,
                        klee::ref<klee::Expr> _time,
                        klee::ref<klee::Expr> _number_of_freed_flows)
       : x86Module(ModuleType::x86_ExpireItemsSingleMap, "ExpireItemsSingleMap",
@@ -115,9 +115,9 @@ public:
     return true;
   }
 
-  obj_addr_t get_dchain_addr() const { return dchain_addr; }
-  obj_addr_t get_vector_addr() const { return vector_addr; }
-  obj_addr_t get_map_addr() const { return map_addr; }
+  addr_t get_dchain_addr() const { return dchain_addr; }
+  addr_t get_vector_addr() const { return vector_addr; }
+  addr_t get_map_addr() const { return map_addr; }
   const klee::ref<klee::Expr> &get_time() const { return time; }
   const klee::ref<klee::Expr> &get_number_of_freed_flows() const {
     return number_of_freed_flows;

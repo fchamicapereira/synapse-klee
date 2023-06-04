@@ -8,7 +8,7 @@ namespace x86 {
 
 class PacketGetUnreadLength : public x86Module {
 private:
-  obj_addr_t p_addr;
+  addr_t p_addr;
   klee::ref<klee::Expr> unread_length;
 
   BDD::symbols_t generated_symbols;
@@ -18,7 +18,7 @@ public:
       : x86Module(ModuleType::x86_PacketGetUnreadLength,
                   "PacketGetUnreadLength") {}
 
-  PacketGetUnreadLength(BDD::Node_ptr node, obj_addr_t _p_addr,
+  PacketGetUnreadLength(BDD::Node_ptr node, addr_t _p_addr,
                         klee::ref<klee::Expr> _unread_length,
                         BDD::symbols_t _generated_symbols)
       : x86Module(ModuleType::x86_PacketGetUnreadLength,
@@ -95,7 +95,7 @@ public:
     return true;
   }
 
-  const obj_addr_t &get_p_addr() const { return p_addr; }
+  const addr_t &get_p_addr() const { return p_addr; }
   const klee::ref<klee::Expr> &get_unread_length() const {
     return unread_length;
   }

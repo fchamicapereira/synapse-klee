@@ -23,12 +23,12 @@ private:
   std::pair<bool, uint64_t> max_value;
 
 public:
-  Counter(obj_addr_t _obj, const std::unordered_set<BDD::node_id_t> &_nodes,
+  Counter(addr_t _obj, const std::unordered_set<BDD::node_id_t> &_nodes,
           uint64_t _capacity, bits_t _value_size)
       : DataStructure(Type::COUNTER, {_obj}, _nodes), capacity(_capacity),
         value_size(_value_size), max_value({false, 0}) {}
 
-  Counter(obj_addr_t _obj, const std::unordered_set<BDD::node_id_t> &_nodes,
+  Counter(addr_t _obj, const std::unordered_set<BDD::node_id_t> &_nodes,
           uint64_t _capacity, bits_t _value_size, uint64_t _max_value)
       : DataStructure(Type::COUNTER, {_obj}, _nodes), capacity(_capacity),
         value_size(_value_size), max_value({true, _max_value}) {}
@@ -43,7 +43,7 @@ public:
   bits_t get_value_size() const { return value_size; }
   const std::pair<bool, uint64_t> &get_max_value() const { return max_value; }
 
-  static CounterRef build(obj_addr_t _obj,
+  static CounterRef build(addr_t _obj,
                           const std::unordered_set<BDD::node_id_t> &_nodes,
                           uint64_t _capacity, bits_t _value_size,
                           std::pair<bool, uint64_t> _max_value) {

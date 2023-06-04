@@ -152,9 +152,10 @@ public:
   DECLARE_VISIT(targets::tofino::ModifyCustomHeader)
   DECLARE_VISIT(targets::tofino::ParserCondition)
   DECLARE_VISIT(targets::tofino::IPv4TCPUDPChecksumsUpdate)
-  DECLARE_VISIT(targets::tofino::MergeableTableLookup)
+  DECLARE_VISIT(targets::tofino::TableModule)
   DECLARE_VISIT(targets::tofino::TableLookup)
-  DECLARE_VISIT(targets::tofino::RegisterRead)
+  DECLARE_VISIT(targets::tofino::TableRejuvenation)
+  DECLARE_VISIT(targets::tofino::TableIsAllocated)
   DECLARE_VISIT(targets::tofino::IntegerAllocatorAllocate)
   DECLARE_VISIT(targets::tofino::IntegerAllocatorRejuvenate)
   DECLARE_VISIT(targets::tofino::IntegerAllocatorQuery)
@@ -163,6 +164,7 @@ public:
   DECLARE_VISIT(targets::tofino::SetupExpirationNotifications)
   DECLARE_VISIT(targets::tofino::CounterRead)
   DECLARE_VISIT(targets::tofino::CounterIncrement)
+  DECLARE_VISIT(targets::tofino::HashObj)
 
   /********************************************
    *
@@ -188,10 +190,17 @@ public:
   DECLARE_VISIT(targets::x86_tofino::Drop)
   DECLARE_VISIT(targets::x86_tofino::MapGet)
   DECLARE_VISIT(targets::x86_tofino::MapPut)
+  DECLARE_VISIT(targets::x86_tofino::MapErase)
   DECLARE_VISIT(targets::x86_tofino::EtherAddrHash)
   DECLARE_VISIT(targets::x86_tofino::DchainAllocateNewIndex)
   DECLARE_VISIT(targets::x86_tofino::DchainIsIndexAllocated)
   DECLARE_VISIT(targets::x86_tofino::DchainRejuvenateIndex)
+  DECLARE_VISIT(targets::x86_tofino::DchainFreeIndex)
+  DECLARE_VISIT(targets::x86_tofino::PacketParseTCP)
+  DECLARE_VISIT(targets::x86_tofino::PacketModifyTCP)
+  DECLARE_VISIT(targets::x86_tofino::PacketParseUDP)
+  DECLARE_VISIT(targets::x86_tofino::PacketModifyUDP)
+  DECLARE_VISIT(targets::x86_tofino::HashObj)
 
   /********************************************
    *
@@ -230,9 +239,5 @@ public:
   DECLARE_VISIT(targets::x86::LoadBalancedFlowHash)
   DECLARE_VISIT(targets::x86::ChtFindBackend)
   DECLARE_VISIT(targets::x86::HashObj)
-
-private:
-  void visit_table(const ExecutionPlanNode *ep_node,
-                   const targets::tofino::MergeableTableLookup *node, bool simple);
 };
 } // namespace synapse

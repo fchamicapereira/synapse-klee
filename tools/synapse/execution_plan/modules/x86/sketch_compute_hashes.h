@@ -8,14 +8,14 @@ namespace x86 {
 
 class SketchComputeHashes : public x86Module {
 private:
-  obj_addr_t sketch_addr;
+  addr_t sketch_addr;
   klee::ref<klee::Expr> key;
 
 public:
   SketchComputeHashes()
       : x86Module(ModuleType::x86_SketchComputeHashes, "SketchComputeHashes") {}
 
-  SketchComputeHashes(BDD::Node_ptr node, obj_addr_t _sketch_addr,
+  SketchComputeHashes(BDD::Node_ptr node, addr_t _sketch_addr,
                       klee::ref<klee::Expr> _key)
       : x86Module(ModuleType::x86_SketchComputeHashes, "SketchComputeHashes",
                   node),
@@ -88,7 +88,7 @@ public:
     return true;
   }
 
-  obj_addr_t get_sketch_addr() const { return sketch_addr; }
+  addr_t get_sketch_addr() const { return sketch_addr; }
   klee::ref<klee::Expr> get_key() const { return key; }
 };
 } // namespace x86

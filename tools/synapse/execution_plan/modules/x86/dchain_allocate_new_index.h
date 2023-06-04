@@ -8,7 +8,7 @@ namespace x86 {
 
 class DchainAllocateNewIndex : public x86Module {
 private:
-  obj_addr_t dchain_addr;
+  addr_t dchain_addr;
   klee::ref<klee::Expr> time;
   klee::ref<klee::Expr> index_out;
   BDD::symbol_t out_of_space;
@@ -17,7 +17,7 @@ public:
   DchainAllocateNewIndex()
       : x86Module(ModuleType::x86_DchainAllocateNewIndex, "DchainAllocate") {}
 
-  DchainAllocateNewIndex(BDD::Node_ptr node, obj_addr_t _dchain_addr,
+  DchainAllocateNewIndex(BDD::Node_ptr node, addr_t _dchain_addr,
                          klee::ref<klee::Expr> _time,
                          klee::ref<klee::Expr> _index_out,
                          const BDD::symbol_t &_out_of_space)
@@ -108,7 +108,7 @@ public:
     return true;
   }
 
-  const obj_addr_t &get_dchain_addr() const { return dchain_addr; }
+  const addr_t &get_dchain_addr() const { return dchain_addr; }
   const klee::ref<klee::Expr> &get_time() const { return time; }
   const klee::ref<klee::Expr> &get_index_out() const { return index_out; }
   const BDD::symbol_t &get_out_of_space() const { return out_of_space; }

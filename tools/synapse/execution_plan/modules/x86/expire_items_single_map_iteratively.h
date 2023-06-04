@@ -8,8 +8,8 @@ namespace x86 {
 
 class ExpireItemsSingleMapIteratively : public x86Module {
 private:
-  obj_addr_t vector_addr;
-  obj_addr_t map_addr;
+  addr_t vector_addr;
+  addr_t map_addr;
   klee::ref<klee::Expr> start;
   klee::ref<klee::Expr> n_elems;
 
@@ -18,8 +18,8 @@ public:
       : x86Module(ModuleType::x86_ExpireItemsSingleMapIteratively,
                   "ExpireItemsSingleMapIteratively") {}
 
-  ExpireItemsSingleMapIteratively(BDD::Node_ptr node, obj_addr_t _vector_addr,
-                                  obj_addr_t _map_addr,
+  ExpireItemsSingleMapIteratively(BDD::Node_ptr node, addr_t _vector_addr,
+                                  addr_t _map_addr,
                                   klee::ref<klee::Expr> _start,
                                   klee::ref<klee::Expr> _n_elems)
       : x86Module(ModuleType::x86_ExpireItemsSingleMapIteratively,
@@ -107,8 +107,8 @@ public:
     return true;
   }
 
-  obj_addr_t get_vector_addr() const { return vector_addr; }
-  obj_addr_t get_map_addr() const { return map_addr; }
+  addr_t get_vector_addr() const { return vector_addr; }
+  addr_t get_map_addr() const { return map_addr; }
   const klee::ref<klee::Expr> &get_start() const { return start; }
   const klee::ref<klee::Expr> &get_n_elems() const { return n_elems; }
 };

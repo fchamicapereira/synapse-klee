@@ -190,7 +190,7 @@ std::vector<BDD::Node_ptr> ExecutionPlan::get_incoming_bdd_nodes() const {
   return incoming_nodes;
 }
 
-void ExecutionPlan::add_target(TargetType type, MemoryBank_ptr mb) {
+void ExecutionPlan::add_target(TargetType type, TargetMemoryBank_ptr mb) {
   assert(targets.find(type) == targets.end());
   assert(memory_banks.find(type) == memory_banks.end());
 

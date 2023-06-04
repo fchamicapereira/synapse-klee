@@ -18,7 +18,7 @@ class Variable {
 protected:
   std::string label;
   bits_t size_bits;
-  obj_addr_t addr;
+  addr_t addr;
 
   std::vector<std::string> vigor_symbols;
   std::vector<klee::ref<klee::Expr>> exprs;
@@ -59,7 +59,7 @@ public:
     return exprs.push_back(expr);
   }
 
-  void set_addr(obj_addr_t _addr) { addr = _addr; }
+  void set_addr(addr_t _addr) { addr = _addr; }
 
   bool has_expr() const { return exprs.size() > 0; }
 
@@ -126,7 +126,7 @@ public:
     return false;
   }
 
-  bool match(obj_addr_t a) const { return addr == a; }
+  bool match(addr_t a) const { return addr == a; }
 
   kutil::solver_toolbox_t::contains_result_t
   contains(klee::ref<klee::Expr> e) const {

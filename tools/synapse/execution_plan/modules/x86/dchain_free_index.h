@@ -8,16 +8,16 @@ namespace x86 {
 
 class DchainFreeIndex : public x86Module {
 private:
-  obj_addr_t dchain_addr;
+  addr_t dchain_addr;
   klee::ref<klee::Expr> index;
 
 public:
   DchainFreeIndex()
-      : x86Module(ModuleType::x86_DchainFreeIndex, "DchainRejuvenate") {}
+      : x86Module(ModuleType::x86_DchainFreeIndex, "DchainFreeIndex") {}
 
-  DchainFreeIndex(BDD::Node_ptr node, obj_addr_t _dchain_addr,
+  DchainFreeIndex(BDD::Node_ptr node, addr_t _dchain_addr,
                   klee::ref<klee::Expr> _index)
-      : x86Module(ModuleType::x86_DchainFreeIndex, "DchainRejuvenate", node),
+      : x86Module(ModuleType::x86_DchainFreeIndex, "DchainFreeIndex", node),
         dchain_addr(_dchain_addr), index(_index) {}
 
 private:
@@ -84,7 +84,7 @@ public:
     return true;
   }
 
-  const obj_addr_t &get_dchain_addr() const { return dchain_addr; }
+  const addr_t &get_dchain_addr() const { return dchain_addr; }
   const klee::ref<klee::Expr> &get_index() const { return index; }
 };
 } // namespace x86

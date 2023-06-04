@@ -65,6 +65,7 @@ protected:
                                Module_ptr new_module) const;
   ExecutionPlan apply_postponed(ExecutionPlan ep, BDD::Node_ptr current_node,
                                 BDD::Node_ptr next_node) const;
+  processing_result_t ignore(const ExecutionPlan &ep, BDD::Node_ptr node) const;
 
 public:
   virtual void visit(ExecutionPlanVisitor &visitor,

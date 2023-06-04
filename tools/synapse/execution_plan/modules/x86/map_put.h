@@ -8,16 +8,16 @@ namespace x86 {
 
 class MapPut : public x86Module {
 private:
-  obj_addr_t map_addr;
-  obj_addr_t key_addr;
+  addr_t map_addr;
+  addr_t key_addr;
   klee::ref<klee::Expr> key;
   klee::ref<klee::Expr> value;
 
 public:
   MapPut() : x86Module(ModuleType::x86_MapPut, "MapPut") {}
 
-  MapPut(BDD::Node_ptr node, obj_addr_t _map_addr,
-         obj_addr_t _key_addr, klee::ref<klee::Expr> _key,
+  MapPut(BDD::Node_ptr node, addr_t _map_addr,
+         addr_t _key_addr, klee::ref<klee::Expr> _key,
          klee::ref<klee::Expr> _value)
       : x86Module(ModuleType::x86_MapPut, "MapPut", node), map_addr(_map_addr),
         key_addr(_key_addr), key(_key), value(_value) {}
@@ -100,8 +100,8 @@ public:
     return true;
   }
 
-  obj_addr_t get_map_addr() const { return map_addr; }
-  obj_addr_t get_key_addr() const { return key_addr; }
+  addr_t get_map_addr() const { return map_addr; }
+  addr_t get_key_addr() const { return key_addr; }
   const klee::ref<klee::Expr> &get_key() const { return key; }
   const klee::ref<klee::Expr> &get_value() const { return value; }
 };

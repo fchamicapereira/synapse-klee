@@ -8,13 +8,13 @@ namespace x86 {
 
 class SketchFetch : public x86Module {
 private:
-  obj_addr_t sketch_addr;
+  addr_t sketch_addr;
   BDD::symbol_t overflow;
 
 public:
   SketchFetch() : x86Module(ModuleType::x86_SketchFetch, "SketchFetch") {}
 
-  SketchFetch(BDD::Node_ptr node, obj_addr_t _sketch_addr,
+  SketchFetch(BDD::Node_ptr node, addr_t _sketch_addr,
               BDD::symbol_t _overflow)
       : x86Module(ModuleType::x86_SketchFetch, "SketchFetch", node),
         sketch_addr(_sketch_addr), overflow(_overflow) {}
@@ -85,7 +85,7 @@ public:
     return true;
   }
 
-  obj_addr_t get_sketch_addr() const { return sketch_addr; }
+  addr_t get_sketch_addr() const { return sketch_addr; }
   const BDD::symbol_t &get_overflow() const { return overflow; }
 };
 } // namespace x86

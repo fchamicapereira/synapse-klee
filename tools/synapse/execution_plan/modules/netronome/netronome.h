@@ -13,7 +13,7 @@ class NetronomeTarget : public Target {
 public:
   NetronomeTarget()
       : Target(TargetType::Netronome, {},
-               MemoryBank_ptr(new NetronomeMemoryBank())) {}
+               TargetMemoryBank_ptr(new NetronomeMemoryBank())) {}
 
   static Target_ptr build() { return Target_ptr(new NetronomeTarget()); }
 };

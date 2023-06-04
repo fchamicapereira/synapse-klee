@@ -6,13 +6,10 @@ namespace synapse {
 namespace targets {
 namespace netronome {
 
-class NetronomeMemoryBank : public MemoryBank {
+class NetronomeMemoryBank : public TargetMemoryBank {
 public:
-  NetronomeMemoryBank() : MemoryBank() {}
-  NetronomeMemoryBank(const MemoryBank &mb) : MemoryBank(mb) {}
-
-  virtual MemoryBank_ptr clone() const {
-    return MemoryBank_ptr(new NetronomeMemoryBank());
+  virtual TargetMemoryBank_ptr clone() const override {
+    return TargetMemoryBank_ptr(new NetronomeMemoryBank());
   }
 };
 

@@ -8,13 +8,13 @@ namespace x86 {
 
 class SketchExpire : public x86Module {
 private:
-  obj_addr_t sketch_addr;
+  addr_t sketch_addr;
   klee::ref<klee::Expr> time;
 
 public:
   SketchExpire() : x86Module(ModuleType::x86_SketchExpire, "SketchExpire") {}
 
-  SketchExpire(BDD::Node_ptr node, obj_addr_t _sketch_addr,
+  SketchExpire(BDD::Node_ptr node, addr_t _sketch_addr,
                klee::ref<klee::Expr> _time)
       : x86Module(ModuleType::x86_SketchExpire, "SketchExpire", node),
         sketch_addr(_sketch_addr), time(_time) {}
@@ -85,7 +85,7 @@ public:
     return true;
   }
 
-  obj_addr_t get_sketch_addr() const { return sketch_addr; }
+  addr_t get_sketch_addr() const { return sketch_addr; }
   klee::ref<klee::Expr> get_time() const { return time; }
 };
 } // namespace x86

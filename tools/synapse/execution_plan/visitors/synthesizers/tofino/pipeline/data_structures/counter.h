@@ -13,24 +13,24 @@ namespace synthesizer {
 namespace tofino {
 
 struct counter_t {
-  obj_addr_t vector;
+  addr_t vector;
   uint64_t capacity;
   bits_t value_size;
   std::pair<bool, uint64_t> max_value;
 
-  counter_t(obj_addr_t _vector, uint64_t _capacity, bits_t _value_size,
+  counter_t(addr_t _vector, uint64_t _capacity, bits_t _value_size,
             std::pair<bool, uint64_t> _max_value)
       : vector(_vector), capacity(_capacity), value_size(_value_size),
         max_value(_max_value) {}
 
-  static std::string get_label(obj_addr_t vector) {
+  static std::string get_label(addr_t vector) {
     std::stringstream label_builder;
     label_builder << "counter_";
     label_builder << vector;
     return label_builder.str();
   }
 
-  static std::string get_value_label(obj_addr_t vector) {
+  static std::string get_value_label(addr_t vector) {
     std::stringstream label_builder;
     label_builder << get_label(vector);
     label_builder << "_value";
@@ -226,7 +226,7 @@ struct counter_t {
 
   struct CounterHashing {
     size_t operator()(const counter_t &counter) const {
-      return std::hash<obj_addr_t>()(counter.vector);
+      return std::hash<addr_t>()(counter.vector);
     }
   };
 };

@@ -18,11 +18,31 @@ public:
                      "SetupExpirationNotifications", node) {}
 
 private:
+  time_ns_t get_expiration_time(klee::ref<klee::Expr> expr) const {
+    std::cerr << "time " << kutil::expr_to_string(expr) << "\n";
+
+    auto symbol = kutil::get_symbol(expr);
+    assert(symbol.first);
+    auto time_symbol = symbol.second;
+
+    auto time = kutil::solver_toolbox.create_new_symbol(time_symbol, 64);
+    auto zero = kutil::solver_toolbox.exprBuilder->Constant(0, 64);
+    auto time_eq_0 = kutil::solver_toolbox.exprBuilder->Eq(time, zero);
+
+    klee::ConstraintManager constraints;
+    constraints.addConstraint(time_eq_0);
+
+    auto value =
+        kutil::solver_toolbox.signed_value_from_expr(expr, constraints);
+
+    return value * -1;
+  }
+
   void remember_expiration_data(const ExecutionPlan &ep,
                                 klee::ref<klee::Expr> time,
                                 const BDD::symbol_t &number_of_freed_flows) {
-    // TODO: get expiration time from time expression
-    expiration_data_t expiration_data(0, number_of_freed_flows);
+    auto expiration_time = get_expiration_time(time);
+    expiration_data_t expiration_data(expiration_time, number_of_freed_flows);
 
     auto mb = ep.get_memory_bank();
     mb->set_expiration_data(expiration_data);
@@ -61,13 +81,7 @@ private:
 
     remember_expiration_data(ep, _time, _number_of_freed_flows);
 
-    auto new_module = std::make_shared<Ignore>(node);
-    auto new_ep = ep.ignore_leaf(node->get_next(), TargetType::Tofino);
-
-    result.module = new_module;
-    result.next_eps.push_back(new_ep);
-
-    return result;
+    return ignore(ep, node);
   }
 
 public:

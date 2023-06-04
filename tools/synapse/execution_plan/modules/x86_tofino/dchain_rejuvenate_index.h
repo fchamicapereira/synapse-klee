@@ -10,7 +10,7 @@ namespace x86_tofino {
 
 class DchainRejuvenateIndex : public Module {
 private:
-  obj_addr_t dchain_addr;
+  addr_t dchain_addr;
   klee::ref<klee::Expr> index;
   klee::ref<klee::Expr> time;
 
@@ -19,7 +19,7 @@ public:
       : Module(ModuleType::x86_Tofino_DchainRejuvenateIndex,
                TargetType::x86_Tofino, "DchainRejuvenate") {}
 
-  DchainRejuvenateIndex(BDD::Node_ptr node, obj_addr_t _dchain_addr,
+  DchainRejuvenateIndex(BDD::Node_ptr node, addr_t _dchain_addr,
                         klee::ref<klee::Expr> _index,
                         klee::ref<klee::Expr> _time)
       : Module(ModuleType::x86_Tofino_DchainRejuvenateIndex,
@@ -28,7 +28,7 @@ public:
 
 private:
   bool already_rejuvenated_by_data_plane(const ExecutionPlan &ep,
-                                         obj_addr_t obj) const {
+                                         addr_t obj) const {
     auto mb = ep.get_memory_bank();
     auto uses_int_allocator =
         mb->check_placement_decision(obj, PlacementDecision::IntegerAllocator);
@@ -139,7 +139,7 @@ public:
     return true;
   }
 
-  const obj_addr_t &get_dchain_addr() const { return dchain_addr; }
+  const addr_t &get_dchain_addr() const { return dchain_addr; }
   const klee::ref<klee::Expr> &get_index() const { return index; }
   const klee::ref<klee::Expr> &get_time() const { return time; }
 };

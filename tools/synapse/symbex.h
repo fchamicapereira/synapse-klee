@@ -177,7 +177,7 @@ constexpr char KLEE_EXPR_TCPUDP_CONDITION[] =
     "w32 (Ult (ZExt w64 (Add w32 (w32 4294967262) (ZExt w32 (ReadLSB w16 (w32 "
     "0) pkt_len)))) (w64 4)))))";
 
-std::pair<bool, obj_addr_t> get_obj_from_call(const BDD::Call *call);
+std::pair<bool, addr_t> get_obj_from_call(const BDD::Call *call);
 
 struct dchain_config_t {
   uint64_t index_range;
@@ -208,11 +208,11 @@ struct cht_config_t {
   uint64_t height;
 };
 
-dchain_config_t get_dchain_config(const BDD::BDD &bdd, obj_addr_t dchain_addr);
-map_config_t get_map_config(const BDD::BDD &bdd, obj_addr_t map_addr);
-vector_config_t get_vector_config(const BDD::BDD &bdd, obj_addr_t vector_addr);
-sketch_config_t get_sketch_config(const BDD::BDD &bdd, obj_addr_t sketch_addr);
-cht_config_t get_cht_config(const BDD::BDD &bdd, obj_addr_t cht_addr);
+dchain_config_t get_dchain_config(const BDD::BDD &bdd, addr_t dchain_addr);
+map_config_t get_map_config(const BDD::BDD &bdd, addr_t map_addr);
+vector_config_t get_vector_config(const BDD::BDD &bdd, addr_t vector_addr);
+sketch_config_t get_sketch_config(const BDD::BDD &bdd, addr_t sketch_addr);
+cht_config_t get_cht_config(const BDD::BDD &bdd, addr_t cht_addr);
 
 } // namespace symbex
 } // namespace synapse

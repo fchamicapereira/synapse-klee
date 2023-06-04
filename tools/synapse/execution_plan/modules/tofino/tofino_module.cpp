@@ -9,18 +9,9 @@ namespace tofino {
 processing_result_t TofinoModule::postpone(const ExecutionPlan &ep,
                                            BDD::Node_ptr node,
                                            Module_ptr new_module) const {
-  processing_result_t result;
-
   auto tmb = ep.get_memory_bank<TofinoMemoryBank>(Tofino);
   tmb->postpone(node->get_id(), new_module);
-
-  auto ignore_module = std::make_shared<Ignore>(node);
-  auto new_ep = ep.ignore_leaf(node->get_next(), TargetType::Tofino);
-
-  result.module = ignore_module;
-  result.next_eps.push_back(new_ep);
-
-  return result;
+  return ignore(ep, node);
 }
 
 ExecutionPlan TofinoModule::apply_postponed(ExecutionPlan ep,
@@ -48,6 +39,19 @@ ExecutionPlan TofinoModule::apply_postponed(ExecutionPlan ep,
   }
 
   return ep;
+}
+
+processing_result_t TofinoModule::ignore(const ExecutionPlan &ep,
+                                         BDD::Node_ptr node) const {
+  processing_result_t result;
+
+  auto new_module = std::make_shared<Ignore>(node);
+  auto new_ep = ep.ignore_leaf(node->get_next(), TargetType::Tofino);
+
+  result.module = new_module;
+  result.next_eps.push_back(new_ep);
+
+  return result;
 }
 
 } // namespace tofino

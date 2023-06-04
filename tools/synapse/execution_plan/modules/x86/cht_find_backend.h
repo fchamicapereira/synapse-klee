@@ -9,8 +9,8 @@ namespace x86 {
 class ChtFindBackend : public x86Module {
 private:
   klee::ref<klee::Expr> hash;
-  obj_addr_t cht_addr;
-  obj_addr_t active_backends_addr;
+  addr_t cht_addr;
+  addr_t active_backends_addr;
   klee::ref<klee::Expr> cht_height;
   klee::ref<klee::Expr> backend_capacity;
   klee::ref<klee::Expr> chosen_backend;
@@ -21,7 +21,7 @@ public:
       : x86Module(ModuleType::x86_ChtFindBackend, "ChtFindBackend") {}
 
   ChtFindBackend(BDD::Node_ptr node, klee::ref<klee::Expr> _hash,
-                 obj_addr_t _cht_addr, obj_addr_t _active_backends_addr,
+                 addr_t _cht_addr, addr_t _active_backends_addr,
                  klee::ref<klee::Expr> _cht_height,
                  klee::ref<klee::Expr> _backend_capacity,
                  klee::ref<klee::Expr> _chosen_backend,
@@ -141,8 +141,8 @@ public:
   }
 
   klee::ref<klee::Expr> get_hash() const { return hash; }
-  obj_addr_t get_cht_addr() const { return cht_addr; }
-  obj_addr_t get_active_backends_addr() const { return active_backends_addr; }
+  addr_t get_cht_addr() const { return cht_addr; }
+  addr_t get_active_backends_addr() const { return active_backends_addr; }
   klee::ref<klee::Expr> get_cht_height() const { return cht_height; }
 
   klee::ref<klee::Expr> get_backend_capacity() const {

@@ -8,16 +8,16 @@ namespace x86 {
 
 class VectorBorrow : public x86Module {
 private:
-  obj_addr_t vector_addr;
+  addr_t vector_addr;
   klee::ref<klee::Expr> index;
-  obj_addr_t value_out;
+  addr_t value_out;
   klee::ref<klee::Expr> borrowed_cell;
 
 public:
   VectorBorrow() : x86Module(ModuleType::x86_VectorBorrow, "VectorBorrow") {}
 
-  VectorBorrow(BDD::Node_ptr node, obj_addr_t _vector_addr,
-               klee::ref<klee::Expr> _index, obj_addr_t _value_out,
+  VectorBorrow(BDD::Node_ptr node, addr_t _vector_addr,
+               klee::ref<klee::Expr> _index, addr_t _value_out,
                klee::ref<klee::Expr> _borrowed_cell)
       : x86Module(ModuleType::x86_VectorBorrow, "VectorBorrow", node),
         vector_addr(_vector_addr), index(_index), value_out(_value_out),
@@ -103,9 +103,9 @@ public:
     return true;
   }
 
-  obj_addr_t get_vector_addr() const { return vector_addr; }
+  addr_t get_vector_addr() const { return vector_addr; }
   const klee::ref<klee::Expr> &get_index() const { return index; }
-  obj_addr_t get_value_out() const { return value_out; }
+  addr_t get_value_out() const { return value_out; }
   const klee::ref<klee::Expr> &get_borrowed_cell() const {
     return borrowed_cell;
   }

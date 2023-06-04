@@ -56,7 +56,7 @@ x86Generator::search_variable(klee::ref<klee::Expr> expr) const {
   return variable_query_t();
 }
 
-void x86Generator::map_init(obj_addr_t addr, const symbex::map_config_t &cfg) {
+void x86Generator::map_init(addr_t addr, const symbex::map_config_t &cfg) {
   auto map_label = vars.get_new_label(MAP_BASE_LABEL);
   auto map_var = Variable(map_label, 32);
   map_var.set_addr(addr);
@@ -111,7 +111,7 @@ void x86Generator::map_init(obj_addr_t addr, const symbex::map_config_t &cfg) {
   nf_init_builder.append_new_line();
 }
 
-void x86Generator::vector_init(obj_addr_t addr,
+void x86Generator::vector_init(addr_t addr,
                                const symbex::vector_config_t &cfg) {
   auto vector_label = vars.get_new_label(VECTOR_BASE_LABEL);
   auto vector_var = Variable(vector_label, 32);
@@ -154,7 +154,7 @@ void x86Generator::vector_init(obj_addr_t addr,
   nf_init_builder.append_new_line();
 }
 
-void x86Generator::dchain_init(obj_addr_t addr,
+void x86Generator::dchain_init(addr_t addr,
                                const symbex::dchain_config_t &cfg) {
   auto dchain_label = vars.get_new_label(DCHAIN_BASE_LABEL);
   auto dchain_var = Variable(dchain_label, 32);
@@ -181,7 +181,7 @@ void x86Generator::dchain_init(obj_addr_t addr,
   nf_init_builder.append_new_line();
 }
 
-void x86Generator::sketch_init(obj_addr_t addr,
+void x86Generator::sketch_init(addr_t addr,
                                const symbex::sketch_config_t &cfg) {
   auto sketch_label = vars.get_new_label(SKETCH_BASE_LABEL);
   auto sketch_var = Variable(sketch_label, 32);
@@ -226,7 +226,7 @@ void x86Generator::sketch_init(obj_addr_t addr,
   nf_init_builder.append_new_line();
 }
 
-void x86Generator::cht_init(obj_addr_t addr, const symbex::cht_config_t &cfg) {
+void x86Generator::cht_init(addr_t addr, const symbex::cht_config_t &cfg) {
   // Actually, the cht is just a vector, and it must be initialized before this
   // call.
 

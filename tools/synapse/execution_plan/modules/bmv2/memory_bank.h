@@ -6,13 +6,10 @@ namespace synapse {
 namespace targets {
 namespace bmv2 {
 
-class BMv2MemoryBank : public MemoryBank {
+class BMv2MemoryBank : public TargetMemoryBank {
 public:
-  BMv2MemoryBank() : MemoryBank() {}
-  BMv2MemoryBank(const MemoryBank &mb) : MemoryBank(mb) {}
-
-  virtual MemoryBank_ptr clone() const {
-    return MemoryBank_ptr(new BMv2MemoryBank());
+  virtual TargetMemoryBank_ptr clone() const override {
+    return TargetMemoryBank_ptr(new BMv2MemoryBank());
   }
 };
 

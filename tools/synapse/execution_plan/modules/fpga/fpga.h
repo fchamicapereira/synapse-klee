@@ -12,7 +12,8 @@ namespace fpga {
 class FPGATarget : public Target {
 public:
   FPGATarget()
-      : Target(TargetType::FPGA, {}, MemoryBank_ptr(new FPGAMemoryBank())) {}
+      : Target(TargetType::FPGA, {},
+               TargetMemoryBank_ptr(new FPGAMemoryBank())) {}
 
   static Target_ptr build() { return Target_ptr(new FPGATarget()); }
 };

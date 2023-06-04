@@ -260,7 +260,7 @@ klee::ConstraintManager join_managers(klee::ConstraintManager m1,
   return m;
 }
 
-obj_addr_t expr_addr_to_obj_addr(klee::ref<klee::Expr> obj_addr) {
+addr_t expr_addr_to_obj_addr(klee::ref<klee::Expr> obj_addr) {
   assert(!obj_addr.isNull());
   assert(is_constant(obj_addr));
   return solver_toolbox.value_from_expr(obj_addr);

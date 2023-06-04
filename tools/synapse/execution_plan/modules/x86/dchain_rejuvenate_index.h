@@ -8,7 +8,7 @@ namespace x86 {
 
 class DchainRejuvenateIndex : public x86Module {
 private:
-  obj_addr_t dchain_addr;
+  addr_t dchain_addr;
   klee::ref<klee::Expr> index;
   klee::ref<klee::Expr> time;
 
@@ -16,7 +16,7 @@ public:
   DchainRejuvenateIndex()
       : x86Module(ModuleType::x86_DchainRejuvenateIndex, "DchainRejuvenate") {}
 
-  DchainRejuvenateIndex(BDD::Node_ptr node, obj_addr_t _dchain_addr,
+  DchainRejuvenateIndex(BDD::Node_ptr node, addr_t _dchain_addr,
                         klee::ref<klee::Expr> _index,
                         klee::ref<klee::Expr> _time)
       : x86Module(ModuleType::x86_DchainRejuvenateIndex, "DchainRejuvenate",
@@ -94,7 +94,7 @@ public:
     return true;
   }
 
-  const obj_addr_t &get_dchain_addr() const { return dchain_addr; }
+  const addr_t &get_dchain_addr() const { return dchain_addr; }
   const klee::ref<klee::Expr> &get_index() const { return index; }
   const klee::ref<klee::Expr> &get_time() const { return time; }
 };

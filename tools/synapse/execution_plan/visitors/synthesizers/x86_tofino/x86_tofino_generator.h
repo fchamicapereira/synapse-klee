@@ -97,6 +97,8 @@ public:
              const target::DchainIsIndexAllocated *node) override;
   void visit(const ExecutionPlanNode *ep_node,
              const target::DchainRejuvenateIndex *node) override;
+  void visit(const ExecutionPlanNode *ep_node,
+             const target::HashObj *node) override;
 };
 
 } // namespace x86_tofino

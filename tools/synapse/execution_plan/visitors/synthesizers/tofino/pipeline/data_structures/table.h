@@ -7,7 +7,7 @@
 #include "../../../code_builder.h"
 #include "../../constants.h"
 #include "../../util.h"
-#include "variable.h"
+#include "../domain/variable.h"
 
 namespace synapse {
 namespace synthesizer {

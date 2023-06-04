@@ -6,6 +6,7 @@
 #include "module.h"
 
 #include <algorithm>
+#include <set>
 
 using synapse::symbex::CHUNK;
 using synapse::symbex::PACKET_LENGTH;
@@ -276,49 +277,48 @@ std::vector<Module::modification_t> Module::ignore_checksum_modifications(
 */
 
 struct next_t {
-  std::vector<BDD::Node_ptr> maps;
-  std::vector<obj_addr_t> maps_addrs;
+  std::unordered_set<addr_t> maps;
+  std::unordered_set<addr_t> vectors;
+  std::unordered_set<addr_t> dchains;
 
-  std::vector<BDD::Node_ptr> vectors;
-  std::vector<obj_addr_t> vectors_addrs;
-
-  int size() const { return maps_addrs.size() + vectors_addrs.size(); }
+  int size() const { return maps.size() + vectors.size(); }
 
   void intersect(const next_t &other) {
-    auto i = 0u;
-
-    while (i < maps_addrs.size()) {
-      auto current_addr = maps_addrs[i];
-      auto found_it = std::find(other.maps_addrs.begin(),
-                                other.maps_addrs.end(), current_addr);
-
-      if (found_it == other.maps_addrs.end()) {
-        maps.erase(maps.begin() + i);
-        maps_addrs.erase(maps_addrs.begin() + i);
-      } else {
-        i++;
+    auto intersector = [](std::unordered_set<addr_t> &a,
+                          const std::unordered_set<addr_t> &b) {
+      for (auto it = a.begin(); it != a.end();) {
+        if (b.find(*it) == b.end()) {
+          it = a.erase(it);
+        } else {
+          it++;
+        }
       }
+    };
+
+    intersector(maps, other.maps);
+    intersector(vectors, other.vectors);
+    intersector(dchains, other.dchains);
+  }
+
+  bool has_obj(addr_t obj) const {
+    if (maps.find(obj) != maps.end()) {
+      return true;
     }
 
-    i = 0;
-
-    while (i < vectors_addrs.size()) {
-      auto current_addr = vectors_addrs[i];
-      auto found_it = std::find(other.vectors_addrs.begin(),
-                                other.vectors_addrs.end(), current_addr);
-
-      if (found_it == other.vectors_addrs.end()) {
-        vectors.erase(vectors.begin() + i);
-        vectors_addrs.erase(vectors_addrs.begin() + i);
-      } else {
-        i++;
-      }
+    if (vectors.find(obj) != vectors.end()) {
+      return true;
     }
+
+    if (dchains.find(obj) != dchains.end()) {
+      return true;
+    }
+
+    return false;
   }
 };
 
-next_t get_next_maps_and_vectors_ops(BDD::Node_ptr root, obj_addr_t map_addr,
-                                     klee::ref<klee::Expr> index) {
+next_t get_next_maps_and_vectors(BDD::Node_ptr root,
+                                 klee::ref<klee::Expr> index) {
   assert(root);
 
   std::vector<BDD::Node_ptr> nodes{root};
@@ -350,9 +350,8 @@ next_t get_next_maps_and_vectors_ops(BDD::Node_ptr root, obj_addr_t map_addr,
       auto same_index =
           kutil::solver_toolbox.are_exprs_always_equal(index, _value);
 
-      if (map_addr == _map_addr && same_index) {
-        candidates.maps.push_back(node);
-        candidates.maps_addrs.push_back(_map_addr);
+      if (same_index) {
+        candidates.maps.insert(_map_addr);
       }
     }
 
@@ -365,8 +364,7 @@ next_t get_next_maps_and_vectors_ops(BDD::Node_ptr root, obj_addr_t map_addr,
           kutil::solver_toolbox.are_exprs_always_equal(index, _value);
 
       if (same_index) {
-        candidates.vectors.push_back(node);
-        candidates.vectors_addrs.push_back(_vector_addr);
+        candidates.vectors.insert(_vector_addr);
       }
     }
 
@@ -471,25 +469,31 @@ bool Module::is_parser_drop(BDD::Node_ptr root) const {
 }
 
 next_t get_allowed_coalescing_objs(std::vector<BDD::Node_ptr> index_allocators,
-                                   obj_addr_t map_addr) {
+                                   addr_t obj) {
   next_t candidates;
 
   for (auto allocator : index_allocators) {
-    auto allocator_node = static_cast<const BDD::Call *>(allocator.get());
+    auto allocator_node = BDD::cast_node<BDD::Call>(allocator);
     auto allocator_call = allocator_node->get_call();
 
     assert(!allocator_call.args[symbex::FN_DCHAIN_ARG_OUT].out.isNull());
+    assert(!allocator_call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
+
     auto allocated_index = allocator_call.args[symbex::FN_DCHAIN_ARG_OUT].out;
+    auto dchain = allocator_call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr;
+    auto dchain_addr = kutil::expr_addr_to_obj_addr(dchain);
 
-    /*
-      We expect the coalescing candidates to be the same regardless
-      of where in the BDD we are.
-      In case there is some discrepancy, then it should be invalid.
-      We thus consider only the intersection of all candidates.
-    */
+    // We expect the coalescing candidates to be the same regardless of
+    // where in the BDD we are. In case there is some discrepancy, then it
+    // should be invalid. We thus consider only the intersection of all
+    // candidates.
 
-    auto new_candidates =
-        get_next_maps_and_vectors_ops(allocator, map_addr, allocated_index);
+    auto new_candidates = get_next_maps_and_vectors(allocator, allocated_index);
+    new_candidates.dchains.insert(dchain_addr);
+
+    if (!new_candidates.has_obj(obj)) {
+      continue;
+    }
 
     if (candidates.size() == 0) {
       candidates = new_candidates;
@@ -506,71 +510,61 @@ next_t get_allowed_coalescing_objs(std::vector<BDD::Node_ptr> index_allocators,
   return candidates;
 }
 
-Module::coalesced_data_t Module::get_coalescing_data(const ExecutionPlan &ep,
-                                                     BDD::Node_ptr node) const {
-  Module::coalesced_data_t coalesced_data;
+Module::map_coalescing_data_t
+Module::get_map_coalescing_data_t(const ExecutionPlan &ep, addr_t obj) const {
+  // We can cache results previously made, as BDD reordering will not change the
+  // result.
+  std::unordered_map<addr_t, Module::map_coalescing_data_t> cache;
 
-  if (node->get_type() != BDD::Node::CALL) {
-    return coalesced_data;
+  if (cache.find(obj) != cache.end()) {
+    return cache[obj];
   }
 
-  auto call_node = static_cast<const BDD::Call *>(node.get());
-  auto call = call_node->get_call();
+  Module::map_coalescing_data_t data;
 
-  if (call.function_name != symbex::FN_MAP_GET) {
-    return coalesced_data;
-  }
-
-  assert(!call.args[symbex::FN_MAP_ARG_MAP].expr.isNull());
-  assert(!call.args[symbex::FN_MAP_ARG_OUT].out.isNull());
-
-  auto map = call.args[symbex::FN_MAP_ARG_MAP].expr;
-  auto map_addr = kutil::expr_addr_to_obj_addr(map);
-  auto index = call.args[symbex::FN_MAP_ARG_OUT].out;
-
-  auto root = ep.get_bdd_root(node);
+  const auto &bdd = ep.get_bdd();
+  auto root = bdd.get_process();
   assert(root);
 
   auto index_allocators = get_all_functions_after_node(
       root, {symbex::FN_DCHAIN_ALLOCATE_NEW_INDEX});
 
   if (index_allocators.size() == 0) {
-    return coalesced_data;
+    return data;
   }
 
-  auto candidates = get_allowed_coalescing_objs(index_allocators, map_addr);
+  auto candidates = get_allowed_coalescing_objs(index_allocators, obj);
 
   if (candidates.size() == 0) {
-    return coalesced_data;
+    return data;
   }
 
-  auto incoming_maps_and_vectors =
-      get_next_maps_and_vectors_ops(node, map_addr, index);
+  assert(candidates.maps.size() == 1);
+  assert(candidates.dchains.size() == 1);
 
-  incoming_maps_and_vectors.intersect(candidates);
-  assert(incoming_maps_and_vectors.maps.size() == 0);
+  data.valid = true;
+  data.map = *candidates.maps.begin();
+  data.dchain = *candidates.dchains.begin();
+  data.vectors = candidates.vectors;
 
-  if (incoming_maps_and_vectors.vectors.size() == 0) {
-    return coalesced_data;
-  }
+  cache[data.map] = data;
+  cache[data.dchain] = data;
+  for (auto v : data.vectors)
+    cache[v] = data;
 
-  coalesced_data.can_coalesce = true;
-  coalesced_data.map_get = node;
-  coalesced_data.vector_borrows = incoming_maps_and_vectors.vectors;
-
-  return coalesced_data;
+  return data;
 }
 
 klee::ref<klee::Expr>
 Module::get_original_vector_value(const ExecutionPlan &ep, BDD::Node_ptr node,
-                                  obj_addr_t target_addr) const {
+                                  addr_t target_addr) const {
   BDD::Node_ptr source;
   return get_original_vector_value(ep, node, target_addr, source);
 }
 
 klee::ref<klee::Expr>
 Module::get_original_vector_value(const ExecutionPlan &ep, BDD::Node_ptr node,
-                                  obj_addr_t target_addr,
+                                  addr_t target_addr,
                                   BDD::Node_ptr &source) const {
   auto all_prev_vector_borrow = get_prev_fn(ep, node, symbex::FN_VECTOR_BORROW);
 
@@ -823,13 +817,13 @@ bool is_counter_read_op(BDD::Node_ptr vector_borrow) {
 }
 
 Module::counter_data_t Module::is_counter(const ExecutionPlan &ep,
-                                          obj_addr_t obj) const {
+                                          addr_t obj) const {
   Module::counter_data_t data;
 
   auto bdd = ep.get_bdd();
   auto cfg = symbex::get_vector_config(ep.get_bdd(), obj);
 
-  if (cfg.elem_size > 64) {
+  if (cfg.elem_size > 64 || cfg.capacity != 1) {
     return data;
   }
 
@@ -864,6 +858,41 @@ Module::counter_data_t Module::is_counter(const ExecutionPlan &ep,
 
   data.valid = true;
   return data;
+}
+
+klee::ref<klee::Expr> Module::get_expr_from_addr(const ExecutionPlan &ep,
+                                                 addr_t addr) const {
+  auto bdd = ep.get_bdd();
+  auto root = bdd.get_process();
+  auto nodes = get_all_functions_after_node(root, {
+                                                      symbex::FN_MAP_GET,
+                                                  });
+
+  for (auto node : nodes) {
+    auto call_node = BDD::cast_node<BDD::Call>(node);
+    assert(call_node);
+
+    auto call = call_node->get_call();
+
+    if (call.function_name == symbex::FN_MAP_GET) {
+      assert(!call.args[symbex::FN_MAP_ARG_KEY].expr.isNull());
+      assert(!call.args[symbex::FN_MAP_ARG_KEY].in.isNull());
+
+      auto _key_addr = call.args[symbex::FN_MAP_ARG_KEY].expr;
+      auto _key = call.args[symbex::FN_MAP_ARG_KEY].in;
+      auto _key_addr_value = kutil::expr_addr_to_obj_addr(_key_addr);
+
+      if (_key_addr_value != addr) {
+        continue;
+      }
+
+      return _key;
+    } else {
+      assert(false);
+    }
+  }
+
+  return nullptr;
 }
 
 } // namespace synapse

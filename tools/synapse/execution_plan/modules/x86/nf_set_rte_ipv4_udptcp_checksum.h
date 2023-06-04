@@ -8,16 +8,16 @@ namespace x86 {
 
 class SetIpv4UdpTcpChecksum : public x86Module {
 private:
-  obj_addr_t ip_header_addr;
-  obj_addr_t l4_header_addr;
+  addr_t ip_header_addr;
+  addr_t l4_header_addr;
   BDD::symbol_t checksum;
 
 public:
   SetIpv4UdpTcpChecksum()
       : x86Module(ModuleType::x86_SetIpv4UdpTcpChecksum, "SetIpChecksum") {}
 
-  SetIpv4UdpTcpChecksum(BDD::Node_ptr node, obj_addr_t _ip_header_addr,
-                        obj_addr_t _l4_header_addr, BDD::symbol_t _checksum)
+  SetIpv4UdpTcpChecksum(BDD::Node_ptr node, addr_t _ip_header_addr,
+                        addr_t _l4_header_addr, BDD::symbol_t _checksum)
       : x86Module(ModuleType::x86_SetIpv4UdpTcpChecksum, "SetIpChecksum", node),
         ip_header_addr(_ip_header_addr), l4_header_addr(_l4_header_addr),
         checksum(_checksum) {}
@@ -95,8 +95,8 @@ public:
     return true;
   }
 
-  obj_addr_t get_ip_header_addr() const { return ip_header_addr; }
-  obj_addr_t get_l4_header_addr() const { return l4_header_addr; }
+  addr_t get_ip_header_addr() const { return ip_header_addr; }
+  addr_t get_l4_header_addr() const { return l4_header_addr; }
   const BDD::symbol_t &get_checksum() const { return checksum; }
 };
 } // namespace x86

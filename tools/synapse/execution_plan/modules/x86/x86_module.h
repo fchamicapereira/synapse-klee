@@ -17,7 +17,7 @@ public:
       : Module(_type, TargetType::x86, _name, node) {}
 
 protected:
-  void save_map(const ExecutionPlan &ep, obj_addr_t addr) {
+  void save_map(const ExecutionPlan &ep, addr_t addr) {
     auto mb = ep.get_memory_bank<x86MemoryBank>(TargetType::x86);
     auto saved = mb->has_map_config(addr);
     if (!saved) {
@@ -26,7 +26,7 @@ protected:
     }
   }
 
-  void save_vector(const ExecutionPlan &ep, obj_addr_t addr) {
+  void save_vector(const ExecutionPlan &ep, addr_t addr) {
     auto mb = ep.get_memory_bank<x86MemoryBank>(TargetType::x86);
     auto saved = mb->has_vector_config(addr);
     if (!saved) {
@@ -35,7 +35,7 @@ protected:
     }
   }
 
-  void save_dchain(const ExecutionPlan &ep, obj_addr_t addr) {
+  void save_dchain(const ExecutionPlan &ep, addr_t addr) {
     auto mb = ep.get_memory_bank<x86MemoryBank>(TargetType::x86);
     auto saved = mb->has_dchain_config(addr);
     if (!saved) {
@@ -44,7 +44,7 @@ protected:
     }
   }
 
-  void save_sketch(const ExecutionPlan &ep, obj_addr_t addr) {
+  void save_sketch(const ExecutionPlan &ep, addr_t addr) {
     auto mb = ep.get_memory_bank<x86MemoryBank>(TargetType::x86);
     auto saved = mb->has_sketch_config(addr);
     if (!saved) {
@@ -53,7 +53,7 @@ protected:
     }
   }
 
-  void save_cht(const ExecutionPlan &ep, obj_addr_t addr) {
+  void save_cht(const ExecutionPlan &ep, addr_t addr) {
     auto mb = ep.get_memory_bank<x86MemoryBank>(TargetType::x86);
     auto saved = mb->has_cht_config(addr);
     if (!saved) {

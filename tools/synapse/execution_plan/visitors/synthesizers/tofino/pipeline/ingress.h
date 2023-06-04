@@ -7,11 +7,12 @@
 #include "../constants.h"
 
 #include "domain/stack.h"
-#include "domain/table.h"
 #include "domain/variable.h"
 
 #include "data_structures/counter.h"
+#include "data_structures/hash.h"
 #include "data_structures/int_allocator.h"
+#include "data_structures/table.h"
 
 #include "headers.h"
 #include "parser.h"
@@ -29,6 +30,7 @@ private:
   tables_t tables;
   integer_allocators_t int_allocators;
   counters_t counters;
+  hashes_t hashes;
 
 public:
   CodeBuilder state_builder;
@@ -335,7 +337,7 @@ public:
 
   void add_counter(const counter_t &counter) { counters.insert(counter); }
 
-  const integer_allocator_t &get_int_allocator(obj_addr_t obj) const {
+  const integer_allocator_t &get_int_allocator(addr_t obj) const {
     auto it = std::find_if(int_allocators.begin(), int_allocators.end(),
                            [&](const integer_allocator_t &int_allocator) {
                              return int_allocator.dchain == obj;
@@ -345,12 +347,26 @@ public:
     return *it;
   }
 
-  const counter_t &get_counter(obj_addr_t obj) const {
+  const counter_t &get_counter(addr_t obj) const {
     auto it = std::find_if(
         counters.begin(), counters.end(),
         [&](const counter_t &counter) { return counter.vector == obj; });
 
     assert(it != counters.end());
+    return *it;
+  }
+
+  hash_t get_or_build_hash(bits_t size) {
+    auto it =
+        std::find_if(hashes.begin(), hashes.end(),
+                     [&](const hash_t &hash) { return hash.size == size; });
+
+    if (it == hashes.end()) {
+      auto new_hash = hash_t(size, hashes.size());
+      hashes.insert(new_hash);
+      return new_hash;
+    }
+
     return *it;
   }
 
@@ -365,6 +381,10 @@ public:
 
     for (const auto &counter : counters) {
       counter.synthesize_declaration(state_builder);
+    }
+
+    for (const auto &hash : hashes) {
+      hash.synthesize_declaration(state_builder);
     }
 
     state_builder.dump(os);

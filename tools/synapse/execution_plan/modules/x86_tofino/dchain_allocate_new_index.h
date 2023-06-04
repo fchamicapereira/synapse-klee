@@ -9,7 +9,7 @@ namespace x86_tofino {
 
 class DchainAllocateNewIndex : public Module {
 private:
-  obj_addr_t dchain_addr;
+  addr_t dchain_addr;
   klee::ref<klee::Expr> time;
   klee::ref<klee::Expr> index_out;
   klee::ref<klee::Expr> success;
@@ -21,7 +21,7 @@ public:
       : Module(ModuleType::x86_Tofino_DchainAllocateNewIndex,
                TargetType::x86_Tofino, "DchainAllocate") {}
 
-  DchainAllocateNewIndex(BDD::Node_ptr node, obj_addr_t _dchain_addr,
+  DchainAllocateNewIndex(BDD::Node_ptr node, addr_t _dchain_addr,
                          klee::ref<klee::Expr> _time,
                          klee::ref<klee::Expr> _index_out,
                          klee::ref<klee::Expr> _success,
@@ -125,7 +125,7 @@ public:
     return true;
   }
 
-  const obj_addr_t &get_dchain_addr() const { return dchain_addr; }
+  const addr_t &get_dchain_addr() const { return dchain_addr; }
   const klee::ref<klee::Expr> &get_time() const { return time; }
   const klee::ref<klee::Expr> &get_index_out() const { return index_out; }
   const klee::ref<klee::Expr> &get_success() const { return success; }

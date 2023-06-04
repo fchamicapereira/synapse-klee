@@ -180,7 +180,6 @@ void TofinoGenerator::allocate_state(const ExecutionPlan &ep) {
 
   for (const auto &impl : implementations) {
     switch (impl->get_type()) {
-    case target::DataStructure::TABLE_NON_MERGEABLE:
     case target::DataStructure::TABLE: {
       auto table = static_cast<target::Table *>(impl.get());
       allocate_table(table);
@@ -482,13 +481,7 @@ void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
 }
 
 void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
-                            const target::TableLookup *node) {
-  auto simple_table = static_cast<const target::MergeableTableLookup *>(node);
-  visit(ep_node, simple_table);
-}
-
-void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
-                            const target::MergeableTableLookup *node) {
+                            const target::TableModule *node) {
   assert(node);
 
   auto _table = node->get_table();
@@ -510,40 +503,11 @@ void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
     assignments.push_back(key_assignments);
   }
 
-  if (keys.size() == 1) {
-    for (auto assignment : assignments[0]) {
-      ingress.apply_block_builder.indent();
-      ingress.apply_block_builder.append(assignment);
-      ingress.apply_block_builder.append(";");
-      ingress.apply_block_builder.append_new_line();
-    }
-  } else {
-    for (auto i = 0u; i < keys.size(); i++) {
-      auto key = keys[i];
-      auto key_assignments = assignments[i];
-      auto condition = transpile(key.condition);
-
-      ingress.apply_block_builder.indent();
-      ingress.apply_block_builder.append("if (");
-      ingress.apply_block_builder.append(condition);
-      ingress.apply_block_builder.append(") {");
-      ingress.apply_block_builder.append_new_line();
-
-      ingress.apply_block_builder.inc_indentation();
-
-      for (auto assignment : key_assignments) {
-        ingress.apply_block_builder.indent();
-        ingress.apply_block_builder.append(assignment);
-        ingress.apply_block_builder.append(";");
-        ingress.apply_block_builder.append_new_line();
-      }
-
-      ingress.apply_block_builder.dec_indentation();
-
-      ingress.apply_block_builder.indent();
-      ingress.apply_block_builder.append("}");
-      ingress.apply_block_builder.append_new_line();
-    }
+  for (auto assignment : assignments[0]) {
+    ingress.apply_block_builder.indent();
+    ingress.apply_block_builder.append(assignment);
+    ingress.apply_block_builder.append(";");
+    ingress.apply_block_builder.append_new_line();
   }
 
   if (hit.size() > 0) {
@@ -559,6 +523,21 @@ void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
   } else {
     table.synthesize_apply(ingress.apply_block_builder);
   }
+}
+
+void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
+                            const target::TableLookup *node) {
+  visit(ep_node, static_cast<const targets::tofino::TableModule *>(node));
+}
+
+void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
+                            const target::TableIsAllocated *node) {
+  visit(ep_node, static_cast<const targets::tofino::TableModule *>(node));
+}
+
+void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
+                            const target::TableRejuvenation *node) {
+  visit(ep_node, static_cast<const targets::tofino::TableModule *>(node));
 }
 
 void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
@@ -731,7 +710,8 @@ void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
   const auto &counter = ingress.get_counter(vector);
   auto transpiled_integer = transpile(index);
 
-  counter.synthesize_read(ingress.apply_block_builder, transpiled_integer, value_var);
+  counter.synthesize_read(ingress.apply_block_builder, transpiled_integer,
+                          value_var);
 }
 
 void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
@@ -754,7 +734,31 @@ void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
   const auto &counter = ingress.get_counter(vector);
   auto transpiled_integer = transpile(index);
 
-  counter.synthesize_inc(ingress.apply_block_builder, transpiled_integer, value_var);
+  counter.synthesize_inc(ingress.apply_block_builder, transpiled_integer,
+                         value_var);
+}
+
+void TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
+                            const target::HashObj *node) {
+  auto input = node->get_input();
+  auto size = node->get_size();
+  auto hash_out = node->get_hash();
+
+  auto inputs = std::vector<std::string>();
+
+  for (auto offset = 0u; offset < input->getWidth(); offset += 8) {
+    auto byte = kutil::solver_toolbox.exprBuilder->Extract(input, offset, 8);
+    auto byte_transpiled = transpile(byte);
+    inputs.push_back(byte_transpiled);
+  }
+
+  const auto &hash = ingress.get_or_build_hash(size);
+
+  auto value_label = hash.get_value_label();
+  auto value_var =
+      ingress.allocate_local_auxiliary(value_label, size, {hash_out}, {});
+
+  hash.synthesize_apply(ingress.apply_block_builder, inputs, value_var);
 }
 
 } // namespace tofino

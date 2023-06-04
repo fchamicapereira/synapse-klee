@@ -230,6 +230,10 @@ public:
 
     os << ")";
 
+    if (!call.ret.isNull()) {
+      os << " -> " << kutil::pretty_print_expr(call.ret);
+    }
+
     auto symbols = node->get_local_generated_symbols();
     if (symbols.size()) {
       for (auto s : symbols) {

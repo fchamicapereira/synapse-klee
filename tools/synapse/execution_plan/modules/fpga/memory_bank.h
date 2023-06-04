@@ -6,13 +6,10 @@ namespace synapse {
 namespace targets {
 namespace fpga {
 
-class FPGAMemoryBank : public MemoryBank {
+class FPGAMemoryBank : public TargetMemoryBank {
 public:
-  FPGAMemoryBank() : MemoryBank() {}
-  FPGAMemoryBank(const MemoryBank &mb) : MemoryBank(mb) {}
-
-  virtual MemoryBank_ptr clone() const {
-    return MemoryBank_ptr(new FPGAMemoryBank());
+  virtual TargetMemoryBank_ptr clone() const {
+    return TargetMemoryBank_ptr(new FPGAMemoryBank());
   }
 };
 

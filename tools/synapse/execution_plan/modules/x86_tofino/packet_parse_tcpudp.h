@@ -81,7 +81,9 @@ private:
     auto _4 = kutil::solver_toolbox.exprBuilder->Constant(4, 4 * 8);
     auto len_eq_4 = kutil::solver_toolbox.exprBuilder->Eq(len, _4);
 
-    assert(kutil::solver_toolbox.is_expr_always_true(constraints, len_eq_4));
+    if (!kutil::solver_toolbox.is_expr_always_true(constraints, len_eq_4)) {
+      return false;
+    }
 
     auto next_proto_id_expr =
         kutil::solver_toolbox.exprBuilder->Extract(ipv4_chunk, 9 * 8, 8);

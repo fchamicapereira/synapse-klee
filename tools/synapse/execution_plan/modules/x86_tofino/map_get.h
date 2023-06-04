@@ -10,7 +10,7 @@ namespace x86_tofino {
 
 class MapGet : public Module {
 private:
-  obj_addr_t map_addr;
+  addr_t map_addr;
   klee::ref<klee::Expr> key;
   klee::ref<klee::Expr> map_has_this_key;
   klee::ref<klee::Expr> value_out;
@@ -21,7 +21,7 @@ public:
       : Module(ModuleType::x86_Tofino_MapGet, TargetType::x86_Tofino,
                "MapGet") {}
 
-  MapGet(BDD::Node_ptr node, obj_addr_t _map_addr, klee::ref<klee::Expr> _key,
+  MapGet(BDD::Node_ptr node, addr_t _map_addr, klee::ref<klee::Expr> _key,
          klee::ref<klee::Expr> _map_has_this_key,
          klee::ref<klee::Expr> _value_out, BDD::symbols_t _generated_symbols)
       : Module(ModuleType::x86_Tofino_MapGet, TargetType::x86_Tofino, "MapGet",
@@ -31,7 +31,7 @@ public:
 
 private:
   bool check_compatible_placements_decisions(const ExecutionPlan &ep,
-                                             obj_addr_t obj) const {
+                                             addr_t obj) const {
     auto mb = ep.get_memory_bank();
 
     if (!mb->has_placement_decision(obj)) {
@@ -213,7 +213,7 @@ public:
     return true;
   }
 
-  const obj_addr_t &get_map_addr() const { return map_addr; }
+  const addr_t &get_map_addr() const { return map_addr; }
   const klee::ref<klee::Expr> &get_key() const { return key; }
   const klee::ref<klee::Expr> &get_map_has_this_key() const {
     return map_has_this_key;

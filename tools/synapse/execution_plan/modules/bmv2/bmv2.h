@@ -51,7 +51,7 @@ public:
                    MODULE(TcpUdpModify),
                    MODULE(IPOptionsModify),
                },
-               MemoryBank_ptr(new BMv2MemoryBank())) {}
+               TargetMemoryBank_ptr(new BMv2MemoryBank())) {}
     
     static Target_ptr build() { return Target_ptr(new BMv2Target()); }
 };

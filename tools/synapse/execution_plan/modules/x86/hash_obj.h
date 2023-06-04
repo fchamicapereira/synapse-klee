@@ -8,14 +8,14 @@ namespace x86 {
 
 class HashObj : public x86Module {
 private:
-  obj_addr_t obj_addr;
+  addr_t obj_addr;
   klee::ref<klee::Expr> size;
   klee::ref<klee::Expr> hash;
 
 public:
   HashObj() : x86Module(ModuleType::x86_HashObj, "HashObj") {}
 
-  HashObj(BDD::Node_ptr node, obj_addr_t _obj_addr, klee::ref<klee::Expr> _size,
+  HashObj(BDD::Node_ptr node, addr_t _obj_addr, klee::ref<klee::Expr> _size,
           klee::ref<klee::Expr> _hash)
       : x86Module(ModuleType::x86_HashObj, "HashObj", node),
         obj_addr(_obj_addr), size(_size), hash(_hash) {}
@@ -90,7 +90,7 @@ public:
     return true;
   }
 
-  obj_addr_t get_obj_addr() const { return obj_addr; }
+  addr_t get_obj_addr() const { return obj_addr; }
   klee::ref<klee::Expr> get_size() const { return size; }
   klee::ref<klee::Expr> get_hash() const { return hash; }
 };

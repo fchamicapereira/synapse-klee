@@ -8,7 +8,7 @@ namespace x86 {
 
 class PacketReturnChunk : public x86Module {
 private:
-  obj_addr_t chunk_addr;
+  addr_t chunk_addr;
   klee::ref<klee::Expr> original_chunk;
   std::vector<modification_t> modifications;
 
@@ -16,7 +16,7 @@ public:
   PacketReturnChunk()
       : x86Module(ModuleType::x86_PacketReturnChunk, "PacketReturnChunk") {}
 
-  PacketReturnChunk(BDD::Node_ptr node, obj_addr_t _chunk_addr,
+  PacketReturnChunk(BDD::Node_ptr node, addr_t _chunk_addr,
                     klee::ref<klee::Expr> _original_chunk,
                     const std::vector<modification_t> &_modifications)
       : x86Module(ModuleType::x86_PacketReturnChunk, "PacketReturnChunk", node),
@@ -132,7 +132,7 @@ public:
     return true;
   }
 
-  const obj_addr_t &get_chunk_addr() const { return chunk_addr; }
+  const addr_t &get_chunk_addr() const { return chunk_addr; }
 
   klee::ref<klee::Expr> get_original_chunk() const { return original_chunk; }
 

@@ -51,7 +51,7 @@ struct stack_t {
     return variable_query_t();
   }
 
-  variable_query_t get(obj_addr_t addr) const {
+  variable_query_t get(addr_t addr) const {
     for (const auto &frame : stack) {
       for (const auto &variable : frame) {
         if (variable.match(addr)) {

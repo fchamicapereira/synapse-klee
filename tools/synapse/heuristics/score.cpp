@@ -45,44 +45,6 @@ Score::get_nodes_with_type(const ExecutionPlan &ep,
   return found;
 }
 
-Score::score_value_t
-Score::get_nr_merged_tables(const ExecutionPlan &ep) const {
-  auto nodes = get_nodes_with_type(
-      ep, {
-              Module::ModuleType::BMv2_TableLookup,
-              Module::ModuleType::Tofino_MergeableTableLookup,
-          });
-
-  int num_merged_tables = 0;
-
-  for (auto node : nodes) {
-    auto module = node->get_module();
-
-    if (module->get_type() == Module::ModuleType::BMv2_TableLookup) {
-      auto tableLookup =
-          static_cast<targets::bmv2::TableLookup *>(module.get());
-
-      auto merged = tableLookup->get_keys().size();
-
-      if (merged > 1) {
-        num_merged_tables += merged;
-      }
-    }
-
-    else if (module->get_type() ==
-             Module::ModuleType::Tofino_MergeableTableLookup) {
-      auto table_lookup =
-          static_cast<targets::tofino::MergeableTableLookup *>(module.get());
-
-      auto table = table_lookup->get_table();
-      auto nodes = table->get_nodes();
-      num_merged_tables += nodes.size() - 1;
-    }
-  }
-
-  return num_merged_tables;
-}
-
 Score::score_value_t Score::get_nr_counters(const ExecutionPlan &ep) const {
   auto nodes =
       get_nodes_with_type(ep, {Module::ModuleType::Tofino_CounterRead,

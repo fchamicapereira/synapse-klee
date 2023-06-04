@@ -21,7 +21,7 @@ public:
       : TofinoModule(_type, _name, node), int_allocator(_int_allocator) {}
 
 protected:
-  bool can_place(const ExecutionPlan &ep, obj_addr_t obj,
+  bool can_place(const ExecutionPlan &ep, addr_t obj,
                  IntegerAllocatorRef &implementation) const {
     auto mb = ep.get_memory_bank<TofinoMemoryBank>(Tofino);
 

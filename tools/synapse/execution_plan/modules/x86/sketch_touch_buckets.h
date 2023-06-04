@@ -8,7 +8,7 @@ namespace x86 {
 
 class SketchTouchBuckets : public x86Module {
 private:
-  obj_addr_t sketch_addr;
+  addr_t sketch_addr;
   klee::ref<klee::Expr> time;
   BDD::symbol_t success;
 
@@ -16,7 +16,7 @@ public:
   SketchTouchBuckets()
       : x86Module(ModuleType::x86_SketchTouchBuckets, "SketchTouchBuckets") {}
 
-  SketchTouchBuckets(BDD::Node_ptr node, obj_addr_t _sketch_addr,
+  SketchTouchBuckets(BDD::Node_ptr node, addr_t _sketch_addr,
                      klee::ref<klee::Expr> _time, BDD::symbol_t _success)
       : x86Module(ModuleType::x86_SketchTouchBuckets, "SketchTouchBuckets",
                   node),
@@ -97,7 +97,7 @@ public:
     return true;
   }
 
-  obj_addr_t get_sketch_addr() const { return sketch_addr; }
+  addr_t get_sketch_addr() const { return sketch_addr; }
   klee::ref<klee::Expr> get_time() const { return time; }
   const BDD::symbol_t &get_success() const { return success; }
 };

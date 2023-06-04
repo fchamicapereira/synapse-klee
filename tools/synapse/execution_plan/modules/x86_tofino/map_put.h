@@ -10,7 +10,7 @@ namespace x86_tofino {
 
 class MapPut : public Module {
 private:
-  obj_addr_t map_addr;
+  addr_t map_addr;
   klee::ref<klee::Expr> key;
   klee::ref<klee::Expr> value;
 
@@ -19,7 +19,7 @@ public:
       : Module(ModuleType::x86_Tofino_MapPut, TargetType::x86_Tofino,
                "MapPut") {}
 
-  MapPut(BDD::Node_ptr node, obj_addr_t _map_addr, klee::ref<klee::Expr> _key,
+  MapPut(BDD::Node_ptr node, addr_t _map_addr, klee::ref<klee::Expr> _key,
          klee::ref<klee::Expr> _value)
       : Module(ModuleType::x86_Tofino_MapPut, TargetType::x86_Tofino, "MapPut",
                node),
@@ -27,7 +27,7 @@ public:
 
 private:
   bool check_previous_placement_decisions(const ExecutionPlan &ep,
-                                          obj_addr_t obj) const {
+                                          addr_t obj) const {
     auto mb = ep.get_memory_bank();
 
     if (!mb->has_placement_decision(obj)) {
@@ -87,7 +87,7 @@ private:
 
   klee::ref<klee::Expr> get_original_vector_value(const ExecutionPlan &ep,
                                                   BDD::Node_ptr node,
-                                                  obj_addr_t target_addr) {
+                                                  addr_t target_addr) {
     // Ignore targets to allow the control plane to lookup vector_borrow
     // operations performed on the data plane.
     auto all_prev_vector_borrow =
@@ -238,7 +238,7 @@ public:
     return true;
   }
 
-  const obj_addr_t &get_map_addr() const { return map_addr; }
+  const addr_t &get_map_addr() const { return map_addr; }
   const klee::ref<klee::Expr> &get_key() const { return key; }
   const klee::ref<klee::Expr> &get_value() const { return value; }
 };

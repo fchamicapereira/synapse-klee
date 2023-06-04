@@ -29,14 +29,14 @@ private:
 public:
   IntegerAllocator(klee::ref<klee::Expr> _integer,
                    const BDD::symbol_t &_out_of_space, uint64_t _capacity,
-                   obj_addr_t _obj,
+                   addr_t _obj,
                    const std::unordered_set<BDD::node_id_t> &_nodes)
       : IntegerAllocator(_capacity, _obj, _nodes) {
     integer.push_back(_integer);
     out_of_space.insert(_out_of_space);
   }
 
-  IntegerAllocator(uint64_t _capacity, obj_addr_t _obj,
+  IntegerAllocator(uint64_t _capacity, addr_t _obj,
                    const std::unordered_set<BDD::node_id_t> &_nodes)
       : DataStructure(Type::INTEGER_ALLOCATOR, {_obj}, _nodes),
         query("int_allocator_query", {}, {}, {}, {_obj}, _nodes),
@@ -79,14 +79,14 @@ public:
 
   static IntegerAllocatorRef
   build(klee::ref<klee::Expr> _integer, const BDD::symbol_t &_out_of_space,
-        uint64_t _capacity, obj_addr_t _obj,
+        uint64_t _capacity, addr_t _obj,
         const std::unordered_set<BDD::node_id_t> &_nodes) {
     return IntegerAllocatorRef(
         new IntegerAllocator(_integer, _out_of_space, _capacity, _obj, _nodes));
   }
 
   static IntegerAllocatorRef
-  build(uint64_t _capacity, obj_addr_t _obj,
+  build(uint64_t _capacity, addr_t _obj,
         const std::unordered_set<BDD::node_id_t> &_nodes) {
     return IntegerAllocatorRef(new IntegerAllocator(_capacity, _obj, _nodes));
   }

@@ -9,7 +9,7 @@ namespace x86_tofino {
 
 class DchainIsIndexAllocated : public Module {
 private:
-  obj_addr_t dchain_addr;
+  addr_t dchain_addr;
   klee::ref<klee::Expr> index;
   klee::ref<klee::Expr> is_allocated;
 
@@ -20,7 +20,7 @@ public:
       : Module(ModuleType::x86_Tofino_DchainIsIndexAllocated,
                TargetType::x86_Tofino, "DchainIsIndexAllocated") {}
 
-  DchainIsIndexAllocated(BDD::Node_ptr node, obj_addr_t _dchain_addr,
+  DchainIsIndexAllocated(BDD::Node_ptr node, addr_t _dchain_addr,
                          klee::ref<klee::Expr> _index,
                          klee::ref<klee::Expr> _is_allocated,
                          BDD::symbols_t _generated_symbols)
@@ -115,7 +115,7 @@ public:
     return true;
   }
 
-  const obj_addr_t &get_dchain_addr() const { return dchain_addr; }
+  const addr_t &get_dchain_addr() const { return dchain_addr; }
   const klee::ref<klee::Expr> &get_index() const { return index; }
   const klee::ref<klee::Expr> &get_is_allocated() const { return is_allocated; }
 

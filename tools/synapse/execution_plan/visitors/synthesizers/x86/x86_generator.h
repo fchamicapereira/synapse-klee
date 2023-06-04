@@ -115,11 +115,11 @@ public:
              const target::HashObj *node) override;
 
 private:
-  void map_init(obj_addr_t addr, const symbex::map_config_t &cfg);
-  void vector_init(obj_addr_t addr, const symbex::vector_config_t &cfg);
-  void dchain_init(obj_addr_t addr, const symbex::dchain_config_t &cfg);
-  void sketch_init(obj_addr_t addr, const symbex::sketch_config_t &cfg);
-  void cht_init(obj_addr_t addr, const symbex::cht_config_t &cfg);
+  void map_init(addr_t addr, const symbex::map_config_t &cfg);
+  void vector_init(addr_t addr, const symbex::vector_config_t &cfg);
+  void dchain_init(addr_t addr, const symbex::dchain_config_t &cfg);
+  void sketch_init(addr_t addr, const symbex::sketch_config_t &cfg);
+  void cht_init(addr_t addr, const symbex::cht_config_t &cfg);
 };
 
 } // namespace x86

@@ -76,7 +76,7 @@ x86TofinoGenerator::search_variable(klee::ref<klee::Expr> expr) const {
   return variable_query_t();
 }
 
-bool get_dataplane_table_names(const ExecutionPlan &ep, obj_addr_t obj,
+bool get_dataplane_table_names(const ExecutionPlan &ep, addr_t obj,
                                std::unordered_set<std::string> &table_names) {
   auto mb = ep.get_memory_bank();
 
@@ -90,8 +90,7 @@ bool get_dataplane_table_names(const ExecutionPlan &ep, obj_addr_t obj,
   for (auto implementation : implementations) {
     auto type = implementation->get_type();
 
-    assert(type == targets::tofino::DataStructure::TABLE ||
-           type == targets::tofino::DataStructure::TABLE_NON_MERGEABLE);
+    assert(type == targets::tofino::DataStructure::TABLE);
 
     auto table =
         static_cast<const targets::tofino::Table *>(implementation.get());
@@ -970,6 +969,65 @@ void x86TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
   nf_process_builder.append(index_transpiled);
   nf_process_builder.append(", ");
   nf_process_builder.append(time_transpiled);
+  nf_process_builder.append(");");
+  nf_process_builder.append_new_line();
+}
+
+void x86TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
+                               const target::HashObj *node) {
+  assert(node);
+
+  auto input = node->get_input();
+  auto hash = node->get_hash();
+  auto size = node->get_size();
+
+  assert(!input.isNull());
+  assert(!hash.isNull());
+
+  auto obj_label_base = "obj";
+  auto obj_label = vars.get_new_label(obj_label_base);
+  auto obj_var = Variable(obj_label, size);
+  vars.append(obj_var);
+
+  assert(size > 0);
+  assert(size % 8 == 0);
+
+  nf_process_builder.indent();
+  nf_process_builder.append("bytes_t ");
+  nf_process_builder.append(obj_label);
+  nf_process_builder.append("(");
+  nf_process_builder.append(size / 8);
+  nf_process_builder.append(");");
+  nf_process_builder.append_new_line();
+
+  for (bits_t b = 0u; b < input->getWidth(); b += 8) {
+    auto byte = kutil::solver_toolbox.exprBuilder->Extract(input, b, 8);
+    auto byte_transpiled = transpile(byte);
+
+    nf_process_builder.indent();
+    nf_process_builder.append(obj_label);
+    nf_process_builder.append("[");
+    nf_process_builder.append(b / 8);
+    nf_process_builder.append("]");
+    nf_process_builder.append(" = ");
+    nf_process_builder.append(byte_transpiled);
+    nf_process_builder.append(";");
+    nf_process_builder.append_new_line();
+  }
+
+  auto hash_label_base = "hash";
+  auto hash_label = vars.get_new_label(hash_label_base);
+  auto hash_var = Variable(hash_label, size);
+  hash_var.add_expr(hash);
+  vars.append(hash_var);
+
+  nf_process_builder.indent();
+  nf_process_builder.append(hash_var.get_type());
+  nf_process_builder.append(" ");
+  nf_process_builder.append(hash_var.get_label());
+  nf_process_builder.append(" = ");
+  nf_process_builder.append("hash_obj(");
+  nf_process_builder.append(obj_label);
   nf_process_builder.append(");");
   nf_process_builder.append_new_line();
 }

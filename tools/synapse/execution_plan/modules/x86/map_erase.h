@@ -8,15 +8,15 @@ namespace x86 {
 
 class MapErase : public x86Module {
 private:
-  obj_addr_t map_addr;
+  addr_t map_addr;
   klee::ref<klee::Expr> key;
-  obj_addr_t trash;
+  addr_t trash;
 
 public:
   MapErase() : x86Module(ModuleType::x86_MapErase, "MapErase") {}
 
-  MapErase(BDD::Node_ptr node, obj_addr_t _map_addr, klee::ref<klee::Expr> _key,
-           obj_addr_t _trash)
+  MapErase(BDD::Node_ptr node, addr_t _map_addr, klee::ref<klee::Expr> _key,
+           addr_t _trash)
       : x86Module(ModuleType::x86_MapErase, "MapErase", node),
         map_addr(_map_addr), key(_key), trash(_trash) {}
 
@@ -92,9 +92,9 @@ public:
     return true;
   }
 
-  obj_addr_t get_map_addr() const { return map_addr; }
+  addr_t get_map_addr() const { return map_addr; }
   klee::ref<klee::Expr> get_key() const { return key; }
-  obj_addr_t get_trash() const { return trash; }
+  addr_t get_trash() const { return trash; }
 };
 } // namespace x86
 } // namespace targets

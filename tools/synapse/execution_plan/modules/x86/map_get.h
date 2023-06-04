@@ -8,8 +8,8 @@ namespace x86 {
 
 class MapGet : public x86Module {
 private:
-  obj_addr_t map_addr;
-  obj_addr_t key_addr;
+  addr_t map_addr;
+  addr_t key_addr;
   klee::ref<klee::Expr> key;
   klee::ref<klee::Expr> value_out;
   klee::ref<klee::Expr> success;
@@ -18,7 +18,7 @@ private:
 public:
   MapGet() : x86Module(ModuleType::x86_MapGet, "MapGet") {}
 
-  MapGet(BDD::Node_ptr node, obj_addr_t _map_addr, obj_addr_t _key_addr,
+  MapGet(BDD::Node_ptr node, addr_t _map_addr, addr_t _key_addr,
          klee::ref<klee::Expr> _key, klee::ref<klee::Expr> _value_out,
          klee::ref<klee::Expr> _success, const BDD::symbol_t &_map_has_this_key)
       : x86Module(ModuleType::x86_MapGet, "MapGet", node), map_addr(_map_addr),
@@ -121,8 +121,8 @@ public:
     return true;
   }
 
-  obj_addr_t get_map_addr() const { return map_addr; }
-  obj_addr_t get_key_addr() const { return key_addr; }
+  addr_t get_map_addr() const { return map_addr; }
+  addr_t get_key_addr() const { return key_addr; }
   klee::ref<klee::Expr> get_key() const { return key; }
   klee::ref<klee::Expr> get_value_out() const { return value_out; }
   klee::ref<klee::Expr> get_success() const { return success; }

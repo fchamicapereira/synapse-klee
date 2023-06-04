@@ -4,8 +4,8 @@
 namespace synapse {
 namespace symbex {
 
-std::pair<bool, obj_addr_t> get_obj_from_call(const BDD::Call *node_call) {
-  std::pair<bool, obj_addr_t> result;
+std::pair<bool, addr_t> get_obj_from_call(const BDD::Call *node_call) {
+  std::pair<bool, addr_t> result;
 
   result.first = false;
 
@@ -42,7 +42,7 @@ std::pair<bool, obj_addr_t> get_obj_from_call(const BDD::Call *node_call) {
   return result;
 }
 
-dchain_config_t get_dchain_config(const BDD::BDD &bdd, obj_addr_t dchain_addr) {
+dchain_config_t get_dchain_config(const BDD::BDD &bdd, addr_t dchain_addr) {
   auto init_nodes =
       BDD::get_call_nodes(bdd.get_init(), {symbex::FN_DCHAIN_ALLOCATE});
 
@@ -76,7 +76,7 @@ dchain_config_t get_dchain_config(const BDD::BDD &bdd, obj_addr_t dchain_addr) {
   exit(1);
 }
 
-bits_t get_key_size(const BDD::BDD &bdd, obj_addr_t addr) {
+bits_t get_key_size(const BDD::BDD &bdd, addr_t addr) {
   auto nodes = BDD::get_call_nodes(
       bdd.get_process(), {symbex::FN_MAP_GET, symbex::FN_MAP_PUT,
                           symbex::FN_SKETCH_COMPUTE_HASHES});
@@ -125,7 +125,7 @@ bits_t get_key_size(const BDD::BDD &bdd, obj_addr_t addr) {
   exit(1);
 }
 
-map_config_t get_map_config(const BDD::BDD &bdd, obj_addr_t map_addr) {
+map_config_t get_map_config(const BDD::BDD &bdd, addr_t map_addr) {
   auto init_nodes =
       BDD::get_call_nodes(bdd.get_init(), {symbex::FN_MAP_ALLOCATE});
 
@@ -163,7 +163,7 @@ map_config_t get_map_config(const BDD::BDD &bdd, obj_addr_t map_addr) {
   exit(1);
 }
 
-vector_config_t get_vector_config(const BDD::BDD &bdd, obj_addr_t vector_addr) {
+vector_config_t get_vector_config(const BDD::BDD &bdd, addr_t vector_addr) {
   auto init_nodes =
       BDD::get_call_nodes(bdd.get_init(), {symbex::FN_VECTOR_ALLOCATE});
 
@@ -202,7 +202,7 @@ vector_config_t get_vector_config(const BDD::BDD &bdd, obj_addr_t vector_addr) {
   exit(1);
 }
 
-sketch_config_t get_sketch_config(const BDD::BDD &bdd, obj_addr_t sketch_addr) {
+sketch_config_t get_sketch_config(const BDD::BDD &bdd, addr_t sketch_addr) {
   auto init_nodes =
       BDD::get_call_nodes(bdd.get_init(), {symbex::FN_SKETCH_ALLOCATE});
 
@@ -241,7 +241,7 @@ sketch_config_t get_sketch_config(const BDD::BDD &bdd, obj_addr_t sketch_addr) {
   exit(1);
 }
 
-cht_config_t get_cht_config(const BDD::BDD &bdd, obj_addr_t cht_addr) {
+cht_config_t get_cht_config(const BDD::BDD &bdd, addr_t cht_addr) {
   auto init_nodes = BDD::get_call_nodes(bdd.get_init(), {symbex::FN_CHT_FILL});
 
   assert(init_nodes.size() > 0);

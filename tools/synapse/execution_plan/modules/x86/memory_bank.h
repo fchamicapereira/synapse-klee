@@ -10,18 +10,18 @@
 #include "data_structures/data_structures.h"
 
 #define HAS_CONFIG(T)                                                          \
-  bool has_##T##_config(obj_addr_t addr) const {                               \
+  bool has_##T##_config(addr_t addr) const {                                   \
     return T##_configs.find(addr) != T##_configs.end();                        \
   }
 
 #define SAVE_CONFIG(T)                                                         \
-  void save_##T##_config(obj_addr_t addr, symbex::T##_config_t cfg) {          \
+  void save_##T##_config(addr_t addr, symbex::T##_config_t cfg) {              \
     assert(!has_##T##_config(addr));                                           \
     T##_configs.insert({addr, cfg});                                           \
   }
 
 #define GET_CONFIG(T)                                                          \
-  const std::unordered_map<obj_addr_t, symbex::T##_config_t>                   \
+  const std::unordered_map<addr_t, symbex::T##_config_t>                       \
       &get_##T##_configs() {                                                   \
     return T##_configs;                                                        \
   }
@@ -30,24 +30,22 @@ namespace synapse {
 namespace targets {
 namespace x86 {
 
-class x86MemoryBank : public MemoryBank {
+class x86MemoryBank : public TargetMemoryBank {
 public:
 private:
-  std::unordered_map<obj_addr_t, symbex::map_config_t> map_configs;
-  std::unordered_map<obj_addr_t, symbex::vector_config_t> vector_configs;
-  std::unordered_map<obj_addr_t, symbex::dchain_config_t> dchain_configs;
-  std::unordered_map<obj_addr_t, symbex::sketch_config_t> sketch_configs;
-  std::unordered_map<obj_addr_t, symbex::cht_config_t> cht_configs;
+  std::unordered_map<addr_t, symbex::map_config_t> map_configs;
+  std::unordered_map<addr_t, symbex::vector_config_t> vector_configs;
+  std::unordered_map<addr_t, symbex::dchain_config_t> dchain_configs;
+  std::unordered_map<addr_t, symbex::sketch_config_t> sketch_configs;
+  std::unordered_map<addr_t, symbex::cht_config_t> cht_configs;
 
 public:
-  x86MemoryBank() : MemoryBank() {}
-
-  x86MemoryBank(const MemoryBank &mb) : MemoryBank(mb) {}
+  x86MemoryBank() {}
 
   x86MemoryBank(const x86MemoryBank &mb)
-      : MemoryBank(mb), map_configs(mb.map_configs),
-        vector_configs(mb.vector_configs), dchain_configs(mb.dchain_configs),
-        sketch_configs(mb.sketch_configs), cht_configs(mb.cht_configs) {}
+      : map_configs(mb.map_configs), vector_configs(mb.vector_configs),
+        dchain_configs(mb.dchain_configs), sketch_configs(mb.sketch_configs),
+        cht_configs(mb.cht_configs) {}
 
   HAS_CONFIG(map)
   HAS_CONFIG(vector)
@@ -67,9 +65,9 @@ public:
   GET_CONFIG(sketch)
   GET_CONFIG(cht)
 
-  virtual MemoryBank_ptr clone() const {
+  virtual TargetMemoryBank_ptr clone() const override {
     auto clone = new x86MemoryBank(*this);
-    return MemoryBank_ptr(clone);
+    return TargetMemoryBank_ptr(clone);
   }
 };
 

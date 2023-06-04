@@ -5,7 +5,7 @@
 namespace synapse {
 
 Target::Target(TargetType _type, const std::vector<Module_ptr> &_modules,
-               const MemoryBank_ptr &_memory_bank)
+               const TargetMemoryBank_ptr &_memory_bank)
     : type(_type), modules(_modules), memory_bank(_memory_bank) {}
 
 std::ostream &operator<<(std::ostream &os, TargetType type) {

@@ -1,77 +1,88 @@
 #pragma once
 
-#include "mergeable_table_lookup.h"
+#include "table.h"
 
 namespace synapse {
 namespace targets {
 namespace tofino {
 
-class TableLookup : public MergeableTableLookup {
+class TableLookup : public TableModule {
 public:
-  TableLookup()
-      : MergeableTableLookup(ModuleType::Tofino_TableLookup, "TableLookup") {}
+  TableLookup() : TableModule(ModuleType::Tofino_TableLookup, "TableLookup") {}
 
   TableLookup(BDD::Node_ptr node, TableRef _table)
-      : MergeableTableLookup(ModuleType::Tofino_TableLookup, "TableLookup",
-                             node, _table) {}
+      : TableModule(ModuleType::Tofino_TableLookup, "TableLookup", node,
+                    _table) {}
 
-private:
-  TableRef build_non_mergeable_table(const BDD::Call *casted) const {
-    auto data = get_extract_data(casted);
+protected:
+  extracted_data_t extract_data(const ExecutionPlan &ep,
+                                BDD::Node_ptr node) const {
+    auto extractors = {
+        &TableLookup::extract_from_map_get,
+        &TableLookup::extract_from_vector_borrow,
+    };
 
-    if (!data.valid) {
-      return TableRef();
+    extracted_data_t data;
+
+    auto casted = BDD::cast_node<BDD::Call>(node);
+
+    if (!casted) {
+      return data;
     }
 
-    auto node_id = casted->get_id();
+    for (auto &extractor : extractors) {
+      data = (this->*extractor)(casted);
 
-    std::vector<BDD::symbol_t> hit;
-
-    if (data.hit.first) {
-      hit.push_back(data.hit.second);
+      if (data.valid) {
+        break;
+      }
     }
 
-    auto table = TableNonMergeable::build(data.keys, data.values, hit,
-                                          {data.obj}, {node_id});
+    auto coalescing_data = get_map_coalescing_data_t(ep, data.obj);
 
+    if (coalescing_data.valid && can_coalesce(ep, coalescing_data)) {
+      if (casted->get_call().function_name != symbex::FN_MAP_GET) {
+        Graphviz::visualize(ep);
+      }
+
+      assert(casted->get_call().function_name == symbex::FN_MAP_GET);
+      coalesce_with_incoming_vector_nodes(casted, coalescing_data, data);
+    }
+
+    return data;
+  }
+
+  TableRef build_table(const extracted_data_t &data) const {
+    auto table = Table::build("map", data.keys, data.values, data.hit,
+                              {data.obj}, data.nodes);
     return table;
   }
 
-  virtual bool lookup_already_done(const ExecutionPlan &ep,
-                                   TableRef target) const override {
-    auto prev_modules = get_prev_modules(ep, {ModuleType::Tofino_TableLookup});
+  processing_result_t process(const ExecutionPlan &ep,
+                              BDD::Node_ptr node) override {
+    processing_result_t result;
 
-    for (auto module : prev_modules) {
-      auto lookup = static_cast<TableLookup *>(module.get());
-      auto table = lookup->get_table();
-
-      if (table->equals(target.get())) {
-        return true;
-      }
+    if (already_coalesced(ep, DataStructure::Type::TABLE, node)) {
+      return ignore(ep, node);
     }
 
-    return false;
-  }
+    auto data = extract_data(ep, node);
 
-  virtual bool check_compatible_placements_decisions(
-      const ExecutionPlan &ep,
-      const std::unordered_set<obj_addr_t> &objs) const override {
-    auto mb = ep.get_memory_bank<TofinoMemoryBank>(Tofino);
-
-    for (auto obj : objs) {
-      auto compatible = mb->check_implementation_compatibility(
-          obj, {DataStructure::Type::TABLE_NON_MERGEABLE});
-
-      if (!compatible) {
-        return false;
-      }
+    if (!data.valid) {
+      return result;
     }
 
-    return true;
-  }
+    auto table = build_table(data);
 
-  virtual bool process(const ExecutionPlan &ep, BDD::Node_ptr node,
-                       TableRef table, processing_result_t &result) override {
+    if (!table) {
+      return result;
+    }
+
+    if (!check_compatible_placements_decisions(ep, table->get_objs(),
+                                               DataStructure::Type::TABLE)) {
+      return result;
+    }
+
     auto new_module = std::make_shared<TableLookup>(node, table);
     auto new_ep = ep.add_leaves(new_module, node->get_next());
 
@@ -79,31 +90,6 @@ private:
 
     result.module = new_module;
     result.next_eps.push_back(new_ep);
-
-    return true;
-  }
-
-  processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
-    processing_result_t result;
-
-    auto casted = BDD::cast_node<BDD::Call>(node);
-
-    if (!casted) {
-      return result;
-    }
-
-    auto table = build_non_mergeable_table(casted);
-
-    if (!table) {
-      return result;
-    }
-
-    if (!check_compatible_placements_decisions(ep, table->get_objs())) {
-      return result;
-    }
-
-    process(ep, node, table, result);
 
     return result;
   }
@@ -124,8 +110,16 @@ public:
       return false;
     }
 
-    return MergeableTableLookup::equals(other);
+    auto other_cast = static_cast<const TableLookup *>(other);
+
+    if (!table->equals(other_cast->get_table().get())) {
+      return false;
+    }
+
+    return true;
   }
+
+  TableRef get_table() const { return table; }
 };
 
 } // namespace tofino

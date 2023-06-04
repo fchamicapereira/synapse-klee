@@ -11,7 +11,6 @@ struct MaximizeSwitchNodesComparator : public HeuristicConfiguration {
         ep,
         {
             // {Score::Category::NumberOfIntAllocatorOps, Score::MAX},
-            // {Score::Category::NumberOfMergedTables, Score::MAX},
             // {Score::Category::NumberOfSimpleTables, Score::MAX},
             {Score::Category::NumberOfCounters, Score::MAX},
             {Score::Category::NumberOfSwitchNodes, Score::MAX},

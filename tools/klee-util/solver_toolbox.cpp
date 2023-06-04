@@ -378,4 +378,18 @@ solver_toolbox_t::contains(klee::ref<klee::Expr> expr1,
   return contains_result_t();
 }
 
+int64_t solver_toolbox_t::signed_value_from_expr(
+    klee::ref<klee::Expr> expr, klee::ConstraintManager constraints) const {
+  auto width = expr->getWidth();
+  auto value = solver_toolbox.value_from_expr(expr, constraints);
+
+  uint64_t mask = 0;
+  for (uint64_t i = 0u; i < width; i++) {
+    mask <<= 1;
+    mask |= 1;
+  }
+
+  return -((~value + 1) & mask);
+}
+
 } // namespace kutil

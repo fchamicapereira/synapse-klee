@@ -6,6 +6,8 @@
 #include "call-paths-to-bdd.h"
 #include "klee-util.h"
 
+#include "../../../../generic.h"
+
 namespace synapse {
 namespace targets {
 namespace tofino {
@@ -17,26 +19,25 @@ class DataStructure {
 public:
   enum Type {
     TABLE,
-    TABLE_NON_MERGEABLE,
     INTEGER_ALLOCATOR,
     COUNTER,
   };
 
 protected:
   Type type;
-  std::unordered_set<obj_addr_t> objs;
+  std::unordered_set<addr_t> objs;
   std::unordered_set<BDD::node_id_t> nodes;
 
 public:
-  DataStructure(Type _type, const std::unordered_set<obj_addr_t> &_objs,
-                const std::unordered_set<obj_addr_t> &_nodes)
+  DataStructure(Type _type, const std::unordered_set<addr_t> &_objs,
+                const std::unordered_set<addr_t> &_nodes)
       : type(_type), objs(_objs), nodes(_nodes) {}
 
   Type get_type() const { return type; }
-  const std::unordered_set<obj_addr_t> &get_objs() const { return objs; }
+  const std::unordered_set<addr_t> &get_objs() const { return objs; }
   const std::unordered_set<BDD::node_id_t> &get_nodes() const { return nodes; }
 
-  virtual void add_objs(const std::unordered_set<obj_addr_t> &other_objs) {
+  virtual void add_objs(const std::unordered_set<addr_t> &other_objs) {
     objs.insert(other_objs.begin(), other_objs.end());
   }
 
@@ -45,7 +46,7 @@ public:
     nodes.insert(other_nodes.begin(), other_nodes.end());
   }
 
-  bool implements(const std::unordered_set<obj_addr_t> &other_objs) const {
+  bool implements(const std::unordered_set<addr_t> &other_objs) const {
     for (auto obj : other_objs) {
       if (objs.find(obj) == objs.end()) {
         return false;

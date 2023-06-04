@@ -654,101 +654,38 @@ void Graphviz::visit(const ExecutionPlanNode *ep_node,
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::ModifyCustomHeader)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::IPv4TCPUDPChecksumsUpdate)
 
-void Graphviz::visit_table(const ExecutionPlanNode *ep_node,
-                           const targets::tofino::MergeableTableLookup *node,
-                           bool simple) {
+void Graphviz::visit(const ExecutionPlanNode *ep_node,
+                     const targets::tofino::TableModule *node) {
   std::stringstream label_builder;
 
   auto bdd_node = node->get_node();
   auto target = node->get_target();
-  auto name = node->get_name();
-
   auto table = node->get_table();
-  auto nodes = table->get_nodes();
-  auto objs = table->get_objs();
-  auto keys = table->get_keys();
-  auto params = table->get_params();
-  auto contains = table->get_hit();
 
-  label_builder << name << "\n";
+  assert(table);
 
-  label_builder << "  table: " << table->get_name() << "\n";
-  label_builder << "  simple: " << simple << "\n";
-
-  label_builder << "  expiring: ";
-  label_builder << table->is_managing_expirations();
-  label_builder << "\n";
-
-  label_builder << "  nodes: [";
-  for (auto node : nodes) {
-    label_builder << node << ",";
-  }
-  label_builder << "]\n";
-
-  label_builder << "  objs: [";
-  for (auto obj : objs) {
-    label_builder << obj << ",";
-  }
-  label_builder << "]\n";
-
-  label_builder << "  keys (" << keys.size() << "): [";
-  for (auto key : keys) {
-    label_builder << "\n";
-    label_builder << "    ";
-    label_builder << "[";
-    if (key.meta.size()) {
-      for (auto meta : key.meta) {
-        label_builder << meta.symbol << ",";
-      }
-    } else {
-      label_builder << kutil::expr_to_string(key.expr, true) << ",";
-    }
-    label_builder << "]";
-  }
-  label_builder << "]\n";
-
-  label_builder << "  params (" << params.size() << "): [";
-  for (auto param : params) {
-    label_builder << "\n";
-    label_builder << "    ";
-    label_builder << "\\{";
-    label_builder << "objs:[";
-    for (auto obj : param.objs) {
-      label_builder << obj << ",";
-    }
-    label_builder << "]";
-    label_builder << ",exprs:[";
-    for (auto expr : param.exprs) {
-      label_builder << kutil::expr_to_string(expr, true) << ",";
-    }
-    label_builder << "]";
-    label_builder << "\\}";
-  }
-  label_builder << "]\n";
-
-  label_builder << "  hit: [";
-  for (auto c : contains) {
-    label_builder << c.label << ",";
-  }
-  label_builder << "]\n";
+  table->dump(label_builder);
 
   auto label = label_builder.str();
   find_and_replace(label, {{"\n", "\\l"}});
-
   function_call(ep_node, bdd_node, target, label);
 }
 
 void Graphviz::visit(const ExecutionPlanNode *ep_node,
-                     const targets::tofino::MergeableTableLookup *node) {
-  visit_table(ep_node, node, false);
+                     const targets::tofino::TableLookup *node) {
+  visit(ep_node, static_cast<const targets::tofino::TableModule *>(node));
 }
 
 void Graphviz::visit(const ExecutionPlanNode *ep_node,
-                     const targets::tofino::TableLookup *node) {
-  visit_table(ep_node, node, true);
+                     const targets::tofino::TableRejuvenation *node) {
+  visit(ep_node, static_cast<const targets::tofino::TableModule *>(node));
 }
 
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::RegisterRead)
+void Graphviz::visit(const ExecutionPlanNode *ep_node,
+                     const targets::tofino::TableIsAllocated *node) {
+  visit(ep_node, static_cast<const targets::tofino::TableModule *>(node));
+}
+
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::IntegerAllocatorAllocate)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::IntegerAllocatorRejuvenate)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::IntegerAllocatorQuery)
@@ -779,6 +716,7 @@ void Graphviz::visit(const ExecutionPlanNode *ep_node,
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::SetupExpirationNotifications)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::CounterRead)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::CounterIncrement)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::HashObj)
 
 /********************************************
  *
@@ -826,10 +764,17 @@ DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::Else)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::Drop)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::MapGet)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::MapPut)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::MapErase)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::EtherAddrHash)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::DchainAllocateNewIndex)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::DchainIsIndexAllocated)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::DchainRejuvenateIndex)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::DchainFreeIndex)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::PacketParseTCP)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::PacketModifyTCP)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::PacketParseUDP)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::PacketModifyUDP)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::HashObj)
 
 /********************************************
  *

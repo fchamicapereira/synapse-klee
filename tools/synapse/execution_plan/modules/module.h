@@ -87,17 +87,18 @@ public:
     Tofino_TCPUDPConsume,
     Tofino_TCPUDPModify,
     Tofino_IPv4TCPUDPChecksumsUpdate,
-    Tofino_MergeableTableLookup,
     Tofino_TableLookup,
+    Tofino_TableRejuvenation,
+    Tofino_TableIsAllocated,
     Tofino_Drop,
     Tofino_SendToController,
     Tofino_SetupExpirationNotifications,
-    Tofino_RegisterRead,
     Tofino_IntegerAllocatorAllocate,
     Tofino_IntegerAllocatorRejuvenate,
     Tofino_IntegerAllocatorQuery,
     Tofino_CounterRead,
     Tofino_CounterIncrement,
+    Tofino_HashObj,
     x86_Tofino_Ignore,
     x86_Tofino_PacketParseCPU,
     x86_Tofino_SendToTofino,
@@ -109,6 +110,10 @@ public:
     x86_Tofino_PacketModifyIPv4Options,
     x86_Tofino_PacketParseTCPUDP,
     x86_Tofino_PacketModifyTCPUDP,
+    x86_Tofino_PacketParseTCP,
+    x86_Tofino_PacketModifyTCP,
+    x86_Tofino_PacketParseUDP,
+    x86_Tofino_PacketModifyUDP,
     x86_Tofino_PacketModifyChecksums,
     x86_Tofino_If,
     x86_Tofino_Then,
@@ -117,10 +122,13 @@ public:
     x86_Tofino_ForwardThroughTofino,
     x86_Tofino_MapGet,
     x86_Tofino_MapPut,
+    x86_Tofino_MapErase,
     x86_Tofino_EtherAddrHash,
     x86_Tofino_DchainAllocateNewIndex,
     x86_Tofino_DchainIsIndexAllocated,
     x86_Tofino_DchainRejuvenateIndex,
+    x86_Tofino_DchainFreeIndex,
+    x86_Tofino_HashObj,
     x86_CurrentTime,
     x86_If,
     x86_Then,
@@ -283,56 +291,34 @@ protected:
   // implemented with vectors, such that (1) the value it stores is <= 64 bits,
   // and (2) the only write operations performed on them increment the stored
   // value.
-  counter_data_t is_counter(const ExecutionPlan &ep, obj_addr_t obj) const;
+  counter_data_t is_counter(const ExecutionPlan &ep, addr_t obj) const;
 
   // When we encounter a vector_return operation and want to retrieve its
   // vector_borrow value counterpart. This is useful to compare changes to the
   // value expression and retrieve the performed modifications (if any).
   klee::ref<klee::Expr> get_original_vector_value(const ExecutionPlan &ep,
                                                   BDD::Node_ptr node,
-                                                  obj_addr_t target_addr) const;
+                                                  addr_t target_addr) const;
   klee::ref<klee::Expr> get_original_vector_value(const ExecutionPlan &ep,
                                                   BDD::Node_ptr node,
-                                                  obj_addr_t target_addr,
+                                                  addr_t target_addr,
                                                   BDD::Node_ptr &source) const;
 
-  struct coalesced_data_t {
-    bool can_coalesce;
+  // Get the data associated with this address.
+  klee::ref<klee::Expr> get_expr_from_addr(const ExecutionPlan &ep,
+                                           addr_t addr) const;
 
-    BDD::Node_ptr map_get;
-    std::vector<BDD::Node_ptr> vector_borrows;
+  struct map_coalescing_data_t {
+    bool valid;
+    addr_t map;
+    addr_t dchain;
+    std::unordered_set<addr_t> vectors;
 
-    coalesced_data_t() : can_coalesce(false) {}
-
-    std::unordered_set<obj_addr_t> get_objs() const {
-      std::unordered_set<obj_addr_t> objs;
-
-      assert(map_get);
-
-      auto node = static_cast<const BDD::Call *>(map_get.get());
-      auto call = node->get_call();
-      auto obj = call.args[symbex::FN_MAP_ARG_MAP].expr;
-      auto addr = kutil::expr_addr_to_obj_addr(obj);
-
-      objs.insert(addr);
-
-      for (auto vector_borrow : vector_borrows) {
-        assert(vector_borrow);
-
-        node = static_cast<const BDD::Call *>(vector_borrow.get());
-        call = node->get_call();
-        obj = call.args[symbex::FN_VECTOR_ARG_VECTOR].expr;
-        addr = kutil::expr_addr_to_obj_addr(obj);
-
-        objs.insert(addr);
-      }
-
-      return objs;
-    }
+    map_coalescing_data_t() : valid(false) {}
   };
 
-  coalesced_data_t get_coalescing_data(const ExecutionPlan &ep,
-                                       BDD::Node_ptr node) const;
+  map_coalescing_data_t get_map_coalescing_data_t(const ExecutionPlan &ep,
+                                                  addr_t map_addr) const;
 };
 
 } // namespace synapse

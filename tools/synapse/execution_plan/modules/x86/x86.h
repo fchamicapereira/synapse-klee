@@ -78,7 +78,7 @@ public:
                    MODULE(ChtFindBackend),
                    MODULE(HashObj),
                },
-               MemoryBank_ptr(new x86MemoryBank())) {}
+               TargetMemoryBank_ptr(new x86MemoryBank())) {}
 
   static Target_ptr build() { return Target_ptr(new x86Target()); }
 };

@@ -41,7 +41,7 @@ private:
   BDD::BDD bdd;
 
   MemoryBank_ptr shared_memory_bank;
-  std::unordered_map<TargetType, MemoryBank_ptr> memory_banks;
+  std::unordered_map<TargetType, TargetMemoryBank_ptr> memory_banks;
   std::unordered_set<BDD::node_id_t> processed_bdd_nodes;
 
   unsigned depth;
@@ -90,14 +90,14 @@ public:
   void inc_reordered_nodes();
   const ExecutionPlanNode_ptr &get_root() const;
 
-  void add_target(TargetType type, MemoryBank_ptr mb);
+  void add_target(TargetType type, TargetMemoryBank_ptr mb);
   bool has_target(TargetType type) const;
 
   MemoryBank_ptr get_memory_bank() const;
 
   template <class MB> MB *get_memory_bank(TargetType type) const {
-    static_assert(std::is_base_of<MemoryBank, MB>::value,
-                  "MB not derived from MemoryBank");
+    static_assert(std::is_base_of<TargetMemoryBank, MB>::value,
+                  "MB not derived from TargetMemoryBank");
     assert(memory_banks.find(type) != memory_banks.end());
     return static_cast<MB *>(memory_banks.at(type).get());
   }
@@ -128,7 +128,7 @@ public:
                                 bool process_bdd_node = true);
 
   void force_termination();
-  
+
   float get_bdd_processing_progress() const;
   void remove_from_processed_bdd_nodes(BDD::node_id_t id);
   void add_processed_bdd_node(BDD::node_id_t id);
