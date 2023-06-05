@@ -1,9 +1,9 @@
 #include "llvm/Support/CommandLine.h"
 
-#include "pch.hpp"
+#include "pch.h"
 
-#include "parser/parser.hpp"
-#include "network/network.hpp"
+#include "parser/parser.h"
+#include "network/network.h"
 
 namespace {
 	llvm::cl::OptionCategory CloNe("CloNe specific options");

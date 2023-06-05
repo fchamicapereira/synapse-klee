@@ -1,12 +1,12 @@
-#include "parser.hpp"
-#include "../pch.hpp"
+#include "parser.h"
+#include "../pch.h"
 
-#include "../models/device.hpp"
-#include "../models/nf.hpp"
-#include "../models/link.hpp"
-#include "../models/port.hpp"
-#include "../network/network.hpp"
-#include "infrastructure.hpp"
+#include "../models/device.h"
+#include "../models/nf.h"
+#include "../models/link.h"
+#include "../models/port.h"
+#include "../network/network.h"
+#include "infrastructure.h"
 
 
 namespace Clone {
@@ -22,14 +22,26 @@ namespace Clone {
 	}
 
 	DevicePtr parse_device(const vector<string> &words) {
-		if(words.size() != LENGTH_DEVICE_INPUT) {
+		if(words.size() != LENGTH_DEVICE_INPUT2 && words.size() != LENGTH_DEVICE_INPUT3) {
 			danger("Invalid device at line ");
 			exit(1);
 		}
 
-		const string id = words[1];
+		if(words.size() == LENGTH_DEVICE_INPUT2) {
+			const string id = words[1];
+			return DevicePtr(new Device(id));
+		}
+		else if(words.size() == LENGTH_DEVICE_INPUT3) {
+			const string type = words[1];
+			const string id = words[2];
 
-		return DevicePtr(new Device(id));
+			return DevicePtr(new Device(id, type));
+		}
+		else {
+			assert(false && "Shouldn't happen");
+		}
+
+		return nullptr;
 	}
 
 	NFPtr parse_nf(const vector<string> &words) {

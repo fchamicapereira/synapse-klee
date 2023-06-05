@@ -14,7 +14,8 @@ namespace Clone {
  	constexpr char STRING_LINK[] = "link";
 	constexpr char STRING_PORT[] =  "port";
 
-	constexpr size_t LENGTH_DEVICE_INPUT = 2;
+	constexpr size_t LENGTH_DEVICE_INPUT2 = 2;
+	constexpr size_t LENGTH_DEVICE_INPUT3 = 3;
 	constexpr size_t LENGTH_NF_INPUT = 3;
 	constexpr size_t LENGTH_LINK_INPUT = 5;
 	constexpr size_t LENGTH_PORT_INPUT = 4;

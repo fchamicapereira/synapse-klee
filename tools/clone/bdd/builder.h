@@ -9,7 +9,7 @@
 #include "bdd/nodes/node.h"
 #include "call-paths-to-bdd.h"
 
-#include "../models/nf.hpp"
+#include "../models/nf.h"
 
 namespace Clone {
 	using std::string;
@@ -52,9 +52,12 @@ namespace Clone {
 		void initialise_init(const shared_ptr<const BDD::BDD> &bdd);
 		void initialise_process(const shared_ptr<const BDD::BDD> &bdd);
 
+		void set_root(BDD::Node_ptr root);
+
 		void join_init(const NFPtr &nf);
 		Tails join_process(const NFPtr &nf, unsigned input_port, const Node_ptr &tail);
 
+		Node_ptr get_metadrop() const;
 		Node_ptr get_process_root() const;
 		
 		const std::unique_ptr<BDD::BDD>& get_bdd() const;

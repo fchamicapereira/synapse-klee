@@ -1,10 +1,14 @@
-#include "network.hpp"
-#include "../pch.hpp"
+#include "network.h"
+#include "../pch.h"
 
+#include "bdd/nodes/branch.h"
 #include "bdd/nodes/node.h"
+#include "bdd/utils.h"
 #include "call-paths-to-bdd.h"
 
-#include "node.hpp"
+#include "klee/util/ArrayExprHash.h"
+#include "node.h"
+#include <cmath>
 
 namespace Clone {
 	/* Constructors and destructors */
@@ -128,7 +132,60 @@ namespace Clone {
 		return unique_ptr<Network>(new Network(move(devices), move(nfs), move(links), move(ports)));
 	}
 
-	/* Public methods */
+	unordered_map<string, vector<BDD::Node_ptr>> Network::get_device_mapping(BDD::Node_ptr node) const {
+		unordered_map<string, vector<BDD::Node_ptr>> m;
+		while(node->get_type() == BDD::Node::NodeType::BRANCH) {
+			auto casted = BDD::cast_node<BDD::Branch>(node);
+			unsigned port_value = extract_port(casted);
+
+			auto port = ports.at(port_value);
+			const string& name = port->get_device()->get_id();
+			if(m.find(name) == m.end()) {
+				m.emplace(name, vector<BDD::Node_ptr>());
+			}
+			m.at(name).push_back(node);
+
+			node = casted->get_on_false();
+		}
+
+		return m;
+	}
+
+	void Network::reorder_roots() {
+		auto m = get_device_mapping(builder->get_bdd()->get_process());
+		BDD::Node_ptr drop = builder->get_metadrop();
+		BDD::Node_ptr node = nullptr;
+		BDD::Node_ptr prev = nullptr;
+		BDD::Node_ptr on_true = nullptr;
+		for(auto p: m) {
+			for(auto n: p.second) {
+				if(node == nullptr) {
+					builder->set_root(n);
+				}
+				Branch* branch = static_cast<Branch*>(n.get());
+				prev = node;
+				node = n;
+				on_true = branch->get_on_true();
+
+				node->disconnect();
+
+				if(prev != nullptr) {
+					node->add_prev(prev);
+					Branch* casted = static_cast<Branch*>(prev.get());
+					casted->add_on_false(node);
+				}
+
+				node->add_next(on_true);
+			}
+		}
+		
+		assert(node != nullptr);
+		Branch* branch = static_cast<Branch*>(node.get());
+		branch->add_on_false(drop);
+		drop->disconnect();
+		drop->add_prev(node);
+	}
+
 	void Network::consolidate() {
 		build_graph();
 
@@ -140,6 +197,8 @@ namespace Clone {
 			info("Traversing from global port ", global_port, " to ", child.second.second->get_name(), " port ", child.second.first);
 			traverse(global_port, child.second.second, child.second.first);
 		}
+
+		reorder_roots();
 
 		GraphvizGenerator::visualize(*builder->get_bdd(), false, false);
 		builder->dump(name + ".bdd");

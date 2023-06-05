@@ -2,6 +2,7 @@
 
 #include "call-paths-to-bdd.h"
 #include "target.h"
+#include "clone.h"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -43,6 +44,8 @@ private:
   MemoryBank_ptr shared_memory_bank;
   std::unordered_map<TargetType, TargetMemoryBank_ptr> memory_banks;
   std::unordered_set<BDD::node_id_t> processed_bdd_nodes;
+
+  std::shared_ptr<Clone::Infrastructure> infrastructure;
 
   unsigned depth;
   unsigned nodes;
@@ -134,6 +137,14 @@ public:
   void add_processed_bdd_node(BDD::node_id_t id);
   void replace_current_target_starting_points(BDD::node_id_t _old,
                                               BDD::node_id_t _new);
+
+  inline void set_infrastructure(std::shared_ptr<Clone::Infrastructure> _infrastructure) {
+    infrastructure = _infrastructure;
+  }
+
+  inline const std::shared_ptr<Clone::Infrastructure>& get_infrastructure() const {
+    return infrastructure;
+  }
 
   void visit(ExecutionPlanVisitor &visitor) const;
 

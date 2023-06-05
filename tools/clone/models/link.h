@@ -15,8 +15,8 @@ namespace Clone {
 
 		const size_t id;
 		const string node1;
-		const string node2;
 		const unsigned port1;
+		const string node2;
 		const unsigned port2;
 
 	public:

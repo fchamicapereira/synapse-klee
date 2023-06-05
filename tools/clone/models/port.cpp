@@ -1,6 +1,6 @@
-#include "port.hpp"
-#include "../pch.hpp"
-#include "device.hpp"
+#include "port.h"
+#include "../pch.h"
+#include "device.h"
 
 namespace Clone {
 	Port::Port(const DevicePtr device, unsigned device_port, unsigned global_port): 

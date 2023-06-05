@@ -5,7 +5,7 @@
 #include "execution_plan/visitors/graphviz/graphviz.h"
 #include "heuristics/heuristic.h"
 #include "log.h"
-#include "parser/infrastructure.hpp"
+#include "parser/infrastructure.h"
 #include "search_space.h"
 
 namespace synapse {
@@ -22,7 +22,7 @@ private:
 
   SearchSpace search_space;
 
-  std::string topology;
+  std::shared_ptr<Infrastructure> infrastructure;
 
   // Internal use only
   struct report_t {
@@ -81,6 +81,7 @@ public:
 
   template <class T> ExecutionPlan search(Heuristic<T> h, BDD::node_id_t peek) {
     auto first_execution_plan = ExecutionPlan(bdd);
+    first_execution_plan.set_infrastructure(infrastructure);
 
     for (auto target : targets) {
       first_execution_plan.add_target(target->type, target->memory_bank);
@@ -137,8 +138,8 @@ public:
 
   const SearchSpace &get_search_space() const { return search_space; }
 
-  inline void set_infrastructure(const std::unique_ptr<Infrastructure> infrastructure) {
-    this->topology = topology;
+  inline void set_infrastructure(const std::shared_ptr<Infrastructure> infrastructure) {
+    this->infrastructure = move(infrastructure);
   }
 
 private:

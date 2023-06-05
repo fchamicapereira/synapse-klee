@@ -39,7 +39,7 @@ ExecutionPlan::ExecutionPlan(const BDD::BDD &_bdd)
 ExecutionPlan::ExecutionPlan(const ExecutionPlan &ep)
     : root(ep.root), leaves(ep.leaves), bdd(ep.bdd),
       shared_memory_bank(ep.shared_memory_bank), memory_banks(ep.memory_banks),
-      processed_bdd_nodes(ep.processed_bdd_nodes), depth(ep.depth),
+      processed_bdd_nodes(ep.processed_bdd_nodes), infrastructure(ep.infrastructure), depth(ep.depth),
       nodes(ep.nodes), initial_target(ep.initial_target), targets(ep.targets),
       targets_bdd_starting_points(ep.targets_bdd_starting_points),
       nodes_per_target(ep.nodes_per_target),
@@ -48,7 +48,7 @@ ExecutionPlan::ExecutionPlan(const ExecutionPlan &ep)
 ExecutionPlan::ExecutionPlan(const ExecutionPlan &ep,
                              ExecutionPlanNode_ptr _root)
     : root(_root), bdd(ep.bdd), shared_memory_bank(ep.shared_memory_bank),
-      memory_banks(ep.memory_banks), depth(0), nodes(0), reordered_nodes(0),
+      memory_banks(ep.memory_banks), infrastructure(ep.infrastructure), depth(0), nodes(0), reordered_nodes(0),
       id(counter++) {
   if (!_root) {
     return;

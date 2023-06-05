@@ -160,6 +160,10 @@ public:
     x86_LoadBalancedFlowHash,
     x86_ChtFindBackend,
     x86_HashObj,
+    Clone_If,
+    Clone_Then,
+    Clone_Else,
+    Clone_Drop,
   };
 
 protected:

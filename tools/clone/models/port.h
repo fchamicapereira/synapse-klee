@@ -4,7 +4,7 @@
 #include <memory>
 #include <unordered_map>
 
-#include "device.hpp"
+#include "device.h"
 
 namespace Clone {
 	using std::string;

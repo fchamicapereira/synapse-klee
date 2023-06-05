@@ -44,4 +44,6 @@ inline const ReturnProcess *cast_node<ReturnProcess>(Node_ptr node) {
 std::vector<Node_ptr> get_call_nodes(Node_ptr root,
                                      const std::vector<std::string> &fnames);
 
+unsigned extract_port(const Branch* branch);
+
 } // namespace BDD

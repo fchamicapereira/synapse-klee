@@ -1,5 +1,5 @@
-#include "node.hpp"
-#include "../pch.hpp"
+#include "node.h"
+#include "../pch.h"
 
 namespace Clone {
 	Node::Node(const std::string &name, NodeType node_type): name(name), node_type(node_type), children() {}

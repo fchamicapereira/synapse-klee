@@ -31,7 +31,7 @@
 #include "execution_plan/visitors/graphviz/graphviz.h"
 #include "heuristics/heuristics.h"
 #include "log.h"
-#include "parser/parser.hpp"
+#include "parser/parser.h"
 #include "search.h"
 
 using llvm::cl::cat;
@@ -133,6 +133,10 @@ std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd,
         exit(1);
       }
       auto infrastructure = Clone::parse_infrastructure(InputTopologyFile);
+      auto device_types = infrastructure->get_device_types();
+      for(const auto& device_type: device_types) {
+        search_engine.add_target(string_to_target_type[device_type]);
+      }
       search_engine.set_infrastructure(move(infrastructure));
     }
   }
@@ -148,8 +152,8 @@ std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd,
   // auto winner = search_engine.search(least_reordered, peek);
   // auto winner = search_engine.search(dfs, peek);
   // auto winner = search_engine.search(most_compact, peek);
-  // auto winner = search_engine.search(maximize_switch_nodes, peek);
-  auto winner = search_engine.search(gallium, peek);
+  auto winner = search_engine.search(maximize_switch_nodes, peek);
+  //auto winner = search_engine.search(gallium, peek);
   const auto &ss = search_engine.get_search_space();
 
   return {winner, ss};
@@ -160,8 +164,25 @@ void synthesize(const ExecutionPlan &ep) {
 
   for (unsigned i = 0; i != TargetList.size(); ++i) {
     auto target = TargetList[i];
+    if(target == TargetType::CloNe) {
+      if(TargetList.size() > 1) {
+        Log::err() << "CloNe can only be specified as the single target\n";
+        exit(1);
+      }
+      if(InputTopologyFile.size() == 0) {
+        Log::err() << "Please provide a topology file for CloNe\n";
+        exit(1);
+      }
+      auto infrastructure = Clone::parse_infrastructure(InputTopologyFile);
+      auto device_types = infrastructure->get_device_types();
+      for(const auto& device_type: device_types) {
+        code_generator.add_target(string_to_target_type[device_type]);
+      }
+      break;
+    }
     code_generator.add_target(target);
   }
+
 
   code_generator.generate(ep);
 }

@@ -1,5 +1,5 @@
-#include "builder.hpp"
-#include "../pch.hpp"
+#include "builder.h"
+#include "../pch.h"
 
 #include "bdd/nodes/branch.h"
 #include "bdd/nodes/node.h"
@@ -267,8 +267,24 @@ namespace Clone {
 		return clone_node(root, port);
 	}
 
+	void Builder::set_root(Node_ptr root) {
+		assert(root != nullptr);
+		bdd->set_process(root);
+	}
+
 	const unique_ptr<BDD::BDD>& Builder::get_bdd() const {
 		return this->bdd;
+	}
+
+	Node_ptr Builder::get_metadrop() const {
+		Node_ptr node = bdd->get_process();
+
+		while(node->get_type() == BDD::Node::NodeType::BRANCH) {
+			Branch* casted = static_cast<Branch*>(node.get());
+			node = casted->get_on_false();
+		}
+
+		return node;
 	}
 
 	Node_ptr Builder::get_process_root() const {
@@ -279,4 +295,6 @@ namespace Clone {
 		info("Dumping BDD to file \"", path, "\"");
 		this->bdd->serialize(path);
 	}
+
+	
 }

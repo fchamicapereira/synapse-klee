@@ -153,6 +153,14 @@ class ChtFindBackend;
 class HashObj;
 } // namespace x86
 
+namespace clone {
+class If;
+class Then;
+class Else;
+class Drop;
+} // namespace clone
+
+
 } // namespace targets
 
 class ExecutionPlanVisitor {
@@ -316,6 +324,17 @@ public:
   VISIT(targets::x86::LoadBalancedFlowHash)
   VISIT(targets::x86::ChtFindBackend)
   VISIT(targets::x86::HashObj)
+
+  /*************************************
+    *
+    *              clone
+    *
+    * **********************************/
+
+  VISIT(targets::clone::If)
+  VISIT(targets::clone::Then)
+  VISIT(targets::clone::Else)
+
 
 protected:
   virtual void log(const ExecutionPlanNode *ep_node) const;

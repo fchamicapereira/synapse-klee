@@ -4,6 +4,7 @@
 #include "../module.h"
 
 #include "memory_bank.h"
+#include "if.h"
 
 namespace synapse {
 namespace targets {
@@ -13,10 +14,14 @@ class CloneTarget : public Target {
 public:
 	CloneTarget()
 		: Target(TargetType::CloNe,
-				 {},
-				 MemoryBank_ptr(new CloneMemoryBank())) {}
+				 {
+					MODULE(If),
+				 },
+				 TargetMemoryBank_ptr(new CloneMemoryBank())) {}
 
-	static Target_ptr build() { return Target_ptr(new CloneTarget()); }
+	static Target_ptr build() { 
+		return Target_ptr(new CloneTarget()); 
+	}
 };
 
 } // namespace clone

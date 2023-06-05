@@ -1,14 +1,14 @@
-#include "device.hpp"
+#include "device.h"
 
-#include "../pch.hpp"
+#include "../pch.h"
 
 
 namespace Clone {
-	Device::Device(string id) : id(id) {}
+	Device::Device(string id, string type) : id(id), type(type) {}
 
 	Device::~Device() = default;
 
 	void Device::print() const {
-		debug("Device ", id);
+		debug("Device ", id, " type ", type);
 	}
 }

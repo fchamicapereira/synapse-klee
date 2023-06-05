@@ -2,6 +2,8 @@
 
 #include <memory>
 #include <vector>
+#include <unordered_map>
+#include <string>
 
 namespace synapse {
 
@@ -21,6 +23,8 @@ enum TargetType {
   BMv2,
   CloNe,
 };
+
+extern std::unordered_map<std::string, TargetType> string_to_target_type;
 
 std::ostream &operator<<(std::ostream &os, TargetType type);
 

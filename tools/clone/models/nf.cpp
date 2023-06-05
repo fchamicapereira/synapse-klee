@@ -1,5 +1,5 @@
-#include "nf.hpp"
-#include "../pch.hpp"
+#include "nf.h"
+#include "../pch.h"
 
 #include "call-paths-to-bdd.h"
 

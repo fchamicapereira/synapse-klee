@@ -6,12 +6,13 @@
 #include <unordered_set>
 #include <unordered_map>
 
+#include "bdd/utils.h"
 #include "call-paths-to-bdd.h"
 
-#include "../parser/infrastructure.hpp"
-#include "../models/nf.hpp"
-#include "../bdd/builder.hpp"
-#include "node.hpp"
+#include "../parser/infrastructure.h"
+#include "../models/nf.h"
+#include "../bdd/builder.h"
+#include "node.h"
 
 namespace BDD {
 	class BDD;
@@ -31,6 +32,7 @@ namespace Clone {
 	using BDD::Branch;
 	using BDD::ReturnProcess;
 	using BDD::GraphvizGenerator;
+	using BDD::extract_port;
 
 	typedef unordered_map<string, shared_ptr<const BDD::BDD>> BDDs;
 
@@ -60,6 +62,8 @@ namespace Clone {
 
 		void build_graph();
 		void traverse(unsigned global_port, NodePtr origin, unsigned nf_port);
+		unordered_map<string, vector<BDD::Node_ptr>> get_device_mapping(BDD::Node_ptr node) const;
+		void reorder_roots();
 		void print_graph() const;
 	public:
 		~Network();

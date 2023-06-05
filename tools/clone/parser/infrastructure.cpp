@@ -1,7 +1,12 @@
-#include "infrastructure.hpp"
-#include "../pch.hpp"
+#include "infrastructure.h"
+#include "../pch.h"
+#include "klee/util/ExprHashMap.h"
+
+#include <unordered_set>
 
 namespace Clone {
+	using std::unordered_set;
+
 	Infrastructure::Infrastructure(DeviceMap&& devices, LinkList&& links, PortMap&& ports) : devices(move(devices)), links(move(links)), ports(move(ports)) {}
 
 	unique_ptr<Infrastructure> Infrastructure::create(DeviceMap&& devices, LinkList&& links, PortMap&& ports) {
@@ -12,7 +17,17 @@ namespace Clone {
 		return unique_ptr<Infrastructure>(new Infrastructure(move(devices), move(links), move(ports)));
 	}
 
-	void Infrastructure::print() {
+	const list<string> Infrastructure::get_device_types() const {
+		unordered_set<string> s;
+
+		for(auto it = devices.begin(); it != devices.end(); ++it) {
+			s.insert(it->second->get_type());
+		}
+
+		return list<string>(s.begin(), s.end());
+	}
+
+	void Infrastructure::print() const {
 		debug("Printing Network");
 
 		for (auto it = devices.begin(); it != devices.end(); ++it) {

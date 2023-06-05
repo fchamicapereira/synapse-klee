@@ -13,13 +13,18 @@ namespace Clone {
 	class Device {
 	private:
 		const string id;
+		const string type;
 		unordered_map<unsigned, unsigned> ports;
 	public:
-		Device(string id);
+		Device(string id, string type = "");
 		~Device();
 
 		inline const string& get_id() const {
 			return id;
+		}
+
+		inline const string& get_type() const {
+			return type;
 		}
 
 		inline unsigned get_port(const unsigned local_port) const {

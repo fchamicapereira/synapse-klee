@@ -1,6 +1,6 @@
-#include "link.hpp"
+#include "link.h"
 
-#include "../pch.hpp"
+#include "../pch.h"
 
 
 namespace Clone {

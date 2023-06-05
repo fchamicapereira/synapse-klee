@@ -39,4 +39,16 @@ std::vector<Node_ptr> get_call_nodes(Node_ptr root,
   return targets;
 }
 
+unsigned extract_port(const Branch* branch) {
+    auto kind = branch->get_condition()->getKind();
+    assert(kind == klee::Expr::Kind::Eq);
+
+    auto condition = branch->get_condition();
+    auto right = condition->getKid(1);
+    assert(right->getKind() == klee::Expr::Kind::Constant);
+    auto casted = static_cast<klee::ConstantExpr*>(right.get());
+
+    return casted->getZExtValue();
+}
+
 } // namespace BDD
