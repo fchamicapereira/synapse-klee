@@ -1,8 +1,10 @@
 #pragma once
 
 
+#include "bdd/nodes/node.h"
 #include "call-paths-to-bdd.h"
 #include "clone_module.h"
+#include "klee/Expr.h"
 #include "parser/infrastructure.h"
 #include "then.h"
 #include "else.h"
@@ -105,7 +107,9 @@ private:
         node = *it;
         unsigned local_port = get_local_port(infra, node);
         replace_port(node, local_port);
-        mb->add_starting_point(device_name, node);
+        auto device = infra->get_device(device_name);
+        std::string arch = device->get_type();
+        mb->add_starting_point(device_name, node, arch);
         ++it;
       }
 
@@ -124,22 +128,39 @@ private:
     }
 
     auto mb = ep.get_memory_bank<CloneMemoryBank>(TargetType::CloNe);
-    if(!mb->has_starting_points()) {
+    if(!mb->is_initialised()) {
       init_starting_points(ep, node);
     }
-    assert(mb->get_next_node()->get_id() == node->get_id());
 
-    auto infra = ep.get_infrastructure();
-    std::string device_name = mb->get_next_device();
-    auto device = infra->get_device(device_name);
-    std::string architecture = device->get_type();
-    auto target = string_to_target_type[architecture];
+    if(mb->get_next_metanode() == nullptr) {
+      return result;
+    }
+    
+    mb->pop_metanode();
+    BDD::Node_ptr next = mb->get_next_metanode();
 
-    auto if_module = std::make_shared<If>(node);
-    auto new_ep = ep.ignore_leaf(node, target, false);
+    if(next == nullptr) {
+      next = get_drop(nullptr);
+    }
 
-    result.module = if_module;
-    result.next_eps.push_back(new_ep);
+    auto new_if_module = std::make_shared<If>(node);
+    auto new_then_module = std::make_shared<Then>(node);
+    auto new_else_module = std::make_shared<Else>(node);
+
+    auto if_leaf = ExecutionPlan::leaf_t(new_if_module, nullptr);
+    auto then_leaf =
+        ExecutionPlan::leaf_t(new_then_module, node);
+    auto else_leaf =
+        ExecutionPlan::leaf_t(new_else_module, next);
+
+    std::vector<ExecutionPlan::leaf_t> if_leaves{if_leaf};
+    std::vector<ExecutionPlan::leaf_t> then_else_leaves{then_leaf, else_leaf};
+
+    auto ep_if = ep.add_leaves(if_leaves, false, false);
+    auto ep_if_then_else = ep_if.add_leaves(then_else_leaves, false, false);
+
+    result.module = new_if_module;
+    result.next_eps.push_back(ep_if_then_else);
 
     return result;
   }

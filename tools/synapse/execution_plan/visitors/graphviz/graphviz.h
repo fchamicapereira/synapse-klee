@@ -42,6 +42,7 @@ public:
         {TargetType::x86_BMv2, "darkorange2"},
         {TargetType::x86_Tofino, "firebrick2"},
         {TargetType::x86, "cadetblue1"},
+        {TargetType::CloNe, "darkorchid1"}
     };
 
     ofs.open(fpath);
@@ -239,5 +240,17 @@ public:
   DECLARE_VISIT(targets::x86::LoadBalancedFlowHash)
   DECLARE_VISIT(targets::x86::ChtFindBackend)
   DECLARE_VISIT(targets::x86::HashObj)
+
+
+  /********************************************
+   *
+   *                  x86
+   *
+   ********************************************/
+  DECLARE_VISIT(targets::clone::If)
+  DECLARE_VISIT(targets::clone::Then)
+  DECLARE_VISIT(targets::clone::Else)
+  DECLARE_VISIT(targets::clone::Drop)
+
 };
 } // namespace synapse

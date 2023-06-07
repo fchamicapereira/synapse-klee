@@ -128,6 +128,7 @@ public:
       if (next_node->get_id() == peek) {
         Graphviz::visualize(search_space);
       }
+      // Graphviz::visualize(next_ep);
     }
 
     Log::log() << "Solutions:      " << h.get_all().size() << "\n";

@@ -467,4 +467,44 @@ CodeGenerator::x86_extractor(const ExecutionPlan &execution_plan) const {
   return execution_plan;
 }
 
+
+ExecutionPlan
+CodeGenerator::clone_extractor(const ExecutionPlan &execution_plan) const {
+  // No extraction at all, just asserting that this targets contains only x86
+  // nodes.
+
+  auto nodes = std::vector<ExecutionPlanNode_ptr>{execution_plan.get_root()};
+
+  while (nodes.size()) {
+    auto node = nodes[0];
+    assert(node);
+
+    nodes.erase(nodes.begin());
+
+    auto module = node->get_module();
+    assert(module);
+
+    if (module->get_type() == Module::ModuleType::Clone_Then) {
+      auto next = node->get_next();
+      auto next_node = next[0];
+      auto new_target = next_node->get_module()->get_target();
+      auto found_it = target_helpers_bank.find(new_target);
+      found_it->second.generator->output_to_file(directory + "/nf.clone.c");
+     
+      auto extracted_ep = ExecutionPlan(execution_plan, next_node);
+      auto helper = found_it->second;
+      auto &extractor = helper.extractor;
+      auto &generator = helper.generator;
+
+      auto ex_extracted_ep = (this->*extractor)(extracted_ep);
+      generator->generate(ex_extracted_ep, extracted_ep);
+    }
+
+    auto next = node->get_next();
+    nodes.insert(nodes.end(), next.begin(), next.end());
+  }
+
+  return execution_plan;
+}
+
 } // namespace synapse

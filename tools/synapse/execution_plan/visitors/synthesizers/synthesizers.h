@@ -5,3 +5,4 @@
 #include "x86/x86_generator.h"
 #include "x86_bmv2/x86_bmv2_generator.h"
 #include "x86_tofino/x86_tofino_generator.h"
+#include "clone/clone_generator.h"

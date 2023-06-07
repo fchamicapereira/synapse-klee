@@ -175,9 +175,10 @@ void synthesize(const ExecutionPlan &ep) {
       }
       auto infrastructure = Clone::parse_infrastructure(InputTopologyFile);
       auto device_types = infrastructure->get_device_types();
-      for(const auto& device_type: device_types) {
-        code_generator.add_target(string_to_target_type[device_type]);
-      }
+      code_generator.add_target(TargetType::CloNe);
+      //for(const auto& device_type: device_types) {
+      //  code_generator.add_target(string_to_target_type[device_type]);
+      //}
       break;
     }
     code_generator.add_target(target);

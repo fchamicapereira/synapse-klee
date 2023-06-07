@@ -5,6 +5,10 @@
 
 #include "memory_bank.h"
 #include "if.h"
+#include "then.h"
+#include "else.h"
+#include "drop.h"
+
 
 namespace synapse {
 namespace targets {
@@ -16,6 +20,9 @@ public:
 		: Target(TargetType::CloNe,
 				 {
 					MODULE(If),
+					MODULE(Then),
+					MODULE(Else),	
+					MODULE(Drop)
 				 },
 				 TargetMemoryBank_ptr(new CloneMemoryBank())) {}
 

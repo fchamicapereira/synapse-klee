@@ -814,4 +814,14 @@ DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86::LoadBalancedFlowHash)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86::ChtFindBackend)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86::HashObj)
 
+
+/********************************************
+ *
+ *                     CloNe
+ *
+ ********************************************/
+DEFAULT_BRANCH_VISIT_PRINT_MODULE_NAME(targets::clone::If)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::clone::Then)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::clone::Else)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::clone::Drop)
 } // namespace synapse

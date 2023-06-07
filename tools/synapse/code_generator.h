@@ -12,6 +12,7 @@ using synapse::synthesizer::tofino::TofinoGenerator;
 using synapse::synthesizer::x86::x86Generator;
 using synapse::synthesizer::x86_bmv2::x86BMv2Generator;
 using synapse::synthesizer::x86_tofino::x86TofinoGenerator;
+using synapse::synthesizer::clone::CloneGenerator;
 
 namespace synapse {
 
@@ -44,6 +45,7 @@ private:
   ExecutionPlan fpga_extractor(const ExecutionPlan &execution_plan) const;
   ExecutionPlan tofino_extractor(const ExecutionPlan &execution_plan) const;
   ExecutionPlan netronome_extractor(const ExecutionPlan &execution_plan) const;
+  ExecutionPlan clone_extractor(const ExecutionPlan &execution_plan) const;
 
   std::string directory;
 
@@ -72,6 +74,8 @@ public:
 
         {TargetType::x86, target_helper_t(&CodeGenerator::x86_extractor,
                                           std::make_shared<x86Generator>())},
+        {TargetType::CloNe, target_helper_t(&CodeGenerator::clone_extractor,
+                                          std::make_shared<CloneGenerator>())},
     };
   }
 

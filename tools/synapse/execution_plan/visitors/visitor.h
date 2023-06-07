@@ -334,6 +334,7 @@ public:
   VISIT(targets::clone::If)
   VISIT(targets::clone::Then)
   VISIT(targets::clone::Else)
+  VISIT(targets::clone::Drop)
 
 
 protected:

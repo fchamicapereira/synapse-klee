@@ -1,18 +1,16 @@
 #pragma once
 
 #include "clone_module.h"
-#include "else.h"
 
 namespace synapse {
 namespace targets {
 namespace clone {
 
-class Then : public CloneModule {
-private:
+class Drop : public CloneModule {
 public:
-  Then() : CloneModule(ModuleType::Clone_Then, "Then"){
+  Drop() : CloneModule(ModuleType::Clone_Drop, "Drop") {
   }
-  Then(BDD::Node_ptr node): CloneModule(ModuleType::Clone_Then, "Then", node) {
+  Drop(BDD::Node_ptr node) : CloneModule(ModuleType::Clone_Drop, "Drop", node) {
 
   }
 
@@ -21,25 +19,23 @@ private:
                               BDD::Node_ptr node) override {
     processing_result_t result;
 
+    auto casted = BDD::cast_node<BDD::ReturnProcess>(node);
     auto mb = ep.get_memory_bank<CloneMemoryBank>(TargetType::CloNe);
 
-    auto active_leaf = ep.get_active_leaf();
-    if(active_leaf == nullptr) {
+    if (!casted) {
       return result;
     }
 
-    auto module = active_leaf->get_module();
-    if(module->get_type() == Module::ModuleType::Clone_Then) {
-      std::string target_name = mb->get_target_from_node(node);
-      auto target = string_to_target_type[target_name];
-
-      auto new_module = std::make_shared<Then>(node);
-      auto new_ep = ep.ignore_leaf(node, target, false);
-
-      result.module = new_module;
-      result.next_eps.push_back(new_ep);
+    if (casted->get_return_operation() != BDD::ReturnProcess::Operation::DROP) {
+      return result;
     }
 
+    auto next_node = mb->get_next_node();
+    
+    auto new_module = std::make_shared<Drop>(node);
+    auto new_ep = ep.add_leaves(new_module, nullptr, true, false);
+    result.module = new_module;
+    result.next_eps.push_back(new_ep);
     return result;
   }
 
@@ -50,7 +46,7 @@ public:
   }
 
   virtual Module_ptr clone() const override {
-    auto cloned = new Then(node);
+    auto cloned = new Drop(node);
     return std::shared_ptr<Module>(cloned);
   }
 
