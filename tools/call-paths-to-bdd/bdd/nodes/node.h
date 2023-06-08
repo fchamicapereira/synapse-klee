@@ -59,6 +59,10 @@ public:
     prev = _prev;
   }
 
+  void disconnect_prev() {
+    prev = nullptr;
+  }
+
   void disconnect() {
     prev = nullptr;
     next = nullptr;

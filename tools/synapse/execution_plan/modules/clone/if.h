@@ -1,7 +1,6 @@
 #pragma once
 
 
-#include "bdd/nodes/node.h"
 #include "call-paths-to-bdd.h"
 #include "clone_module.h"
 #include "klee/Expr.h"
@@ -9,6 +8,7 @@
 #include "then.h"
 #include "else.h"
 #include "memory_bank.h"
+#include <map>
 #include <cstdio>
 
 namespace synapse {
@@ -19,18 +19,14 @@ class If: public CloneModule {
 private:
 
 public:
-  If() : CloneModule(ModuleType::Clone_If, "If") {
- //   next_target = TargetType::x86;
-  }
+  If() : CloneModule(ModuleType::Clone_If, "If") {}
 
   If(BDD::Node_ptr node)
-    : CloneModule(ModuleType::Clone_If, "If", node) {
-    //  next_target = TargetType::x86;
-  }
+    : CloneModule(ModuleType::Clone_If, "If", node) {}
 
 private: 
-  BDD::Node_ptr get_drop(BDD::Node_ptr prev) {
-    return BDD::Node_ptr(new BDD::ReturnProcess(0, prev, {}, 0, BDD::ReturnProcess::Operation::DROP));
+  BDD::Node_ptr get_drop(BDD::Node_ptr prev, BDD::node_id_t id) {
+    return BDD::Node_ptr(new BDD::ReturnProcess(id, prev, {}, 0, BDD::ReturnProcess::Operation::DROP));
   }
 
   unsigned extract_port(const BDD::Branch* branch) {
@@ -43,6 +39,34 @@ private:
     auto casted = static_cast<klee::ConstantExpr*>(right.get());
 
     return casted->getZExtValue();
+  }
+
+  // replace global ports with real ports
+  void replace_ports(std::map<int, int> ports_map, BDD::Node_ptr first_node) {
+    std::vector<BDD::Node_ptr> nodes{first_node};
+    BDD::Node_ptr node;
+
+    while (nodes.size()) {
+      node = nodes[0];
+      nodes.erase(nodes.begin());
+
+      if (node->get_type() == BDD::Node::NodeType::RETURN_PROCESS) {
+        auto return_process = static_cast<BDD::ReturnProcess *>(node.get());
+        if(return_process->get_return_operation() == BDD::ReturnProcess::Operation::FWD) {
+          assert(ports_map.find(return_process->get_return_value()) != ports_map.end());
+          return_process->set_return_value(ports_map.at(return_process->get_return_value()));
+        }
+      }
+
+      if (node->get_type() == BDD::Node::NodeType::BRANCH) {
+        auto branch_node = static_cast<BDD::Branch *>(node.get());
+
+        nodes.push_back(branch_node->get_on_true());
+        nodes.push_back(branch_node->get_on_false());
+      } else if (node->get_next()) {
+        nodes.push_back(node->get_next());
+      }
+    }
   }
 
   klee::ref<klee::Expr> replace_port(BDD::Node_ptr node, unsigned port) {
@@ -68,54 +92,60 @@ private:
     return local_port;
   }
 
-  std::map<std::string, std::vector<BDD::Node_ptr>> get_nodes_per_device(std::shared_ptr<Clone::Infrastructure> infra, BDD::Node_ptr node) {
-      std::map<std::string, std::vector<BDD::Node_ptr>> m;
-
-      while(node->get_type() == BDD::Node::NodeType::BRANCH) {
-        auto casted = BDD::cast_node<BDD::Branch>(node);
-        unsigned value = extract_port(casted);
-        auto port = infra->get_port(value);
-        const std::string& name = port->get_device()->get_id();
-
-        if(m.find(name) == m.end()) {
-          m.emplace(name, std::vector<BDD::Node_ptr>());
-        }
-        m.at(name).push_back(node);
-
-        node = casted->get_on_false();
-      }
-
-      return m;
-  }
-
   void init_starting_points(const ExecutionPlan &ep, BDD::Node_ptr origin) {
+    // Variable initialisation
     auto mb = ep.get_memory_bank<CloneMemoryBank>(TargetType::CloNe);
-
     auto infra = ep.get_infrastructure();
-    assert(infra != nullptr);
+    auto bdd = ep.get_bdd();
+    BDD::node_id_t id = bdd.get_id() + 1;
+     std::map<std::string, std::vector<BDD::Node_ptr>> device_to_nodes;
 
-    auto branches = get_nodes_per_device(infra, origin);   
-    for(auto& p_branches: branches) {
-      auto &v_nodes = p_branches.second;
-      const std::string &device_name = p_branches.first;
+    std::map<int, int> m_ports;
+    for(auto& p: infra->get_ports()) {
+      auto port = p.second;
+      m_ports[port->get_global_port()] = port->get_local_port();
+    }
+
+    auto node = origin;
+    while(node->get_type() == BDD::Node::NodeType::BRANCH) {
+      auto casted = BDD::cast_node<BDD::Branch>(node);
+      unsigned value = extract_port(casted);
+      auto port = infra->get_port(value);
+      const std::string& arch = port->get_device()->get_type();
+      const std::string& device = port->get_device()->get_id();
+
+      if(device_to_nodes.find(device) == device_to_nodes.end()) {
+        device_to_nodes.emplace(device, std::vector<BDD::Node_ptr>());
+        mb->add_starting_point(node, arch, name);
+      }
+      device_to_nodes.at(device).push_back(node);
+      node = casted->get_on_false();
+    }
+
+    for(auto& starting_node: device_to_nodes) {
+      const std::string& device_name = starting_node.first;
+      auto &v_nodes = starting_node.second;
 
       auto it = v_nodes.begin();
       assert(v_nodes.size() > 0);
-      BDD::Node_ptr node = *it;
+      auto device = infra->get_device(device_name);
+      std::string arch = device->get_type();
 
+      BDD::Node_ptr node = *it;
+      node->disconnect_prev();
       while (it != v_nodes.end()) {
         node = *it;
         unsigned local_port = get_local_port(infra, node);
         replace_port(node, local_port);
-        auto device = infra->get_device(device_name);
-        std::string arch = device->get_type();
-        mb->add_starting_point(device_name, node, arch);
         ++it;
       }
 
       BDD::Branch* casted = static_cast<BDD::Branch*>(node.get());
-      auto drop = get_drop(node);
+      auto drop = get_drop(node, id++);
       casted->replace_on_false(drop);
+
+      // TODO: move else where, repeat this loop
+      replace_ports(m_ports, *v_nodes.begin());
     }
   }
 
@@ -132,15 +162,16 @@ private:
       init_starting_points(ep, node);
     }
 
-    if(mb->get_next_metanode() == nullptr) {
+    if(mb->get_next_starting_point() == nullptr) {
       return result;
     }
-    
-    mb->pop_metanode();
-    BDD::Node_ptr next = mb->get_next_metanode();
 
+    mb->pop_starting_point();
+    auto start_point =  mb->get_next_starting_point();
+    
+    BDD::Node_ptr next = start_point != nullptr ? start_point->node : nullptr;
     if(next == nullptr) {
-      next = get_drop(nullptr);
+      next = get_drop(nullptr, -2);
     }
 
     auto new_if_module = std::make_shared<If>(node);

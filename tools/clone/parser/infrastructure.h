@@ -28,6 +28,10 @@ namespace Clone {
 			return ports.at(port);
 		}
 
+		inline const PortMap& get_ports() const {
+			return ports;
+		}
+
 		inline const DevicePtr& get_device(const string& name) const {
 			return devices.at(name);
 		}

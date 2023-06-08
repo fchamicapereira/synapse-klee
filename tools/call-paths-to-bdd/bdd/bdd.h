@@ -33,6 +33,8 @@ public:
   BDD(const BDD &bdd)
       : id(bdd.id), nf_init(bdd.nf_init), nf_process(bdd.nf_process) {}
 
+  BDD(node_id_t id, Node_ptr nf_init, Node_ptr nf_process) : id(id), nf_init(nf_init), nf_process(nf_process) {}
+
   BDD(const std::string &file_path) : id(0) {
     kutil::solver_toolbox.build();
     deserialize(file_path);

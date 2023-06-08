@@ -5,6 +5,7 @@
 #include "bdd.h"
 
 #include "call-paths-groups.h"
+#include "nodes/node.h"
 #include "visitor.h"
 
 #include "nodes/return_init.h"
