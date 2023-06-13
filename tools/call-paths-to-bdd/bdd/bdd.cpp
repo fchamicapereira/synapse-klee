@@ -39,7 +39,7 @@ Node_ptr BDD::get_node_by_id(node_id_t _id) const {
     }
   }
 
-  return node;
+  return nullptr;
 }
 
 BDD BDD::clone() const {

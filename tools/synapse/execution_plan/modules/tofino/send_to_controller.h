@@ -232,7 +232,8 @@ private:
     auto ep_cloned = ep.clone(true);
     auto &bdd = ep_cloned.get_bdd();
     auto node_cloned = bdd.get_node_by_id(node->get_id());
-
+    assert(node_cloned);
+    
     auto next_node = clone_packet_parsing(ep_cloned, node_cloned);
     auto _code_path = node->get_id();
 
