@@ -42,16 +42,16 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_VECTOR_BORROW) {
-      assert(!call.args[symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-      assert(!call.args[symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
-      assert(!call.args[symbex::FN_VECTOR_ARG_OUT].out.isNull());
-      assert(!call.extra_vars[symbex::FN_VECTOR_EXTRA].second.isNull());
+    if (call.function_name == BDD::symbex::FN_VECTOR_BORROW) {
+      assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_VECTOR_ARG_OUT].out.isNull());
+      assert(!call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second.isNull());
 
-      auto _vector_addr = call.args[symbex::FN_VECTOR_ARG_VECTOR].expr;
-      auto _index = call.args[symbex::FN_VECTOR_ARG_INDEX].expr;
-      auto _value_out = call.args[symbex::FN_VECTOR_ARG_OUT].out;
-      auto _borrowed_cell = call.extra_vars[symbex::FN_VECTOR_EXTRA].second;
+      auto _vector_addr = call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
+      auto _index = call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr;
+      auto _value_out = call.args[BDD::symbex::FN_VECTOR_ARG_OUT].out;
+      auto _borrowed_cell = call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second;
 
       auto _generated_symbols = casted->get_local_generated_symbols();
 

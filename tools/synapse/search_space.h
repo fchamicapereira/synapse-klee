@@ -76,8 +76,8 @@ public:
   SearchSpace() : node_id_counter(0) {}
 
   void init(const HeuristicConfiguration *_hc, const ExecutionPlan &ep) {
-    auto target = ep.get_current_platform();
-    auto data = generated_data_t(target, ep.get_id(), _hc->get_score(ep));
+    auto target = ep.get_current_target();
+    auto data = generated_data_t(target->type, ep.get_id(), _hc->get_score(ep));
     auto node_id = get_and_inc_node_id();
 
     root = ss_node_ref(new ss_node_t(node_id, data));
@@ -98,7 +98,7 @@ public:
     assert(node);
     assert(module);
 
-    auto target = ep.get_current_platform();
+    auto target = ep.get_current_target();
 
     int source_execution_plan_id = ep.get_id();
 
@@ -113,7 +113,7 @@ public:
       auto next_ep = next_eps[i].get_id();
       auto score = hc->get_score(ep);
 
-      auto data = generated_data_t(target, next_ep, score, module, node);
+      auto data = generated_data_t(target->type, next_ep, score, module, node);
       pending_leaves.add(data);
     }
   }

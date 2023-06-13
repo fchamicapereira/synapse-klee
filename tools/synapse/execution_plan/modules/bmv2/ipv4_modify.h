@@ -28,10 +28,10 @@ private:
     auto call_node = static_cast<const BDD::Call *>(node);
     auto call = call_node->get_call();
 
-    assert(call.function_name == symbex::FN_BORROW_CHUNK);
-    assert(!call.extra_vars[symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
+    assert(call.function_name == BDD::symbex::FN_BORROW_CHUNK);
+    assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
 
-    return call.extra_vars[symbex::FN_BORROW_CHUNK_EXTRA].second;
+    return call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
   }
 
   processing_result_t process(const ExecutionPlan &ep,
@@ -46,28 +46,28 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != symbex::FN_RETURN_CHUNK) {
+    if (call.function_name != BDD::symbex::FN_RETURN_CHUNK) {
       return result;
     }
 
     auto all_prev_packet_borrow_next_chunk =
-        get_prev_fn(ep, node, symbex::FN_BORROW_CHUNK);
+        get_prev_fn(ep, node, BDD::symbex::FN_BORROW_CHUNK);
 
     assert(all_prev_packet_borrow_next_chunk.size());
 
     auto all_prev_packet_return_chunk =
-        get_prev_fn(ep, node, symbex::FN_RETURN_CHUNK);
+        get_prev_fn(ep, node, BDD::symbex::FN_RETURN_CHUNK);
 
     if (all_prev_packet_return_chunk.size() !=
         all_prev_packet_borrow_next_chunk.size() - 2) {
       return result;
     }
 
-    assert(!call.args[symbex::FN_BORROW_CHUNK_EXTRA].in.isNull());
+    assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in.isNull());
 
     auto borrow_ipv4 = all_prev_packet_borrow_next_chunk.rbegin()[1];
 
-    auto curr_ipv4_chunk = call.args[symbex::FN_BORROW_CHUNK_EXTRA].in;
+    auto curr_ipv4_chunk = call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in;
     auto prev_ipv4_chunk = get_ipv4_chunk(borrow_ipv4.get());
 
     assert(curr_ipv4_chunk->getWidth() == 20 * 8);

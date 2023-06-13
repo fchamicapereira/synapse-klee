@@ -38,25 +38,25 @@ protected:
     auto call = casted->get_call();
     extracted_data_t data;
 
-    if (call.function_name != symbex::FN_MAP_GET) {
+    if (call.function_name != BDD::symbex::FN_MAP_GET) {
       return data;
     }
 
-    assert(call.function_name == symbex::FN_MAP_GET);
-    assert(!call.args[symbex::FN_MAP_ARG_MAP].expr.isNull());
-    assert(!call.args[symbex::FN_MAP_ARG_KEY].in.isNull());
-    assert(!call.args[symbex::FN_MAP_ARG_OUT].out.isNull());
+    assert(call.function_name == BDD::symbex::FN_MAP_GET);
+    assert(!call.args[BDD::symbex::FN_MAP_ARG_MAP].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_MAP_ARG_KEY].in.isNull());
+    assert(!call.args[BDD::symbex::FN_MAP_ARG_OUT].out.isNull());
 
-    auto _map = call.args[symbex::FN_MAP_ARG_MAP].expr;
-    auto _key = call.args[symbex::FN_MAP_ARG_KEY].in;
-    auto _key_meta = call.args[symbex::FN_MAP_ARG_KEY].meta;
-    auto _value = call.args[symbex::FN_MAP_ARG_OUT].out;
+    auto _map = call.args[BDD::symbex::FN_MAP_ARG_MAP].expr;
+    auto _key = call.args[BDD::symbex::FN_MAP_ARG_KEY].in;
+    auto _key_meta = call.args[BDD::symbex::FN_MAP_ARG_KEY].meta;
+    auto _value = call.args[BDD::symbex::FN_MAP_ARG_OUT].out;
 
     auto symbols = casted->get_local_generated_symbols();
     assert(symbols.size() == 2);
 
     auto symbols_it = symbols.begin();
-    assert(symbols_it->label_base == symbex::MAP_HAS_THIS_KEY);
+    assert(symbols_it->label_base == BDD::symbex::MAP_HAS_THIS_KEY);
     auto _map_has_this_key = *symbols_it;
 
     auto _map_addr = kutil::expr_addr_to_obj_addr(_map);
@@ -75,18 +75,18 @@ protected:
     auto call = casted->get_call();
     extracted_data_t data;
 
-    if (call.function_name != symbex::FN_VECTOR_BORROW) {
+    if (call.function_name != BDD::symbex::FN_VECTOR_BORROW) {
       return data;
     }
 
-    assert(call.function_name == symbex::FN_VECTOR_BORROW);
-    assert(!call.args[symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-    assert(!call.args[symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
-    assert(!call.extra_vars[symbex::FN_VECTOR_EXTRA].second.isNull());
+    assert(call.function_name == BDD::symbex::FN_VECTOR_BORROW);
+    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
+    assert(!call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second.isNull());
 
-    auto _vector = call.args[symbex::FN_VECTOR_ARG_VECTOR].expr;
-    auto _index = call.args[symbex::FN_VECTOR_ARG_INDEX].expr;
-    auto _borrowed_cell = call.extra_vars[symbex::FN_VECTOR_EXTRA].second;
+    auto _vector = call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
+    auto _index = call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr;
+    auto _borrowed_cell = call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second;
 
     auto _vector_addr = kutil::expr_addr_to_obj_addr(_vector);
 
@@ -104,16 +104,16 @@ protected:
     auto call = casted->get_call();
     extracted_data_t data;
 
-    if (call.function_name != symbex::FN_DCHAIN_REJUVENATE) {
+    if (call.function_name != BDD::symbex::FN_DCHAIN_REJUVENATE) {
       return data;
     }
 
-    assert(!call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
-    assert(!call.args[symbex::FN_DCHAIN_ARG_INDEX].expr.isNull());
-    assert(!call.args[symbex::FN_DCHAIN_ARG_TIME].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_TIME].expr.isNull());
 
-    auto _dchain = call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr;
-    auto _index = call.args[symbex::FN_DCHAIN_ARG_INDEX].expr;
+    auto _dchain = call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
+    auto _index = call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr;
     auto _dchain_addr = kutil::expr_addr_to_obj_addr(_dchain);
 
     data.valid = true;
@@ -129,20 +129,20 @@ protected:
     auto call = casted->get_call();
     extracted_data_t data;
 
-    if (call.function_name != symbex::FN_DCHAIN_IS_ALLOCATED) {
+    if (call.function_name != BDD::symbex::FN_DCHAIN_IS_ALLOCATED) {
       return data;
     }
 
-    assert(!call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
-    assert(!call.args[symbex::FN_DCHAIN_ARG_INDEX].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr.isNull());
 
-    auto _dchain = call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr;
-    auto _index = call.args[symbex::FN_DCHAIN_ARG_INDEX].expr;
+    auto _dchain = call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
+    auto _index = call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr;
     auto _generated_symbols = casted->get_local_generated_symbols();
 
     auto _dchain_addr = kutil::expr_addr_to_obj_addr(_dchain);
     auto _is_allocated =
-        get_symbol(_generated_symbols, symbex::DCHAIN_IS_INDEX_ALLOCATED);
+        get_symbol(_generated_symbols, BDD::symbex::DCHAIN_IS_INDEX_ALLOCATED);
 
     data.valid = true;
     data.obj = _dchain_addr;
@@ -164,15 +164,15 @@ protected:
     auto root = bdd.get_process();
 
     auto is_index_allocated_nodes =
-        get_all_functions_after_node(root, {symbex::FN_DCHAIN_IS_ALLOCATED});
+        get_all_functions_after_node(root, {BDD::symbex::FN_DCHAIN_IS_ALLOCATED});
 
     for (auto node : is_index_allocated_nodes) {
       auto call_node = BDD::cast_node<BDD::Call>(node);
       auto call = call_node->get_call();
 
-      assert(!call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
 
-      auto _dchain = call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr;
+      auto _dchain = call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
       auto _dchain_addr = kutil::expr_addr_to_obj_addr(_dchain);
 
       if (_dchain_addr == data.dchain) {
@@ -190,7 +190,7 @@ protected:
 
     auto root = casted->get_next();
     auto incoming =
-        get_all_functions_after_node(root, {symbex::FN_VECTOR_BORROW});
+        get_all_functions_after_node(root, {BDD::symbex::FN_VECTOR_BORROW});
 
     for (auto node : incoming) {
       auto call_node = BDD::cast_node<BDD::Call>(node);

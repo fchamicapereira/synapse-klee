@@ -57,15 +57,15 @@ private:
 
     auto call = casted->get_call();
 
-    assert(!call.args[symbex::FN_MAP_ARG_MAP].expr.isNull());
-    assert(!call.args[symbex::FN_MAP_ARG_KEY].in.isNull());
+    assert(!call.args[BDD::symbex::FN_MAP_ARG_MAP].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_MAP_ARG_KEY].in.isNull());
     assert(!call.ret.isNull());
-    assert(!call.args[symbex::FN_MAP_ARG_OUT].out.isNull());
+    assert(!call.args[BDD::symbex::FN_MAP_ARG_OUT].out.isNull());
 
-    auto _map = call.args[symbex::FN_MAP_ARG_MAP].expr;
-    auto _key = call.args[symbex::FN_MAP_ARG_KEY].in;
+    auto _map = call.args[BDD::symbex::FN_MAP_ARG_MAP].expr;
+    auto _key = call.args[BDD::symbex::FN_MAP_ARG_KEY].in;
     auto _map_has_this_key = call.ret;
-    auto _value_out = call.args[symbex::FN_MAP_ARG_OUT].out;
+    auto _value_out = call.args[BDD::symbex::FN_MAP_ARG_OUT].out;
 
     auto _generated_symbols = casted->get_local_generated_symbols();
 
@@ -108,14 +108,14 @@ private:
 
     auto call = casted->get_call();
 
-    assert(!call.args[symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-    assert(!call.args[symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
-    assert(!call.args[symbex::FN_VECTOR_ARG_OUT].out.isNull());
-    assert(!call.extra_vars[symbex::FN_VECTOR_EXTRA].second.isNull());
+    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_OUT].out.isNull());
+    assert(!call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second.isNull());
 
-    auto _vector = call.args[symbex::FN_VECTOR_ARG_VECTOR].expr;
-    auto _index = call.args[symbex::FN_VECTOR_ARG_INDEX].expr;
-    auto _borrowed_cell = call.extra_vars[symbex::FN_VECTOR_EXTRA].second;
+    auto _vector = call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
+    auto _index = call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr;
+    auto _borrowed_cell = call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second;
 
     auto _generated_symbols = casted->get_local_generated_symbols();
 
@@ -161,11 +161,11 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_MAP_GET) {
+    if (call.function_name == BDD::symbex::FN_MAP_GET) {
       return process_map_get(ep, node);
     }
 
-    if (call.function_name == symbex::FN_VECTOR_BORROW) {
+    if (call.function_name == BDD::symbex::FN_VECTOR_BORROW) {
       return process_vector_borrow(ep, node);
     }
 

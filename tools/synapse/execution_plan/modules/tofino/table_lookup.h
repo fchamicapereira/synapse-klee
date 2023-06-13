@@ -41,11 +41,11 @@ protected:
     auto coalescing_data = get_map_coalescing_data_t(ep, data.obj);
 
     if (coalescing_data.valid && can_coalesce(ep, coalescing_data)) {
-      if (casted->get_call().function_name != symbex::FN_MAP_GET) {
+      if (casted->get_call().function_name != BDD::symbex::FN_MAP_GET) {
         Graphviz::visualize(ep);
       }
 
-      assert(casted->get_call().function_name == symbex::FN_MAP_GET);
+      assert(casted->get_call().function_name == BDD::symbex::FN_MAP_GET);
       coalesce_with_incoming_vector_nodes(casted, coalescing_data, data);
     }
 

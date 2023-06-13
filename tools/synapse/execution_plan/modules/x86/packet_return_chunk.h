@@ -26,8 +26,8 @@ public:
 private:
   klee::ref<klee::Expr> get_original_chunk(const ExecutionPlan &ep,
                                            BDD::Node_ptr node) const {
-    auto prev_borrows = get_prev_fn(ep, node, symbex::FN_BORROW_CHUNK);
-    auto prev_returns = get_prev_fn(ep, node, symbex::FN_RETURN_CHUNK);
+    auto prev_borrows = get_prev_fn(ep, node, BDD::symbex::FN_BORROW_CHUNK);
+    auto prev_returns = get_prev_fn(ep, node, BDD::symbex::FN_RETURN_CHUNK);
 
     assert(prev_borrows.size());
     assert(prev_borrows.size() > prev_returns.size());
@@ -39,10 +39,10 @@ private:
 
     auto call = call_node->get_call();
 
-    assert(call.function_name == symbex::FN_BORROW_CHUNK);
-    assert(!call.extra_vars[symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
+    assert(call.function_name == BDD::symbex::FN_BORROW_CHUNK);
+    assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
 
-    return call.extra_vars[symbex::FN_BORROW_CHUNK_EXTRA].second;
+    return call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
   }
 
   processing_result_t process(const ExecutionPlan &ep,
@@ -57,15 +57,15 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != symbex::FN_RETURN_CHUNK) {
+    if (call.function_name != BDD::symbex::FN_RETURN_CHUNK) {
       return result;
     }
 
-    assert(!call.args[symbex::FN_BORROW_CHUNK_EXTRA].expr.isNull());
-    assert(!call.args[symbex::FN_BORROW_CHUNK_EXTRA].in.isNull());
+    assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in.isNull());
 
-    auto _chunk = call.args[symbex::FN_BORROW_CHUNK_EXTRA].expr;
-    auto _current_chunk = call.args[symbex::FN_BORROW_CHUNK_EXTRA].in;
+    auto _chunk = call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].expr;
+    auto _current_chunk = call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in;
     auto _original_chunk = get_original_chunk(ep, node);
 
     auto _chunk_addr = kutil::expr_addr_to_obj_addr(_chunk);

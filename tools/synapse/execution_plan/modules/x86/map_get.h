@@ -38,22 +38,22 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_MAP_GET) {
-      assert(!call.args[symbex::FN_MAP_ARG_MAP].expr.isNull());
-      assert(!call.args[symbex::FN_MAP_ARG_KEY].expr.isNull());
-      assert(!call.args[symbex::FN_MAP_ARG_KEY].in.isNull());
+    if (call.function_name == BDD::symbex::FN_MAP_GET) {
+      assert(!call.args[BDD::symbex::FN_MAP_ARG_MAP].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_MAP_ARG_KEY].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_MAP_ARG_KEY].in.isNull());
       assert(!call.ret.isNull());
-      assert(!call.args[symbex::FN_MAP_ARG_OUT].out.isNull());
+      assert(!call.args[BDD::symbex::FN_MAP_ARG_OUT].out.isNull());
 
-      auto _map = call.args[symbex::FN_MAP_ARG_MAP].expr;
-      auto _key_addr = call.args[symbex::FN_MAP_ARG_KEY].expr;
-      auto _key = call.args[symbex::FN_MAP_ARG_KEY].in;
+      auto _map = call.args[BDD::symbex::FN_MAP_ARG_MAP].expr;
+      auto _key_addr = call.args[BDD::symbex::FN_MAP_ARG_KEY].expr;
+      auto _key = call.args[BDD::symbex::FN_MAP_ARG_KEY].in;
       auto _success = call.ret;
-      auto _value_out = call.args[symbex::FN_MAP_ARG_OUT].out;
+      auto _value_out = call.args[BDD::symbex::FN_MAP_ARG_OUT].out;
 
       auto _generated_symbols = casted->get_local_generated_symbols();
       auto _map_has_this_key =
-          BDD::get_symbol(_generated_symbols, symbex::MAP_HAS_THIS_KEY);
+          BDD::get_symbol(_generated_symbols, BDD::symbex::MAP_HAS_THIS_KEY);
 
       auto _map_addr = kutil::expr_addr_to_obj_addr(_map);
       auto _key_addr_value = kutil::expr_addr_to_obj_addr(_key_addr);

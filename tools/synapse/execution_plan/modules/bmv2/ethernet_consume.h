@@ -33,22 +33,22 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != symbex::FN_BORROW_CHUNK) {
+    if (call.function_name != BDD::symbex::FN_BORROW_CHUNK) {
       return result;
     }
 
     auto all_prev_packet_borrow_next_chunk =
-        get_prev_fn(ep, node, symbex::FN_BORROW_CHUNK);
+        get_prev_fn(ep, node, BDD::symbex::FN_BORROW_CHUNK);
 
     if (all_prev_packet_borrow_next_chunk.size() != 0) {
       return result;
     }
 
-    assert(!call.args[symbex::FN_BORROW_CHUNK_ARG_LEN].expr.isNull());
-    assert(!call.extra_vars[symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
+    assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr.isNull());
+    assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
 
-    auto _length = call.args[symbex::FN_BORROW_CHUNK_ARG_LEN].expr;
-    auto _chunk = call.extra_vars[symbex::FN_BORROW_CHUNK_EXTRA].second;
+    auto _length = call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr;
+    auto _chunk = call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
 
     // Make sure that packet_borrow_next_chunk borrows the
     // 14 ethernet bytes

@@ -195,7 +195,18 @@ bool solver_toolbox_t::is_expr_always_false(klee::ref<klee::Expr> expr) const {
 
 bool solver_toolbox_t::is_expr_always_false(klee::ConstraintManager constraints,
                                             klee::ref<klee::Expr> expr) const {
-  klee::Query sat_query(constraints, expr);
+  RetrieveSymbols retriever;
+  retriever.visit(expr);
+  auto symbols = retriever.get_retrieved();
+
+  ReplaceSymbols replacer(symbols);
+
+  klee::ConstraintManager renamed_constraints;
+  for (auto c : constraints) {
+    renamed_constraints.addConstraint(replacer.visit(c));
+  }
+
+  klee::Query sat_query(renamed_constraints, expr);
 
   bool result;
   bool success = solver->mustBeFalse(sat_query, result);
@@ -298,7 +309,18 @@ uint64_t solver_toolbox_t::value_from_expr(klee::ref<klee::Expr> expr) const {
 uint64_t
 solver_toolbox_t::value_from_expr(klee::ref<klee::Expr> expr,
                                   klee::ConstraintManager constraints) const {
-  klee::Query sat_query(constraints, expr);
+  RetrieveSymbols retriever;
+  retriever.visit(expr);
+  auto symbols = retriever.get_retrieved();
+
+  ReplaceSymbols replacer(symbols);
+
+  klee::ConstraintManager renamed_constraints;
+  for (auto c : constraints) {
+    renamed_constraints.addConstraint(replacer.visit(c));
+  }
+
+  klee::Query sat_query(renamed_constraints, expr);
 
   klee::ref<klee::ConstantExpr> value_expr;
   bool success = solver->getValue(sat_query, value_expr);
@@ -369,6 +391,7 @@ solver_toolbox_t::contains(klee::ref<klee::Expr> expr1,
        offset_bits += 8) {
     auto expr1_extracted = kutil::solver_toolbox.exprBuilder->Extract(
         expr1, offset_bits, expr2_size_bits);
+    assert(expr1_extracted->getWidth() == expr2->getWidth());
 
     if (are_exprs_always_equal(expr1_extracted, expr2)) {
       return contains_result_t(offset_bits, expr1_extracted);

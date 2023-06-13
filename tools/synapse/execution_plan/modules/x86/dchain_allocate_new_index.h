@@ -39,21 +39,21 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_DCHAIN_ALLOCATE_NEW_INDEX) {
-      assert(!call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
-      assert(!call.args[symbex::FN_DCHAIN_ARG_TIME].expr.isNull());
-      assert(!call.args[symbex::FN_DCHAIN_ARG_OUT].out.isNull());
+    if (call.function_name == BDD::symbex::FN_DCHAIN_ALLOCATE_NEW_INDEX) {
+      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_TIME].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_OUT].out.isNull());
       assert(!call.ret.isNull());
 
-      auto _dchain = call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr;
-      auto _time = call.args[symbex::FN_DCHAIN_ARG_TIME].expr;
-      auto _index_out = call.args[symbex::FN_DCHAIN_ARG_OUT].out;
+      auto _dchain = call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
+      auto _time = call.args[BDD::symbex::FN_DCHAIN_ARG_TIME].expr;
+      auto _index_out = call.args[BDD::symbex::FN_DCHAIN_ARG_OUT].out;
 
       auto _dchain_addr = kutil::expr_addr_to_obj_addr(_dchain);
 
       auto _generated_symbols = casted->get_local_generated_symbols();
       auto _out_of_space =
-          BDD::get_symbol(_generated_symbols, symbex::DCHAIN_OUT_OF_SPACE);
+          BDD::get_symbol(_generated_symbols, BDD::symbex::DCHAIN_OUT_OF_SPACE);
 
       save_dchain(ep, _dchain_addr);
 

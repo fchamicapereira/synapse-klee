@@ -3,7 +3,6 @@
 #include "call-paths-to-bdd.h"
 
 #include "../../log.h"
-#include "../../symbex.h"
 #include "../execution_plan.h"
 #include "../execution_plan_node.h"
 #include "../memory_bank.h"

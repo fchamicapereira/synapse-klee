@@ -21,20 +21,23 @@ private:
                               BDD::Node_ptr node) override {
     processing_result_t result;
 
-    auto mb = ep.get_memory_bank<CloneMemoryBank>(TargetType::CloNe);
+    if(node->get_type() != BDD::Node::NodeType::BRANCH) {
+      return result;
+    }
 
+    auto mb = ep.get_memory_bank<CloneMemoryBank>(TargetType::CloNe);
     auto active_leaf = ep.get_active_leaf();
+
     if(active_leaf == nullptr) {
       return result;
     }
 
     auto module = active_leaf->get_module();
     if(module->get_type() == Module::ModuleType::Clone_Then) {
-      std::string target_name = mb->get_target_from_node(node);
-      auto target = string_to_target_type[target_name];
+      Target_ptr target = mb->get_target_from_node(node);
 
       auto new_module = std::make_shared<Then>(node);
-      auto new_ep = ep.ignore_leaf(node, target, false);
+      auto new_ep = ep.ignore_leaf(node, target);
 
       result.module = new_module;
       result.next_eps.push_back(new_ep);

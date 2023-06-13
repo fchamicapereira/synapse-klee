@@ -35,21 +35,21 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != symbex::FN_SKETCH_TOUCH_BUCKETS) {
+    if (call.function_name != BDD::symbex::FN_SKETCH_TOUCH_BUCKETS) {
       return result;
     }
 
-    assert(!call.args[symbex::FN_SKETCH_ARG_SKETCH].expr.isNull());
-    assert(!call.args[symbex::FN_SKETCH_ARG_TIME].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_SKETCH_ARG_SKETCH].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_SKETCH_ARG_TIME].expr.isNull());
 
-    auto _sketch = call.args[symbex::FN_SKETCH_ARG_SKETCH].expr;
-    auto _time = call.args[symbex::FN_SKETCH_ARG_TIME].expr;
+    auto _sketch = call.args[BDD::symbex::FN_SKETCH_ARG_SKETCH].expr;
+    auto _time = call.args[BDD::symbex::FN_SKETCH_ARG_TIME].expr;
 
     auto _sketch_addr = kutil::expr_addr_to_obj_addr(_sketch);
 
     auto _generated_symbols = casted->get_local_generated_symbols();
     auto _success =
-        BDD::get_symbol(_generated_symbols, symbex::SKETCH_SUCCESS_SYMBOL);
+        BDD::get_symbol(_generated_symbols, BDD::symbex::SKETCH_SUCCESS_SYMBOL);
 
     save_sketch(ep, _sketch_addr);
 

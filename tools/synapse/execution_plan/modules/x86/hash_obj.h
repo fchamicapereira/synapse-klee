@@ -33,13 +33,13 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_HASH_OBJ) {
-      assert(!call.args[symbex::FN_HASH_OBJ_ARG_OBJ].expr.isNull());
-      assert(!call.args[symbex::FN_HASH_OBJ_ARG_SIZE].expr.isNull());
+    if (call.function_name == BDD::symbex::FN_HASH_OBJ) {
+      assert(!call.args[BDD::symbex::FN_HASH_OBJ_ARG_OBJ].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_HASH_OBJ_ARG_SIZE].expr.isNull());
       assert(!call.ret.isNull());
 
-      auto _obj = call.args[symbex::FN_HASH_OBJ_ARG_OBJ].expr;
-      auto _size = call.args[symbex::FN_HASH_OBJ_ARG_SIZE].expr;
+      auto _obj = call.args[BDD::symbex::FN_HASH_OBJ_ARG_OBJ].expr;
+      auto _size = call.args[BDD::symbex::FN_HASH_OBJ_ARG_SIZE].expr;
       auto _hash = call.ret;
 
       auto _obj_addr = kutil::expr_addr_to_obj_addr(_obj);

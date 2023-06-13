@@ -6,30 +6,30 @@
 # License. See LICENSE.TXT for details.
 #
 #===------------------------------------------------------------------------===#
-file(GLOB_RECURSE call-path-hit-rate-graphviz-generator-sources
+file(GLOB_RECURSE bdd-emulator-sources
   "*.cpp"
-)
-
-file(GLOB_RECURSE call-paths-to-bdd-sources
-  "../call-paths-to-bdd/*.cpp"
 )
 
 file(GLOB_RECURSE load-call-paths-sources
   "../load-call-paths*.cpp"
 )
 
+file(GLOB_RECURSE call-paths-to-bdd-sources
+  "../call-paths-to-bdd/*.cpp"
+)
+
 file(GLOB_RECURSE klee-util-sources
   "../klee-util/*.cpp"
 )
 
-list(FILTER call-paths-to-bdd-sources EXCLUDE REGEX ".*main\\.cpp$")
 list(FILTER load-call-paths-sources EXCLUDE REGEX ".*main\\.cpp$")
+list(FILTER call-paths-to-bdd-sources EXCLUDE REGEX ".*main\\.cpp$")
 list(FILTER klee-util-sources EXCLUDE REGEX ".*main\\.cpp$")
 
-add_executable(call-path-hit-rate-graphviz-generator
-  ${call-path-hit-rate-graphviz-generator-sources}
-  ${call-paths-to-bdd-sources}
+add_executable(bdd-emulator
+  ${bdd-emulator-sources}
   ${load-call-paths-sources}
+  ${call-paths-to-bdd-sources}
   ${klee-util-sources}
 )
 
@@ -38,7 +38,9 @@ set(KLEE_LIBS
   kleeCore
 )
 
-target_include_directories(call-path-hit-rate-graphviz-generator PRIVATE ../load-call-paths ../call-paths-to-bdd ../klee-util)
-target_link_libraries(call-path-hit-rate-graphviz-generator ${KLEE_LIBS})
+find_package(PCAP REQUIRED)
 
-install(TARGETS call-path-hit-rate-graphviz-generator RUNTIME DESTINATION bin)
+target_include_directories(bdd-emulator PRIVATE ../load-call-paths ../call-paths-to-bdd ../klee-util)
+target_link_libraries(bdd-emulator ${KLEE_LIBS} ${PCAP_LIBRARY})
+
+install(TARGETS bdd-emulator RUNTIME DESTINATION bin)

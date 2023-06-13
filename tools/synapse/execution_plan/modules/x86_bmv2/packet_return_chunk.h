@@ -35,12 +35,12 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_RETURN_CHUNK) {
-      assert(!call.args[symbex::FN_BORROW_CHUNK_EXTRA].expr.isNull());
-      assert(!call.args[symbex::FN_BORROW_CHUNK_EXTRA].in.isNull());
+    if (call.function_name == BDD::symbex::FN_RETURN_CHUNK) {
+      assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in.isNull());
 
-      auto _chunk_addr = call.args[symbex::FN_BORROW_CHUNK_EXTRA].expr;
-      auto _chunk = call.args[symbex::FN_BORROW_CHUNK_EXTRA].in;
+      auto _chunk_addr = call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].expr;
+      auto _chunk = call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in;
 
       auto new_module =
           std::make_shared<PacketReturnChunk>(node, _chunk_addr, _chunk);

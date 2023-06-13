@@ -36,12 +36,12 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_DCHAIN_FREE_INDEX) {
-      assert(!call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
-      assert(!call.args[symbex::FN_DCHAIN_ARG_INDEX].expr.isNull());
+    if (call.function_name == BDD::symbex::FN_DCHAIN_FREE_INDEX) {
+      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr.isNull());
 
-      auto _dchain = call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr;
-      auto _index = call.args[symbex::FN_DCHAIN_ARG_INDEX].expr;
+      auto _dchain = call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
+      auto _index = call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr;
 
       auto _dchain_addr = kutil::expr_addr_to_obj_addr(_dchain);
       
@@ -49,7 +49,7 @@ private:
       auto saved = mb->has_data_structure(_dchain_addr);
 
       if (!saved) {
-        auto config = symbex::get_dchain_config(ep.get_bdd(), _dchain_addr);
+        auto config = BDD::symbex::get_dchain_config(ep.get_bdd(), _dchain_addr);
         auto dchain_ds = std::shared_ptr<x86TofinoMemoryBank::ds_t>(
             new x86TofinoMemoryBank::dchain_t(_dchain_addr, node->get_id(),
                                               config.index_range));

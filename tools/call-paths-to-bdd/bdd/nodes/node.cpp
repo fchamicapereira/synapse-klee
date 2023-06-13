@@ -4,6 +4,10 @@
 
 #include "../symbol-factory.h"
 
+#include "llvm/Support/MD5.h"
+
+#include <iomanip>
+
 namespace BDD {
 
 // Get generated symbols, but no further than this node
@@ -239,6 +243,53 @@ klee::ConstraintManager Node::get_constraints() const {
   }
 
   return accumulated;
+}
+
+std::string Node::hash(bool recursive) const {
+  std::stringstream input;
+  std::stringstream output;
+  std::vector<const Node *> nodes;
+
+  if (recursive) {
+    nodes.push_back(this);
+  } else {
+    input << id << ":";
+  }
+
+  while (nodes.size()) {
+    auto node = nodes[0];
+    nodes.erase(nodes.begin());
+
+    input << node->get_id() << ":";
+
+    switch (node->get_type()) {
+    case Node::NodeType::BRANCH: {
+      auto branch_node = static_cast<const Branch *>(node);
+
+      nodes.push_back(branch_node->get_on_true().get());
+      nodes.push_back(branch_node->get_on_false().get());
+    } break;
+    case Node::NodeType::CALL: {
+      nodes.push_back(node->get_next().get());
+    } break;
+    default:
+      break;
+    }
+  }
+
+  llvm::MD5 checksum;
+  checksum.update(input.str());
+
+  llvm::MD5::MD5Result result;
+  checksum.final(result);
+
+  output << std::hex << std::setfill('0');
+
+  for (auto byte : result) {
+    output << std::hex << std::setw(2) << static_cast<int>(byte);
+  }
+
+  return output.str();
 }
 
 } // namespace BDD

@@ -32,6 +32,10 @@ namespace Clone {
 			return ports;
 		}
 
+		inline const DeviceMap& get_devices() {
+			return devices;
+		}
+
 		inline const DevicePtr& get_device(const string& name) const {
 			return devices.at(name);
 		}

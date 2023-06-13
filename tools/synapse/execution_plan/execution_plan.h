@@ -6,6 +6,7 @@
 
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 namespace synapse {
 
@@ -42,18 +43,20 @@ private:
   BDD::BDD bdd;
 
   MemoryBank_ptr shared_memory_bank;
-  std::unordered_map<TargetType, TargetMemoryBank_ptr> memory_banks;
+  std::unordered_map<target_id_t, Target_ptr> targets;
+  std::unordered_map<TargetType, std::vector<Target_ptr>> target_types;
+  std::vector<Target_ptr> v_targets;
   std::unordered_set<BDD::node_id_t> processed_bdd_nodes;
 
   std::shared_ptr<Clone::Infrastructure> infrastructure;
 
   unsigned depth;
   unsigned nodes;
-  TargetType initial_target;
-  std::unordered_set<TargetType> targets;
-  std::unordered_map<TargetType, std::unordered_set<BDD::node_id_t>>
+  Target_ptr initial_target;
+  Target_ptr current_target;
+  std::unordered_map<target_id_t, std::unordered_set<BDD::node_id_t>>
       targets_bdd_starting_points;
-  std::map<TargetType, unsigned> nodes_per_target;
+  std::map<TargetType, unsigned> nodes_per_target_type;
   unsigned reordered_nodes;
   unsigned id;
 
@@ -69,7 +72,7 @@ public:
   unsigned get_depth() const;
   unsigned get_nodes() const;
 
-  const std::unordered_map<TargetType, std::unordered_set<BDD::node_id_t>> &
+  const std::unordered_map<target_id_t, std::unordered_set<BDD::node_id_t>> &
   get_targets_bdd_starting_points() const;
 
   std::unordered_set<BDD::node_id_t>
@@ -77,7 +80,7 @@ public:
 
   BDD::Node_ptr get_bdd_root(BDD::Node_ptr node) const;
 
-  const std::map<TargetType, unsigned> &get_nodes_per_target() const;
+  const std::map<TargetType, unsigned> &get_nodes_per_target_type() const;
 
   unsigned get_id() const;
   const std::vector<leaf_t> &get_leaves() const;
@@ -88,34 +91,49 @@ public:
   std::vector<ExecutionPlanNode_ptr> get_prev_nodes() const;
   std::vector<ExecutionPlanNode_ptr> get_prev_nodes_of_current_target() const;
 
+  Target_ptr get_target(TargetType target_type, const std::string &instance) const;
+
   std::vector<BDD::Node_ptr> get_incoming_bdd_nodes() const;
 
   void inc_reordered_nodes();
   const ExecutionPlanNode_ptr &get_root() const;
 
-  void add_target(TargetType type, TargetMemoryBank_ptr mb);
-  bool has_target(TargetType type) const;
+  void add_target(Target_ptr target);
+  const std::vector<Target_ptr>& get_from_target_type(TargetType type) const;
+  const std::vector<Target_ptr> & get_targets() const;
+  bool has_target_type(TargetType type) const;
 
   MemoryBank_ptr get_memory_bank() const;
 
+  Target_ptr get_first_of_type(TargetType type) const;
+
+  // TODO: remove at one point
   template <class MB> MB *get_memory_bank(TargetType type) const {
     static_assert(std::is_base_of<TargetMemoryBank, MB>::value,
                   "MB not derived from TargetMemoryBank");
-    assert(memory_banks.find(type) != memory_banks.end());
-    return static_cast<MB *>(memory_banks.at(type).get());
+    return static_cast<MB *>(get_first_of_type(type)->memory_bank.get());
+  }
+
+  template <class MB> MB *get_memory_bank(target_id_t id) const {
+    static_assert(std::is_base_of<TargetMemoryBank, MB>::value,
+                  "MB not derived from TargetMemoryBank");
+    assert(targets.find(id) != targets.end());
+    return static_cast<MB *>(targets.at(id)->memory_bank.get());
   }
 
   const std::unordered_set<BDD::node_id_t> &get_processed_bdd_nodes() const;
 
   BDD::Node_ptr get_next_node() const;
   ExecutionPlanNode_ptr get_active_leaf() const;
-  TargetType get_current_platform() const;
+  Target_ptr get_current_target() const;
 
   ExecutionPlan replace_leaf(Module_ptr new_module, const BDD::Node_ptr &next,
                              bool process_bdd_node = true) const;
 
   ExecutionPlan ignore_leaf(const BDD::Node_ptr &next, TargetType next_target,
                             bool process_bdd_node = true) const;
+
+  ExecutionPlan ignore_leaf(const BDD::Node_ptr &next, Target_ptr next_target) const;
 
   ExecutionPlan add_leaves(Module_ptr new_module, const BDD::Node_ptr &next,
                            bool is_terminal = false,

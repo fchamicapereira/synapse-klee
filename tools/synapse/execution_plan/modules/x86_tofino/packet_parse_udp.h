@@ -30,7 +30,7 @@ private:
     auto call_node = static_cast<const BDD::Call *>(ethernet_node);
     auto call = call_node->get_call();
 
-    auto ethernet_chunk = call.extra_vars[symbex::FN_BORROW_CHUNK_EXTRA].second;
+    auto ethernet_chunk = call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
 
     assert(!ethernet_chunk.isNull());
 
@@ -52,7 +52,7 @@ private:
     auto call_node = static_cast<const BDD::Call *>(ipv4_node);
     auto call = call_node->get_call();
 
-    auto ipv4_chunk = call.extra_vars[symbex::FN_BORROW_CHUNK_EXTRA].second;
+    auto ipv4_chunk = call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
 
     assert(!ipv4_chunk.isNull());
     assert(!len.isNull());
@@ -109,23 +109,23 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != symbex::FN_BORROW_CHUNK) {
+    if (call.function_name != BDD::symbex::FN_BORROW_CHUNK) {
       return result;
     }
 
     // TCP/UDP should come after IPv4Consume
     auto all_prev_packet_borrow_next_chunk =
-        get_prev_fn(ep, node, symbex::FN_BORROW_CHUNK);
+        get_prev_fn(ep, node, BDD::symbex::FN_BORROW_CHUNK);
 
     if (all_prev_packet_borrow_next_chunk.size() < 2) {
       return result;
     }
 
-    assert(!call.args[symbex::FN_BORROW_CHUNK_ARG_LEN].expr.isNull());
-    assert(!call.extra_vars[symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
+    assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr.isNull());
+    assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
 
-    auto _length = call.args[symbex::FN_BORROW_CHUNK_ARG_LEN].expr;
-    auto _chunk = call.extra_vars[symbex::FN_BORROW_CHUNK_EXTRA].second;
+    auto _length = call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr;
+    auto _chunk = call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
 
     auto valid = true;
 

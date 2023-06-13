@@ -40,7 +40,7 @@ Node_ptr BDD::get_node_by_id(node_id_t _id) const {
     }
   }
 
-  return node;
+  return nullptr;
 }
 
 BDD BDD::clone() const {
@@ -150,7 +150,7 @@ get_common_constraints(std::vector<call_path_t *> call_paths,
 }
 
 Node_ptr BDD::populate(call_paths_t call_paths,
-                          klee::ConstraintManager accumulated) {
+                       klee::ConstraintManager accumulated) {
   Node_ptr local_root = nullptr;
   Node_ptr local_leaf = nullptr;
   klee::ConstraintManager empty_contraints;
@@ -536,6 +536,11 @@ void BDD::rename_symbols(Node_ptr node, SymbolFactory &factory) {
       return;
     }
   }
+}
+
+std::string BDD::hash() const {
+  assert(nf_process);
+  return nf_process->hash(true);
 }
 
 } // namespace BDD

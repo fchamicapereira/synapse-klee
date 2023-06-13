@@ -36,11 +36,11 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_ETHER_HASH) {
-      assert(!call.args[symbex::FN_ETHER_HASH_ARG_OBJ].in.isNull());
+    if (call.function_name == BDD::symbex::FN_ETHER_HASH) {
+      assert(!call.args[BDD::symbex::FN_ETHER_HASH_ARG_OBJ].in.isNull());
       assert(!call.ret.isNull());
 
-      auto _obj = call.args[symbex::FN_ETHER_HASH_ARG_OBJ].in;
+      auto _obj = call.args[BDD::symbex::FN_ETHER_HASH_ARG_OBJ].in;
       auto _hash = call.ret;
 
       auto _generated_symbols = casted->get_local_generated_symbols();

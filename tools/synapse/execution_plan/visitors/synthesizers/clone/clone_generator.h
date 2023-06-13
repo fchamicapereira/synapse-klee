@@ -4,7 +4,6 @@
 #include <vector>
 
 #include "../../../../log.h"
-#include "../../../../symbex.h"
 #include "../../../execution_plan.h"
 #include "../code_builder.h"
 #include "../synthesizer.h"

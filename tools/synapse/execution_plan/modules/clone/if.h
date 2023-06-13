@@ -112,11 +112,14 @@ private:
       unsigned value = extract_port(casted);
       auto port = infra->get_port(value);
       const std::string& arch = port->get_device()->get_type();
+      auto target_type = string_to_target_type[arch];
       const std::string& device = port->get_device()->get_id();
+
+      auto target = ep.get_target(target_type, device);
 
       if(device_to_nodes.find(device) == device_to_nodes.end()) {
         device_to_nodes.emplace(device, std::vector<BDD::Node_ptr>());
-        mb->add_starting_point(node, arch, name);
+        mb->add_starting_point(node, target);
       }
       device_to_nodes.at(device).push_back(node);
       node = casted->get_on_false();

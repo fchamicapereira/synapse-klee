@@ -43,15 +43,15 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_DCHAIN_ALLOCATE_NEW_INDEX) {
-      assert(!call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
-      assert(!call.args[symbex::FN_DCHAIN_ARG_TIME].expr.isNull());
-      assert(!call.args[symbex::FN_DCHAIN_ARG_OUT].out.isNull());
+    if (call.function_name == BDD::symbex::FN_DCHAIN_ALLOCATE_NEW_INDEX) {
+      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_TIME].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_OUT].out.isNull());
       assert(!call.ret.isNull());
 
-      auto _dchain_addr = call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr;
-      auto _time = call.args[symbex::FN_DCHAIN_ARG_TIME].expr;
-      auto _index_out = call.args[symbex::FN_DCHAIN_ARG_OUT].out;
+      auto _dchain_addr = call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
+      auto _time = call.args[BDD::symbex::FN_DCHAIN_ARG_TIME].expr;
+      auto _index_out = call.args[BDD::symbex::FN_DCHAIN_ARG_OUT].out;
       auto _success = call.ret;
 
       auto _generated_symbols = casted->get_local_generated_symbols();

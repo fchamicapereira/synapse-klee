@@ -13,9 +13,9 @@ private:
 public:
   Ignore() : Module(ModuleType::BMv2_Ignore, TargetType::BMv2, "Ignore") {
     functions_to_ignore = std::vector<std::string>{
-        symbex::FN_CURRENT_TIME,
-        symbex::FN_ETHER_HASH,
-        symbex::FN_DCHAIN_REJUVENATE,
+        BDD::symbex::FN_CURRENT_TIME,
+        BDD::symbex::FN_ETHER_HASH,
+        BDD::symbex::FN_DCHAIN_REJUVENATE,
     };
   }
 

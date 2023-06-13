@@ -2,7 +2,6 @@
 #include "../execution_plan/execution_plan.h"
 #include "../execution_plan/modules/modules.h"
 #include "../log.h"
-#include "../symbex.h"
 
 namespace synapse {
 
@@ -78,7 +77,7 @@ Score::score_value_t Score::get_depth(const ExecutionPlan &ep) const {
 Score::score_value_t Score::get_nr_switch_nodes(const ExecutionPlan &ep) const {
   auto switch_nodes = 0;
 
-  const auto &nodes_per_target = ep.get_nodes_per_target();
+  const auto &nodes_per_target = ep.get_nodes_per_target_type();
 
   auto bmv2_nodes_it = nodes_per_target.find(TargetType::BMv2);
   auto tofino_nodes_it = nodes_per_target.find(TargetType::Tofino);
@@ -103,7 +102,7 @@ Score::score_value_t Score::get_nr_switch_nodes(const ExecutionPlan &ep) const {
 Score::score_value_t
 Score::get_nr_controller_nodes(const ExecutionPlan &ep) const {
   auto controller_nodes = 0;
-  const auto &nodes_per_target = ep.get_nodes_per_target();
+  const auto &nodes_per_target = ep.get_nodes_per_target_type();
 
   auto bmv2_controller_nodes_it = nodes_per_target.find(TargetType::x86_BMv2);
   auto tofino_controller_nodes_it =
@@ -150,9 +149,9 @@ Score::get_nr_switch_leaves(const ExecutionPlan &ep) const {
 
 Score::score_value_t
 Score::next_op_same_obj_in_switch(const ExecutionPlan &ep) const {
-  auto target = ep.get_current_platform();
+  auto target = ep.get_current_target();
 
-  if (target != TargetType::BMv2 && target != TargetType::Tofino) {
+  if (target->type != TargetType::BMv2 && target->type != TargetType::Tofino) {
     return 0;
   }
 
@@ -176,8 +175,8 @@ Score::next_op_same_obj_in_switch(const ExecutionPlan &ep) const {
   auto next_call = static_cast<const BDD::Call *>(next.get());
   auto prev_call = static_cast<const BDD::Call *>(prev.get());
 
-  auto next_obj = symbex::get_obj_from_call(next_call);
-  auto prev_obj = symbex::get_obj_from_call(prev_call);
+  auto next_obj = BDD::symbex::get_obj_from_call(next_call);
+  auto prev_obj = BDD::symbex::get_obj_from_call(prev_call);
 
   if (!next_obj.first || !prev_obj.first) {
     return 0;
@@ -192,9 +191,9 @@ Score::next_op_same_obj_in_switch(const ExecutionPlan &ep) const {
 
 Score::score_value_t
 Score::next_op_is_stateful_in_switch(const ExecutionPlan &ep) const {
-  auto target = ep.get_current_platform();
+  auto target = ep.get_current_target();
 
-  if (target != TargetType::BMv2 && target != TargetType::Tofino) {
+  if (target->type != TargetType::BMv2 && target->type != TargetType::Tofino) {
     return 0;
   }
 
@@ -212,13 +211,13 @@ Score::next_op_is_stateful_in_switch(const ExecutionPlan &ep) const {
   auto call = next_call->get_call();
 
   auto stateful_ops = std::vector<std::string>{
-      symbex::FN_MAP_GET,
-      symbex::FN_MAP_PUT,
-      symbex::FN_VECTOR_BORROW,
-      symbex::FN_VECTOR_RETURN,
-      symbex::FN_DCHAIN_ALLOCATE_NEW_INDEX,
-      symbex::FN_DCHAIN_REJUVENATE,
-      symbex::DCHAIN_IS_INDEX_ALLOCATED,
+      BDD::symbex::FN_MAP_GET,
+      BDD::symbex::FN_MAP_PUT,
+      BDD::symbex::FN_VECTOR_BORROW,
+      BDD::symbex::FN_VECTOR_RETURN,
+      BDD::symbex::FN_DCHAIN_ALLOCATE_NEW_INDEX,
+      BDD::symbex::FN_DCHAIN_REJUVENATE,
+      BDD::symbex::DCHAIN_IS_INDEX_ALLOCATED,
   };
 
   auto found_it =

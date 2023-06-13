@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../../../../../symbex.h"
 #include "../../code_builder.h"
 #include "../constants.h"
 #include "domain/header.h"

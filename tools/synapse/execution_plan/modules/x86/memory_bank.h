@@ -6,7 +6,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "../../../symbex.h"
 #include "data_structures/data_structures.h"
 
 #define HAS_CONFIG(T)                                                          \
@@ -15,13 +14,13 @@
   }
 
 #define SAVE_CONFIG(T)                                                         \
-  void save_##T##_config(addr_t addr, symbex::T##_config_t cfg) {              \
+  void save_##T##_config(addr_t addr, BDD::symbex::T##_config_t cfg) {              \
     assert(!has_##T##_config(addr));                                           \
     T##_configs.insert({addr, cfg});                                           \
   }
 
 #define GET_CONFIG(T)                                                          \
-  const std::unordered_map<addr_t, symbex::T##_config_t>                       \
+  const std::unordered_map<addr_t, BDD::symbex::T##_config_t>                       \
       &get_##T##_configs() {                                                   \
     return T##_configs;                                                        \
   }
@@ -33,11 +32,11 @@ namespace x86 {
 class x86MemoryBank : public TargetMemoryBank {
 public:
 private:
-  std::unordered_map<addr_t, symbex::map_config_t> map_configs;
-  std::unordered_map<addr_t, symbex::vector_config_t> vector_configs;
-  std::unordered_map<addr_t, symbex::dchain_config_t> dchain_configs;
-  std::unordered_map<addr_t, symbex::sketch_config_t> sketch_configs;
-  std::unordered_map<addr_t, symbex::cht_config_t> cht_configs;
+  std::unordered_map<addr_t, BDD::symbex::map_config_t> map_configs;
+  std::unordered_map<addr_t, BDD::symbex::vector_config_t> vector_configs;
+  std::unordered_map<addr_t, BDD::symbex::dchain_config_t> dchain_configs;
+  std::unordered_map<addr_t, BDD::symbex::sketch_config_t> sketch_configs;
+  std::unordered_map<addr_t, BDD::symbex::cht_config_t> cht_configs;
 
 public:
   x86MemoryBank() {}

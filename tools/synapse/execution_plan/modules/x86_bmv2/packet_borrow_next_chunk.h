@@ -40,16 +40,16 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_BORROW_CHUNK) {
-      assert(!call.args[symbex::FN_BORROW_ARG_PACKET].expr.isNull());
-      assert(!call.args[symbex::FN_BORROW_ARG_CHUNK].out.isNull());
-      assert(!call.extra_vars[symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
-      assert(!call.args[symbex::FN_BORROW_CHUNK_ARG_LEN].expr.isNull());
+    if (call.function_name == BDD::symbex::FN_BORROW_CHUNK) {
+      assert(!call.args[BDD::symbex::FN_BORROW_ARG_PACKET].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_BORROW_ARG_CHUNK].out.isNull());
+      assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
+      assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr.isNull());
 
-      auto _p_addr = call.args[symbex::FN_BORROW_ARG_PACKET].expr;
-      auto _chunk_addr = call.args[symbex::FN_BORROW_ARG_CHUNK].out;
-      auto _chunk = call.extra_vars[symbex::FN_BORROW_CHUNK_EXTRA].second;
-      auto _length = call.args[symbex::FN_BORROW_CHUNK_ARG_LEN].expr;
+      auto _p_addr = call.args[BDD::symbex::FN_BORROW_ARG_PACKET].expr;
+      auto _chunk_addr = call.args[BDD::symbex::FN_BORROW_ARG_CHUNK].out;
+      auto _chunk = call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
+      auto _length = call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr;
 
       auto new_module = std::make_shared<PacketBorrowNextChunk>(
           node, _p_addr, _chunk_addr, _chunk, _length);

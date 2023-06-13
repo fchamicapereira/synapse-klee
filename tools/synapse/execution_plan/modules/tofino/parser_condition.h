@@ -64,10 +64,10 @@ private:
 
     auto call = call_node->get_call();
 
-    assert(call.function_name == symbex::FN_BORROW_CHUNK);
-    assert(!call.args[symbex::FN_BORROW_CHUNK_ARG_LEN].expr.isNull());
+    assert(call.function_name == BDD::symbex::FN_BORROW_CHUNK);
+    assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr.isNull());
 
-    auto _length = call.args[symbex::FN_BORROW_CHUNK_ARG_LEN].expr;
+    auto _length = call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr;
 
     return _length->getKind() != klee::Expr::Kind::Constant;
   }
@@ -78,10 +78,10 @@ private:
 
     auto call = call_node->get_call();
 
-    assert(call.function_name == symbex::FN_BORROW_CHUNK);
-    assert(!call.extra_vars[symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
+    assert(call.function_name == BDD::symbex::FN_BORROW_CHUNK);
+    assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
 
-    auto _chunk = call.extra_vars[symbex::FN_BORROW_CHUNK_EXTRA].second;
+    auto _chunk = call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
 
     return _chunk;
   }
@@ -160,9 +160,9 @@ private:
     auto rhs = casted->get_on_false();
 
     auto lhs_borrows =
-        get_all_functions_after_node(lhs, {symbex::FN_BORROW_CHUNK}, true);
+        get_all_functions_after_node(lhs, {BDD::symbex::FN_BORROW_CHUNK}, true);
     auto rhs_borrows =
-        get_all_functions_after_node(rhs, {symbex::FN_BORROW_CHUNK}, true);
+        get_all_functions_after_node(rhs, {BDD::symbex::FN_BORROW_CHUNK}, true);
 
     if (lhs_borrows.size() == 0 && rhs_borrows.size() == 0) {
       generate_parser_condition(ep, node, _parsing_cond, false, result);

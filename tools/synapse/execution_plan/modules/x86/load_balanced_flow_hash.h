@@ -35,16 +35,16 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != symbex::FN_LOADBALANCEDFLOW_HASH) {
+    if (call.function_name != BDD::symbex::FN_LOADBALANCEDFLOW_HASH) {
       return result;
     }
 
-    assert(!call.args[symbex::FN_LOADBALANCEDFLOW_HASH_ARG_OBJ].in.isNull());
-    auto _obj = call.args[symbex::FN_LOADBALANCEDFLOW_HASH_ARG_OBJ].in;
+    assert(!call.args[BDD::symbex::FN_LOADBALANCEDFLOW_HASH_ARG_OBJ].in.isNull());
+    auto _obj = call.args[BDD::symbex::FN_LOADBALANCEDFLOW_HASH_ARG_OBJ].in;
 
     auto _generated_symbols = casted->get_local_generated_symbols();
     auto _hash = BDD::get_symbol(_generated_symbols,
-                                 symbex::LOADBALANCEDFLOW_HASH_SYMBOL);
+                                 BDD::symbex::LOADBALANCEDFLOW_HASH_SYMBOL);
 
     auto new_module = std::make_shared<LoadBalancedFlowHash>(node, _obj, _hash);
     auto new_ep = ep.add_leaves(new_module, node->get_next());

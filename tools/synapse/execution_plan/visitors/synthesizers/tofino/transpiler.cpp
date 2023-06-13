@@ -6,8 +6,8 @@
 
 #include <assert.h>
 
-using synapse::symbex::CHUNK;
-using synapse::symbex::PACKET_LENGTH;
+using BDD::symbex::CHUNK;
+using BDD::symbex::PACKET_LENGTH;
 
 namespace synapse {
 namespace synthesizer {
@@ -226,8 +226,8 @@ bool detect_packet_length_conditions(klee::ref<klee::Expr> expr) {
   auto symbols = retriever.get_retrieved_strings();
 
   std::vector<std::string> allowed_symbols = {
-      symbex::PACKET_LENGTH,
-      symbex::CHUNK,
+      BDD::symbex::PACKET_LENGTH,
+      BDD::symbex::CHUNK,
   };
 
   // check if there are unexpected symbols
@@ -240,7 +240,7 @@ bool detect_packet_length_conditions(klee::ref<klee::Expr> expr) {
     }
   }
 
-  return symbols.find(symbex::PACKET_LENGTH) != symbols.end();
+  return symbols.find(BDD::symbex::PACKET_LENGTH) != symbols.end();
 }
 
 std::string Transpiler::transpile(const klee::ref<klee::Expr> &expr) {

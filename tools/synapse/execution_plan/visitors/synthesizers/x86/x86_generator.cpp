@@ -56,7 +56,7 @@ x86Generator::search_variable(klee::ref<klee::Expr> expr) const {
   return variable_query_t();
 }
 
-void x86Generator::map_init(addr_t addr, const symbex::map_config_t &cfg) {
+void x86Generator::map_init(addr_t addr, const BDD::symbex::map_config_t &cfg) {
   auto map_label = vars.get_new_label(MAP_BASE_LABEL);
   auto map_var = Variable(map_label, 32);
   map_var.set_addr(addr);
@@ -64,7 +64,7 @@ void x86Generator::map_init(addr_t addr, const symbex::map_config_t &cfg) {
   vars.append(map_var);
 
   global_state_builder.indent();
-  global_state_builder.append(symbex::MAP_TYPE);
+  global_state_builder.append(BDD::symbex::MAP_TYPE);
   global_state_builder.append("* ");
   global_state_builder.append(map_label);
   global_state_builder.append(";");
@@ -97,7 +97,7 @@ void x86Generator::map_init(addr_t addr, const symbex::map_config_t &cfg) {
 
   nf_init_builder.indent();
   nf_init_builder.append("if (!");
-  nf_init_builder.append(symbex::FN_MAP_ALLOCATE);
+  nf_init_builder.append(BDD::symbex::FN_MAP_ALLOCATE);
   nf_init_builder.append("(");
   nf_init_builder.append(key_eq_fn);
   nf_init_builder.append(", ");
@@ -112,7 +112,7 @@ void x86Generator::map_init(addr_t addr, const symbex::map_config_t &cfg) {
 }
 
 void x86Generator::vector_init(addr_t addr,
-                               const symbex::vector_config_t &cfg) {
+                               const BDD::symbex::vector_config_t &cfg) {
   auto vector_label = vars.get_new_label(VECTOR_BASE_LABEL);
   auto vector_var = Variable(vector_label, 32);
   vector_var.set_addr(addr);
@@ -120,7 +120,7 @@ void x86Generator::vector_init(addr_t addr,
   vars.append(vector_var);
 
   global_state_builder.indent();
-  global_state_builder.append(symbex::VECTOR_TYPE);
+  global_state_builder.append(BDD::symbex::VECTOR_TYPE);
   global_state_builder.append("* ");
   global_state_builder.append(vector_label);
   global_state_builder.append(";");
@@ -140,7 +140,7 @@ void x86Generator::vector_init(addr_t addr,
 
   nf_init_builder.indent();
   nf_init_builder.append("if (!");
-  nf_init_builder.append(symbex::FN_VECTOR_ALLOCATE);
+  nf_init_builder.append(BDD::symbex::FN_VECTOR_ALLOCATE);
   nf_init_builder.append("(");
   nf_init_builder.append(cfg.elem_size);
   nf_init_builder.append(", ");
@@ -155,7 +155,7 @@ void x86Generator::vector_init(addr_t addr,
 }
 
 void x86Generator::dchain_init(addr_t addr,
-                               const symbex::dchain_config_t &cfg) {
+                               const BDD::symbex::dchain_config_t &cfg) {
   auto dchain_label = vars.get_new_label(DCHAIN_BASE_LABEL);
   auto dchain_var = Variable(dchain_label, 32);
   dchain_var.set_addr(addr);
@@ -163,7 +163,7 @@ void x86Generator::dchain_init(addr_t addr,
   vars.append(dchain_var);
 
   global_state_builder.indent();
-  global_state_builder.append(symbex::DCHAIN_TYPE);
+  global_state_builder.append(BDD::symbex::DCHAIN_TYPE);
   global_state_builder.append("* ");
   global_state_builder.append(dchain_label);
   global_state_builder.append(";");
@@ -171,7 +171,7 @@ void x86Generator::dchain_init(addr_t addr,
 
   nf_init_builder.indent();
   nf_init_builder.append("if (!");
-  nf_init_builder.append(symbex::FN_DCHAIN_ALLOCATE);
+  nf_init_builder.append(BDD::symbex::FN_DCHAIN_ALLOCATE);
   nf_init_builder.append("(");
   nf_init_builder.append(cfg.index_range);
   nf_init_builder.append(", ");
@@ -182,7 +182,7 @@ void x86Generator::dchain_init(addr_t addr,
 }
 
 void x86Generator::sketch_init(addr_t addr,
-                               const symbex::sketch_config_t &cfg) {
+                               const BDD::symbex::sketch_config_t &cfg) {
   auto sketch_label = vars.get_new_label(SKETCH_BASE_LABEL);
   auto sketch_var = Variable(sketch_label, 32);
   sketch_var.set_addr(addr);
@@ -190,7 +190,7 @@ void x86Generator::sketch_init(addr_t addr,
   vars.append(sketch_var);
 
   global_state_builder.indent();
-  global_state_builder.append(symbex::SKETCH_TYPE);
+  global_state_builder.append(BDD::symbex::SKETCH_TYPE);
   global_state_builder.append("* ");
   global_state_builder.append(sketch_label);
   global_state_builder.append(";");
@@ -212,7 +212,7 @@ void x86Generator::sketch_init(addr_t addr,
 
   nf_init_builder.indent();
   nf_init_builder.append("if (!");
-  nf_init_builder.append(symbex::FN_SKETCH_ALLOCATE);
+  nf_init_builder.append(BDD::symbex::FN_SKETCH_ALLOCATE);
   nf_init_builder.append("(");
   nf_init_builder.append(key_hash_fn);
   nf_init_builder.append(", ");
@@ -226,7 +226,7 @@ void x86Generator::sketch_init(addr_t addr,
   nf_init_builder.append_new_line();
 }
 
-void x86Generator::cht_init(addr_t addr, const symbex::cht_config_t &cfg) {
+void x86Generator::cht_init(addr_t addr, const BDD::symbex::cht_config_t &cfg) {
   // Actually, the cht is just a vector, and it must be initialized before this
   // call.
 
@@ -235,7 +235,7 @@ void x86Generator::cht_init(addr_t addr, const symbex::cht_config_t &cfg) {
 
   nf_init_builder.indent();
   nf_init_builder.append("if (!");
-  nf_init_builder.append(symbex::FN_CHT_FILL);
+  nf_init_builder.append(BDD::symbex::FN_CHT_FILL);
   nf_init_builder.append("(");
   nf_init_builder.append(cht.var->get_label());
   nf_init_builder.append(", ");
@@ -276,10 +276,10 @@ void x86Generator::init_state(ExecutionPlan ep) {
   }
 
   auto packet_len_var =
-      Variable(PACKET_LEN_VAR_LABEL, 32, {symbex::PACKET_LENGTH});
+      Variable(PACKET_LEN_VAR_LABEL, 32, {BDD::symbex::PACKET_LENGTH});
   vars.append(packet_len_var);
 
-  auto device_var = Variable(DEVICE_VAR_LABEL, 16, {symbex::PORT});
+  auto device_var = Variable(DEVICE_VAR_LABEL, 16, {BDD::symbex::PORT});
   vars.append(device_var);
 
   nf_init_builder.indent();
@@ -328,29 +328,11 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   auto success = node->get_success();
   auto map_has_this_key = node->get_map_has_this_key();
 
-  auto contains_label = vars.get_new_label(CONTAINS_BASE_LABEL);
-  auto contains_var = Variable(contains_label, map_has_this_key);
-  vars.append(contains_var);
-
-  auto value_label = vars.get_new_label(INDEX_BASE_LABEL);
-  auto value_var = Variable(value_label, value_out);
-  vars.append(value_var);
-
-  nf_process_builder.indent();
-  nf_process_builder.append(value_var.get_type());
-  nf_process_builder.append(" ");
-  nf_process_builder.append(value_var.get_label());
-  nf_process_builder.append(";");
-  nf_process_builder.append_new_line();
-
   auto map = vars.get(map_addr);
   assert(map.valid);
 
   auto key_label_base = map.var->get_label() + "_key";
   auto key_label = vars.get_new_label(key_label_base);
-  auto key_var = Variable(key_label, key);
-  key_var.set_addr(key_addr);
-  vars.append(key_var);
 
   assert(key->getWidth() > 0);
   assert(key->getWidth() % 8 == 0);
@@ -378,12 +360,32 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
     nf_process_builder.append_new_line();
   }
 
+  auto key_var = Variable(key_label, key);
+  key_var.set_addr(key_addr);
+  key_var.set_is_array();
+  vars.append(key_var);
+
+  auto value_label = vars.get_new_label(INDEX_BASE_LABEL);
+  auto value_var = Variable(value_label, value_out);
+  vars.append(value_var);
+
+  auto contains_label = vars.get_new_label(CONTAINS_BASE_LABEL);
+  auto contains_var = Variable(contains_label, map_has_this_key);
+  vars.append(contains_var);
+
+  nf_process_builder.indent();
+  nf_process_builder.append(value_var.get_type());
+  nf_process_builder.append(" ");
+  nf_process_builder.append(value_var.get_label());
+  nf_process_builder.append(";");
+  nf_process_builder.append_new_line();
+
   nf_process_builder.indent();
   nf_process_builder.append("int ");
   nf_process_builder.append(contains_var.get_label());
   nf_process_builder.append(" = ");
 
-  nf_process_builder.append(symbex::FN_MAP_GET);
+  nf_process_builder.append(BDD::symbex::FN_MAP_GET);
   nf_process_builder.append("(");
   nf_process_builder.append(map.var->get_label());
   nf_process_builder.append(", ");
@@ -423,7 +425,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   nf_process_builder.append_new_line();
 
   nf_process_builder.indent();
-  nf_process_builder.append(symbex::FN_BORROW_CHUNK);
+  nf_process_builder.append(BDD::symbex::FN_BORROW_CHUNK);
   nf_process_builder.append("(");
   nf_process_builder.append("*");
   nf_process_builder.append(PACKET_VAR_LABEL);
@@ -565,7 +567,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   nf_process_builder.append(" ");
   nf_process_builder.append(freed_flows_var.get_label());
   nf_process_builder.append(" = ");
-  nf_process_builder.append(symbex::FN_EXPIRE_MAP);
+  nf_process_builder.append(BDD::symbex::FN_EXPIRE_MAP);
   nf_process_builder.append("(");
   nf_process_builder.append(dchain.var->get_label());
   nf_process_builder.append(", ");
@@ -595,7 +597,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   auto n_elems_transpiled = transpile(n_elems);
 
   nf_process_builder.indent();
-  nf_process_builder.append(symbex::FN_EXPIRE_MAP_ITERATIVELY);
+  nf_process_builder.append(BDD::symbex::FN_EXPIRE_MAP_ITERATIVELY);
   nf_process_builder.append("(");
   nf_process_builder.append(vector.var->get_label());
   nf_process_builder.append(", ");
@@ -626,7 +628,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   auto time_transpiled = transpile(time);
 
   nf_process_builder.indent();
-  nf_process_builder.append(symbex::FN_DCHAIN_REJUVENATE);
+  nf_process_builder.append(BDD::symbex::FN_DCHAIN_REJUVENATE);
   nf_process_builder.append("(");
   nf_process_builder.append(dchain.var->get_label());
   nf_process_builder.append(", ");
@@ -648,7 +650,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   auto index_transpiled = transpile(index);
 
   nf_process_builder.indent();
-  nf_process_builder.append(symbex::FN_DCHAIN_FREE_INDEX);
+  nf_process_builder.append(BDD::symbex::FN_DCHAIN_FREE_INDEX);
   nf_process_builder.append("(");
   nf_process_builder.append(dchain.var->get_label());
   nf_process_builder.append(", ");
@@ -672,6 +674,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   auto value_out_label = vars.get_new_label(VALUE_OUT_BASE_LABEL);
   auto value_out_var = ByteArray(value_out_label, borrowed_cell, value_out);
   value_out_var.set_addr(value_out);
+  value_out_var.set_is_array();
   vars.append(value_out_var);
 
   nf_process_builder.indent();
@@ -681,7 +684,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   nf_process_builder.append_new_line();
 
   nf_process_builder.indent();
-  nf_process_builder.append(symbex::FN_VECTOR_BORROW);
+  nf_process_builder.append(BDD::symbex::FN_VECTOR_BORROW);
   nf_process_builder.append("(");
   nf_process_builder.append(vector.var->get_label());
   nf_process_builder.append(", ");
@@ -724,7 +727,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   }
 
   nf_process_builder.indent();
-  nf_process_builder.append(symbex::FN_VECTOR_RETURN);
+  nf_process_builder.append(BDD::symbex::FN_VECTOR_RETURN);
   nf_process_builder.append("(");
   nf_process_builder.append(vector.var->get_label());
   nf_process_builder.append(", ");
@@ -768,7 +771,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   nf_process_builder.append(out_of_space_var.get_label());
   nf_process_builder.append(" = ");
   nf_process_builder.append("!");
-  nf_process_builder.append(symbex::FN_DCHAIN_ALLOCATE_NEW_INDEX);
+  nf_process_builder.append(BDD::symbex::FN_DCHAIN_ALLOCATE_NEW_INDEX);
   nf_process_builder.append("(");
   nf_process_builder.append(dchain.var->get_label());
   nf_process_builder.append(", ");
@@ -821,7 +824,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   auto value_transpiled = transpile(value);
 
   nf_process_builder.indent();
-  nf_process_builder.append(symbex::FN_MAP_PUT);
+  nf_process_builder.append(BDD::symbex::FN_MAP_PUT);
   nf_process_builder.append("(");
   nf_process_builder.append(map.var->get_label());
   nf_process_builder.append(", ");
@@ -859,15 +862,15 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   nf_process_builder.append(" ");
   nf_process_builder.append(checksum_var.get_label());
   nf_process_builder.append(" = ");
-  nf_process_builder.append(symbex::FN_RTE_SET_CHECKSUM);
+  nf_process_builder.append(BDD::symbex::FN_RTE_SET_CHECKSUM);
   nf_process_builder.append("(");
   nf_process_builder.append("(");
-  nf_process_builder.append(symbex::RTE_IPV4_TYPE);
+  nf_process_builder.append(BDD::symbex::RTE_IPV4_TYPE);
   nf_process_builder.append("*)");
   nf_process_builder.append(ip_hdr.var->get_label());
   nf_process_builder.append(", ");
   nf_process_builder.append("(");
-  nf_process_builder.append(symbex::RTE_L4_TYPE);
+  nf_process_builder.append(BDD::symbex::RTE_L4_TYPE);
   nf_process_builder.append("*)");
   nf_process_builder.append(l4_hdr.var->get_label());
   nf_process_builder.append(");");
@@ -894,7 +897,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   nf_process_builder.append(" ");
   nf_process_builder.append(is_allocated_var.get_label());
   nf_process_builder.append(" = ");
-  nf_process_builder.append(symbex::FN_DCHAIN_IS_ALLOCATED);
+  nf_process_builder.append(BDD::symbex::FN_DCHAIN_IS_ALLOCATED);
   nf_process_builder.append("(");
   nf_process_builder.append(dchain.var->get_label());
   nf_process_builder.append(", ");
@@ -941,7 +944,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   }
 
   nf_process_builder.indent();
-  nf_process_builder.append(symbex::FN_SKETCH_COMPUTE_HASHES);
+  nf_process_builder.append(BDD::symbex::FN_SKETCH_COMPUTE_HASHES);
   nf_process_builder.append("(");
   nf_process_builder.append(sketch.var->get_label());
   nf_process_builder.append(", ");
@@ -962,7 +965,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   auto time_transpiled = transpile(time);
 
   nf_process_builder.indent();
-  nf_process_builder.append(symbex::FN_SKETCH_EXPIRE);
+  nf_process_builder.append(BDD::symbex::FN_SKETCH_EXPIRE);
   nf_process_builder.append("(");
   nf_process_builder.append(sketch.var->get_label());
   nf_process_builder.append(", ");
@@ -988,7 +991,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   nf_process_builder.append(" ");
   nf_process_builder.append(overflow_var.get_label());
   nf_process_builder.append(" = ");
-  nf_process_builder.append(symbex::FN_SKETCH_FETCH);
+  nf_process_builder.append(BDD::symbex::FN_SKETCH_FETCH);
   nf_process_builder.append("(");
   nf_process_builder.append(sketch.var->get_label());
   nf_process_builder.append(");");
@@ -1006,7 +1009,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   auto time_transpiled = transpile(time);
 
   nf_process_builder.indent();
-  nf_process_builder.append(symbex::FN_SKETCH_REFRESH);
+  nf_process_builder.append(BDD::symbex::FN_SKETCH_REFRESH);
   nf_process_builder.append("(");
   nf_process_builder.append(sketch.var->get_label());
   nf_process_builder.append(", ");
@@ -1026,7 +1029,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   auto time_transpiled = transpile(time);
 
   nf_process_builder.indent();
-  nf_process_builder.append(symbex::FN_SKETCH_TOUCH_BUCKETS);
+  nf_process_builder.append(BDD::symbex::FN_SKETCH_TOUCH_BUCKETS);
   nf_process_builder.append("(");
   nf_process_builder.append(sketch.var->get_label());
   nf_process_builder.append(", ");
@@ -1085,7 +1088,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   }
 
   nf_process_builder.indent();
-  nf_process_builder.append(symbex::FN_MAP_ERASE);
+  nf_process_builder.append(BDD::symbex::FN_MAP_ERASE);
   nf_process_builder.append("(");
   nf_process_builder.append(map.var->get_label());
   nf_process_builder.append(", ");
@@ -1140,7 +1143,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   nf_process_builder.append(" ");
   nf_process_builder.append(hash_var.get_label());
   nf_process_builder.append(" = ");
-  nf_process_builder.append(symbex::FN_LOADBALANCEDFLOW_HASH);
+  nf_process_builder.append(BDD::symbex::FN_LOADBALANCEDFLOW_HASH);
   nf_process_builder.append("(");
   nf_process_builder.append("(void*)");
   nf_process_builder.append(obj_label);
@@ -1188,7 +1191,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   nf_process_builder.append(" ");
   nf_process_builder.append(found_var.get_label());
   nf_process_builder.append(" = ");
-  nf_process_builder.append(symbex::FN_CHT_FIND_BACKEND);
+  nf_process_builder.append(BDD::symbex::FN_CHT_FIND_BACKEND);
   nf_process_builder.append("(");
   nf_process_builder.append(hash_transpiled);
   nf_process_builder.append(", ");
@@ -1226,7 +1229,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   nf_process_builder.append(" ");
   nf_process_builder.append(hash_var.get_label());
   nf_process_builder.append(" = ");
-  nf_process_builder.append(symbex::FN_HASH_OBJ);
+  nf_process_builder.append(BDD::symbex::FN_HASH_OBJ);
   nf_process_builder.append("(");
   nf_process_builder.append("(void*)");
   nf_process_builder.append(obj.var->get_label());

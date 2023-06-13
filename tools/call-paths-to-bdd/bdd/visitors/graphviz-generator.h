@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <ctime>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <math.h>
@@ -14,24 +15,157 @@
 
 namespace BDD {
 
+struct color_t {
+  uint8_t r;
+  uint8_t g;
+  uint8_t b;
+  uint8_t o;
+
+  color_t(uint8_t _r, uint8_t _g, uint8_t _b) : r(_r), g(_g), b(_b), o(0xff) {}
+
+  color_t(uint8_t _r, uint8_t _g, uint8_t _b, uint8_t _o)
+      : r(_r), g(_g), b(_b), o(_o) {}
+
+  std::string to_gv_repr() const {
+    std::stringstream ss;
+
+    ss << "#";
+    ss << std::hex;
+
+    ss << std::setw(2);
+    ss << std::setfill('0');
+    ss << (int)r;
+
+    ss << std::setw(2);
+    ss << std::setfill('0');
+    ss << (int)g;
+
+    ss << std::setw(2);
+    ss << std::setfill('0');
+    ss << (int)b;
+
+    ss << std::setw(2);
+    ss << std::setfill('0');
+    ss << (int)o;
+
+    ss << std::dec;
+
+    return ss.str();
+  }
+};
+
+struct bdd_visualizer_opts_t {
+  bool process_only;
+  std::unordered_map<node_id_t, std::string> colors_per_node;
+  std::pair<bool, std::string> default_color;
+
+  struct processed_t {
+    std::unordered_set<node_id_t> nodes;
+    const Node *next;
+  } processed;
+
+  bdd_visualizer_opts_t() : process_only(true) {}
+};
+
 class GraphvizGenerator : public BDDVisitor {
 private:
   std::ostream &os;
-  std::unordered_set<node_id_t> processed;
-  const Node *next;
+
   bool show_init_graph;
+  bdd_visualizer_opts_t::processed_t processed;
+  std::unordered_map<node_id_t, std::string> colors_per_node;
+  std::pair<bool, std::string> default_color;
 
   const char *COLOR_PROCESSED = "gray";
   const char *COLOR_NEXT = "cyan";
 
-public:
-  GraphvizGenerator(std::ostream &_os)
-      : os(_os), next(nullptr), show_init_graph(true) {}
+  const char *COLOR_CALL = "cornflowerblue";
+  const char *COLOR_BRANCH = "yellow";
+  const char *COLOR_RETURN_INIT_SUCCESS = "chartreuse2";
+  const char *COLOR_RETURN_INIT_FAILURE = "brown1";
+  const char *COLOR_RETURN_PROCESS_FORWARD = "chartreuse2";
+  const char *COLOR_RETURN_PROCESS_DROP = "brown1";
+  const char *COLOR_RETURN_PROCESS_BCAST = "purple";
 
-  GraphvizGenerator(std::ostream &_os,
-                    const std::unordered_set<node_id_t> &_processed,
-                    const Node *_next)
-      : os(_os), processed(_processed), next(_next), show_init_graph(true) {}
+public:
+  GraphvizGenerator(std::ostream &_os, const bdd_visualizer_opts_t &opts)
+      : os(_os), show_init_graph(!opts.process_only), processed(opts.processed),
+        colors_per_node(opts.colors_per_node),
+        default_color(opts.default_color) {}
+
+  GraphvizGenerator(std::ostream &_os)
+      : GraphvizGenerator(_os, bdd_visualizer_opts_t()) {}
+
+  void set_processed(const bdd_visualizer_opts_t::processed_t &_processed) {
+    processed = _processed;
+  }
+
+  void set_node_colors(
+      const std::unordered_map<node_id_t, std::string> &_colors_per_node) {
+    colors_per_node = _colors_per_node;
+  }
+
+  bool has_color(node_id_t id) const {
+    return colors_per_node.find(id) != colors_per_node.end();
+  }
+
+  std::string get_color(const Node *node) const {
+    assert(node);
+    auto id = node->get_id();
+
+    if (has_color(id)) {
+      return colors_per_node.at(id);
+    }
+
+    if (default_color.first) {
+      return default_color.second;
+    }
+
+    if (processed.nodes.find(id) != processed.nodes.end()) {
+      return COLOR_PROCESSED;
+    }
+
+    if (processed.next && id == processed.next->get_id()) {
+      return COLOR_NEXT;
+    }
+
+    switch (node->get_type()) {
+    case Node::NodeType::CALL:
+      return COLOR_CALL;
+    case Node::NodeType::BRANCH:
+      return COLOR_BRANCH;
+    case Node::NodeType::RETURN_INIT: {
+      auto return_init_node = static_cast<const ReturnInit *>(node);
+      auto ret_value = return_init_node->get_return_value();
+
+      switch (ret_value) {
+      case ReturnInit::ReturnType::SUCCESS:
+        return COLOR_RETURN_INIT_SUCCESS;
+      case ReturnInit::ReturnType::FAILURE:
+        return COLOR_RETURN_INIT_FAILURE;
+      default:
+        assert(false && "Not supposed to be here.");
+      }
+    }
+    case Node::NodeType::RETURN_PROCESS: {
+      auto return_init_node = static_cast<const ReturnProcess *>(node);
+      auto ret_value = return_init_node->get_return_value();
+
+      switch (ret_value) {
+      case ReturnProcess::Operation::FWD:
+        return COLOR_RETURN_PROCESS_FORWARD;
+      case ReturnProcess::Operation::DROP:
+        return COLOR_RETURN_PROCESS_DROP;
+      case ReturnProcess::Operation::BCAST:
+        return COLOR_RETURN_PROCESS_BCAST;
+      default:
+        assert(false && "Not supposed to be here.");
+      }
+    }
+    default:
+      assert(false && "Not supposed to be here.");
+    }
+  }
 
   void set_show_init_graph(bool _show_init_graph) {
     show_init_graph = _show_init_graph;
@@ -39,13 +173,19 @@ public:
 
   static void visualize(const BDD &bdd, bool interrupt = true,
                         bool process_only = true) {
-    constexpr int fname_len = 15;
-    constexpr const char *prefix = "/tmp/";
-    constexpr const char *alphanum = "0123456789"
-                                     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                                     "abcdefghijklmnopqrstuvwxyz";
+    bdd_visualizer_opts_t opts;
+    visualize(bdd, opts);
+  }
 
+  static void visualize(const BDD &bdd, const bdd_visualizer_opts_t &opts,
+                        bool interrupt = true) {
     auto random_fname_generator = []() {
+      constexpr int fname_len = 15;
+      constexpr const char *prefix = "/tmp/";
+      constexpr const char *alphanum = "0123456789"
+                                       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                       "abcdefghijklmnopqrstuvwxyz";
+
       std::stringstream ss;
       static unsigned counter = 1;
 
@@ -76,15 +216,16 @@ public:
     auto file = std::ofstream(random_fname);
     assert(file.is_open());
 
-    GraphvizGenerator gv(file);
-    gv.set_show_init_graph(!process_only);
+    GraphvizGenerator gv(file, opts);
     gv.visit(bdd);
 
     file.close();
 
-#ifndef NDEBUG
-    std::cerr << "Opening " << random_fname << "\n";
-#endif
+    std::cerr << "Visualizing BDD";
+    std::cerr << " id=" << bdd.get_id();
+    std::cerr << " hash=" << bdd.hash();
+    std::cerr << " file=" << random_fname;
+    std::cerr << "\n";
 
     open_graph(random_fname);
 
@@ -141,14 +282,7 @@ public:
 
     os << "\"";
 
-    if (processed.find(node->get_id()) != processed.end()) {
-      os << ", color=" << COLOR_PROCESSED;
-    } else if (next && node->get_id() == next->get_id()) {
-      os << ", color=" << COLOR_NEXT;
-    } else {
-      os << ", color=yellow";
-    }
-
+    os << ", fillcolor=\"" << get_color(node) << "\"";
     os << "];\n";
 
     os << "\t\t" << get_gv_name(node);
@@ -254,16 +388,9 @@ public:
       }
     }
 
-    os << "\", ";
+    os << "\"";
 
-    if (processed.find(node->get_id()) != processed.end()) {
-      os << "color=" << COLOR_PROCESSED;
-    } else if (next && node->get_id() == next->get_id()) {
-      os << "color=" << COLOR_NEXT;
-    } else {
-      os << "color=cornflowerblue";
-    }
-
+    os << ", fillcolor=\"" << get_color(node) << "\"";
     os << "];\n";
 
     os << "\t\t" << get_gv_name(node);
@@ -292,37 +419,20 @@ public:
         }
       }
 
-      os << "\", ";
-
-      if (processed.find(node->get_id()) != processed.end()) {
-        os << " color=" << COLOR_PROCESSED << "]";
-      } else if (next && node->get_id() == next->get_id()) {
-        os << " color=" << COLOR_NEXT << "]";
-      } else {
-        os << " color=chartreuse2]";
-      }
-
       break;
     }
     case ReturnInit::ReturnType::FAILURE: {
       os << "ABORT";
-      os << "\", ";
-
-      if (processed.find(node->get_id()) != processed.end()) {
-        os << " color=" << COLOR_PROCESSED << "]";
-      } else if (next && node->get_id() == next->get_id()) {
-        os << " color=" << COLOR_NEXT << "]";
-      } else {
-        os << " color=brown1]";
-      }
-
       break;
     }
     default: {
       assert(false);
     }
     }
-    os << ";\n";
+
+    os << "\"";
+    os << ", fillcolor=\"" << get_color(node) << "\"";
+    os << "];\n";
 
     return STOP;
   }
@@ -344,59 +454,31 @@ public:
           os << "\\l{" << kutil::pretty_print_expr(c) << "}";
         }
       }
-
-      os << "\", ";
-
-      if (processed.find(node->get_id()) != processed.end()) {
-        os << " color=" << COLOR_PROCESSED << "]";
-      } else if (next && node->get_id() == next->get_id()) {
-        os << " color=" << COLOR_NEXT << "]";
-      } else {
-        os << "color=chartreuse2]";
-      }
-
       break;
     }
     case ReturnProcess::Operation::DROP: {
       os << "drop()";
-      os << "\", ";
-
-      if (processed.find(node->get_id()) != processed.end()) {
-        os << " color=" << COLOR_PROCESSED << "]";
-      } else if (next && node->get_id() == next->get_id()) {
-        os << " color=" << COLOR_NEXT << "]";
-      } else {
-        os << "color=brown1]";
-      }
-
       break;
     }
     case ReturnProcess::Operation::BCAST: {
       os << "bcast()";
-      os << "\", ";
-
-      if (processed.find(node->get_id()) != processed.end()) {
-        os << " color=" << COLOR_PROCESSED << "]";
-      } else if (next && node->get_id() == next->get_id()) {
-        os << " color=" << COLOR_NEXT << "]";
-      } else {
-        os << "color=purple]";
-      }
-
       break;
     }
     default: {
       assert(false);
     }
     }
-    os << ";\n";
+
+    os << "\"";
+    os << ", fillcolor=\"" << get_color(node) << "\"";
+    os << "];\n";
     return STOP;
   }
 
   void visitInitRoot(const Node *root) override {
     os << "\tsubgraph clusterinit {\n";
     os << "\t\tlabel=\"nf_init\";\n";
-    os << "\t\tnode [style=\"rounded,filled\",color=white];\n";
+    os << "\t\tnode [style=\"rounded,filled,bold\",color=black];\n";
 
     root->visit(*this);
 
@@ -408,7 +490,7 @@ public:
     if (show_init_graph) {
       os << "\t\tlabel=\"nf_process\"\n";
     }
-    os << "\t\tnode [style=\"rounded,filled\",color=white];\n";
+    os << "\t\tnode [style=\"rounded,filled\",color=black];\n";
 
     root->visit(*this);
 

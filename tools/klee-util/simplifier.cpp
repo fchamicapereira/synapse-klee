@@ -109,7 +109,7 @@ private:
                 klee::ref<klee::Expr> &not_const_kid) {
     assert(!expr.isNull());
 
-    if (expr->getNumKids() != 2 || expr->getWidth() != 1) {
+    if (expr->getNumKids() != 2 && expr->getWidth() != 1) {
       return false;
     }
 

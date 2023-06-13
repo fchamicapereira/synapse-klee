@@ -1,6 +1,5 @@
 #include "util.h"
 #include "../../../log.h"
-#include "../../../symbex.h"
 #include "../../execution_plan_node.h"
 #include "../../modules/module.h"
 
@@ -37,7 +36,7 @@ bool pending_packet_borrow_next_chunk(const ExecutionPlanNode *ep_node,
 
     if (bdd_node->get_type() == BDD::Node::NodeType::CALL) {
       auto call_node = static_cast<const BDD::Call *>(bdd_node.get());
-      if (call_node->get_call().function_name == symbex::FN_BORROW_CHUNK) {
+      if (call_node->get_call().function_name == BDD::symbex::FN_BORROW_CHUNK) {
         return true;
       }
     }

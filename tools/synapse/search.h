@@ -1,5 +1,6 @@
 #pragma once
 
+#include "execution_plan/instance.h"
 #include "execution_plan/execution_plan.h"
 #include "execution_plan/modules/clone/clone.h"
 #include "execution_plan/visitors/graphviz/graphviz.h"
@@ -50,7 +51,7 @@ public:
     targets = se.targets;
   }
 
-  void add_target(TargetType target) {
+  void add_target(TargetType target, Instance_ptr instance = nullptr) {
     switch (target) {
     case TargetType::x86_BMv2:
       targets.push_back(targets::x86_bmv2::x86BMv2Target::build());
@@ -71,7 +72,7 @@ public:
       targets.push_back(targets::bmv2::BMv2Target::build());
       break;
     case TargetType::x86:
-      targets.push_back(targets::x86::x86Target::build());
+      targets.push_back(targets::x86::x86Target::build(instance));
       break;
     case TargetType::CloNe:
       targets.push_back(targets::clone::CloneTarget::build());
@@ -84,7 +85,7 @@ public:
     first_execution_plan.set_infrastructure(infrastructure);
 
     for (auto target : targets) {
-      first_execution_plan.add_target(target->type, target->memory_bank);
+      first_execution_plan.add_target(target);
     }
 
     search_space.init(h.get_cfg(), first_execution_plan);
@@ -145,7 +146,7 @@ public:
 
 private:
   void log_search_iteration(const report_t &report) {
-    auto platform = report.chosen.get_current_platform();
+    auto platform = report.chosen.get_current_target();
     auto leaf = report.chosen.get_active_leaf();
 
     Log::dbg() << "\n";
@@ -155,7 +156,7 @@ private:
     Log::dbg() << "Execution Plan " << report.chosen.get_id() << "\n";
     Log::dbg() << "BDD progress   " << std::fixed << std::setprecision(2)
                << 100 * report.chosen.get_bdd_processing_progress() << " %\n";
-    Log::dbg() << "Current target " << Module::target_to_string(platform)
+    Log::dbg() << "Current target " << Module::target_to_string(platform->type)
                << "\n";
     if (leaf && leaf->get_module()) {
       Log::dbg() << "Leaf           " << leaf->get_module()->get_name() << "\n";

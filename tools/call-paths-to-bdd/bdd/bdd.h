@@ -66,6 +66,8 @@ public:
   void serialize(std::string file_path) const;
   void deserialize(const std::string &file_path);
 
+  std::string hash() const;
+
 public:
   friend class CallPathsGroup;
   friend class Call;

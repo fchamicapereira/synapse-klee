@@ -5,7 +5,6 @@
 
 typedef uint32_t bits_t;
 
-// At expression offset, t
 typedef struct {
   std::string symbol;
   bits_t offset;
@@ -25,7 +24,6 @@ typedef struct call {
   std::map<std::string, std::pair<klee::ref<klee::Expr>, klee::ref<klee::Expr>>>
       extra_vars;
   std::map<std::string, arg_t> args;
-
   klee::ref<klee::Expr> ret;
 } call_t;
 

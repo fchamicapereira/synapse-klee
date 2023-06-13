@@ -47,17 +47,17 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_EXPIRE_MAP) {
-      assert(!call.args[symbex::FN_EXPIRE_MAP_ARG_CHAIN].expr.isNull());
-      assert(!call.args[symbex::FN_EXPIRE_MAP_ARG_VECTOR].expr.isNull());
-      assert(!call.args[symbex::FN_EXPIRE_MAP_ARG_MAP].expr.isNull());
-      assert(!call.args[symbex::FN_EXPIRE_MAP_ARG_TIME].expr.isNull());
+    if (call.function_name == BDD::symbex::FN_EXPIRE_MAP) {
+      assert(!call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_CHAIN].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_VECTOR].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_MAP].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_TIME].expr.isNull());
       assert(!call.ret.isNull());
 
-      auto _dchain_addr = call.args[symbex::FN_EXPIRE_MAP_ARG_CHAIN].expr;
-      auto _vector_addr = call.args[symbex::FN_EXPIRE_MAP_ARG_VECTOR].expr;
-      auto _map_addr = call.args[symbex::FN_EXPIRE_MAP_ARG_MAP].expr;
-      auto _time = call.args[symbex::FN_EXPIRE_MAP_ARG_TIME].expr;
+      auto _dchain_addr = call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_CHAIN].expr;
+      auto _vector_addr = call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_VECTOR].expr;
+      auto _map_addr = call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_MAP].expr;
+      auto _time = call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_TIME].expr;
       auto _number_of_freed_flows = call.ret;
       auto _generated_symbols = casted->get_local_generated_symbols();
 

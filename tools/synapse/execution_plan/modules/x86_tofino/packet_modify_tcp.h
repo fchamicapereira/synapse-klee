@@ -30,10 +30,10 @@ private:
     auto call_node = static_cast<const BDD::Call *>(node);
     auto call = call_node->get_call();
 
-    assert(call.function_name == symbex::FN_BORROW_CHUNK);
-    assert(!call.extra_vars[symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
+    assert(call.function_name == BDD::symbex::FN_BORROW_CHUNK);
+    assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
 
-    return call.extra_vars[symbex::FN_BORROW_CHUNK_EXTRA].second;
+    return call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
   }
 
   bool is_ip_options(const BDD::Node *node) const {
@@ -42,7 +42,7 @@ private:
     auto call_node = static_cast<const BDD::Call *>(node);
     auto call = call_node->get_call();
 
-    auto len = call.args[symbex::FN_BORROW_CHUNK_ARG_LEN].expr;
+    auto len = call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr;
     return len->getKind() != klee::Expr::Kind::Constant;
   }
 
@@ -58,17 +58,17 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != symbex::FN_RETURN_CHUNK) {
+    if (call.function_name != BDD::symbex::FN_RETURN_CHUNK) {
       return result;
     }
 
     auto all_prev_packet_borrow_next_chunk =
-        get_prev_fn(ep, node, symbex::FN_BORROW_CHUNK);
+        get_prev_fn(ep, node, BDD::symbex::FN_BORROW_CHUNK);
 
     assert(all_prev_packet_borrow_next_chunk.size());
 
     auto all_prev_packet_return_chunk =
-        get_prev_fn(ep, node, symbex::FN_RETURN_CHUNK);
+        get_prev_fn(ep, node, BDD::symbex::FN_RETURN_CHUNK);
 
     if (all_prev_packet_return_chunk.size() != 0 ||
         all_prev_packet_borrow_next_chunk.size() < 3 ||
@@ -78,7 +78,7 @@ private:
 
     auto borrow_tcp = all_prev_packet_borrow_next_chunk[0].get();
 
-    auto curr_tcp_chunk = call.args[symbex::FN_BORROW_CHUNK_EXTRA].in;
+    auto curr_tcp_chunk = call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in;
     auto prev_tcp_chunk = get_tcp_chunk(borrow_tcp);
 
     if (curr_tcp_chunk->getWidth() != 20 * 8 ||

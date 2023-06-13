@@ -40,17 +40,17 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_EXPIRE_MAP_ITERATIVELY) {
-      assert(!call.args[symbex::EXPIRE_MAP_ITERATIVELY_MAP].expr.isNull());
-      assert(!call.args[symbex::EXPIRE_MAP_ITERATIVELY_VECTOR].expr.isNull());
-      assert(!call.args[symbex::EXPIRE_MAP_ITERATIVELY_START].expr.isNull());
-      assert(!call.args[symbex::EXPIRE_MAP_ITERATIVELY_N_ELEMS].expr.isNull());
+    if (call.function_name == BDD::symbex::FN_EXPIRE_MAP_ITERATIVELY) {
+      assert(!call.args[BDD::symbex::EXPIRE_MAP_ITERATIVELY_MAP].expr.isNull());
+      assert(!call.args[BDD::symbex::EXPIRE_MAP_ITERATIVELY_VECTOR].expr.isNull());
+      assert(!call.args[BDD::symbex::EXPIRE_MAP_ITERATIVELY_START].expr.isNull());
+      assert(!call.args[BDD::symbex::EXPIRE_MAP_ITERATIVELY_N_ELEMS].expr.isNull());
       assert(!call.ret.isNull());
 
-      auto _map = call.args[symbex::EXPIRE_MAP_ITERATIVELY_MAP].expr;
-      auto _vector = call.args[symbex::EXPIRE_MAP_ITERATIVELY_VECTOR].expr;
-      auto _start = call.args[symbex::EXPIRE_MAP_ITERATIVELY_START].expr;
-      auto _n_elems = call.args[symbex::EXPIRE_MAP_ITERATIVELY_N_ELEMS].expr;
+      auto _map = call.args[BDD::symbex::EXPIRE_MAP_ITERATIVELY_MAP].expr;
+      auto _vector = call.args[BDD::symbex::EXPIRE_MAP_ITERATIVELY_VECTOR].expr;
+      auto _start = call.args[BDD::symbex::EXPIRE_MAP_ITERATIVELY_START].expr;
+      auto _n_elems = call.args[BDD::symbex::EXPIRE_MAP_ITERATIVELY_N_ELEMS].expr;
 
       auto _map_addr = kutil::expr_addr_to_obj_addr(_map);
       auto _vector_addr = kutil::expr_addr_to_obj_addr(_vector);

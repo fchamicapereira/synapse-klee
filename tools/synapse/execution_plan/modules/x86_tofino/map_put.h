@@ -53,13 +53,13 @@ private:
 
     auto call = casted->get_call();
 
-    assert(!call.args[symbex::FN_MAP_ARG_MAP].expr.isNull());
-    assert(!call.args[symbex::FN_MAP_ARG_KEY].in.isNull());
-    assert(!call.args[symbex::FN_MAP_ARG_VALUE].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_MAP_ARG_MAP].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_MAP_ARG_KEY].in.isNull());
+    assert(!call.args[BDD::symbex::FN_MAP_ARG_VALUE].expr.isNull());
 
-    auto _map = call.args[symbex::FN_MAP_ARG_MAP].expr;
-    auto _key = call.args[symbex::FN_MAP_ARG_KEY].in;
-    auto _value = call.args[symbex::FN_MAP_ARG_VALUE].expr;
+    auto _map = call.args[BDD::symbex::FN_MAP_ARG_MAP].expr;
+    auto _key = call.args[BDD::symbex::FN_MAP_ARG_KEY].in;
+    auto _value = call.args[BDD::symbex::FN_MAP_ARG_VALUE].expr;
     auto _map_addr = kutil::expr_addr_to_obj_addr(_map);
 
     if (!check_previous_placement_decisions(ep, _map_addr)) {
@@ -91,7 +91,7 @@ private:
     // Ignore targets to allow the control plane to lookup vector_borrow
     // operations performed on the data plane.
     auto all_prev_vector_borrow =
-        get_prev_fn(ep, node, symbex::FN_VECTOR_BORROW, true);
+        get_prev_fn(ep, node, BDD::symbex::FN_VECTOR_BORROW, true);
 
     for (auto prev_vector_borrow : all_prev_vector_borrow) {
       auto call_node = BDD::cast_node<BDD::Call>(prev_vector_borrow);
@@ -99,11 +99,11 @@ private:
 
       auto call = call_node->get_call();
 
-      assert(!call.args[symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-      assert(!call.extra_vars[symbex::FN_VECTOR_EXTRA].second.isNull());
+      assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
+      assert(!call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second.isNull());
 
-      auto _vector = call.args[symbex::FN_VECTOR_ARG_VECTOR].expr;
-      auto _borrowed_cell = call.extra_vars[symbex::FN_VECTOR_EXTRA].second;
+      auto _vector = call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
+      auto _borrowed_cell = call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second;
 
       auto _vector_addr = kutil::expr_addr_to_obj_addr(_vector);
 
@@ -132,15 +132,15 @@ private:
 
     auto call = casted->get_call();
 
-    assert(!call.args[symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-    assert(!call.args[symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
-    assert(!call.args[symbex::FN_VECTOR_ARG_VALUE].expr.isNull());
-    assert(!call.args[symbex::FN_VECTOR_ARG_VALUE].in.isNull());
+    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].in.isNull());
 
-    auto _vector = call.args[symbex::FN_VECTOR_ARG_VECTOR].expr;
-    auto _index = call.args[symbex::FN_VECTOR_ARG_INDEX].expr;
-    auto _value_addr = call.args[symbex::FN_VECTOR_ARG_VALUE].expr;
-    auto _value = call.args[symbex::FN_VECTOR_ARG_VALUE].in;
+    auto _vector = call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
+    auto _index = call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr;
+    auto _value_addr = call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].expr;
+    auto _value = call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].in;
     auto _vector_addr = kutil::expr_addr_to_obj_addr(_vector);
 
     if (!check_previous_placement_decisions(ep, _vector_addr)) {
@@ -192,11 +192,11 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_MAP_PUT) {
+    if (call.function_name == BDD::symbex::FN_MAP_PUT) {
       return process_map_put(ep, node);
     }
 
-    if (call.function_name == symbex::FN_VECTOR_RETURN) {
+    if (call.function_name == BDD::symbex::FN_VECTOR_RETURN) {
       return process_vector_return(ep, node);
     }
 

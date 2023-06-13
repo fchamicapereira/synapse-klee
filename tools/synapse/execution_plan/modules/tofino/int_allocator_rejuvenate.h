@@ -36,16 +36,16 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != symbex::FN_DCHAIN_REJUVENATE) {
+    if (call.function_name != BDD::symbex::FN_DCHAIN_REJUVENATE) {
       return result;
     }
 
-    assert(!call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
-    assert(!call.args[symbex::FN_DCHAIN_ARG_INDEX].expr.isNull());
-    assert(!call.args[symbex::FN_DCHAIN_ARG_TIME].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_TIME].expr.isNull());
 
-    auto _dchain = call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr;
-    auto _index = call.args[symbex::FN_DCHAIN_ARG_INDEX].expr;
+    auto _dchain = call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
+    auto _index = call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr;
     auto _dchain_addr = kutil::expr_addr_to_obj_addr(_dchain);
 
     IntegerAllocatorRef _int_allocator;
@@ -63,7 +63,7 @@ private:
 
     if (!_int_allocator) {
       auto dchain_config =
-          symbex::get_dchain_config(ep.get_bdd(), _dchain_addr);
+          BDD::symbex::get_dchain_config(ep.get_bdd(), _dchain_addr);
       auto _capacity = dchain_config.index_range;
       _int_allocator =
           IntegerAllocator::build(_capacity, _dchain_addr, {node->get_id()});

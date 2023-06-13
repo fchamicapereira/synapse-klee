@@ -19,8 +19,6 @@ public:
 
 private:
   time_ns_t get_expiration_time(klee::ref<klee::Expr> expr) const {
-    std::cerr << "time " << kutil::expr_to_string(expr) << "\n";
-
     auto symbol = kutil::get_symbol(expr);
     assert(symbol.first);
     auto time_symbol = symbol.second;
@@ -60,20 +58,20 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != symbex::FN_EXPIRE_MAP) {
+    if (call.function_name != BDD::symbex::FN_EXPIRE_MAP) {
       return result;
     }
 
-    assert(!call.args[symbex::FN_EXPIRE_MAP_ARG_CHAIN].expr.isNull());
-    assert(!call.args[symbex::FN_EXPIRE_MAP_ARG_VECTOR].expr.isNull());
-    assert(!call.args[symbex::FN_EXPIRE_MAP_ARG_MAP].expr.isNull());
-    assert(!call.args[symbex::FN_EXPIRE_MAP_ARG_TIME].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_CHAIN].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_VECTOR].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_MAP].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_TIME].expr.isNull());
     assert(!call.ret.isNull());
 
-    auto _dchain_addr = call.args[symbex::FN_EXPIRE_MAP_ARG_CHAIN].expr;
-    auto _vector_addr = call.args[symbex::FN_EXPIRE_MAP_ARG_VECTOR].expr;
-    auto _map_addr = call.args[symbex::FN_EXPIRE_MAP_ARG_MAP].expr;
-    auto _time = call.args[symbex::FN_EXPIRE_MAP_ARG_TIME].expr;
+    auto _dchain_addr = call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_CHAIN].expr;
+    auto _vector_addr = call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_VECTOR].expr;
+    auto _map_addr = call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_MAP].expr;
+    auto _time = call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_TIME].expr;
     auto _generated_symbols = casted->get_local_generated_symbols();
 
     assert(_generated_symbols.size() == 1);

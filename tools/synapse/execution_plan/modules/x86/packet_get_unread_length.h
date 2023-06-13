@@ -39,11 +39,11 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_GET_UNREAD_LEN) {
+    if (call.function_name == BDD::symbex::FN_GET_UNREAD_LEN) {
       assert(!call.ret.isNull());
-      assert(!call.args[symbex::FN_BORROW_ARG_PACKET].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_BORROW_ARG_PACKET].expr.isNull());
 
-      auto _p = call.args[symbex::FN_BORROW_ARG_PACKET].expr;
+      auto _p = call.args[BDD::symbex::FN_BORROW_ARG_PACKET].expr;
       auto _unread_length = call.ret;
 
       auto _generated_symbols = casted->get_local_generated_symbols();

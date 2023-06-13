@@ -36,6 +36,12 @@ llvm::cl::opt<int> MaxReorderingOperations(
     "max", llvm::cl::desc("Maximum number of reordering operations."),
     llvm::cl::initializer<int>(-1), llvm::cl::cat(BDDReorderer));
 
+llvm::cl::opt<bool>
+    Approximate("approximate",
+                llvm::cl::desc("Get a lower bound approximation."),
+                llvm::cl::ValueDisallowed, llvm::cl::init(false),
+                llvm::cl::cat(BDDReorderer));
+
 llvm::cl::opt<bool> Show("s", llvm::cl::desc("Show Execution Plans."),
                          llvm::cl::ValueDisallowed, llvm::cl::init(false),
                          llvm::cl::cat(BDDReorderer));
@@ -65,7 +71,7 @@ BDD::BDD build_bdd() {
   return BDD::BDD(call_paths);
 }
 
-void test(const BDD::BDD& bdd) {
+void test(const BDD::BDD &bdd) {
   auto root = bdd.get_node_by_id(88);
   assert(root);
 
@@ -81,16 +87,28 @@ int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv);
 
   auto start = std::chrono::steady_clock::now();
-
   auto original_bdd = build_bdd();
 
   // test(original_bdd);
   // return 0;
 
+  if (Approximate) {
+    auto approximation =
+        BDD::approximate_number_of_reordered_bdds(original_bdd);
+    auto end = std::chrono::steady_clock::now();
+    auto elapsed = end - start;
+    std::cerr << "\nApproximately " << approximation << " BDDs generated\n";
+    std::cerr
+        << "Elapsed: "
+        << std::chrono::duration_cast<std::chrono::seconds>(elapsed).count()
+        << " seconds\n";
+    return 0;
+  }
+
   auto reordered_bdds =
       BDD::get_all_reordered_bdds(original_bdd, MaxReorderingOperations);
 
-  std::cerr << "\nfinal: " << reordered_bdds.size() << "\n";
+  std::cerr << "\nFinal: " << reordered_bdds.size() << "\n";
 
   if (Show) {
     for (auto bdd : reordered_bdds) {

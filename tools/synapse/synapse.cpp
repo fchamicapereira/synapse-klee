@@ -1,3 +1,4 @@
+#include "execution_plan/instance.h"
 #include "execution_plan/target.h"
 #include "klee/ExprBuilder.h"
 #include "klee/perf-contracts.h"
@@ -125,7 +126,7 @@ std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd,
     search_engine.add_target(target);
     if(target == TargetType::CloNe) {
       if(TargetList.size() > 1) {
-        Log::err() << "CloNe can only be specified as the single target\n";
+        Log::err() << "CloNe can only be specified as the single target. The remaining targets will be automatically determined\n";
         exit(1);
       }
       if(InputTopologyFile.size() == 0) {
@@ -133,10 +134,18 @@ std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd,
         exit(1);
       }
       auto infrastructure = Clone::parse_infrastructure(InputTopologyFile);
-      auto device_types = infrastructure->get_device_types();
-      for(const auto& device_type: device_types) {
-        search_engine.add_target(string_to_target_type[device_type]);
+
+      for(auto& p_device: infrastructure->get_devices()) {
+        auto& device = p_device.second;
+        auto& architecture = device->get_type();
+        auto target_type = string_to_target_type[architecture];
+        Instance_ptr instance = std::make_shared<Instance>(device->get_id());
+        search_engine.add_target(target_type, instance);
       }
+
+      //for(const auto& device_type: device_types) {
+      //  search_engine.add_target(string_to_target_type[device_type]);
+      //}
       search_engine.set_infrastructure(move(infrastructure));
     }
   }
@@ -176,9 +185,6 @@ void synthesize(const ExecutionPlan &ep) {
       auto infrastructure = Clone::parse_infrastructure(InputTopologyFile);
       auto device_types = infrastructure->get_device_types();
       code_generator.add_target(TargetType::CloNe);
-      //for(const auto& device_type: device_types) {
-      //  code_generator.add_target(string_to_target_type[device_type]);
-      //}
       break;
     }
     code_generator.add_target(target);

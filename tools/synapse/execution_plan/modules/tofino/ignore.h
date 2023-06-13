@@ -19,10 +19,10 @@ private:
 public:
   Ignore() : TofinoModule(ModuleType::Tofino_Ignore, "Ignore") {
     functions_to_ignore = {
-        {symbex::FN_CURRENT_TIME, &Ignore::always_ignore},
-        {symbex::FN_ETHER_HASH, &Ignore::always_ignore},
-        {symbex::FN_SET_CHECKSUM, &Ignore::always_ignore},
-        {symbex::FN_VECTOR_RETURN, &Ignore::read_only_vector_op},
+        {BDD::symbex::FN_CURRENT_TIME, &Ignore::always_ignore},
+        {BDD::symbex::FN_ETHER_HASH, &Ignore::always_ignore},
+        {BDD::symbex::FN_SET_CHECKSUM, &Ignore::always_ignore},
+        {BDD::symbex::FN_VECTOR_RETURN, &Ignore::read_only_vector_op},
     };
   }
 
@@ -37,7 +37,7 @@ private:
 
   call_t get_previous_vector_borrow(const ExecutionPlan &ep, BDD::Node_ptr node,
                                     klee::ref<klee::Expr> wanted_vector) const {
-    auto prev_vector_borrows = get_prev_fn(ep, node, symbex::FN_VECTOR_BORROW);
+    auto prev_vector_borrows = get_prev_fn(ep, node, BDD::symbex::FN_VECTOR_BORROW);
 
     for (auto prev_node : prev_vector_borrows) {
       assert(prev_node->get_type() == BDD::Node::NodeType::CALL);
@@ -45,11 +45,11 @@ private:
       auto call_node = static_cast<const BDD::Call *>(prev_node.get());
       auto call = call_node->get_call();
 
-      if (call.function_name != symbex::FN_VECTOR_BORROW) {
+      if (call.function_name != BDD::symbex::FN_VECTOR_BORROW) {
         continue;
       }
 
-      auto vector = call.args[symbex::FN_VECTOR_ARG_VECTOR].expr;
+      auto vector = call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
       auto eq =
           kutil::solver_toolbox.are_exprs_always_equal(vector, wanted_vector);
 
@@ -66,16 +66,16 @@ private:
                            const BDD::Call *casted) const {
     assert(casted);
     auto call = casted->get_call();
-    assert(call.function_name == symbex::FN_VECTOR_RETURN);
+    assert(call.function_name == BDD::symbex::FN_VECTOR_RETURN);
 
-    assert(!call.args[symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-    assert(!call.args[symbex::FN_VECTOR_ARG_VALUE].in.isNull());
+    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].in.isNull());
 
-    auto vector = call.args[symbex::FN_VECTOR_ARG_VECTOR].expr;
-    auto cell_after = call.args[symbex::FN_VECTOR_ARG_VALUE].in;
+    auto vector = call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
+    auto cell_after = call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].in;
 
     auto vector_borrow = get_previous_vector_borrow(ep, node, vector);
-    auto cell_before = vector_borrow.extra_vars[symbex::FN_VECTOR_EXTRA].second;
+    auto cell_before = vector_borrow.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second;
 
     assert(cell_before->getWidth() == cell_after->getWidth());
     auto eq =

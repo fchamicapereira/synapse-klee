@@ -32,17 +32,17 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != symbex::FN_SKETCH_FETCH) {
+    if (call.function_name != BDD::symbex::FN_SKETCH_FETCH) {
       return result;
     }
 
-    assert(!call.args[symbex::FN_SKETCH_ARG_SKETCH].expr.isNull());
-    auto _sketch = call.args[symbex::FN_SKETCH_ARG_SKETCH].expr;
+    assert(!call.args[BDD::symbex::FN_SKETCH_ARG_SKETCH].expr.isNull());
+    auto _sketch = call.args[BDD::symbex::FN_SKETCH_ARG_SKETCH].expr;
     auto _sketch_addr = kutil::expr_addr_to_obj_addr(_sketch);
 
     auto _generated_symbols = casted->get_local_generated_symbols();
     auto _overflow =
-        BDD::get_symbol(_generated_symbols, symbex::SKETCH_OVERFLOW_SYMBOL);
+        BDD::get_symbol(_generated_symbols, BDD::symbex::SKETCH_OVERFLOW_SYMBOL);
 
     save_sketch(ep, _sketch_addr);
 

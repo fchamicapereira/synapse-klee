@@ -35,7 +35,7 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_CURRENT_TIME) {
+    if (call.function_name == BDD::symbex::FN_CURRENT_TIME) {
       assert(!call.ret.isNull());
       auto _time = call.ret;
       auto _generated_symbols = casted->get_local_generated_symbols();

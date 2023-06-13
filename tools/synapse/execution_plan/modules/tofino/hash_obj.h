@@ -33,14 +33,14 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_HASH_OBJ) {
-      assert(!call.args[symbex::FN_HASH_OBJ_ARG_OBJ].expr.isNull());
-      assert(!call.args[symbex::FN_HASH_OBJ_ARG_OBJ].in.isNull());
-      assert(!call.args[symbex::FN_HASH_OBJ_ARG_SIZE].expr.isNull());
+    if (call.function_name == BDD::symbex::FN_HASH_OBJ) {
+      assert(!call.args[BDD::symbex::FN_HASH_OBJ_ARG_OBJ].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_HASH_OBJ_ARG_OBJ].in.isNull());
+      assert(!call.args[BDD::symbex::FN_HASH_OBJ_ARG_SIZE].expr.isNull());
       assert(!call.ret.isNull());
 
-      auto _input = call.args[symbex::FN_HASH_OBJ_ARG_OBJ].in;
-      auto _size = call.args[symbex::FN_HASH_OBJ_ARG_SIZE].expr;
+      auto _input = call.args[BDD::symbex::FN_HASH_OBJ_ARG_OBJ].in;
+      auto _size = call.args[BDD::symbex::FN_HASH_OBJ_ARG_SIZE].expr;
       auto _hash = call.ret;
 
       assert(kutil::is_constant(_size));

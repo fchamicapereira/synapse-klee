@@ -21,7 +21,7 @@ protected:
     auto mb = ep.get_memory_bank<x86MemoryBank>(TargetType::x86);
     auto saved = mb->has_map_config(addr);
     if (!saved) {
-      auto cfg = symbex::get_map_config(ep.get_bdd(), addr);
+      auto cfg = BDD::symbex::get_map_config(ep.get_bdd(), addr);
       mb->save_map_config(addr, cfg);
     }
   }
@@ -30,7 +30,7 @@ protected:
     auto mb = ep.get_memory_bank<x86MemoryBank>(TargetType::x86);
     auto saved = mb->has_vector_config(addr);
     if (!saved) {
-      auto cfg = symbex::get_vector_config(ep.get_bdd(), addr);
+      auto cfg = BDD::symbex::get_vector_config(ep.get_bdd(), addr);
       mb->save_vector_config(addr, cfg);
     }
   }
@@ -39,7 +39,7 @@ protected:
     auto mb = ep.get_memory_bank<x86MemoryBank>(TargetType::x86);
     auto saved = mb->has_dchain_config(addr);
     if (!saved) {
-      auto cfg = symbex::get_dchain_config(ep.get_bdd(), addr);
+      auto cfg = BDD::symbex::get_dchain_config(ep.get_bdd(), addr);
       mb->save_dchain_config(addr, cfg);
     }
   }
@@ -48,7 +48,7 @@ protected:
     auto mb = ep.get_memory_bank<x86MemoryBank>(TargetType::x86);
     auto saved = mb->has_sketch_config(addr);
     if (!saved) {
-      auto cfg = symbex::get_sketch_config(ep.get_bdd(), addr);
+      auto cfg = BDD::symbex::get_sketch_config(ep.get_bdd(), addr);
       mb->save_sketch_config(addr, cfg);
     }
   }
@@ -57,7 +57,7 @@ protected:
     auto mb = ep.get_memory_bank<x86MemoryBank>(TargetType::x86);
     auto saved = mb->has_cht_config(addr);
     if (!saved) {
-      auto cfg = symbex::get_cht_config(ep.get_bdd(), addr);
+      auto cfg = BDD::symbex::get_cht_config(ep.get_bdd(), addr);
       mb->save_cht_config(addr, cfg);
     }
   }

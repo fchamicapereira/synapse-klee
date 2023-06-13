@@ -37,16 +37,16 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_MAP_PUT) {
-      assert(!call.args[symbex::FN_MAP_ARG_MAP].expr.isNull());
-      assert(!call.args[symbex::FN_MAP_ARG_KEY].expr.isNull());
-      assert(!call.args[symbex::FN_MAP_ARG_KEY].in.isNull());
-      assert(!call.args[symbex::FN_MAP_ARG_VALUE].expr.isNull());
+    if (call.function_name == BDD::symbex::FN_MAP_PUT) {
+      assert(!call.args[BDD::symbex::FN_MAP_ARG_MAP].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_MAP_ARG_KEY].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_MAP_ARG_KEY].in.isNull());
+      assert(!call.args[BDD::symbex::FN_MAP_ARG_VALUE].expr.isNull());
 
-      auto _map_addr = call.args[symbex::FN_MAP_ARG_MAP].expr;
-      auto _key_addr = call.args[symbex::FN_MAP_ARG_KEY].expr;
-      auto _key = call.args[symbex::FN_MAP_ARG_KEY].in;
-      auto _value = call.args[symbex::FN_MAP_ARG_VALUE].expr;
+      auto _map_addr = call.args[BDD::symbex::FN_MAP_ARG_MAP].expr;
+      auto _key_addr = call.args[BDD::symbex::FN_MAP_ARG_KEY].expr;
+      auto _key = call.args[BDD::symbex::FN_MAP_ARG_KEY].in;
+      auto _value = call.args[BDD::symbex::FN_MAP_ARG_VALUE].expr;
 
       auto new_module =
           std::make_shared<MapPut>(node, _map_addr, _key_addr, _key, _value);

@@ -53,7 +53,7 @@ private:
     assert(impls.size() <= 1);
 
     if (impls.size() == 0) {
-      auto vector_config = symbex::get_vector_config(ep.get_bdd(), obj);
+      auto vector_config = BDD::symbex::get_vector_config(ep.get_bdd(), obj);
       auto _capacity = vector_config.capacity;
       auto _counter = Counter::build(obj, {node->get_id()}, _capacity,
                                      value->getWidth(), max_value);
@@ -79,13 +79,13 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != symbex::FN_VECTOR_BORROW &&
-        call.function_name != symbex::FN_VECTOR_RETURN) {
+    if (call.function_name != BDD::symbex::FN_VECTOR_BORROW &&
+        call.function_name != BDD::symbex::FN_VECTOR_RETURN) {
       return result;
     }
 
-    assert(!call.args[symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-    auto _vector = call.args[symbex::FN_VECTOR_ARG_VECTOR].expr;
+    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
+    auto _vector = call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
     auto _vector_addr = kutil::expr_addr_to_obj_addr(_vector);
 
     if (!can_implement(ep, _vector_addr)) {
@@ -100,7 +100,7 @@ private:
 
     // If we don't perform any modifications, then we just ignore this BDD node
     // (but we still process it!).
-    if (call.function_name == symbex::FN_VECTOR_RETURN) {
+    if (call.function_name == BDD::symbex::FN_VECTOR_RETURN) {
       auto new_module = std::make_shared<Ignore>(node);
       auto new_ep = ep.ignore_leaf(node->get_next(), TargetType::Tofino);
 
@@ -118,11 +118,11 @@ private:
       return result;
     }
 
-    assert(!call.args[symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
-    assert(!call.extra_vars[symbex::FN_VECTOR_EXTRA].second.isNull());
+    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
+    assert(!call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second.isNull());
 
-    auto _index = call.args[symbex::FN_VECTOR_ARG_INDEX].expr;
-    auto _borrowed_cell = call.extra_vars[symbex::FN_VECTOR_EXTRA].second;
+    auto _index = call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr;
+    auto _borrowed_cell = call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second;
 
     auto _counter = get_or_build_counter(
         ep, node, _vector_addr, counter_data.max_value, _borrowed_cell);

@@ -36,14 +36,14 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_DCHAIN_REJUVENATE) {
-      assert(!call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
-      assert(!call.args[symbex::FN_DCHAIN_ARG_INDEX].expr.isNull());
-      assert(!call.args[symbex::FN_DCHAIN_ARG_TIME].expr.isNull());
+    if (call.function_name == BDD::symbex::FN_DCHAIN_REJUVENATE) {
+      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_TIME].expr.isNull());
 
-      auto _dchain = call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr;
-      auto _index = call.args[symbex::FN_DCHAIN_ARG_INDEX].expr;
-      auto _time = call.args[symbex::FN_DCHAIN_ARG_TIME].expr;
+      auto _dchain = call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
+      auto _index = call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr;
+      auto _time = call.args[BDD::symbex::FN_DCHAIN_ARG_TIME].expr;
 
       auto _dchain_addr = kutil::expr_addr_to_obj_addr(_dchain);
       save_dchain(ep, _dchain_addr);

@@ -37,18 +37,18 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_DCHAIN_IS_ALLOCATED) {
-      assert(!call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
-      assert(!call.args[symbex::FN_DCHAIN_ARG_INDEX].expr.isNull());
+    if (call.function_name == BDD::symbex::FN_DCHAIN_IS_ALLOCATED) {
+      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr.isNull());
       assert(!call.ret.isNull());
 
-      auto _dchain = call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr;
-      auto _index = call.args[symbex::FN_DCHAIN_ARG_INDEX].expr;
+      auto _dchain = call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
+      auto _index = call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr;
 
       auto _dchain_addr = kutil::expr_addr_to_obj_addr(_dchain);
       auto _generated_symbols = casted->get_local_generated_symbols();
       auto _is_allocated = BDD::get_symbol(_generated_symbols,
-                                           symbex::DCHAIN_IS_INDEX_ALLOCATED);
+                                           BDD::symbex::DCHAIN_IS_INDEX_ALLOCATED);
 
       save_dchain(ep, _dchain_addr);
 

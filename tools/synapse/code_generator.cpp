@@ -2,11 +2,13 @@
 #include "execution_plan/execution_plan.h"
 #include "execution_plan/execution_plan_node.h"
 #include "execution_plan/modules/modules.h"
+#include "execution_plan/target.h"
 #include "execution_plan/visitors/graphviz/graphviz.h"
 
 namespace synapse {
 using targets::tofino::TofinoMemoryBank;
 using targets::x86_tofino::x86TofinoMemoryBank;
+using targets::clone::CloneMemoryBank;
 
 bool all_x86_no_controller(const ExecutionPlan &execution_plan) {
   auto nodes = std::vector<ExecutionPlanNode_ptr>{execution_plan.get_root()};
@@ -336,7 +338,7 @@ CodeGenerator::x86_tofino_extractor(const ExecutionPlan &execution_plan) const {
   }
 
   auto code_path = kutil::solver_toolbox.create_new_symbol(
-      symbex::CPU_CODE_PATH, sizeof(targets::tofino::cpu_code_path_t) * 8);
+      BDD::symbex::CPU_CODE_PATH, sizeof(targets::tofino::cpu_code_path_t) * 8);
 
   ExecutionPlanNode_ptr new_root;
   ExecutionPlanNode_ptr new_leaf;
@@ -470,10 +472,49 @@ CodeGenerator::x86_extractor(const ExecutionPlan &execution_plan) const {
 
 ExecutionPlan
 CodeGenerator::clone_extractor(const ExecutionPlan &execution_plan) const {
-  // No extraction at all, just asserting that this targets contains only x86
-  // nodes.
-
   auto nodes = std::vector<ExecutionPlanNode_ptr>{execution_plan.get_root()};
+
+  std::map<target_id_t, target_helper_t> clone_helpers;
+
+  for(auto target: execution_plan.get_targets()) {
+    switch(target->type) {
+    case TargetType::x86_BMv2: {
+      auto generator = std::make_shared<x86BMv2Generator>();
+      generator->output_to_file(directory + "/" + target->instance->name + "bmv2.c");
+      clone_helpers.emplace(target->id, target_helper_t(&CodeGenerator::x86_bmv2_extractor, std::move(generator)));
+      break;
+    }
+    case TargetType::BMv2: {
+      auto generator = std::make_shared<BMv2Generator>();
+      generator->output_to_file(directory + "/" + target->instance->name + ".bmv2.p4");
+      clone_helpers.emplace(target->id, target_helper_t(&CodeGenerator::bmv2_extractor, std::move(generator)));
+      break;
+    }
+    case TargetType::x86_Tofino: {
+      auto generator = std::make_shared<x86TofinoGenerator>();
+      generator->output_to_file(directory + "/" + target->instance->name + ".tofino.cpp");
+      clone_helpers.emplace(target->id, target_helper_t(&CodeGenerator::tofino_extractor, std::move(generator)));
+      break;
+    }
+    case TargetType::Tofino: {
+      auto generator = std::make_shared<TofinoGenerator>();
+      generator->output_to_file(directory + "/" + target->instance->name + ".tofino.p4");
+      clone_helpers.emplace(target->id, target_helper_t(&CodeGenerator::tofino_extractor, std::move(generator)));
+      break;
+    }
+    case TargetType::x86: {
+      auto generator = std::make_shared<x86Generator>();
+      generator->output_to_file(directory + "/" + target->instance->name + ".x86.c");
+      clone_helpers.emplace(target->id, target_helper_t(&CodeGenerator::x86_extractor, std::move(generator)));
+      break;
+    }
+    case TargetType::CloNe: {
+      break;
+    }
+    default:
+      assert(false && "Unknown target type");
+    }
+  }
 
   while (nodes.size()) {
     auto node = nodes[0];
@@ -487,9 +528,10 @@ CodeGenerator::clone_extractor(const ExecutionPlan &execution_plan) const {
     if (module->get_type() == Module::ModuleType::Clone_Then) {
       auto next = node->get_next();
       auto next_node = next[0];
-      auto new_target = next_node->get_module()->get_target();
-      auto found_it = target_helpers_bank.find(new_target);
-      found_it->second.generator->output_to_file(directory + "/nf.clone.c");
+      auto mb = execution_plan.get_memory_bank<CloneMemoryBank>(TargetType::CloNe);
+      auto target = mb->get_target_from_node(module->get_node()); // TODO: do a type of get_targets for all the targets in a branch
+      
+      auto found_it = clone_helpers.find(target->id);
      
       auto extracted_ep = ExecutionPlan(execution_plan, next_node);
       auto helper = found_it->second;
@@ -497,6 +539,7 @@ CodeGenerator::clone_extractor(const ExecutionPlan &execution_plan) const {
       auto &generator = helper.generator;
 
       auto ex_extracted_ep = (this->*extractor)(extracted_ep);
+      Graphviz::visualize(ex_extracted_ep);
       generator->generate(ex_extracted_ep, extracted_ep);
     }
 

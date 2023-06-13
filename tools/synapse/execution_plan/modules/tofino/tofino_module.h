@@ -4,7 +4,7 @@
 #include "data_structures/data_structures.h"
 #include "memory_bank.h"
 
-using synapse::symbex::CHUNK;
+using BDD::symbex::CHUNK;
 
 namespace synapse {
 namespace targets {
@@ -23,7 +23,7 @@ protected:
   // other symbols (e.g. packet length).
   klee::ref<klee::Expr>
   cleanup_parsing_condition(klee::ref<klee::Expr> condition) const {
-    auto parser_cond = kutil::filter(condition, {symbex::CHUNK});
+    auto parser_cond = kutil::filter(condition, {BDD::symbex::CHUNK});
 
     parser_cond = kutil::swap_packet_endianness(parser_cond);
     parser_cond = kutil::simplify(parser_cond);
@@ -49,7 +49,7 @@ protected:
     }
 
     auto future_borrows =
-        get_all_functions_after_node(node, {symbex::FN_BORROW_CHUNK});
+        get_all_functions_after_node(node, {BDD::symbex::FN_BORROW_CHUNK});
 
     if (future_borrows.size() == 0) {
       return false;

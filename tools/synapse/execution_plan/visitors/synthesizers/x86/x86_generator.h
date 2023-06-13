@@ -4,7 +4,6 @@
 #include <vector>
 
 #include "../../../../log.h"
-#include "../../../../symbex.h"
 #include "../../../execution_plan.h"
 #include "../code_builder.h"
 #include "../synthesizer.h"
@@ -115,11 +114,11 @@ public:
              const target::HashObj *node) override;
 
 private:
-  void map_init(addr_t addr, const symbex::map_config_t &cfg);
-  void vector_init(addr_t addr, const symbex::vector_config_t &cfg);
-  void dchain_init(addr_t addr, const symbex::dchain_config_t &cfg);
-  void sketch_init(addr_t addr, const symbex::sketch_config_t &cfg);
-  void cht_init(addr_t addr, const symbex::cht_config_t &cfg);
+  void map_init(addr_t addr, const BDD::symbex::map_config_t &cfg);
+  void vector_init(addr_t addr, const BDD::symbex::vector_config_t &cfg);
+  void dchain_init(addr_t addr, const BDD::symbex::dchain_config_t &cfg);
+  void sketch_init(addr_t addr, const BDD::symbex::sketch_config_t &cfg);
+  void cht_init(addr_t addr, const BDD::symbex::cht_config_t &cfg);
 };
 
 } // namespace x86

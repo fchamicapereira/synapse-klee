@@ -42,14 +42,14 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_SET_CHECKSUM) {
-      assert(!call.args[symbex::FN_SET_CHECKSUM_ARG_IP].expr.isNull());
-      assert(!call.args[symbex::FN_SET_CHECKSUM_ARG_L4].expr.isNull());
-      assert(!call.args[symbex::FN_SET_CHECKSUM_ARG_PACKET].expr.isNull());
+    if (call.function_name == BDD::symbex::FN_SET_CHECKSUM) {
+      assert(!call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_IP].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_L4].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_PACKET].expr.isNull());
 
-      auto _ip_header_addr = call.args[symbex::FN_SET_CHECKSUM_ARG_IP].expr;
-      auto _l4_header_addr = call.args[symbex::FN_SET_CHECKSUM_ARG_L4].expr;
-      auto _p_addr = call.args[symbex::FN_SET_CHECKSUM_ARG_PACKET].expr;
+      auto _ip_header_addr = call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_IP].expr;
+      auto _l4_header_addr = call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_L4].expr;
+      auto _p_addr = call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_PACKET].expr;
       auto _generated_symbols = casted->get_local_generated_symbols();
 
       auto new_module = std::make_shared<IPv4TCPUDPChecksumsUpdate>(

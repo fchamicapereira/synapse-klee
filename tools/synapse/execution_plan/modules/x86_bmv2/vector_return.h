@@ -39,16 +39,16 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_VECTOR_RETURN) {
-      assert(!call.args[symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-      assert(!call.args[symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
-      assert(!call.args[symbex::FN_VECTOR_ARG_VALUE].expr.isNull());
-      assert(!call.args[symbex::FN_VECTOR_ARG_VALUE].in.isNull());
+    if (call.function_name == BDD::symbex::FN_VECTOR_RETURN) {
+      assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].in.isNull());
 
-      auto _vector_addr = call.args[symbex::FN_VECTOR_ARG_VECTOR].expr;
-      auto _index = call.args[symbex::FN_VECTOR_ARG_INDEX].expr;
-      auto _value_addr = call.args[symbex::FN_VECTOR_ARG_VALUE].expr;
-      auto _value = call.args[symbex::FN_VECTOR_ARG_VALUE].in;
+      auto _vector_addr = call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
+      auto _index = call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr;
+      auto _value_addr = call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].expr;
+      auto _value = call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].in;
 
       auto new_module = std::make_shared<VectorReturn>(
           node, _vector_addr, _index, _value_addr, _value);

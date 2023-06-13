@@ -55,7 +55,7 @@ private:
     assert(impls.size() <= 1);
 
     if (impls.size() == 0) {
-      auto vector_config = symbex::get_vector_config(ep.get_bdd(), obj);
+      auto vector_config = BDD::symbex::get_vector_config(ep.get_bdd(), obj);
       auto _capacity = vector_config.capacity;
       auto _counter = Counter::build(obj, {node->get_id()}, _capacity,
                                      value->getWidth(), max_value);
@@ -83,12 +83,12 @@ private:
 
     // We don't care about vector returns, they are handled by the counter read
     // module (it makes sure to ignore them).
-    if (call.function_name != symbex::FN_VECTOR_BORROW) {
+    if (call.function_name != BDD::symbex::FN_VECTOR_BORROW) {
       return result;
     }
 
-    assert(!call.args[symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-    auto _vector = call.args[symbex::FN_VECTOR_ARG_VECTOR].expr;
+    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
+    auto _vector = call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
     auto _vector_addr = kutil::expr_addr_to_obj_addr(_vector);
 
     if (!can_implement(ep, _vector_addr)) {
@@ -109,11 +109,11 @@ private:
       return result;
     }
 
-    assert(!call.args[symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
-    assert(!call.extra_vars[symbex::FN_VECTOR_EXTRA].second.isNull());
+    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
+    assert(!call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second.isNull());
 
-    auto _index = call.args[symbex::FN_VECTOR_ARG_INDEX].expr;
-    auto _borrowed_cell = call.extra_vars[symbex::FN_VECTOR_EXTRA].second;
+    auto _index = call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr;
+    auto _borrowed_cell = call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second;
 
     auto _counter = get_or_build_counter(
         ep, node, _vector_addr, counter_data.max_value, _borrowed_cell);

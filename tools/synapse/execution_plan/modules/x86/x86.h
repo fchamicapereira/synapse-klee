@@ -36,6 +36,7 @@
 #include "vector_return.h"
 
 #include "memory_bank.h"
+#include "../../instance.h"
 
 namespace synapse {
 namespace targets {
@@ -43,7 +44,7 @@ namespace x86 {
 
 class x86Target : public Target {
 public:
-  x86Target()
+  x86Target(Instance_ptr _instance)
       : Target(TargetType::x86,
                {
                    MODULE(MapGet),
@@ -78,9 +79,12 @@ public:
                    MODULE(ChtFindBackend),
                    MODULE(HashObj),
                },
-               TargetMemoryBank_ptr(new x86MemoryBank())) {}
+               TargetMemoryBank_ptr(new x86MemoryBank()),
+               _instance) {}
 
-  static Target_ptr build() { return Target_ptr(new x86Target()); }
+  x86Target() : x86Target(nullptr) {}
+
+  static Target_ptr build(Instance_ptr instance = nullptr) { return Target_ptr(new x86Target(instance)); }
 };
 
 } // namespace x86

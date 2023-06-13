@@ -35,17 +35,17 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_SET_CHECKSUM) {
-      assert(!call.args[symbex::FN_SET_CHECKSUM_ARG_IP].expr.isNull());
-      assert(!call.args[symbex::FN_SET_CHECKSUM_ARG_L4].expr.isNull());
-      assert(!call.args[symbex::FN_SET_CHECKSUM_ARG_PACKET].expr.isNull());
+    if (call.function_name == BDD::symbex::FN_SET_CHECKSUM) {
+      assert(!call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_IP].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_L4].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_PACKET].expr.isNull());
 
-      auto _ip_header = call.args[symbex::FN_SET_CHECKSUM_ARG_IP].expr;
-      auto _l4_header = call.args[symbex::FN_SET_CHECKSUM_ARG_L4].expr;
-      auto _p = call.args[symbex::FN_SET_CHECKSUM_ARG_PACKET].expr;
+      auto _ip_header = call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_IP].expr;
+      auto _l4_header = call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_L4].expr;
+      auto _p = call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_PACKET].expr;
 
       auto _generated_symbols = casted->get_local_generated_symbols();
-      auto _checksum = BDD::get_symbol(_generated_symbols, symbex::CHECKSUM);
+      auto _checksum = BDD::get_symbol(_generated_symbols, BDD::symbex::CHECKSUM);
 
       auto _ip_header_addr = kutil::expr_addr_to_obj_addr(_ip_header);
       auto _l4_header_addr = kutil::expr_addr_to_obj_addr(_l4_header);

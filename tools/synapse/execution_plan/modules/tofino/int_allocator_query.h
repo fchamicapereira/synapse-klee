@@ -37,21 +37,21 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != symbex::FN_DCHAIN_IS_ALLOCATED) {
+    if (call.function_name != BDD::symbex::FN_DCHAIN_IS_ALLOCATED) {
       return result;
     }
 
-    assert(!call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
-    assert(!call.args[symbex::FN_DCHAIN_ARG_INDEX].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr.isNull());
     assert(!call.ret.isNull());
 
-    auto _dchain = call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr;
-    auto _index = call.args[symbex::FN_DCHAIN_ARG_INDEX].expr;
+    auto _dchain = call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
+    auto _index = call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr;
     auto _generated_symbols = casted->get_local_generated_symbols();
 
     auto _dchain_addr = kutil::expr_addr_to_obj_addr(_dchain);
     auto _is_allocated =
-        get_symbol(_generated_symbols, symbex::DCHAIN_IS_INDEX_ALLOCATED);
+        get_symbol(_generated_symbols, BDD::symbex::DCHAIN_IS_INDEX_ALLOCATED);
 
     IntegerAllocatorRef _int_allocator;
 
@@ -67,7 +67,7 @@ private:
     }
 
     if (!_int_allocator) {
-      auto dchain_config = symbex::get_dchain_config(ep.get_bdd(), _dchain_addr);
+      auto dchain_config = BDD::symbex::get_dchain_config(ep.get_bdd(), _dchain_addr);
       auto _capacity = dchain_config.index_range;
       _int_allocator =
           IntegerAllocator::build(_capacity, _dchain_addr, {node->get_id()});

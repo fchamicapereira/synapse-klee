@@ -45,30 +45,30 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != symbex::FN_CHT_FIND_BACKEND) {
+    if (call.function_name != BDD::symbex::FN_CHT_FIND_BACKEND) {
       return result;
     }
 
-    assert(!call.args[symbex::FN_CHT_ARG_HASH].expr.isNull());
-    assert(!call.args[symbex::FN_CHT_ARG_CHT].expr.isNull());
-    assert(!call.args[symbex::FN_CHT_ARG_ACTIVE].expr.isNull());
-    assert(!call.args[symbex::FN_CHT_ARG_HEIGHT].expr.isNull());
-    assert(!call.args[symbex::FN_CHT_ARG_CAPACITY].expr.isNull());
-    assert(!call.args[symbex::FN_CHT_ARG_CHOSEN].out.isNull());
+    assert(!call.args[BDD::symbex::FN_CHT_ARG_HASH].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_CHT_ARG_CHT].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_CHT_ARG_ACTIVE].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_CHT_ARG_HEIGHT].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_CHT_ARG_CAPACITY].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_CHT_ARG_CHOSEN].out.isNull());
 
-    auto _hash = call.args[symbex::FN_CHT_ARG_HASH].expr;
-    auto _cht = call.args[symbex::FN_CHT_ARG_CHT].expr;
-    auto _active = call.args[symbex::FN_CHT_ARG_ACTIVE].expr;
-    auto _height = call.args[symbex::FN_CHT_ARG_HEIGHT].expr;
-    auto _capacity = call.args[symbex::FN_CHT_ARG_CAPACITY].expr;
-    auto _chosen = call.args[symbex::FN_CHT_ARG_CHOSEN].out;
+    auto _hash = call.args[BDD::symbex::FN_CHT_ARG_HASH].expr;
+    auto _cht = call.args[BDD::symbex::FN_CHT_ARG_CHT].expr;
+    auto _active = call.args[BDD::symbex::FN_CHT_ARG_ACTIVE].expr;
+    auto _height = call.args[BDD::symbex::FN_CHT_ARG_HEIGHT].expr;
+    auto _capacity = call.args[BDD::symbex::FN_CHT_ARG_CAPACITY].expr;
+    auto _chosen = call.args[BDD::symbex::FN_CHT_ARG_CHOSEN].out;
 
     auto _cht_addr = kutil::expr_addr_to_obj_addr(_cht);
     auto _active_addr = kutil::expr_addr_to_obj_addr(_active);
 
     auto _generated_symbols = casted->get_local_generated_symbols();
     auto _found =
-        BDD::get_symbol(_generated_symbols, symbex::CHT_BACKEND_FOUND_SYMBOL);
+        BDD::get_symbol(_generated_symbols, BDD::symbex::CHT_BACKEND_FOUND_SYMBOL);
 
     // cht is actually a vector
     save_vector(ep, _cht_addr);

@@ -9,7 +9,6 @@
 
 #include "bdd/nodes/node.h"
 #include "call-paths-to-bdd.h"
-#include "../../../symbex.h"
 
 
 namespace synapse {
@@ -20,15 +19,14 @@ class CloneMemoryBank : public TargetMemoryBank {
 
 struct StartingPoint {
   BDD::Node_ptr node;
-  std::string arch;
-  std::string device;
+  Target_ptr target;
 };
 
 typedef std::shared_ptr<StartingPoint> StartingPoint_ptr;
 
 private:
   std::deque<StartingPoint_ptr> starting_points;
-  std::map<BDD::Node_ptr, std::string> node_to_target;
+  std::map<BDD::Node_ptr, Target_ptr> node_to_target;
   bool is_inited = false;
 
 public:
@@ -54,13 +52,13 @@ public:
     starting_points.erase(starting_points.begin());
   }
 
-  std::string get_target_from_node(BDD::Node_ptr node) const {
+  Target_ptr get_target_from_node(BDD::Node_ptr node) const {
     assert(node_to_target.find(node) != node_to_target.end());
     return node_to_target.at(node);
   }
 
-  void add_starting_point(BDD::Node_ptr node, std::string target, std::string device) {
-    starting_points.push_back(std::make_shared<StartingPoint>(StartingPoint{node, target, device}));
+  void add_starting_point(BDD::Node_ptr node, Target_ptr target) {
+    starting_points.push_back(std::make_shared<StartingPoint>(StartingPoint{node, target}));
     node_to_target[node] = target;  
     is_inited = true;
   }

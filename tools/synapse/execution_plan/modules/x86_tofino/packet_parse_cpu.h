@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../../../symbex.h"
 #include "../module.h"
 
 namespace synapse {

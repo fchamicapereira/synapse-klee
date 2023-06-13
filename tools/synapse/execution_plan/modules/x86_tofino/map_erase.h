@@ -52,14 +52,14 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_MAP_ERASE) {
-      assert(!call.args[symbex::FN_MAP_ARG_MAP].expr.isNull());
-      assert(!call.args[symbex::FN_MAP_ARG_KEY].in.isNull());
-      assert(!call.args[symbex::FN_MAP_ARG_TRASH].out.isNull());
+    if (call.function_name == BDD::symbex::FN_MAP_ERASE) {
+      assert(!call.args[BDD::symbex::FN_MAP_ARG_MAP].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_MAP_ARG_KEY].in.isNull());
+      assert(!call.args[BDD::symbex::FN_MAP_ARG_TRASH].out.isNull());
 
-      auto _map = call.args[symbex::FN_MAP_ARG_MAP].expr;
-      auto _key = call.args[symbex::FN_MAP_ARG_KEY].in;
-      auto _trash = call.args[symbex::FN_MAP_ARG_TRASH].out;
+      auto _map = call.args[BDD::symbex::FN_MAP_ARG_MAP].expr;
+      auto _key = call.args[BDD::symbex::FN_MAP_ARG_KEY].in;
+      auto _trash = call.args[BDD::symbex::FN_MAP_ARG_TRASH].out;
 
       auto _map_addr = kutil::expr_addr_to_obj_addr(_map);
       auto _trash_addr = kutil::expr_addr_to_obj_addr(_trash);

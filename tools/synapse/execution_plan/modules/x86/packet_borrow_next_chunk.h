@@ -39,16 +39,16 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_BORROW_CHUNK) {
-      assert(!call.args[symbex::FN_BORROW_ARG_PACKET].expr.isNull());
-      assert(!call.args[symbex::FN_BORROW_ARG_CHUNK].out.isNull());
-      assert(!call.extra_vars[symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
-      assert(!call.args[symbex::FN_BORROW_CHUNK_ARG_LEN].expr.isNull());
+    if (call.function_name == BDD::symbex::FN_BORROW_CHUNK) {
+      assert(!call.args[BDD::symbex::FN_BORROW_ARG_PACKET].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_BORROW_ARG_CHUNK].out.isNull());
+      assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
+      assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr.isNull());
 
-      auto _p = call.args[symbex::FN_BORROW_ARG_PACKET].expr;
-      auto _chunk = call.args[symbex::FN_BORROW_ARG_CHUNK].out;
-      auto _out_chunk = call.extra_vars[symbex::FN_BORROW_CHUNK_EXTRA].second;
-      auto _length = call.args[symbex::FN_BORROW_CHUNK_ARG_LEN].expr;
+      auto _p = call.args[BDD::symbex::FN_BORROW_ARG_PACKET].expr;
+      auto _chunk = call.args[BDD::symbex::FN_BORROW_ARG_CHUNK].out;
+      auto _out_chunk = call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
+      auto _length = call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr;
 
       auto _p_addr = kutil::expr_addr_to_obj_addr(_p);
       auto _chunk_addr = kutil::expr_addr_to_obj_addr(_chunk);

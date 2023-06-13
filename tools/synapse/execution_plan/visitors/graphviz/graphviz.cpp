@@ -184,7 +184,10 @@ void Graphviz::dump_bdd(const BDD::BDD &bdd,
   // leaf_ofs << "margin=0;\n";
   leaf_ofs << "node [shape=box,style=filled];\n";
 
-  BDD::GraphvizGenerator bdd_graphviz(leaf_ofs, processed, next);
+  BDD::bdd_visualizer_opts_t opts;
+  opts.processed.nodes = processed;
+  opts.processed.next = next;
+  BDD::GraphvizGenerator bdd_graphviz(leaf_ofs, opts);
 
   assert(bdd.get_process());
   bdd.get_process()->visit(bdd_graphviz);

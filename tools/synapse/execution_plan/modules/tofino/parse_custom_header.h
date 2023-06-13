@@ -35,15 +35,15 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != symbex::FN_BORROW_CHUNK) {
+    if (call.function_name != BDD::symbex::FN_BORROW_CHUNK) {
       return result;
     }
 
-    assert(!call.args[symbex::FN_BORROW_CHUNK_ARG_LEN].expr.isNull());
-    assert(!call.extra_vars[symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
+    assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr.isNull());
+    assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
 
-    auto _length = call.args[symbex::FN_BORROW_CHUNK_ARG_LEN].expr;
-    auto _chunk = call.extra_vars[symbex::FN_BORROW_CHUNK_EXTRA].second;
+    auto _length = call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr;
+    auto _chunk = call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
 
     // Only interested in parsing fixed size headers.
     if (_length->getKind() != klee::Expr::Kind::Constant) {

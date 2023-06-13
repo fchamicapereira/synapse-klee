@@ -37,12 +37,12 @@ private:
     auto call_node = BDD_CAST_CALL(node);
     auto call = call_node->get_call();
 
-    if (call.function_name != symbex::FN_DCHAIN_REJUVENATE) {
+    if (call.function_name != BDD::symbex::FN_DCHAIN_REJUVENATE) {
       return false;
     }
 
-    assert(!call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
-    auto _dchain = call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr;
+    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
+    auto _dchain = call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
     obj = kutil::expr_addr_to_obj_addr(_dchain);
 
     return true;
@@ -126,9 +126,9 @@ private:
         auto call_node = BDD::cast_node<BDD::Call>(node);
         auto call = call_node->get_call();
 
-        if (call.function_name != symbex::FN_BORROW_CHUNK &&
-            call.function_name != symbex::FN_RETURN_CHUNK &&
-            call.function_name != symbex::FN_CURRENT_TIME) {
+        if (call.function_name != BDD::symbex::FN_BORROW_CHUNK &&
+            call.function_name != BDD::symbex::FN_RETURN_CHUNK &&
+            call.function_name != BDD::symbex::FN_CURRENT_TIME) {
           continue;
         }
 
@@ -172,13 +172,13 @@ private:
   BDD::symbols_t get_dataplane_state(const ExecutionPlan &ep,
                                      BDD::Node_ptr node) const {
     auto symbols_to_ignore = std::vector<std::string>{
-        symbex::TIME,
-        symbex::EXPIRE_MAP_FREED_FLOWS,
-        symbex::RECEIVED_PACKET,
-        symbex::BUFFER_LENGTH,
-        symbex::PACKET_LENGTH,
-        symbex::PORT,
-        symbex::CHUNK,
+        BDD::symbex::TIME,
+        BDD::symbex::EXPIRE_MAP_FREED_FLOWS,
+        BDD::symbex::RECEIVED_PACKET,
+        BDD::symbex::BUFFER_LENGTH,
+        BDD::symbex::PACKET_LENGTH,
+        BDD::symbex::PORT,
+        BDD::symbex::CHUNK,
     };
 
     auto should_ignore = [&](const BDD::symbol_t &symbol) {
@@ -218,7 +218,7 @@ private:
                               BDD::Node_ptr node) override {
     processing_result_t result;
 
-    if (!ep.has_target(TargetType::x86_Tofino)) {
+    if (!ep.has_target_type(TargetType::x86_Tofino)) {
       return result;
     }
 

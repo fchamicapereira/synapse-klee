@@ -40,16 +40,16 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == symbex::FN_MAP_GET) {
-      assert(!call.args[symbex::FN_MAP_ARG_MAP].expr.isNull());
-      assert(!call.args[symbex::FN_MAP_ARG_KEY].in.isNull());
+    if (call.function_name == BDD::symbex::FN_MAP_GET) {
+      assert(!call.args[BDD::symbex::FN_MAP_ARG_MAP].expr.isNull());
+      assert(!call.args[BDD::symbex::FN_MAP_ARG_KEY].in.isNull());
       assert(!call.ret.isNull());
-      assert(!call.args[symbex::FN_MAP_ARG_OUT].out.isNull());
+      assert(!call.args[BDD::symbex::FN_MAP_ARG_OUT].out.isNull());
 
-      auto _map_addr = call.args[symbex::FN_MAP_ARG_MAP].expr;
-      auto _key = call.args[symbex::FN_MAP_ARG_KEY].in;
+      auto _map_addr = call.args[BDD::symbex::FN_MAP_ARG_MAP].expr;
+      auto _key = call.args[BDD::symbex::FN_MAP_ARG_KEY].in;
       auto _map_has_this_key = call.ret;
-      auto _value_out = call.args[symbex::FN_MAP_ARG_OUT].out;
+      auto _value_out = call.args[BDD::symbex::FN_MAP_ARG_OUT].out;
 
       auto _generated_symbols = casted->get_local_generated_symbols();
 

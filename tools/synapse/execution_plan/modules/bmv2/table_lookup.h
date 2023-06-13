@@ -73,23 +73,23 @@ private:
       auto call_node = static_cast<const BDD::Call *>(node.get());
       auto call = call_node->get_call();
 
-      if (call.function_name != symbex::FN_MAP_GET &&
-          call.function_name != symbex::FN_MAP_PUT &&
-          call.function_name != symbex::FN_VECTOR_BORROW) {
+      if (call.function_name != BDD::symbex::FN_MAP_GET &&
+          call.function_name != BDD::symbex::FN_MAP_PUT &&
+          call.function_name != BDD::symbex::FN_VECTOR_BORROW) {
         node = node->get_prev();
         continue;
       }
 
       uint64_t this_table_id = 0;
-      if (call.function_name == symbex::FN_MAP_GET ||
-          call.function_name == symbex::FN_MAP_PUT) {
-        assert(!call.args[symbex::FN_MAP_ARG_MAP].expr.isNull());
+      if (call.function_name == BDD::symbex::FN_MAP_GET ||
+          call.function_name == BDD::symbex::FN_MAP_PUT) {
+        assert(!call.args[BDD::symbex::FN_MAP_ARG_MAP].expr.isNull());
         this_table_id = kutil::solver_toolbox.value_from_expr(
-            call.args[symbex::FN_MAP_ARG_MAP].expr);
-      } else if (call.function_name == symbex::FN_VECTOR_BORROW) {
-        assert(!call.args[symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
+            call.args[BDD::symbex::FN_MAP_ARG_MAP].expr);
+      } else if (call.function_name == BDD::symbex::FN_VECTOR_BORROW) {
+        assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
         this_table_id = kutil::solver_toolbox.value_from_expr(
-            call.args[symbex::FN_VECTOR_ARG_VECTOR].expr);
+            call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr);
       }
 
       if (this_table_id == _table_id) {
@@ -144,18 +144,18 @@ private:
                        const BDD::Call *casted, processing_result_t &result) {
     auto call = casted->get_call();
 
-    if (call.function_name != symbex::FN_MAP_GET) {
+    if (call.function_name != BDD::symbex::FN_MAP_GET) {
       return false;
     }
 
-    assert(call.function_name == symbex::FN_MAP_GET);
-    assert(!call.args[symbex::FN_MAP_ARG_MAP].expr.isNull());
-    assert(!call.args[symbex::FN_MAP_ARG_KEY].in.isNull());
-    assert(!call.args[symbex::FN_MAP_ARG_OUT].out.isNull());
+    assert(call.function_name == BDD::symbex::FN_MAP_GET);
+    assert(!call.args[BDD::symbex::FN_MAP_ARG_MAP].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_MAP_ARG_KEY].in.isNull());
+    assert(!call.args[BDD::symbex::FN_MAP_ARG_OUT].out.isNull());
 
-    auto _map = call.args[symbex::FN_MAP_ARG_MAP].expr;
-    auto _key = call.args[symbex::FN_MAP_ARG_KEY].in;
-    auto _value = call.args[symbex::FN_MAP_ARG_OUT].out;
+    auto _map = call.args[BDD::symbex::FN_MAP_ARG_MAP].expr;
+    auto _key = call.args[BDD::symbex::FN_MAP_ARG_KEY].in;
+    auto _value = call.args[BDD::symbex::FN_MAP_ARG_OUT].out;
 
     assert(_map->getKind() == klee::Expr::Kind::Constant);
     auto _map_value = kutil::solver_toolbox.value_from_expr(_map);
@@ -168,7 +168,7 @@ private:
     assert(symbols.size() == 2);
 
     auto symbols_it = symbols.begin();
-    assert(symbols_it->label_base == symbex::MAP_HAS_THIS_KEY);
+    assert(symbols_it->label_base == BDD::symbex::MAP_HAS_THIS_KEY);
     auto _map_has_this_key_label = symbols_it->label;
 
     auto merged_response = can_be_merged(ep, node, _map);
@@ -234,18 +234,18 @@ private:
                              processing_result_t &result) {
     auto call = casted->get_call();
 
-    if (call.function_name != symbex::FN_VECTOR_BORROW) {
+    if (call.function_name != BDD::symbex::FN_VECTOR_BORROW) {
       return false;
     }
 
-    assert(call.function_name == symbex::FN_VECTOR_BORROW);
-    assert(!call.args[symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-    assert(!call.args[symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
-    assert(!call.extra_vars[symbex::FN_VECTOR_EXTRA].second.isNull());
+    assert(call.function_name == BDD::symbex::FN_VECTOR_BORROW);
+    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
+    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
+    assert(!call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second.isNull());
 
-    auto _vector = call.args[symbex::FN_VECTOR_ARG_VECTOR].expr;
-    auto _index = call.args[symbex::FN_VECTOR_ARG_INDEX].expr;
-    auto _borrowed_cell = call.extra_vars[symbex::FN_VECTOR_EXTRA].second;
+    auto _vector = call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
+    auto _index = call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr;
+    auto _borrowed_cell = call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second;
 
     assert(_vector->getKind() == klee::Expr::Kind::Constant);
     auto _vector_value = kutil::solver_toolbox.value_from_expr(_vector);
