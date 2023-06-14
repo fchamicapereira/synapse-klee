@@ -134,6 +134,7 @@ std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd,
         exit(1);
       }
       auto infrastructure = Clone::parse_infrastructure(InputTopologyFile);
+      infrastructure->build_routing_table();
 
       for(auto& p_device: infrastructure->get_devices()) {
         auto& device = p_device.second;

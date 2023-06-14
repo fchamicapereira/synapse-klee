@@ -539,7 +539,6 @@ CodeGenerator::clone_extractor(const ExecutionPlan &execution_plan) const {
       auto &generator = helper.generator;
 
       auto ex_extracted_ep = (this->*extractor)(extracted_ep);
-      Graphviz::visualize(ex_extracted_ep);
       generator->generate(ex_extracted_ep, extracted_ep);
     }
 

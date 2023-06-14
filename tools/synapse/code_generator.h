@@ -115,7 +115,7 @@ public:
       output_file += "x86.c";
       break;
     case TargetType::CloNe:
-      output_file += "clone.c";
+      output_file = "/dev/null";
       break;
     }
 

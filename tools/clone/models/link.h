@@ -6,7 +6,7 @@
 
 namespace Clone {
 	using std::string;
-	using std::unique_ptr;
+	using std::shared_ptr;
 	using std::vector;
 
 	class Link {
@@ -32,6 +32,6 @@ namespace Clone {
 		void print() const;
 	};
 
-	typedef vector<unique_ptr<const Link>> LinkList;
-	typedef unique_ptr<const Link> LinkPtr;
+	typedef vector<shared_ptr<const Link>> LinkList;
+	typedef shared_ptr<const Link> LinkPtr;
 }
