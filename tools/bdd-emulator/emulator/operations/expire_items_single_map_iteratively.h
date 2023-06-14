@@ -40,7 +40,6 @@ inline void __expire_items_single_map_iteratively(const Call *call_node,
   for (auto i = start; i < n_elems; i++) {
     auto key = vector->get(i);
     map->erase(key);
-    vector->clear(i);
   }
 }
 

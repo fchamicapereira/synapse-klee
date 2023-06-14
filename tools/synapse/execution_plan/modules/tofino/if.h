@@ -96,7 +96,6 @@ private:
       return result;
     }
 
-    _condition = kutil::simplify(_condition);
     auto _conditions = conditions_t{_condition};
 
     if (!pass_compiler_packet_bytes_constraint(_conditions)) {

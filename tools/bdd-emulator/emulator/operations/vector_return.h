@@ -2,7 +2,6 @@
 
 #include "../internals.h"
 
-#include "../data_structures/map.h" //FIXME: remove this
 #include "../data_structures/vector.h"
 
 namespace BDD {

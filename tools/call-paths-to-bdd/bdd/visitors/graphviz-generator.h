@@ -62,6 +62,8 @@ struct bdd_visualizer_opts_t {
   struct processed_t {
     std::unordered_set<node_id_t> nodes;
     const Node *next;
+
+    processed_t() : next(nullptr) {}
   } processed;
 
   bdd_visualizer_opts_t() : process_only(true) {}
@@ -145,6 +147,8 @@ public:
         return COLOR_RETURN_INIT_FAILURE;
       default:
         assert(false && "Not supposed to be here.");
+        std::cerr << "Error: run in debug mode for more details.\n";
+        exit(1);
       }
     }
     case Node::NodeType::RETURN_PROCESS: {
@@ -160,10 +164,14 @@ public:
         return COLOR_RETURN_PROCESS_BCAST;
       default:
         assert(false && "Not supposed to be here.");
+        std::cerr << "Error: run in debug mode for more details.\n";
+        exit(1);
       }
     }
     default:
       assert(false && "Not supposed to be here.");
+      std::cerr << "Error: run in debug mode for more details.\n";
+      exit(1);
     }
   }
 
@@ -438,6 +446,10 @@ public:
   }
 
   Action visitReturnProcess(const ReturnProcess *node) override {
+    if (!node) {
+      std::cerr << "NO NODE!\n";
+      exit(1);
+    }
     auto value = node->get_return_value();
     auto operation = node->get_return_operation();
 
@@ -451,6 +463,10 @@ public:
       auto constraints = node->get_node_constraints();
       if (constraints.size()) {
         for (auto c : constraints) {
+          if (c.isNull()) {
+            std::cerr << "NO C!\n";
+            exit(1);
+          }
           os << "\\l{" << kutil::pretty_print_expr(c) << "}";
         }
       }

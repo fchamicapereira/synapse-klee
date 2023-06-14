@@ -39,20 +39,6 @@ bool Emulator::evaluate_condition(klee::ref<klee::Expr> condition,
                                   context_t &ctx) const {
   auto always_true = kutil::solver_toolbox.is_expr_always_true(ctx, condition);
 
-  // {
-  //   auto always_false =
-  //       kutil::solver_toolbox.is_expr_always_false(ctx, condition);
-  //   auto maybe_true = kutil::solver_toolbox.is_expr_maybe_true(ctx,
-  //   condition); auto maybe_false =
-  //   kutil::solver_toolbox.is_expr_maybe_true(ctx, condition); std::cerr <<
-  //   "condition: " << kutil::expr_to_string(condition, true)
-  //             << "\n";
-  //   std::cerr << "always true?  " << always_true << "\n";
-  //   std::cerr << "always false? " << always_false << "\n";
-  //   std::cerr << "maybe true?   " << maybe_true << "\n";
-  //   std::cerr << "maybe false?  " << maybe_false << "\n";
-  // }
-
   assert(((kutil::solver_toolbox.is_expr_always_true(ctx, condition)) ^
           (kutil::solver_toolbox.is_expr_always_false(ctx, condition))) &&
          "Can't be sure...");
@@ -73,8 +59,6 @@ void Emulator::run(pkt_t pkt, time_ns_t time, uint16_t device) {
 
     auto id = node->get_id();
     meta.hit_counter[id]++;
-
-    // dump_context(ctx);
 
     switch (node->get_type()) {
     case Node::CALL: {
@@ -120,12 +104,6 @@ void Emulator::run(pkt_t pkt, time_ns_t time, uint16_t device) {
     }
     }
   }
-
-  // dump_context(ctx);
-  // {
-  //   char c;
-  //   std::cin >> c;
-  // }
 }
 
 uint64_t get_number_of_packets_from_pcap(pcap_t *pcap) {
@@ -215,8 +193,6 @@ void Emulator::run(const std::string &pcap_filename, uint16_t device) {
         last_report = progress;
       }
     }
-
-    // std::cerr << "\n" << meta << "\n\n";
 
     // The first iteration is the warmup iteration.
     if (i == 0 && cfg.warmup) {

@@ -18,14 +18,14 @@ struct bytes_t {
   bytes_t() : values(nullptr), size(0) {}
 
   bytes_t(uint32_t _size) : values(new byte_t[_size]), size(_size) {
-    for (auto i = 0u; i < _size; i++) {
+    for (auto i = 0u; i < size; i++) {
       values[i] = 0;
     }
   }
 
   bytes_t(uint32_t _size, uint64_t value) : bytes_t(_size) {
-    for (auto i = 0u; i < _size; i++) {
-      values[i] = (value >> (8 * (_size - i - 1))) & 0xff;
+    for (auto i = 0u; i < size; i++) {
+      values[i] = (value >> (8 * (size - i - 1))) & 0xff;
     }
   }
 

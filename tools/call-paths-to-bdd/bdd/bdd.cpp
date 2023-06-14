@@ -199,19 +199,21 @@ Node_ptr BDD::populate(call_paths_t call_paths,
       }
     } else {
       auto discriminating_constraint = group.get_discriminating_constraint();
-      auto node = std::make_shared<Branch>(id, empty_contraints,
-                                           discriminating_constraint);
+      auto constraint_simpl = kutil::simplify(discriminating_constraint);
+      auto node =
+          std::make_shared<Branch>(id, empty_contraints, constraint_simpl);
 
       id++;
 
       auto not_discriminating_constraint =
           kutil::solver_toolbox.exprBuilder->Not(discriminating_constraint);
+      auto not_constraint_simpl = kutil::simplify(not_discriminating_constraint);
 
       auto on_true_accumulated = accumulated;
       auto on_false_accumulated = accumulated;
 
-      on_true_accumulated.addConstraint(discriminating_constraint);
-      on_false_accumulated.addConstraint(not_discriminating_constraint);
+      on_true_accumulated.addConstraint(constraint_simpl);
+      on_false_accumulated.addConstraint(not_constraint_simpl);
 
       auto on_true_root = populate(on_true, on_true_accumulated);
       auto on_false_root = populate(on_false, on_false_accumulated);

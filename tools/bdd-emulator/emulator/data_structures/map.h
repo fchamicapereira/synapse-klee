@@ -54,13 +54,13 @@ public:
     // and we need to trim them, otherwise we don't encounter the data (because
     // we always hash the entire key... obviously...)
 
+    assert(_key.size >= key_size);
     bytes_t key(_key, _key.size - key_size);
 
     assert(contains(key));
     assert(key.size == key_size || key_size == 0);
 
-    auto removed = data.erase(key);
-    assert(removed > 0);
+    data.erase(key);
   }
 
   static Map *cast(const DataStructureRef &ds) {
