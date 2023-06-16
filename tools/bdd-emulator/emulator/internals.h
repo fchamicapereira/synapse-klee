@@ -57,7 +57,8 @@ inline void concretize(context_t &ctx, klee::ref<klee::Expr> expr,
   ctx.addConstraint(concretize_expr);
 }
 
-inline bytes_t bytes_from_expr(klee::ref<klee::Expr> expr, const context_t& ctx) {
+inline bytes_t bytes_from_expr(klee::ref<klee::Expr> expr,
+                               const context_t &ctx) {
   auto size = expr->getWidth() / 8;
   assert(expr->getWidth() % 8 == 0);
 
@@ -126,8 +127,10 @@ inline std::ostream &operator<<(std::ostream &os, const meta_t &meta) {
 struct cfg_t {
   std::pair<bool, gbps_t> rate;
   std::pair<bool, time_us_t> timeout;
-  std::pair<bool, int> loop;
   bool warmup;
+  bool report;
+
+  cfg_t() : warmup(false), report(false) {}
 };
 
 struct pkt_t {

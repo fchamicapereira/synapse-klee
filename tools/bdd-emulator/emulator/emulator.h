@@ -10,6 +10,7 @@
 #include "data_structures/data_structures.h"
 #include "internals.h"
 #include "operations/operations.h"
+#include "reporter.h"
 
 namespace BDD {
 namespace emulation {
@@ -23,10 +24,11 @@ private:
   meta_t meta;
 
   operations_t operations;
+  Reporter reporter;
 
 public:
   Emulator(const BDD &_bdd, cfg_t _cfg)
-      : bdd(_bdd), cfg(_cfg), operations(get_operations()) {
+      : bdd(_bdd), cfg(_cfg), operations(get_operations()), reporter(meta, cfg.warmup) {
     kutil::solver_toolbox.build();
     setup();
   }

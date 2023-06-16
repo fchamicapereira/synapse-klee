@@ -13,10 +13,6 @@ llvm::cl::opt<std::string> InputPcap("pcap", llvm::cl::desc("Pcap file."),
                                      llvm::cl::Required,
                                      llvm::cl::cat(BDDEmulator));
 
-llvm::cl::opt<int> Loop("loop", llvm::cl::desc("Loop over the pcap"),
-                        llvm::cl::init(0), llvm::cl::Optional,
-                        llvm::cl::cat(BDDEmulator));
-
 llvm::cl::opt<int> InputDevice("device",
                                llvm::cl::desc("Device that receives packets."),
                                llvm::cl::Required, llvm::cl::cat(BDDEmulator));
@@ -43,13 +39,12 @@ llvm::cl::opt<bool> Show("s", llvm::cl::desc("Render dot file."),
                          llvm::cl::ValueDisallowed, llvm::cl::init(false),
                          llvm::cl::cat(BDDEmulator));
 
-llvm::cl::opt<bool> Warmup(
-    "warmup",
-    llvm::cl::desc("Use the first pcap loop iteration to fill state, and don't "
-                   "it consider to the hit rate calculation (you might want to "
-                   "pair this with the looping option)."),
-    llvm::cl::ValueDisallowed, llvm::cl::init(false),
-    llvm::cl::cat(BDDEmulator));
+llvm::cl::opt<bool>
+    Warmup("warmup",
+           llvm::cl::desc("Loop the pcap first to warmup state, and then do "
+                          "another pass to retrieve metadata."),
+           llvm::cl::ValueDisallowed, llvm::cl::init(false),
+           llvm::cl::cat(BDDEmulator));
 } // namespace
 
 BDD::emulation::meta_t run(const BDD::BDD &bdd,
@@ -76,12 +71,8 @@ int main(int argc, char **argv) {
     cfg.timeout.second = Expiration;
   }
 
-  if (Loop > 0) {
-    cfg.loop.first = true;
-    cfg.loop.second = Loop;
-  }
-
   cfg.warmup = Warmup;
+  cfg.report = true;
 
   auto meta = run(bdd, cfg, InputPcap, InputDevice);
   std::cerr << meta << "\n";

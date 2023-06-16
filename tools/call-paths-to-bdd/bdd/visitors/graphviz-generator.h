@@ -153,7 +153,7 @@ public:
     }
     case Node::NodeType::RETURN_PROCESS: {
       auto return_init_node = static_cast<const ReturnProcess *>(node);
-      auto ret_value = return_init_node->get_return_value();
+      auto ret_value = return_init_node->get_return_operation();
 
       switch (ret_value) {
       case ReturnProcess::Operation::FWD:
@@ -446,10 +446,6 @@ public:
   }
 
   Action visitReturnProcess(const ReturnProcess *node) override {
-    if (!node) {
-      std::cerr << "NO NODE!\n";
-      exit(1);
-    }
     auto value = node->get_return_value();
     auto operation = node->get_return_operation();
 

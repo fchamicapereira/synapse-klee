@@ -1,5 +1,4 @@
 #include "emulator.h"
-
 #include "pcap.h"
 
 namespace BDD {
@@ -147,12 +146,16 @@ void Emulator::run(const std::string &pcap_filename, uint16_t device) {
   int status = 1;
   time_ns_t time = 0;
 
-  auto loops = cfg.loop.first ? cfg.loop.second : 1;
+  auto loops = cfg.warmup ? 2 : 1;
+
+  if (cfg.report) {
+    reporter.set_num_packets(num_packets);
+  }
 
   for (auto i = 0; i < loops; i++) {
+    auto warmup_mode = (i == 0 && cfg.warmup);
+
     fseek(fpcap, pcap_start_pos, SEEK_SET);
-    uint64_t packet_counter = 0;
-    int last_report = -1;
 
     while ((status = pcap_next_ex(pcap, &header, &data)) >= 0) {
       pkt_t pkt;
@@ -168,7 +171,9 @@ void Emulator::run(const std::string &pcap_filename, uint16_t device) {
         // So actually, result in ns = (pkt.size * 8) / gbps
         // Also, don't forget to take the inter packet gap, preamble, and CRC
         // into consideration.
-        auto dt = (time_ns_t)(((pkt.size + 24) * 8) / cfg.rate.second);
+        auto CRC = 4;
+        auto IPG = 20;
+        auto dt = (time_ns_t)(((pkt.size + IPG + CRC) * 8) / cfg.rate.second);
         time += dt;
         meta.elapsed_time += dt;
       } else {
@@ -182,21 +187,18 @@ void Emulator::run(const std::string &pcap_filename, uint16_t device) {
       run(pkt, time, device);
 
       meta.packet_counter++;
-      packet_counter++;
 
-      auto progress = (int)((100.0 * packet_counter) / num_packets);
-
-      if (progress > last_report) {
-        printf("Loop %d/%d Progress %3d%% Time %lu ns\r", i + 1, loops, progress,
-               time);
-        fflush(stdout);
-        last_report = progress;
+      if (cfg.report) {
+        reporter.inc_packet_counter();
+        reporter.set_time(time);
+        reporter.show();
       }
     }
 
     // The first iteration is the warmup iteration.
-    if (i == 0 && cfg.warmup) {
+    if (warmup_mode) {
       meta.reset();
+      reporter.stop_warmup();
     }
   }
 

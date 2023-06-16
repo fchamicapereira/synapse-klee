@@ -144,14 +144,16 @@ std::string Transpiler::transpile(const klee::ref<klee::Expr> &expr) {
     return const_result.second;
   }
 
-  auto variable_result = try_transpile_variable(expr);
+  auto simplified = kutil::simplify(expr);
+  auto variable_result = try_transpile_variable(simplified);
 
   if (variable_result.first) {
     return variable_result.second;
   }
 
+
   auto transpiler = InternalTranspiler(generator, *this);
-  transpiler.visit(expr);
+  transpiler.visit(simplified);
 
   auto code = transpiler.get();
   assert(code.size());

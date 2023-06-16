@@ -29,6 +29,11 @@
 size_t global_total_length;
 size_t global_read_length = 0;
 
+#define MAX_N_CHUNKS 100
+
+void *chunks_borrowed[MAX_N_CHUNKS];
+size_t chunks_borrowed_num = 0;
+
 void packet_state_total_length(void *p, uint32_t *len) {
   global_total_length = *len;
 }
@@ -44,10 +49,20 @@ size_t packet_get_chunk_length(void *p, void *chunk) {
 void packet_borrow_next_chunk(void *p, size_t length, void **chunk) {
   *chunk = (char *)p + global_read_length;
   global_read_length += length;
+
+  chunks_borrowed[chunks_borrowed_num] = *chunk;
+  chunks_borrowed_num++;
 }
 
 void packet_return_chunk(void *p, void *chunk) {
   global_read_length = (uint32_t)((int8_t *)chunk - (int8_t *)p);
+}
+
+void packet_return_all_chunks(void *p) {
+  while (chunks_borrowed_num != 0) {
+    packet_return_chunk(p, chunks_borrowed[chunks_borrowed_num - 1]);
+    chunks_borrowed_num--;
+  }
 }
 
 void packet_shrink_chunk(void **p, size_t length, void **chunks,
@@ -1326,6 +1341,7 @@ static void worker_main(void) {
         vigor_time_t VIGOR_NOW = current_time();
         uint16_t dst_device = nf_process(
             mbufs[n]->port, &data, mbufs[n]->pkt_len, VIGOR_NOW, mbufs[n]);
+        packet_return_all_chunks(data);
 
         if (dst_device == VIGOR_DEVICE) {
           rte_pktmbuf_free(mbufs[n]);
