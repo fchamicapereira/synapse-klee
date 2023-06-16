@@ -38,6 +38,7 @@ private:
 
       auto new_module = std::make_shared<Then>(node);
       auto new_ep = ep.ignore_leaf(node, target);
+      new_ep.get_bdd().set_process(node);
 
       result.module = new_module;
       result.next_eps.push_back(new_ep);

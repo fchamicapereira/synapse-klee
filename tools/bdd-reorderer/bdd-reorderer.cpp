@@ -880,6 +880,7 @@ reorder(const BDD &bdd, Node_ptr root,
     auto root_cloned = bdd_cloned.get_node_by_id(root->get_id());
     auto candidate_cloned = bdd_cloned.get_node_by_id(candidate.node->get_id());
 
+   // if(!root_cloned) break;
     assert(root_cloned);
     assert(candidate_cloned);
 
