@@ -11,11 +11,12 @@ namespace netronome {
 
 class NetronomeTarget : public Target {
 public:
-  NetronomeTarget()
+  NetronomeTarget(Instance_ptr _instance)
       : Target(TargetType::Netronome, {},
-               TargetMemoryBank_ptr(new NetronomeMemoryBank())) {}
+               TargetMemoryBank_ptr(new NetronomeMemoryBank()),
+               _instance) {}
 
-  static Target_ptr build() { return Target_ptr(new NetronomeTarget()); }
+  static Target_ptr build(Instance_ptr _instance = nullptr) { return Target_ptr(new NetronomeTarget(_instance)); }
 };
 
 } // namespace netronome

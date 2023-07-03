@@ -240,7 +240,7 @@ bool manager_contains(klee::ConstraintManager constraints,
                       klee::ref<klee::Expr> expr) {
   auto found_it = std::find_if(
       constraints.begin(), constraints.end(), [&](klee::ref<klee::Expr> e) {
-        return solver_toolbox.are_exprs_always_equal(e, expr);
+        return solver_toolbox.are_exprs_always_equal(e, expr, true);
       });
   return found_it != constraints.end();
 }

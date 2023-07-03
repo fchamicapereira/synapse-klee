@@ -1,6 +1,7 @@
 #pragma once
 
-#include "emulator/internals.h"
+#include "emulator/internals/internals.h"
+
 #include <unordered_map>
 
 namespace BDD {

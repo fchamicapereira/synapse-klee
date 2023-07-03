@@ -85,19 +85,19 @@ bool CallPathsGroup::are_calls_equal(call_t c1, call_t c2) {
     auto c1_arg = c1.args[arg_name];
     auto c2_arg = c2.args[arg_name];
 
-    if (!c1_arg.out.isNull() &&
-        !kutil::solver_toolbox.are_exprs_always_equal(c1_arg.in, c1_arg.out)) {
+    if (!c1_arg.out.isNull() && !kutil::solver_toolbox.are_exprs_always_equal(
+                                    c1_arg.in, c1_arg.out, true)) {
       continue;
     }
 
     // comparison between modifications to the received packet
-    if (!c1_arg.in.isNull() &&
-        !kutil::solver_toolbox.are_exprs_always_equal(c1_arg.in, c2_arg.in)) {
+    if (!c1_arg.in.isNull() && !kutil::solver_toolbox.are_exprs_always_equal(
+                                   c1_arg.in, c2_arg.in, true)) {
       return false;
     }
 
     if (c1_arg.in.isNull() && !kutil::solver_toolbox.are_exprs_always_equal(
-                                  c1_arg.expr, c2_arg.expr)) {
+                                  c1_arg.expr, c2_arg.expr, true)) {
       return false;
     }
   }
@@ -149,16 +149,9 @@ bool CallPathsGroup::satisfies_constraint(
 
 bool CallPathsGroup::satisfies_constraint(
     call_path_t *call_path, klee::ref<klee::Expr> constraint) const {
-  kutil::RetrieveSymbols symbol_retriever;
-  symbol_retriever.visit(constraint);
-  std::vector<klee::ref<klee::ReadExpr>> symbols =
-      symbol_retriever.get_retrieved();
-
-  kutil::ReplaceSymbols symbol_replacer(symbols);
   auto not_constraint = kutil::solver_toolbox.exprBuilder->Not(constraint);
-
-  return kutil::solver_toolbox.is_expr_always_false(
-      call_path->constraints, not_constraint, symbol_replacer);
+  return kutil::solver_toolbox.is_expr_always_false(call_path->constraints,
+                                                    not_constraint, true);
 }
 
 bool CallPathsGroup::satisfies_not_constraint(
@@ -174,16 +167,9 @@ bool CallPathsGroup::satisfies_not_constraint(
 
 bool CallPathsGroup::satisfies_not_constraint(
     call_path_t *call_path, klee::ref<klee::Expr> constraint) const {
-  kutil::RetrieveSymbols symbol_retriever;
-  symbol_retriever.visit(constraint);
-  std::vector<klee::ref<klee::ReadExpr>> symbols =
-      symbol_retriever.get_retrieved();
-
-  kutil::ReplaceSymbols symbol_replacer(symbols);
   auto not_constraint = kutil::solver_toolbox.exprBuilder->Not(constraint);
-
   return kutil::solver_toolbox.is_expr_always_true(
-      call_path->constraints, not_constraint, symbol_replacer);
+      call_path->constraints, not_constraint, true);
 }
 
 bool CallPathsGroup::check_discriminating_constraint(

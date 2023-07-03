@@ -240,6 +240,7 @@ InternalTranspiler::visitRead(const klee::ReadExpr &e) {
 
   if (!variable.valid) {
     Log::err() << "Unknown variable with symbol " << symbol.second << "\n";
+    assert(false);
     exit(1);
   }
 
@@ -280,6 +281,7 @@ InternalTranspiler::visitConcat(const klee::ConcatExpr &e) {
 
     if (!variable.valid) {
       Log::err() << "Unknown variable with symbol " << symbol.second << "\n";
+      assert(false);
       exit(1);
     }
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../internals.h"
+#include "../internals/internals.h"
 #include "data_structure.h"
 
 #include <unordered_map>

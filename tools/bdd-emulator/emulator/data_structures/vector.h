@@ -1,6 +1,6 @@
 #pragma once
 
-#include "byte.h"
+#include "../internals/byte.h"
 #include "data_structure.h"
 
 #include <vector>

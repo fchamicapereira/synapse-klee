@@ -22,6 +22,9 @@ private:
   std::vector<std::string> bdd_fpaths;
 
   std::map<TargetType, std::string> node_colors;
+  std::map<std::string, std::string> node_borders;
+
+  std::vector<std::string> border_colors;
 
   constexpr static int fname_len = 15;
   constexpr static const char *prefix = "/tmp/";
@@ -43,6 +46,18 @@ public:
         {TargetType::x86_Tofino, "firebrick2"},
         {TargetType::x86, "cadetblue1"},
         {TargetType::CloNe, "darkorchid1"}
+    };
+
+    border_colors = {
+      "brown",
+      "blue",
+      "chocolate",
+      "forestgreen",
+      "dodgerblue",
+      "greenyellow",
+      "crimson",
+      "darkviolet",
+      "darkslategray"
     };
 
     ofs.open(fpath);
@@ -70,6 +85,8 @@ private:
                 const BDD::Node *next);
 
   std::string get_bdd_node_name(const BDD::Node *node) const;
+
+  void initialise_border_colours(const ExecutionPlan &ep);
 
   void dump_search_space() const;
 
@@ -240,6 +257,8 @@ public:
   DECLARE_VISIT(targets::x86::LoadBalancedFlowHash)
   DECLARE_VISIT(targets::x86::ChtFindBackend)
   DECLARE_VISIT(targets::x86::HashObj)
+  DECLARE_VISIT(targets::x86::SendToDevice)
+  DECLARE_VISIT(targets::x86::PacketParseCPU)
 
 
   /********************************************

@@ -16,7 +16,7 @@ namespace clone {
 
 class CloneTarget : public Target {
 public:
-	CloneTarget()
+	CloneTarget(Instance_ptr _instance)
 		: Target(TargetType::CloNe,
 				 {
 					MODULE(If),
@@ -24,10 +24,11 @@ public:
 					MODULE(Else),	
 					MODULE(Drop)
 				 },
-				 TargetMemoryBank_ptr(new CloneMemoryBank())) {}
+				 TargetMemoryBank_ptr(new CloneMemoryBank()),
+				 _instance) {}
 
-	static Target_ptr build() { 
-		return Target_ptr(new CloneTarget()); 
+	static Target_ptr build(Instance_ptr _instance = nullptr) { 
+		return Target_ptr(new CloneTarget(_instance)); 
 	}
 };
 

@@ -1,8 +1,10 @@
-#!/bin/bash
+#!/bin/zsh
 
 set -euo pipefail
 
-KLEE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+KLEE_DIR="$(cd "$(dirname "${(%):-%N}")" && pwd)"
+export N_PROC=$(nproc)
+
 
 function debug {
   [ -d "$KLEE_DIR/Debug" ] || mkdir "$KLEE_DIR/Debug"
@@ -27,7 +29,7 @@ function debug {
                          -DENABLE_DOXYGEN=ON \
                          ..
 
-  make -k || exit 1
+  make -k -j$N_PROC || exit 1
 }
 
 function release {
@@ -54,7 +56,7 @@ function release {
                          -DENABLE_DOXYGEN=OFF \
                          ..
 
-  make -k || exit 1
+  make -k -j$N_PROC || exit 1
 }
 
 if [ $# -ge 1 ] && [[ "$1" == "debug" ]]; then

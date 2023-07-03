@@ -1,20 +1,20 @@
 #pragma once
 
-#include "../internals.h"
-
 #include "../data_structures/dchain.h"
 #include "../data_structures/map.h"
 #include "../data_structures/vector.h"
+#include "../internals/internals.h"
 
 namespace BDD {
 namespace emulation {
 
-inline time_ns_t get_expiration_time(klee::ref<klee::Expr> expr) {
+inline time_ns_t get_expiration_time(const BDD &bdd,
+                                     klee::ref<klee::Expr> expr) {
   auto symbol = kutil::get_symbol(expr);
   assert(symbol.first);
   auto time_symbol = symbol.second;
 
-  auto time = kutil::solver_toolbox.create_new_symbol(time_symbol, 64);
+  auto time = bdd.get_symbol(time_symbol);
   auto zero = kutil::solver_toolbox.exprBuilder->Constant(0, 64);
   auto time_eq_0 = kutil::solver_toolbox.exprBuilder->Eq(time, zero);
 
@@ -25,10 +25,10 @@ inline time_ns_t get_expiration_time(klee::ref<klee::Expr> expr) {
   return value * -1;
 }
 
-inline void __expire_items_single_map(const Call *call_node, pkt_t &pkt,
-                                      time_ns_t time, state_t &state,
-                                      meta_t &meta, context_t &ctx,
-                                      const cfg_t &cfg) {
+inline void __expire_items_single_map(const BDD &bdd, const Call *call_node,
+                                      pkt_t &pkt, time_ns_t time,
+                                      state_t &state, meta_t &meta,
+                                      context_t &ctx, const cfg_t &cfg) {
   auto call = call_node->get_call();
 
   assert(!call.args[symbex::FN_EXPIRE_MAP_ARG_CHAIN].expr.isNull());
@@ -48,7 +48,7 @@ inline void __expire_items_single_map(const Call *call_node, pkt_t &pkt,
   auto map_addr = kutil::expr_addr_to_obj_addr(map_expr);
 
   auto timeout = cfg.timeout.first ? cfg.timeout.second * 1000
-                                   : get_expiration_time(time_expr);
+                                   : get_expiration_time(bdd, time_expr);
   auto last_time = (time >= timeout) ? time - timeout : 0;
 
   auto ds_dchain = state.get(dchain_addr);

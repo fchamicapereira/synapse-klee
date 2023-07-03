@@ -14,14 +14,14 @@ public:
   SendToController()
       : Module(ModuleType::BMv2_SendToController, TargetType::BMv2,
                "SendToController") {
-    next_target = TargetType::x86_BMv2;
+    next_target_type = TargetType::x86_BMv2;
   }
 
   SendToController(BDD::Node_ptr node, BDD::node_id_t _metadata_code_path)
       : Module(ModuleType::BMv2_SendToController, TargetType::BMv2,
                "SendToController", node),
         metadata_code_path(_metadata_code_path) {
-    next_target = TargetType::x86_BMv2;
+    next_target_type = TargetType::x86_BMv2;
   }
 
 private:

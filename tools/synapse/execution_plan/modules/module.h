@@ -159,6 +159,8 @@ public:
     x86_LoadBalancedFlowHash,
     x86_ChtFindBackend,
     x86_HashObj,
+    x86_SendToDevice,
+    x86_PacketParseCPU,
     Clone_If,
     Clone_Then,
     Clone_Else,
@@ -180,18 +182,18 @@ protected:
 protected:
   ModuleType type;
   TargetType target;
-  TargetType next_target;
+  TargetType next_target_type;
   const char *name;
   BDD::Node_ptr node;
 
 protected:
   Module(ModuleType _type, TargetType _target, const char *_name,
          BDD::Node_ptr _node)
-      : type(_type), target(_target), next_target(_target), name(_name),
+      : type(_type), target(_target), next_target_type(_target), name(_name),
         node(_node) {}
 
   Module(ModuleType _type, TargetType _target, const char *_name)
-      : type(_type), target(_target), next_target(_target), name(_name),
+      : type(_type), target(_target), next_target_type(_target), name(_name),
         node(nullptr) {}
 
 public:
@@ -201,7 +203,7 @@ public:
   ModuleType get_type() const { return type; }
   const char *get_name() const { return name; }
   TargetType get_target() const { return target; }
-  TargetType get_next_target() const { return next_target; }
+  TargetType get_next_target_type() const { return next_target_type; }
   BDD::Node_ptr get_node() const { return node; }
 
   void replace_node(BDD::Node_ptr _node) {

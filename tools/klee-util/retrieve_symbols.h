@@ -7,12 +7,14 @@
 
 #include "exprs.h"
 
+#include <unordered_map>
 #include <unordered_set>
 
 namespace kutil {
 
 class RetrieveSymbols : public klee::ExprVisitor::ExprVisitor {
 private:
+  std::unordered_map<std::string, klee::UpdateList> roots_updates;
   std::vector<klee::ref<klee::ReadExpr>> retrieved_reads;
   std::vector<klee::ref<klee::ReadExpr>> retrieved_reads_packet_chunks;
   std::vector<klee::ref<klee::Expr>> retrieved_readLSB;
@@ -47,6 +49,7 @@ public:
 
     retrieved_strings.insert(root->name);
     retrieved_reads.emplace_back((const_cast<klee::ReadExpr *>(&e)));
+    roots_updates.insert({root->name, ul});
 
     if (root->name == "packet_chunks") {
       retrieved_reads_packet_chunks.emplace_back(
@@ -60,20 +63,25 @@ public:
     return klee::ExprVisitor::Action::doChildren();
   }
 
-  std::vector<klee::ref<klee::ReadExpr>> get_retrieved() {
+  const std::vector<klee::ref<klee::ReadExpr>>& get_retrieved() {
     return retrieved_reads;
   }
 
-  std::vector<klee::ref<klee::ReadExpr>> get_retrieved_packet_chunks() {
+  const std::vector<klee::ref<klee::ReadExpr>>& get_retrieved_packet_chunks() {
     return retrieved_reads_packet_chunks;
   }
 
-  std::vector<klee::ref<klee::Expr>> get_retrieved_readLSB() {
+  const std::vector<klee::ref<klee::Expr>>& get_retrieved_readLSB() {
     return retrieved_readLSB;
   }
 
-  std::unordered_set<std::string> get_retrieved_strings() {
+  const std::unordered_set<std::string>& get_retrieved_strings() {
     return retrieved_strings;
+  }
+
+  const std::unordered_map<std::string, klee::UpdateList> &
+  get_retrieved_roots_updates() {
+    return roots_updates;
   }
 
   static bool contains(klee::ref<klee::Expr> expr, const std::string &symbol) {

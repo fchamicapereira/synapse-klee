@@ -1,18 +1,15 @@
 #pragma once
 
-#include "../internals.h"
-
 #include "../data_structures/map.h"
 #include "../data_structures/vector.h"
+#include "../internals/internals.h"
 
 namespace BDD {
 namespace emulation {
 
-inline void __expire_items_single_map_iteratively(const Call *call_node,
-                                                  pkt_t &pkt, time_ns_t time,
-                                                  state_t &state, meta_t &meta,
-                                                  context_t &ctx,
-                                                  const cfg_t &cfg) {
+inline void __expire_items_single_map_iteratively(
+    const BDD &bdd, const Call *call_node, pkt_t &pkt, time_ns_t time,
+    state_t &state, meta_t &meta, context_t &ctx, const cfg_t &cfg) {
   auto call = call_node->get_call();
 
   assert(!call.args[symbex::FN_EXPIRE_MAP_ARG_MAP].expr.isNull());

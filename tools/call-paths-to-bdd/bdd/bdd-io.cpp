@@ -687,9 +687,9 @@ call_t parse_call(std::string serialized_call,
 }
 
 Node_ptr parse_node_call(node_id_t id,
-                            const klee::ConstraintManager &constraints,
-                            std::string serialized,
-                            std::vector<klee::ref<klee::Expr>> &exprs) {
+                         const klee::ConstraintManager &constraints,
+                         std::string serialized,
+                         std::vector<klee::ref<klee::Expr>> &exprs) {
   auto call = parse_call(serialized, exprs);
   auto call_node =
       std::make_shared<Call>(id, nullptr, nullptr, constraints, call);
@@ -697,9 +697,9 @@ Node_ptr parse_node_call(node_id_t id,
 }
 
 Node_ptr parse_node_branch(node_id_t id,
-                              const klee::ConstraintManager &constraints,
-                              std::string serialized,
-                              std::vector<klee::ref<klee::Expr>> &exprs) {
+                           const klee::ConstraintManager &constraints,
+                           std::string serialized,
+                           std::vector<klee::ref<klee::Expr>> &exprs) {
   auto condition = pop_expr(exprs);
   auto branch_node = std::make_shared<Branch>(id, nullptr, nullptr, constraints,
                                               nullptr, condition);
@@ -707,9 +707,9 @@ Node_ptr parse_node_branch(node_id_t id,
 }
 
 Node_ptr parse_node_return_init(node_id_t id,
-                                   const klee::ConstraintManager &constraints,
-                                   std::string serialized,
-                                   std::vector<klee::ref<klee::Expr>> &exprs) {
+                                const klee::ConstraintManager &constraints,
+                                std::string serialized,
+                                std::vector<klee::ref<klee::Expr>> &exprs) {
   auto return_init_str = serialized;
   ReturnInit::ReturnType return_value;
 
@@ -726,9 +726,10 @@ Node_ptr parse_node_return_init(node_id_t id,
   return return_init_node;
 }
 
-Node_ptr parse_node_return_process(
-    node_id_t id, const klee::ConstraintManager &constraints,
-    std::string serialized, std::vector<klee::ref<klee::Expr>> &exprs) {
+Node_ptr parse_node_return_process(node_id_t id,
+                                   const klee::ConstraintManager &constraints,
+                                   std::string serialized,
+                                   std::vector<klee::ref<klee::Expr>> &exprs) {
   auto delim = serialized.find(" ");
   assert(delim != std::string::npos);
 
@@ -759,7 +760,7 @@ Node_ptr parse_node_return_process(
 }
 
 Node_ptr parse_node(std::string serialized_node,
-                       std::vector<klee::ref<klee::Expr>> &exprs) {
+                    std::vector<klee::ref<klee::Expr>> &exprs) {
   Node_ptr node;
 
   auto delim = serialized_node.find(":");
@@ -776,8 +777,7 @@ Node_ptr parse_node(std::string serialized_node,
 
   auto serialized_constraints_num = serialized_node.substr(0, delim);
 
-  serialized_node =
-      serialized_node.substr(delim + serialized_constraints_num.size());
+  serialized_node = serialized_node.substr(delim + 1);
 
   auto constraints_num = std::atoi(serialized_constraints_num.c_str());
   assert(constraints_num >= 0);
@@ -793,6 +793,7 @@ Node_ptr parse_node(std::string serialized_node,
   assert(delim != std::string::npos);
 
   auto node_type_str = serialized_node.substr(0, delim);
+
   serialized_node = serialized_node.substr(delim + 1);
   serialized_node = serialized_node.substr(0, serialized_node.size() - 1);
 

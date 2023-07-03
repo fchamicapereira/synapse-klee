@@ -6,9 +6,9 @@
 
 #include "../load-call-paths/load-call-paths.h"
 
-#include "replace_symbols.h"
-
 namespace kutil {
+
+class ReplaceSymbols;
 
 struct solver_toolbox_t {
   klee::Solver *solver;
@@ -35,24 +35,41 @@ struct solver_toolbox_t {
   klee::ref<klee::Expr> create_new_symbol(const std::string &symbol_name,
                                           klee::Expr::Width width) const;
 
+  klee::ConstraintManager
+  merge_symbols(const klee::ConstraintManager &constraints,
+                klee::ref<klee::Expr> expr) const;
+
+  // return the second expr with symbols merged with expr1
+  klee::ref<klee::Expr> merge_symbols(klee::ref<klee::Expr> expr1,
+                                      klee::ref<klee::Expr> expr2) const;
+
   bool is_expr_always_true(klee::ref<klee::Expr> expr) const;
   bool is_expr_always_true(klee::ConstraintManager constraints,
                            klee::ref<klee::Expr> expr) const;
   bool is_expr_always_true(klee::ConstraintManager constraints,
                            klee::ref<klee::Expr> expr,
-                           ReplaceSymbols &symbol_replacer) const;
+                           bool force_symbol_merge) const;
 
   bool is_expr_maybe_true(klee::ConstraintManager constraints,
                           klee::ref<klee::Expr> expr) const;
+
+  bool is_expr_maybe_true(klee::ConstraintManager constraints,
+                          klee::ref<klee::Expr> expr,
+                          bool force_symbol_merge) const;
+
   bool is_expr_maybe_false(klee::ConstraintManager constraints,
                            klee::ref<klee::Expr> expr) const;
+
+  bool is_expr_maybe_false(klee::ConstraintManager constraints,
+                           klee::ref<klee::Expr> expr,
+                           bool force_symbol_merge) const;
 
   bool is_expr_always_false(klee::ref<klee::Expr> expr) const;
   bool is_expr_always_false(klee::ConstraintManager constraints,
                             klee::ref<klee::Expr> expr) const;
   bool is_expr_always_false(klee::ConstraintManager constraints,
                             klee::ref<klee::Expr> expr,
-                            ReplaceSymbols &symbol_replacer) const;
+                            bool force_symbol_merge) const;
 
   bool are_exprs_always_equal(klee::ref<klee::Expr> e1,
                               klee::ref<klee::Expr> e2,
@@ -63,8 +80,12 @@ struct solver_toolbox_t {
                                   klee::ref<klee::Expr> e2,
                                   klee::ConstraintManager c1,
                                   klee::ConstraintManager c2) const;
+
   bool are_exprs_always_equal(klee::ref<klee::Expr> expr1,
                               klee::ref<klee::Expr> expr2) const;
+  bool are_exprs_always_equal(klee::ref<klee::Expr> expr1,
+                              klee::ref<klee::Expr> expr2,
+                              bool force_symbol_merge) const;
 
   bool are_exprs_values_always_equal(klee::ref<klee::Expr> expr1,
                                      klee::ref<klee::Expr> expr2) const;

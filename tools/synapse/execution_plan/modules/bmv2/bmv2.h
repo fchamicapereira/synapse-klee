@@ -29,7 +29,7 @@ namespace bmv2 {
 
 class BMv2Target : public Target {
 public:
-  BMv2Target()
+  BMv2Target(Instance_ptr _instance)
       : Target(TargetType::BMv2,
                {
                    MODULE(SendToController),
@@ -51,9 +51,10 @@ public:
                    MODULE(TcpUdpModify),
                    MODULE(IPOptionsModify),
                },
-               TargetMemoryBank_ptr(new BMv2MemoryBank())) {}
+               TargetMemoryBank_ptr(new BMv2MemoryBank()),
+               _instance) {}
     
-    static Target_ptr build() { return Target_ptr(new BMv2Target()); }
+    static Target_ptr build(Instance_ptr _instance = nullptr) { return Target_ptr(new BMv2Target(_instance)); }
 };
 
 } // namespace bmv2

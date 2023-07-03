@@ -17,7 +17,7 @@ private:
 public:
   SendToController()
       : TofinoModule(ModuleType::Tofino_SendToController, "SendToController") {
-    next_target = TargetType::x86_Tofino;
+    next_target_type = TargetType::x86_Tofino;
   }
 
   SendToController(BDD::Node_ptr node, cpu_code_path_t _cpu_code_path,
@@ -25,7 +25,7 @@ public:
       : TofinoModule(ModuleType::Tofino_SendToController, "SendToController",
                      node),
         cpu_code_path(_cpu_code_path), dataplane_state(_dataplane_state) {
-    next_target = TargetType::x86_Tofino;
+    next_target_type = TargetType::x86_Tofino;
   }
 
 private:
@@ -239,8 +239,10 @@ private:
     auto send_to_controller = std::make_shared<SendToController>(
         node_cloned, _code_path, _dataplane_state);
 
+    auto& v_targets = ep.get_from_target_type(TargetType::x86_Tofino);
+    auto next_target = v_targets[0]; // TODO: fix this
     auto new_ep =
-        ep_cloned.add_leaves(send_to_controller, next_node, false, false);
+        ep_cloned.add_leaves(send_to_controller, next_node, false, false, next_target);
     new_ep.replace_active_leaf_node(next_node, false);
 
     auto with_postponed = apply_postponed(new_ep, next_node, next_node);

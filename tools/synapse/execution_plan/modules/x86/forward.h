@@ -25,10 +25,19 @@ private:
 
     if (!casted) {
       return result;
-    }
+    } 
 
     if (casted->get_return_operation() == BDD::ReturnProcess::Operation::FWD) {
       auto _port = casted->get_return_value();
+
+      Target_ptr next_target;
+      if(ep.has_target_type(TargetType::CloNe)) {
+        auto dev =  ep.get_infrastructure()->get_port(_port)->get_device();
+        auto instance = ep.get_current_target()->instance;
+        if(instance->name != dev->get_id()) {
+          return result;
+        }
+      }
 
       auto new_module = std::make_shared<Forward>(node, _port);
       auto new_ep = ep.add_leaves(new_module, node->get_next(), true);

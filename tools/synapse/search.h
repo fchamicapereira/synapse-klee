@@ -3,6 +3,7 @@
 #include "execution_plan/instance.h"
 #include "execution_plan/execution_plan.h"
 #include "execution_plan/modules/clone/clone.h"
+#include "execution_plan/target.h"
 #include "execution_plan/visitors/graphviz/graphviz.h"
 #include "heuristics/heuristic.h"
 #include "log.h"
@@ -89,6 +90,9 @@ public:
     }
 
     search_space.init(h.get_cfg(), first_execution_plan);
+    if(first_execution_plan.has_target_type(TargetType::CloNe)) {
+      first_execution_plan.setup_clone();
+    }
     h.add(std::vector<ExecutionPlan>{first_execution_plan});
 
     while (!h.finished()) {

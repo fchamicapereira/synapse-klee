@@ -84,11 +84,11 @@ public:
     return constraints;
   }
 
-  klee::ConstraintManager get_constraints() const;
-
-  void set_constraints(const klee::ConstraintManager &_constraints) {
+  void set_node_constraints(const klee::ConstraintManager &_constraints) {
     constraints = _constraints;
   }
+
+  klee::ConstraintManager get_constraints() const;
 
   symbols_t get_generated_symbols() const;
 

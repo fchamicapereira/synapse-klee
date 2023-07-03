@@ -21,6 +21,10 @@ llvm::cl::opt<float> Rate("rate", llvm::cl::desc("Rate (Gbps)"),
                           llvm::cl::Optional, llvm::cl::init(0),
                           llvm::cl::cat(BDDEmulator));
 
+llvm::cl::opt<int>
+    Loops("loops", llvm::cl::desc("Number of loops (0 to never stop looping)"),
+          llvm::cl::Optional, llvm::cl::init(1), llvm::cl::cat(BDDEmulator));
+
 llvm::cl::opt<int> Expiration("expiration",
                               llvm::cl::desc("Expiration time (us)"),
                               llvm::cl::init(0), llvm::cl::Optional,
@@ -71,6 +75,7 @@ int main(int argc, char **argv) {
     cfg.timeout.second = Expiration;
   }
 
+  cfg.loops = Loops;
   cfg.warmup = Warmup;
   cfg.report = true;
 

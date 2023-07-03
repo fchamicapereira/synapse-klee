@@ -32,7 +32,7 @@ namespace x86_bmv2 {
 
 class x86BMv2Target : public Target {
 public:
-  x86BMv2Target()
+  x86BMv2Target(Instance_ptr _instance)
       : Target(TargetType::x86_BMv2,
                {
                    MODULE(MapGet),
@@ -57,9 +57,10 @@ public:
                    MODULE(SetIpv4UdpTcpChecksum),
                    MODULE(DchainIsIndexAllocated),
                },
-               TargetMemoryBank_ptr(new x86BMv2MemoryBank())) {}
+               TargetMemoryBank_ptr(new x86BMv2MemoryBank()),
+               _instance) {}
 
-  static Target_ptr build() { return Target_ptr(new x86BMv2Target()); }
+  static Target_ptr build(Instance_ptr _instance = nullptr) { return Target_ptr(new x86BMv2Target(_instance)); }
 };
 
 } // namespace x86_bmv2

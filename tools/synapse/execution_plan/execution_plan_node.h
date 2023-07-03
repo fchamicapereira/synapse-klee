@@ -1,6 +1,7 @@
 #pragma once
 
 #include "call-paths-to-bdd.h"
+#include "target.h"
 
 namespace synapse {
 
@@ -18,6 +19,7 @@ class ExecutionPlanNode {
 
 private:
   Module_ptr module;
+  Target_ptr target;  
   Branches next;
   ExecutionPlanNode_ptr prev;
   int id;
@@ -25,13 +27,17 @@ private:
   static int counter;
 
 private:
-  ExecutionPlanNode(Module_ptr _module);
+  ExecutionPlanNode(Module_ptr _module, Target_ptr target);
   ExecutionPlanNode(const ExecutionPlanNode *ep_node);
 
 public:
   void set_next(Branches _next);
   void set_next(ExecutionPlanNode_ptr _next);
   void set_prev(ExecutionPlanNode_ptr _prev);
+
+  inline void clear_next() {
+    next.clear();
+  }
 
   const Module_ptr &get_module() const;
   void replace_module(Module_ptr _module);
@@ -41,6 +47,7 @@ public:
 
   int get_id() const;
   void set_id(int _id);
+  Target_ptr get_target() const;
 
   bool is_terminal_node() const;
 
@@ -51,7 +58,7 @@ public:
   ExecutionPlanNode_ptr clone(bool recursive = false) const;
   void visit(ExecutionPlanVisitor &visitor) const;
 
-  static ExecutionPlanNode_ptr build(Module_ptr _module);
+  static ExecutionPlanNode_ptr build(Module_ptr _module, Target_ptr target);
   static ExecutionPlanNode_ptr build(const ExecutionPlanNode *ep_node);
 };
 } // namespace synapse

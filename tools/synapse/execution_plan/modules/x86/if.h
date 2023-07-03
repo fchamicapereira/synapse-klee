@@ -37,11 +37,11 @@ private:
     auto new_then_module = std::make_shared<Then>(node);
     auto new_else_module = std::make_shared<Else>(node);
 
-    auto if_leaf = ExecutionPlan::leaf_t(new_if_module, nullptr);
+    auto if_leaf = ExecutionPlan::leaf_t(new_if_module, nullptr, ep.get_current_target());
     auto then_leaf =
-        ExecutionPlan::leaf_t(new_then_module, casted->get_on_true());
+        ExecutionPlan::leaf_t(new_then_module, casted->get_on_true(), ep.get_current_target());
     auto else_leaf =
-        ExecutionPlan::leaf_t(new_else_module, casted->get_on_false());
+        ExecutionPlan::leaf_t(new_else_module, casted->get_on_false(), ep.get_current_target());
 
     std::vector<ExecutionPlan::leaf_t> if_leaves{if_leaf};
     std::vector<ExecutionPlan::leaf_t> then_else_leaves{then_leaf, else_leaf};

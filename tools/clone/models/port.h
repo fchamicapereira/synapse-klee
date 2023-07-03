@@ -13,7 +13,6 @@ namespace Clone {
 	using std::runtime_error;
 	using std::shared_ptr;
 
-
 	class Port {
 	private:
 		const DevicePtr device;

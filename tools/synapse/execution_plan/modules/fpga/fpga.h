@@ -11,11 +11,12 @@ namespace fpga {
 
 class FPGATarget : public Target {
 public:
-  FPGATarget()
+  FPGATarget(Instance_ptr _instance)
       : Target(TargetType::FPGA, {},
-               TargetMemoryBank_ptr(new FPGAMemoryBank())) {}
+               TargetMemoryBank_ptr(new FPGAMemoryBank()),
+               _instance) {}
 
-  static Target_ptr build() { return Target_ptr(new FPGATarget()); }
+  static Target_ptr build(Instance_ptr _instance = nullptr) { return Target_ptr(new FPGATarget(_instance)); }
 };
 
 } // namespace fpga

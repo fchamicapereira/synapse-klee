@@ -28,7 +28,7 @@ private:
     if (casted->get_return_operation() != BDD::ReturnProcess::Operation::DROP) {
       return result;
     }
-    
+
     auto new_module = std::make_shared<Drop>(node);
     auto new_ep = ep.add_leaves(new_module, nullptr, true, true);
     result.module = new_module;

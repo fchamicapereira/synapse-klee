@@ -1,11 +1,11 @@
 #pragma once
 
-#include "../internals.h"
+#include "../internals/internals.h"
 
 namespace BDD {
 namespace emulation {
 
-inline void __nf_set_rte_ipv4_tcpudp_checksum(const Call *call_node, pkt_t &pkt,
+inline void __nf_set_rte_ipv4_tcpudp_checksum(const BDD& bdd, const Call *call_node, pkt_t &pkt,
                                               time_ns_t time, state_t &state,
                                               meta_t &meta, context_t &ctx,
                                               const cfg_t &cfg) {

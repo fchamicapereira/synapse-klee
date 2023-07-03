@@ -119,7 +119,7 @@ void packet_insert_new_chunk(void **p, size_t length, void **chunks,
     ((uint8_t **)chunks)[i] -= length;
   }
 
-  assert(chunks[0] == data);
+  //assert(chunks[0] == data);
 
   (*num_chunks)++;
   (*p) = data;

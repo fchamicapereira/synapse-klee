@@ -1,6 +1,7 @@
 #pragma once
 
 #include "execution_plan/execution_plan.h"
+#include "execution_plan/target.h"
 #include "execution_plan/visitors/synthesizers/synthesizers.h"
 
 #include <sys/stat.h>
@@ -19,7 +20,7 @@ namespace synapse {
 class CodeGenerator {
 private:
   typedef ExecutionPlan (CodeGenerator::*ExecutionPlanTargetExtractor)(
-      const ExecutionPlan &) const;
+      const ExecutionPlan &, Target_ptr) const;
   typedef std::shared_ptr<Synthesizer> Synthesizer_ptr;
 
   struct target_helper_t {
@@ -38,14 +39,14 @@ private:
   std::map<TargetType, target_helper_t> target_helpers_bank;
 
 private:
-  ExecutionPlan x86_extractor(const ExecutionPlan &execution_plan) const;
-  ExecutionPlan x86_bmv2_extractor(const ExecutionPlan &execution_plan) const;
-  ExecutionPlan x86_tofino_extractor(const ExecutionPlan &execution_plan) const;
-  ExecutionPlan bmv2_extractor(const ExecutionPlan &execution_plan) const;
-  ExecutionPlan fpga_extractor(const ExecutionPlan &execution_plan) const;
-  ExecutionPlan tofino_extractor(const ExecutionPlan &execution_plan) const;
-  ExecutionPlan netronome_extractor(const ExecutionPlan &execution_plan) const;
-  ExecutionPlan clone_extractor(const ExecutionPlan &execution_plan) const;
+  ExecutionPlan x86_extractor(const ExecutionPlan &execution_pla, Target_ptr target = nullptr) const;
+  ExecutionPlan x86_bmv2_extractor(const ExecutionPlan &execution_plan, Target_ptr target = nullptr) const;
+  ExecutionPlan x86_tofino_extractor(const ExecutionPlan &execution_plan, Target_ptr target = nullptr) const;
+  ExecutionPlan bmv2_extractor(const ExecutionPlan &execution_plan, Target_ptr target = nullptr) const;
+  ExecutionPlan fpga_extractor(const ExecutionPlan &execution_pla, Target_ptr target = nullptr) const;
+  ExecutionPlan tofino_extractor(const ExecutionPlan &execution_plan, Target_ptr target = nullptr) const;
+  ExecutionPlan netronome_extractor(const ExecutionPlan &execution_plan, Target_ptr target = nullptr) const;
+  ExecutionPlan clone_extractor(const ExecutionPlan &execution_plan, Target_ptr target = nullptr) const;
 
   std::string directory;
 
@@ -128,7 +129,7 @@ public:
       auto &extractor = helper.extractor;
       auto &generator = helper.generator;
 
-      auto extracted_ep = (this->*extractor)(execution_plan);
+      auto extracted_ep = (this->*extractor)(execution_plan, nullptr);
       generator->generate(extracted_ep, execution_plan);
     }
   }

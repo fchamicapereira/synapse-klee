@@ -112,6 +112,10 @@ public:
              const target::ChtFindBackend *node) override;
   void visit(const ExecutionPlanNode *ep_node,
              const target::HashObj *node) override;
+  void visit(const ExecutionPlanNode *ep_node,
+             const target::SendToDevice *node) override;
+  void visit(const ExecutionPlanNode *ep_node,
+             const target::PacketParseCPU *node) override;
 
 private:
   void map_init(addr_t addr, const BDD::symbex::map_config_t &cfg);

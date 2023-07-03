@@ -1,10 +1,10 @@
 #include "builder.h"
 #include "../pch.h"
 
-#include "bdd/nodes/branch.h"
-#include "bdd/nodes/node.h"
+#include "call-paths-to-bdd.h"
+#include "../parser/infrastructure.h"
 #include "concretize_symbols.h"
-#include "klee/Constraints.h"
+#include "exprs.h"
 #include "load-call-paths.h"
 #include "retrieve_symbols.h"
 #include "solver_toolbox.h"
@@ -26,6 +26,61 @@ namespace Clone {
 	Builder::~Builder() = default;
 
 	/* Private methods */
+
+	void Builder::add_vigor_device_constraint(BDD::Call* node, unsigned input_port) {
+		ConstraintManager cm = node->get_node_constraints();
+		auto vigor_device = solver_toolbox.create_new_symbol("VIGOR_DEVICE", 32);
+		auto extract = solver_toolbox.exprBuilder->Extract(vigor_device, 0, klee::Expr::Int32);
+		auto port = solver_toolbox.exprBuilder->Constant(input_port, vigor_device->getWidth());
+		auto eq = solver_toolbox.exprBuilder->Eq(extract, port);
+		cm.addConstraint(eq);
+		node->set_node_constraints(cm);
+	}
+
+	void Builder::add_vigor_device_constraint(BDD::Branch* node, unsigned input_port) {
+		ConstraintManager cm = node->get_node_constraints();
+		auto vigor_device = solver_toolbox.create_new_symbol("VIGOR_DEVICE", 32);
+		auto port = solver_toolbox.exprBuilder->Constant(input_port, vigor_device->getWidth());
+		auto eq = solver_toolbox.exprBuilder->Eq(vigor_device, port);
+		cm.addConstraint(eq);
+		node->set_node_constraints(cm);
+	}
+
+	void Builder::concretize_vigor_device(BDD::Call* node, unsigned input_port) {
+		ConstraintManager cm = node->get_node_constraints();
+		auto call = node->get_call();
+
+		for(auto& arg: call.args) {
+			auto expr = arg.second.expr;
+			auto symbols = kutil::get_symbols(expr);
+			if(symbols.count("VIGOR_DEVICE")) {
+				arg.second.expr = kutil::ConcretizeSymbols("VIGOR_DEVICE", input_port).visit(expr);
+				add_vigor_device_constraint(node, input_port);
+			}
+
+			auto in = arg.second.in;
+			symbols = kutil::get_symbols(in);
+			if(symbols.count("VIGOR_DEVICE")) {
+				arg.second.in = kutil::ConcretizeSymbols("VIGOR_DEVICE", input_port).visit(in);
+				add_vigor_device_constraint(node, input_port);
+			}
+		}
+
+		node->set_call(call);
+	}
+
+	bool Builder::concretize_vigor_device(BDD::Branch* node, unsigned input_port) {
+		auto condition = node->get_condition();
+		auto symbols = kutil::get_symbols(condition);
+
+		if(symbols.count("VIGOR_DEVICE")) {
+			add_vigor_device_constraint(node, input_port);
+			return true;
+		}
+		
+		return false;
+	}
+
 
 	Tails Builder::clone_node(Node_ptr root, uint32_t input_port) {
 		assert(root);
@@ -52,32 +107,20 @@ namespace Clone {
 					branch->add_prev(prev);
 
 					const auto &condition_symbols = get_symbols(branch->get_condition());
+					concretize_vigor_device(branch, input_port);
 
-					bool maybe_true = false;
-					bool maybe_false = false;
+					auto condition = branch->get_condition();
+					auto constraints = branch->get_node_constraints();
 
-					if (condition_symbols.size() == 1 && *condition_symbols.begin() == "VIGOR_DEVICE") {
-						auto vigor_device = solver_toolbox.create_new_symbol("VIGOR_DEVICE", 32);
-						auto port = solver_toolbox.exprBuilder->Constant(input_port, vigor_device->getWidth());
-						auto eq = solver_toolbox.exprBuilder->Eq(vigor_device, port);
-						auto cm = branch->get_node_constraints();
-
-						cm.addConstraint(eq);
-						maybe_true = solver_toolbox.is_expr_maybe_true(cm, branch->get_condition()) ;
-						maybe_false = solver_toolbox.is_expr_maybe_false(cm, branch->get_condition()) ;
-					}
-					else {
-						const auto &cm = branch->get_constraints();
-						maybe_true = solver_toolbox.is_expr_maybe_true(cm, branch->get_condition()) ;
-						maybe_false = solver_toolbox.is_expr_maybe_false(cm, branch->get_condition()) ;
-					}
+					bool maybe_false = solver_toolbox.is_expr_maybe_false(constraints, condition, true);
+					bool maybe_true = solver_toolbox.is_expr_maybe_true(constraints, condition, true);
 
 					if(!maybe_true) {
-						trim_node(curr, next_false);
+						Infrastructure::trim_node(curr, next_false);
 						s.push(next_false);
 					}
 					else if(!maybe_false) {
-						trim_node(curr, next_true);
+						Infrastructure::trim_node(curr, next_true);
 						s.push(next_true);
 					}
 					else {
@@ -88,26 +131,23 @@ namespace Clone {
 						branch->add_on_false(next_false);
 						next_false->replace_prev(curr);
 						s.push(next_false);
-					}
 
+						auto condition = branch->get_condition();
+						auto symbols = kutil::get_symbols(condition);
+
+						if(symbols.count("VIGOR_DEVICE")) {
+							kutil::ConcretizeSymbols concretizer("VIGOR_DEVICE", input_port);
+							auto new_condition = concretizer.visit(branch->get_condition());
+							branch->set_condition(new_condition);
+						} 
+					}
 					break;
 				}
 				case Node::NodeType::CALL: {
 					Call* call { static_cast<Call*>(curr.get()) };
 					assert(call->get_next());
 
-					klee::ConstraintManager cm;
-					for(auto c: call->get_node_constraints()) {
-						kutil::RetrieveSymbols retriever;
-						retriever.visit(c);
-						if(retriever.get_retrieved_strings().find("VIGOR_DEVICE") != retriever.get_retrieved_strings().end()) {
-							kutil::ConcretizeSymbols concretizer("VIGOR_DEVICE", input_port);
-							c = concretizer.visit(c);
-						}
-						cm.addConstraint(c);
-					}
-
-					call->set_constraints(cm);
+					concretize_vigor_device(call, input_port);
 
 					Node_ptr next = call->get_next()->clone();
 					call->replace_next(next);
@@ -142,34 +182,6 @@ namespace Clone {
 		return tails;
 	}
 
-	void Builder::trim_node(Node_ptr curr, Node_ptr next) {
-		auto prev = curr->get_prev();
-
-		if(prev->get_type() == Node::NodeType::BRANCH) {
-			auto branch { static_cast<Branch*>(prev.get()) };
-			auto on_true = branch->get_on_true();
-			auto on_false = branch->get_on_false();
-
-			if (on_true->get_id() == curr->get_id()) {
-				branch->replace_on_true(next);
-				next->replace_prev(prev);
-				assert(branch->get_on_true()->get_prev()->get_id() == prev->get_id());
-			}
-			else if (on_false->get_id() == curr->get_id()) {
-				branch->replace_on_false(next);
-				next->replace_prev(prev);
-				assert(branch->get_on_false()->get_prev()->get_id() == prev->get_id());
-			}
-			else {
-				danger("Could not trim branch ", prev->get_id(), " to leaf ", curr->get_id());
-			}
-		}
-		else {
-			prev->replace_next(next);
-			next->replace_prev(prev);
-		}
-	}
-
 	/* Static methods */
 
 	shared_ptr<Builder> Builder::create() {
@@ -193,26 +205,15 @@ namespace Clone {
 			{}, 
 			0, 
 			ReturnProcess::Operation::DROP));
-		trim_node(node, return_drop);
+		Infrastructure::trim_node(node, return_drop);
 	}
 
 	void Builder::add_root_branch(Node_ptr &root, unsigned input_port) {
-		ConstraintManager cm {};
-		auto vigor_device = solver_toolbox.create_new_symbol("VIGOR_DEVICE", 32);
-		auto port = solver_toolbox.exprBuilder->Constant(input_port, vigor_device->getWidth()) ;
-		auto eq = solver_toolbox.exprBuilder->Eq(vigor_device, port) ;
-		Node_ptr node = Node_ptr(new Branch(counter++, cm, eq));
-		Node_ptr return_drop = Node_ptr(new ReturnProcess(counter++, node, {}, 0, ReturnProcess::Operation::DROP));
-		Node_ptr return_fwd = Node_ptr(new ReturnProcess(counter++, node, {}, 0, ReturnProcess::Operation::FWD));
-		Branch* branch = static_cast<Branch*>(node.get());
-
-		branch->add_on_false(return_drop);
-		branch->add_on_true(return_fwd);
+		Node_ptr node = Infrastructure::get_if_vigor_device(input_port, counter);
 
 		if(root != nullptr) {
-			assert(root->get_type() == Node::NodeType::BRANCH);
-			auto root_branch = static_cast<Branch*>(root.get());
-			root_branch->replace_on_false(node);
+			Branch* root_casted = static_cast<Branch*>(root.get());
+			root_casted->replace_on_false(node);
 			node->add_prev(root);
 		}
 
@@ -220,12 +221,12 @@ namespace Clone {
 		assert(root != nullptr);
 	}
 
-	void Builder::add_init_branch(unsigned port) {
-		add_root_branch(init_root, port);
-		merged_inits.clear();
-		Branch* branch = static_cast<Branch*>(init_root.get());
-		init_tail = branch->get_on_true();
-	}
+	//void Builder::add_init_branch(unsigned port) {
+	//	add_root_branch(init_root, port);
+	//	merged_inits.clear();
+	//	Branch* branch = static_cast<Branch*>(init_root.get());
+	//	init_tail = branch->get_on_true();
+	//}
 	
 	void Builder::add_process_branch(unsigned port) {
 		add_root_branch(process_root, port);
@@ -250,7 +251,7 @@ namespace Clone {
 		}
 
 		if(init_tail != nullptr) {
-			trim_node(init_tail, init_new);
+			Infrastructure::trim_node(init_tail, init_new);
 		}
 
  		clone_node(init_new, 0);
@@ -262,7 +263,7 @@ namespace Clone {
 
 		auto root = nf->get_bdd()->get_process()->clone(true);
 		root->recursive_update_ids(counter);
-		trim_node(tail, root);
+		Infrastructure::trim_node(tail, root);
 
 		return clone_node(root, port);
 	}
@@ -295,6 +296,4 @@ namespace Clone {
 		info("Dumping BDD to file \"", path, "\"");
 		this->bdd->serialize(path);
 	}
-
-	
 }

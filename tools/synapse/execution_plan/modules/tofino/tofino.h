@@ -32,7 +32,7 @@ namespace tofino {
 
 class TofinoTarget : public Target {
 public:
-  TofinoTarget()
+  TofinoTarget(Instance_ptr _instance)
       : Target(TargetType::Tofino,
                {
                    MODULE(Ignore),
@@ -56,9 +56,10 @@ public:
                    MODULE(CounterIncrement),
                    MODULE(HashObj),
                },
-               TargetMemoryBank_ptr(new TofinoMemoryBank())) {}
+               TargetMemoryBank_ptr(new TofinoMemoryBank()),
+               _instance) {}
 
-  static Target_ptr build() { return Target_ptr(new TofinoTarget()); }
+  static Target_ptr build(Instance_ptr _instance = nullptr) { return Target_ptr(new TofinoTarget(_instance)); }
 };
 
 } // namespace tofino

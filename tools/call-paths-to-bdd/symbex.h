@@ -49,7 +49,11 @@ constexpr char CHECKSUM[] = "checksum";
 
 constexpr char FN_BORROW_CHUNK[] = "packet_borrow_next_chunk";
 constexpr char FN_RETURN_CHUNK[] = "packet_return_chunk";
+constexpr char FN_RETURN_ALL_CHUNKS[] = "packet_return_all_chunks";
+constexpr char FN_SHRINK_CHUNK[] = "packet_shrink_chunk";
+
 constexpr char FN_GET_UNREAD_LEN[] = "packet_get_unread_length";
+constexpr char FN_INSERT_CHUNK[] = "packet_insert_new_chunk";
 
 constexpr char FN_BORROW_ARG_PACKET[] = "p";
 constexpr char FN_BORROW_ARG_CHUNK[] = "chunk";

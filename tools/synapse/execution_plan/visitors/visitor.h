@@ -151,6 +151,8 @@ class DchainFreeIndex;
 class LoadBalancedFlowHash;
 class ChtFindBackend;
 class HashObj;
+class SendToDevice;
+class PacketParseCPU;
 } // namespace x86
 
 namespace clone {
@@ -324,6 +326,8 @@ public:
   VISIT(targets::x86::LoadBalancedFlowHash)
   VISIT(targets::x86::ChtFindBackend)
   VISIT(targets::x86::HashObj)
+  VISIT(targets::x86::SendToDevice)
+  VISIT(targets::x86::PacketParseCPU)
 
   /*************************************
     *

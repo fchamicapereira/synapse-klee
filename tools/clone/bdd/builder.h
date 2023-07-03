@@ -6,6 +6,8 @@
 #include <deque>
 #include <unordered_set>
 
+#include "bdd/nodes/branch.h"
+#include "bdd/nodes/call.h"
 #include "bdd/nodes/node.h"
 #include "call-paths-to-bdd.h"
 
@@ -32,7 +34,11 @@ namespace Clone {
 
 		uint64_t counter = 1;
 		Builder(unique_ptr<BDD::BDD> bdd);
-
+		
+		void add_vigor_device_constraint(BDD::Call* node, uint32_t input_port);
+		void add_vigor_device_constraint(BDD::Branch* node, uint32_t input_port);
+		void concretize_vigor_device(BDD::Call* node, uint32_t input_port);
+		bool concretize_vigor_device(BDD::Branch* node, unsigned input_port);
 		Tails clone_node(Node_ptr node, uint32_t input_port);
 		void trim_node(Node_ptr curr, Node_ptr next);
 	public:
@@ -45,8 +51,8 @@ namespace Clone {
 
 		void replace_with_drop(Node_ptr node);
 
-		void add_root_branch(Node_ptr &root, unsigned port);
-		void add_init_branch(unsigned port);
+		void add_root_branch(Node_ptr& root, unsigned port);
+		//void add_init_branch(unsigned port);
 		void add_process_branch(unsigned port);
 
 		void initialise_init(const shared_ptr<const BDD::BDD> &bdd);

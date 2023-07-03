@@ -1,3 +1,4 @@
+#include "execution_plan/clone_util.h"
 #include "execution_plan/instance.h"
 #include "execution_plan/target.h"
 #include "klee/ExprBuilder.h"
@@ -144,9 +145,6 @@ std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd,
         search_engine.add_target(target_type, instance);
       }
 
-      //for(const auto& device_type: device_types) {
-      //  search_engine.add_target(string_to_target_type[device_type]);
-      //}
       search_engine.set_infrastructure(move(infrastructure));
     }
   }

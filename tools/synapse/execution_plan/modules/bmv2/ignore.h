@@ -40,7 +40,7 @@ private:
 
     if (found_it != functions_to_ignore.end()) {
       auto new_module = std::make_shared<Ignore>(node);
-      auto new_ep = ep.ignore_leaf(node->get_next(), TargetType::BMv2);
+      auto new_ep = ep.ignore_leaf(node->get_next());
 
       result.module = new_module;
       result.next_eps.push_back(new_ep);

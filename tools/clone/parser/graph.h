@@ -13,6 +13,7 @@ namespace Clone {
 	using std::shared_ptr;
 
 	struct Graph {
+		//  device       port    device
 		map<string, map<unsigned, string>> m;
 
 		Graph() = default;

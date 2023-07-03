@@ -34,11 +34,14 @@ private:
 
     auto module = active_leaf->get_module();
     if(module->get_type() == Module::ModuleType::Clone_Then) {
-      Target_ptr target = mb->get_target_from_node(node);
+      Target_ptr target = mb->get_origin_from_node(node)->target;
 
       auto new_module = std::make_shared<Then>(node);
-      auto new_ep = ep.ignore_leaf(node, target);
+      auto new_ep = ep.ignore_leaf(node, target, false);
+
+      BDD_ptr _bdd = BDD_ptr(new BDD::BDD(new_ep.get_clone_bdd_id(), new_ep.get_bdd().get_init(), node));
       new_ep.get_bdd().set_process(node);
+      new_ep.get_bdd().set_id(new_ep.get_clone_bdd_id());
 
       result.module = new_module;
       result.next_eps.push_back(new_ep);

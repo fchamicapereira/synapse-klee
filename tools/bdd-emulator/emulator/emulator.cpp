@@ -20,17 +20,13 @@ void Emulator::dump_context(const context_t &ctx) const {
   std::cerr << "========================================\n";
 }
 
-void remember_device(uint16_t device, context_t &ctx) {
-  auto width = symbex::PORT_SYMBOL_SIZE;
-  auto device_symbol =
-      kutil::solver_toolbox.create_new_symbol(symbex::PORT, width);
+void remember_device(const BDD &bdd, uint16_t device, context_t &ctx) {
+  auto device_symbol = bdd.get_symbol(symbex::PORT);
   concretize(ctx, device_symbol, device);
 }
 
-void remember_pkt_len(uint32_t len, context_t &ctx) {
-  auto width = symbex::PACKET_LENGTH_SYMBOL_SIZE;
-  auto length_symbol =
-      kutil::solver_toolbox.create_new_symbol(symbex::PACKET_LENGTH, width);
+void remember_pkt_len(const BDD &bdd, uint32_t len, context_t &ctx) {
+  auto length_symbol = bdd.get_symbol(symbex::PACKET_LENGTH);
   concretize(ctx, length_symbol, len);
 }
 
@@ -49,8 +45,8 @@ void Emulator::run(pkt_t pkt, time_ns_t time, uint16_t device) {
   context_t ctx;
   auto next_node = bdd.get_process();
 
-  remember_device(device, ctx);
-  remember_pkt_len(pkt.size, ctx);
+  remember_device(bdd, device, ctx);
+  remember_pkt_len(bdd, pkt.size, ctx);
 
   while (next_node) {
     auto node = next_node;
@@ -67,7 +63,7 @@ void Emulator::run(pkt_t pkt, time_ns_t time, uint16_t device) {
       auto call = call_node->get_call();
       auto operation = get_operation(call.function_name);
 
-      operation(call_node, pkt, time, state, meta, ctx, cfg);
+      operation(bdd, call_node, pkt, time, state, meta, ctx, cfg);
 
       next_node = node->get_next();
     } break;
@@ -146,22 +142,34 @@ void Emulator::run(const std::string &pcap_filename, uint16_t device) {
   int status = 1;
   time_ns_t time = 0;
 
-  auto loops = cfg.warmup ? 2 : 1;
+  auto loops = cfg.loops;
+  auto warmup_mode = cfg.warmup;
 
   if (cfg.report) {
-    reporter.set_num_packets(num_packets);
+    auto total_num_packets = loops * num_packets;
+
+    if (warmup_mode)
+      total_num_packets += num_packets;
+
+    reporter.set_num_packets(total_num_packets);
   }
 
-  for (auto i = 0; i < loops; i++) {
-    auto warmup_mode = (i == 0 && cfg.warmup);
+  while (true) {
+    if (!warmup_mode && cfg.loops > 0) {
+      loops--;
+
+      if (loops < 0) {
+        break;
+      }
+    }
 
     fseek(fpcap, pcap_start_pos, SEEK_SET);
 
     while ((status = pcap_next_ex(pcap, &header, &data)) >= 0) {
-      pkt_t pkt;
+      auto _data = static_cast<const uint8_t *>(data);
+      auto _size = static_cast<uint32_t>(header->len);
 
-      pkt.data = static_cast<const uint8_t *>(data);
-      pkt.size = static_cast<uint32_t>(header->len);
+      pkt_t pkt(_data, _size);
 
       if (cfg.rate.first) {
         // To obtain the time in seconds:
@@ -175,13 +183,13 @@ void Emulator::run(const std::string &pcap_filename, uint16_t device) {
         auto IPG = 20;
         auto dt = (time_ns_t)(((pkt.size + IPG + CRC) * 8) / cfg.rate.second);
         time += dt;
-        meta.elapsed_time += dt;
+        meta.elapsed += dt;
       } else {
         auto last_time = time;
         time = header->ts.tv_sec * 1e9 + header->ts.tv_usec * 1e6;
 
         auto dt = time - last_time;
-        meta.elapsed_time += dt;
+        meta.elapsed += dt;
       }
 
       run(pkt, time, device);
@@ -197,12 +205,18 @@ void Emulator::run(const std::string &pcap_filename, uint16_t device) {
 
     // The first iteration is the warmup iteration.
     if (warmup_mode) {
+      warmup_mode = false;
       meta.reset();
-      reporter.stop_warmup();
+
+      if (cfg.report)
+        reporter.stop_warmup();
     }
   }
 
-  std::cerr << "\n";
+  if (cfg.report) {
+    reporter.set_time(time);
+    reporter.show(true);
+  }
 }
 
 operation_ptr Emulator::get_operation(const std::string &name) const {
@@ -231,7 +245,7 @@ void Emulator::setup() {
       pkt_t mock_pkt;
       context_t empty_ctx;
 
-      operation(call_node, mock_pkt, 0, state, meta, empty_ctx, cfg);
+      operation(bdd, call_node, mock_pkt, 0, state, meta, empty_ctx, cfg);
 
       node = node->get_next();
     } else if (node->get_type() == Node::BRANCH) {

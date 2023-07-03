@@ -4,14 +4,17 @@
 
 #include <unordered_set>
 #include <map>
+#include <set>
 #include <string>
 
 namespace Clone {
+	using std::set;
 	using std::unordered_set;
 	using std::map;
 	using std::string;
 
-	Infrastructure::Infrastructure(DeviceMap&& devices, LinkList&& links, PortMap&& ports) : devices(move(devices)), links(move(links)), ports(move(ports)) {}
+	Infrastructure::Infrastructure(DeviceMap&& devices, LinkList&& links, PortMap&& ports) : 
+    devices(move(devices)), links(move(links)), ports(move(ports)) {}
 
 	unique_ptr<Infrastructure> Infrastructure::create(DeviceMap&& devices, LinkList&& links, PortMap&& ports) {
 		if(devices.size() == 0) danger("No devices found");
@@ -34,20 +37,19 @@ namespace Clone {
 	map<string, string> Infrastructure::dijkstra(DevicePtr device) {
 		map<string, unsigned> distances;
 		map<string, string> previous;
-		unordered_set<string> q;
+		set<string> q;
 
 		for(auto it = devices.begin(); it != devices.end(); ++it) {
 			q.insert(it->first);
 			distances[it->first] = -1;
-			q.insert(it->first);
 		}
 
 		distances[device->get_id()] = 0;
 
-		while(q.size() > 0) {
-			string min_dev = "";
+		while(q.size()) {
+			string min_dev = *(q.begin());
 			unsigned min_val = -1;
-			for(const string& s: q) {
+			for(auto s: q) {
 				unsigned val = distances[s];
 				if(val < min_val) {
 					min_val = val;
@@ -60,6 +62,11 @@ namespace Clone {
 
 			for(auto neighbour: neighbours) {
 				unsigned alt = distances[min_dev] + 1;
+
+				if(alt == 0) {
+					continue;
+				}
+
 				if(alt < distances[neighbour.second]) {
 					distances[neighbour.second] = alt;
 					previous[neighbour.second] = min_dev;
@@ -70,10 +77,13 @@ namespace Clone {
 		map<string, string> routes;
 		distances.erase(device->get_id());
 		routes[device->get_id()] = device->get_id();
-
 		for(auto distance: distances) {
 			auto curr = distance.first;
 			auto prev = previous[curr];
+
+			if(prev == "") {
+				continue;
+			}
 
 			while(prev != device->get_id()) {
 				curr = prev;

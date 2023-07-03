@@ -8,7 +8,7 @@
 
 #include "../common.h"
 #include "data_structures/data_structures.h"
-#include "internals.h"
+#include "internals/internals.h"
 #include "operations/operations.h"
 #include "reporter.h"
 
@@ -28,7 +28,8 @@ private:
 
 public:
   Emulator(const BDD &_bdd, cfg_t _cfg)
-      : bdd(_bdd), cfg(_cfg), operations(get_operations()), reporter(meta, cfg.warmup) {
+      : bdd(_bdd), cfg(_cfg), operations(get_operations()),
+        reporter(bdd, meta, cfg.warmup) {
     kutil::solver_toolbox.build();
     setup();
   }

@@ -16,8 +16,11 @@ private:
   Node_ptr nf_init;
   Node_ptr nf_process;
 
+  // For symbol building
+  std::unordered_map<std::string, klee::UpdateList> roots_updates;
+
 public:
-  BDD(std::vector<call_path_t *> call_paths) : id(0) {
+  BDD(const std::vector<call_path_t *> &call_paths) : id(0) {
     kutil::solver_toolbox.build();
 
     call_paths_t cp(call_paths);
@@ -27,7 +30,9 @@ public:
     nf_process = populate_process(root);
 
     rename_symbols();
+    merge_symbols();
   }
+
   BDD() : id(0) { kutil::solver_toolbox.build(); }
 
   BDD(const BDD &bdd)
@@ -38,6 +43,7 @@ public:
   BDD(const std::string &file_path) : id(0) {
     kutil::solver_toolbox.build();
     deserialize(file_path);
+    merge_symbols();
   }
 
   BDD &operator=(const BDD &) = default;
@@ -57,23 +63,24 @@ public:
 
   void visit(BDDVisitor &visitor) const;
 
-  void set_init(const Node_ptr &_nf_init) { this->nf_init = _nf_init; }
-  void set_process(const Node_ptr &_nf_process) { this->nf_process = _nf_process; }
-
-  void rename_symbols();
-  void rename_symbols(Node_ptr node, SymbolFactory &factory);
+  void set_init(const Node_ptr &node) { nf_init = node; }
+  void set_process(const Node_ptr &node) { nf_process = node; }
 
   void serialize(std::string file_path) const;
   void deserialize(const std::string &file_path);
 
   std::string hash() const;
 
+  klee::ref<klee::Expr> get_symbol(const std::string &name) const;
+
 public:
   friend class CallPathsGroup;
   friend class Call;
 
 private:
-  // For deserialization
+  void rename_symbols();
+  void rename_symbols(Node_ptr node, SymbolFactory &factory);
+  void merge_symbols();
 
   Node_ptr
   populate(call_paths_t call_paths,

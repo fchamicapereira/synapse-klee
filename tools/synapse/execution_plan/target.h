@@ -45,13 +45,12 @@ public:
   const TargetMemoryBank_ptr memory_bank;
   const Instance_ptr instance;
   const target_id_t id;
-
-
-  Target(TargetType _type, const std::vector<Module_ptr> &_modules,
-         const TargetMemoryBank_ptr &_memory_bank);
   
   Target(TargetType _type, const std::vector<Module_ptr> &_modules,
          const TargetMemoryBank_ptr &_memory_bank, Instance_ptr _instance);
+
+  Target(TargetType _type, const std::vector<Module_ptr> &_modules,
+         const TargetMemoryBank_ptr &_memory_bank, Instance_ptr _instance, target_id_t _id);
 
   Target_ptr clone() const;
 

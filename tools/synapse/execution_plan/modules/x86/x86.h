@@ -24,8 +24,10 @@
 #include "nf_set_rte_ipv4_udptcp_checksum.h"
 #include "packet_borrow_next_chunk.h"
 #include "packet_get_unread_length.h"
+#include "packet_parse_cpu.h"
 #include "packet_return_chunk.h"
 #include "rte_ether_addr_hash.h"
+#include "send_to_device.h"
 #include "sketch_compute_hashes.h"
 #include "sketch_expire.h"
 #include "sketch_fetch.h"
@@ -78,6 +80,8 @@ public:
                    MODULE(LoadBalancedFlowHash),
                    MODULE(ChtFindBackend),
                    MODULE(HashObj),
+                   MODULE(SendToDevice),
+                   MODULE(PacketParseCPU),
                },
                TargetMemoryBank_ptr(new x86MemoryBank()),
                _instance) {}

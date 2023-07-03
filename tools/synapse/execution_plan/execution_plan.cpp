@@ -1,8 +1,14 @@
 #include "execution_plan.h"
 #include "../log.h"
+#include "bdd/bdd.h"
+#include "bdd/nodes/node.h"
+#include "bdd/nodes/return_process.h"
 #include "execution_plan_node.h"
 #include "memory_bank.h"
+#include "modules/bmv2/if.h"
+#include "modules/clone/memory_bank.h"
 #include "modules/modules.h"
+#include "parser/infrastructure.h"
 #include "target.h"
 #include "visitors/graphviz/graphviz.h"
 #include "visitors/visitor.h"
@@ -12,21 +18,27 @@ namespace synapse {
 int ExecutionPlanNode::counter = 0;
 int ExecutionPlan::counter = 0;
 
+// goto constructors
+
 ExecutionPlan::leaf_t::leaf_t(BDD::Node_ptr _next) : next(_next) {
   current_platform.first = false;
+  next_target = nullptr;
 }
 
-ExecutionPlan::leaf_t::leaf_t(Module_ptr _module, BDD::Node_ptr _next)
-    : leaf(ExecutionPlanNode::build(_module)), next(_next) {
+ExecutionPlan::leaf_t::leaf_t(Module_ptr _module, BDD::Node_ptr _next, Target_ptr target)
+    : leaf_t(_module, _next, target, target) {}
+
+ExecutionPlan::leaf_t::leaf_t(Module_ptr _module, BDD::Node_ptr _next, Target_ptr target, Target_ptr next_target)
+    : leaf(ExecutionPlanNode::build(_module, target)), next(_next) {
   assert(_module);
 
   current_platform.first = true;
-  current_platform.second = _module->get_next_target();
+  current_platform.second = _module->get_next_target_type();
+  this->next_target = next_target;
 }
 
 ExecutionPlan::leaf_t::leaf_t(const leaf_t &_leaf)
-    : leaf(_leaf.leaf), next(_leaf.next),
-      current_platform(_leaf.current_platform) {}
+    : leaf(_leaf.leaf), next(_leaf.next), current_platform(_leaf.current_platform), next_target(_leaf.next_target) {}
 
 ExecutionPlan::ExecutionPlan(const BDD::BDD &_bdd)
     : bdd(_bdd), shared_memory_bank(MemoryBank::build()), depth(0), nodes(0),
@@ -38,18 +50,21 @@ ExecutionPlan::ExecutionPlan(const BDD::BDD &_bdd)
 }
 
 ExecutionPlan::ExecutionPlan(const ExecutionPlan &ep)
-    : root(ep.root), leaves(ep.leaves), bdd(ep.bdd),
-      shared_memory_bank(ep.shared_memory_bank), targets(ep.targets), target_types(ep.target_types), v_targets(ep.v_targets),
-      processed_bdd_nodes(ep.processed_bdd_nodes), infrastructure(ep.infrastructure), 
-      depth(ep.depth), nodes(ep.nodes), initial_target(ep.initial_target), current_target(ep.current_target),
+    : root(ep.root), leaves(ep.leaves), bdd(ep.bdd), bdds(ep.bdds),
+      shared_memory_bank(ep.shared_memory_bank), targets(ep.targets), target_types(ep.target_types),
+      processed_bdd_nodes(ep.processed_bdd_nodes), 
+      infrastructure(ep.infrastructure), clone_target(ep.clone_target), clone_bdd_id(ep.clone_bdd_id),
+      clone_leaves(ep.clone_leaves), depth(ep.depth), nodes(ep.nodes), 
+      initial_target(ep.initial_target), current_target(ep.current_target),
       targets_bdd_starting_points(ep.targets_bdd_starting_points),
       nodes_per_target_type(ep.nodes_per_target_type), reordered_nodes(ep.reordered_nodes), id(ep.id) {}
 
 ExecutionPlan::ExecutionPlan(const ExecutionPlan &ep,
                              ExecutionPlanNode_ptr _root)
-    : root(_root), bdd(ep.bdd), shared_memory_bank(ep.shared_memory_bank), targets(ep.targets), 
-      target_types(ep.target_types), v_targets(ep.v_targets), infrastructure(ep.infrastructure), depth(0), nodes(0), 
-      reordered_nodes(0), id(counter++) {
+    : root(_root), bdd(ep.bdd), bdds(ep.bdds), shared_memory_bank(ep.shared_memory_bank), targets(ep.targets), 
+      target_types(ep.target_types), infrastructure(ep.infrastructure), clone_target(ep.clone_target), 
+      clone_bdd_id(ep.clone_bdd_id), clone_leaves(ep.clone_leaves),
+      depth(0), nodes(0), reordered_nodes(0), id(counter++) {
   if (!_root) {
     return;
   }
@@ -75,18 +90,18 @@ ExecutionPlan::get_nodes_per_target_type() const {
   return nodes_per_target_type;
 }
 
-const std::unordered_map<target_id_t, std::unordered_set<BDD::node_id_t>> &
+const std::map<target_id_t, std::set<BDD::node_id_t>> &
 ExecutionPlan::get_targets_bdd_starting_points() const {
   return targets_bdd_starting_points;
 }
 
-std::unordered_set<BDD::node_id_t>
+std::set<BDD::node_id_t>
 ExecutionPlan::get_current_target_bdd_starting_points() const {
   auto target = get_current_target();
   auto found_it = targets_bdd_starting_points.find(target->id);
 
   if (found_it == targets_bdd_starting_points.end()) {
-    return std::unordered_set<BDD::node_id_t>();
+    return std::set<BDD::node_id_t>();
   }
 
   return found_it->second;
@@ -159,10 +174,14 @@ ExecutionPlan::get_prev_nodes_of_current_target() const {
 
 Target_ptr ExecutionPlan::get_target(TargetType target_type, const std::string &instance) const {
   assert(target_types.find(target_type) != target_types.end());
-  auto v_targets = target_types.at(target_type);
+  auto targets = target_types.at(target_type);
 
-  for(auto &target: v_targets) {
-    if(target->instance->name == instance) {
+  if(instance == "" && targets.size() == 1) {
+    return targets[0];
+  }
+
+  for(auto &target: targets) {
+    if(target->instance && target->instance->name == instance) {
       return target;
     }
   }
@@ -214,8 +233,11 @@ void ExecutionPlan::add_target(Target_ptr target) {
     current_target = target;
   }
 
+  if(target->type == TargetType::CloNe) {
+    this->clone_target = target;
+  }
+
   targets[target->id] = target;
-  v_targets.push_back(target);
   target_types[target->type].push_back(target);
 }
 
@@ -224,12 +246,97 @@ const std::vector<Target_ptr>& ExecutionPlan::get_from_target_type(TargetType ty
   return target_types.at(type);
 }
 
-const std::vector<Target_ptr> & ExecutionPlan::get_targets() const {
-  return v_targets;
+const std::map<target_id_t, Target_ptr>& ExecutionPlan::get_targets() const {
+  return targets;
 }
 
 bool ExecutionPlan::has_target_type(TargetType type) const {
   return target_types.find(type) != target_types.end();
+}
+
+//
+// goto CloNe
+//
+void ExecutionPlan::add_bdd(Target_ptr target, BDD_ptr _bdd) {
+  assert(target_types.find(TargetType::CloNe) != target_types.end());
+  bdds[target->id] = _bdd;
+}
+
+const std::map<target_id_t, BDD_ptr>& ExecutionPlan::get_target_bdds() const {
+  assert(target_types.count(TargetType::CloNe));
+  return bdds;
+}
+
+/* This function initializes the data structures that contain the origins in the BDD */
+void ExecutionPlan::populate_origins() {
+  auto initial_bdd = get_bdd();
+  auto node = initial_bdd.get_process();
+  assert(node->get_type() == BDD::Node::NodeType::BRANCH);
+
+  auto infra = get_infrastructure();
+  auto mb = get_memory_bank<targets::clone::CloneMemoryBank>(clone_target->id);
+
+  // iterate through all meta branches and create starting points
+  while(node->get_type() == BDD::Node::NodeType::BRANCH) {
+    auto casted = BDD::cast_node<BDD::Branch>(node);
+    unsigned value = extract_port(casted);
+    auto device = infra->get_port(value)->get_device();
+
+    auto target_type = string_to_target_type[device->get_type()];
+    auto target = get_target(target_type, device->get_id());
+
+    if(mb->get_origin_from_target(target) == nullptr) {
+      BDD_ptr _bdd = BDD_ptr(new BDD::BDD(initial_bdd.get_id() + 1, initial_bdd.get_init(), node));
+      add_bdd(target, _bdd);
+      mb->add_origin(target, node);
+    }
+  
+    mb->add_origin_nodes(target, node);
+    node = casted->get_on_false();
+  }
+}
+
+/* This function is used to replace the in the initial branches of a BDD with real ports */
+void ExecutionPlan::concretize_ports() {
+  auto mb = get_memory_bank<targets::clone::CloneMemoryBank>(clone_target->id);
+
+  // replacing branch global ports with real ports
+  for(auto& target_origin: mb->get_origins()) {
+    auto target_id = target_origin.first;
+    auto origin = target_origin.second;
+
+    assert(origin->nodes.size());
+
+    auto target = targets.at(target_id);
+    assert(target);
+    auto device = infrastructure->get_device(target->instance->name);
+
+    auto node = origin->root;
+    node->disconnect_prev();
+
+    for(auto it = origin->nodes.begin(); it != origin->nodes.end(); ++it) {
+      node = *it;
+      unsigned real_port = infrastructure->get_local_port(node);
+      Clone::Infrastructure::replace_branch_port(node, real_port);
+    }
+
+    // now node should be pointing to the last node, set its on_false to drop
+    BDD::Branch* casted = static_cast<BDD::Branch*>(node.get());
+    auto drop = Clone::Infrastructure::get_drop(node, clone_bdd_id++);
+    casted->replace_on_false(drop);
+    clone_leaves[target_id] = drop->get_id();
+  }
+}
+
+void ExecutionPlan::setup_clone() {
+  clone_bdd_id = get_bdd().get_id() + 5; // IDs are causing too many problems
+  populate_origins();
+  concretize_ports();
+}
+
+BDD::node_id_t ExecutionPlan::get_clone_leaf(target_id_t id) const {
+  assert(clone_leaves.count(id));
+  return clone_leaves.at(id);
 }
 
 Target_ptr ExecutionPlan::get_first_of_type(TargetType type) const {
@@ -257,12 +364,11 @@ void ExecutionPlan::update_targets_starting_points(
     }
 
     assert(leaf.current_platform.first);
-    auto next_target = leaf.current_platform.second;
+    auto next_target = leaf.next_target;
 
-    if (target->type != next_target) {
+    if (target->id != next_target->id) {
       auto starting_point = leaf.next->get_id();
-      auto target = get_first_of_type(next_target); // TODO:change 
-      targets_bdd_starting_points[target->id].insert(starting_point);
+      targets_bdd_starting_points[next_target->id].insert(starting_point);
     }
   }
 }
@@ -384,28 +490,25 @@ ExecutionPlanNode_ptr ExecutionPlan::get_active_leaf() const {
   return leaf;
 }
 
-//TargetType ExecutionPlan::get_current_target_type() const {
-//  if (leaves.size() && leaves[0].current_platform.first) {
-//    return leaves[0].current_platform.second;
-//  }
-//
-//  return initial_target->type;
-//}
-
 Target_ptr ExecutionPlan::get_current_target() const {
   return current_target;
 }
 
 ExecutionPlan ExecutionPlan::replace_leaf(Module_ptr new_module,
                                           const BDD::Node_ptr &next,
+                                          Target_ptr next_target,
                                           bool process_bdd_node) const {
   auto new_ep = clone();
+
+  if(!next_target) {
+    next_target = get_current_target();
+  }
 
   if (process_bdd_node) {
     new_ep.update_processed_nodes();
   }
 
-  auto new_leaf = ExecutionPlan::leaf_t(new_module, next);
+  auto new_leaf = ExecutionPlan::leaf_t(new_module, next, next_target);
 
   assert(new_ep.leaves.size());
   auto old_leaf = new_ep.leaves[0];
@@ -429,23 +532,24 @@ ExecutionPlan ExecutionPlan::replace_leaf(Module_ptr new_module,
     new_ep.nodes_per_target_type[new_module->get_target()]++;
   }
 
-  auto next_target_type = new_module->get_next_target();
-  
   new_ep.leaves[0].current_platform.first = true;
-  new_ep.leaves[0].current_platform.second = next_target_type;
+  new_ep.leaves[0].current_platform.second = next_target->type;
   
-  auto next_target = get_first_of_type(next_target_type);
   new_ep.current_target = next_target;
 
   return new_ep;
 }
 
 ExecutionPlan ExecutionPlan::ignore_leaf(const BDD::Node_ptr &next,
-                                         TargetType next_target,
+                                         Target_ptr next_target,
                                          bool process_bdd_node) const {
   auto new_ep = clone();
-  assert(new_ep.target_types.count(next_target));
-  assert(new_ep.target_types[next_target].size() > 0);
+
+  if (!next_target) {
+    next_target = get_current_target();
+  }
+  assert(new_ep.target_types.count(next_target->type));
+  assert(new_ep.target_types[next_target->type].size() > 0);
 
   if (process_bdd_node) {
     new_ep.update_processed_nodes();
@@ -455,31 +559,13 @@ ExecutionPlan ExecutionPlan::ignore_leaf(const BDD::Node_ptr &next,
   new_ep.leaves[0].next = next;
 
   new_ep.leaves[0].current_platform.first = true;
-  new_ep.leaves[0].current_platform.second = next_target;
-
-  auto next_target_ptr = get_first_of_type(next_target);
-  new_ep.current_target = next_target_ptr;
-  new_ep.nodes_per_target_type[next_target]++;
-
-  return new_ep;
-}
-
-
-// CloNe only target
-ExecutionPlan ExecutionPlan::ignore_leaf(const BDD::Node_ptr &next,
-                                         Target_ptr next_target) const {
-  auto new_ep = clone();
-  assert(new_ep.leaves.size());
-
-  new_ep.leaves[0].next = next;
-  new_ep.leaves[0].current_platform.first = true;
   new_ep.leaves[0].current_platform.second = next_target->type;
+
   new_ep.current_target = next_target;
   new_ep.nodes_per_target_type[next_target->type]++;
 
   return new_ep;
 }
-
 
 void ExecutionPlan::force_termination() {
   assert(leaves.size());
@@ -489,9 +575,14 @@ void ExecutionPlan::force_termination() {
 ExecutionPlan ExecutionPlan::add_leaves(Module_ptr new_module,
                                         const BDD::Node_ptr &next,
                                         bool is_terminal,
-                                        bool process_bdd_node) const {
+                                        bool process_bdd_node, Target_ptr next_target) const {
   std::vector<ExecutionPlan::leaf_t> _leaves;
-  _leaves.emplace_back(new_module, next);
+
+  if(!next_target) {
+    next_target = get_current_target();
+  }
+
+  _leaves.emplace_back(new_module, next, get_current_target(), next_target);
   return add_leaves(_leaves, is_terminal, process_bdd_node);
 }
 
@@ -535,8 +626,7 @@ ExecutionPlan ExecutionPlan::add_leaves(std::vector<leaf_t> _leaves,
 
   new_ep.depth++;
   new_ep.update_leaves(_leaves, is_terminal);
-  auto new_target = get_first_of_type(new_ep.leaves[0].current_platform.second);
-  new_ep.current_target = new_target;
+  new_ep.current_target = new_ep.leaves[0].next_target;
 
   return new_ep;
 }
@@ -584,6 +674,7 @@ ExecutionPlan ExecutionPlan::clone(BDD::BDD new_bdd) const {
 
   copy.id = counter++;
   copy.bdd = new_bdd;
+  copy.bdds = bdds;
 
   copy.shared_memory_bank = shared_memory_bank->clone();
 
@@ -615,6 +706,7 @@ ExecutionPlan ExecutionPlan::clone(bool deep) const {
   ExecutionPlan copy = *this;
 
   copy.id = counter++;
+  copy.bdds = bdds;
 
   if (deep) {
     copy.bdd = copy.bdd.clone();

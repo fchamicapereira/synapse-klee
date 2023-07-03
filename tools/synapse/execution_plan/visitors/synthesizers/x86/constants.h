@@ -15,9 +15,14 @@ constexpr char PACKET_VAR_LABEL[] = "buffer";
 constexpr char PACKET_LEN_VAR_LABEL[] = "packet_length";
 constexpr char TIME_VAR_LABEL[] = "now";
 constexpr char MBUF_VAR_LABEL[] = "mbuf";
+constexpr char CHUNKS_BORROWED_LABEL[] = "chunks_borrowed";
+constexpr char CHUNKS_BORROWED_NUM_LABEL[] = "chunks_borrowed_num";
 
 constexpr char FLOOD_DEVICE[] = "FLOOD_FRAME";
+constexpr unsigned CODE_PATH_HDR_SIZE = 2;
 
+constexpr char PATH_HDR_LABEL[] = "code_path_hdr";	
+constexpr char PATH_LABEL[] = "cpu_code_path";
 constexpr char HEADER_BASE_LABEL[] = "hdr";
 constexpr char MAP_BASE_LABEL[] = "map";
 constexpr char VECTOR_BASE_LABEL[] = "vector";

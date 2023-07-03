@@ -1,21 +1,24 @@
 #include "execution_plan_node.h"
 #include "../log.h"
 #include "modules/module.h"
+#include "target.h"
 #include "visitors/visitor.h"
 
 namespace synapse {
 
-ExecutionPlanNode::ExecutionPlanNode(Module_ptr _module)
-    : module(_module), id(counter++) {}
+ExecutionPlanNode::ExecutionPlanNode(Module_ptr _module, Target_ptr _target)
+    : module(_module), target(_target) , id(counter++) {}
 
 ExecutionPlanNode::ExecutionPlanNode(const ExecutionPlanNode *ep_node)
-    : module(ep_node->module), id(counter++) {}
+    : module(ep_node->module), target(ep_node->target), id(counter++) {}
 
 void ExecutionPlanNode::set_next(Branches _next) { next = _next; }
 void ExecutionPlanNode::set_next(ExecutionPlanNode_ptr _next) {
   next.push_back(_next);
 }
 void ExecutionPlanNode::set_prev(ExecutionPlanNode_ptr _prev) { prev = _prev; }
+
+Target_ptr ExecutionPlanNode::get_target() const { return target; }
 
 const Module_ptr &ExecutionPlanNode::get_module() const { return module; }
 void ExecutionPlanNode::replace_module(Module_ptr _module) { module = _module; }
@@ -75,8 +78,8 @@ void ExecutionPlanNode::visit(ExecutionPlanVisitor &visitor) const {
   visitor.visit(this);
 }
 
-ExecutionPlanNode_ptr ExecutionPlanNode::build(Module_ptr _module) {
-  ExecutionPlanNode *epn = new ExecutionPlanNode(_module);
+ExecutionPlanNode_ptr ExecutionPlanNode::build(Module_ptr _module, Target_ptr _target) {
+  ExecutionPlanNode *epn = new ExecutionPlanNode(_module, _target);
   return std::shared_ptr<ExecutionPlanNode>(epn);
 }
 

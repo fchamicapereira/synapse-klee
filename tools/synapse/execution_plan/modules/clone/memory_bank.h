@@ -17,54 +17,74 @@ namespace clone {
 
 class CloneMemoryBank : public TargetMemoryBank {
 
-struct StartingPoint {
-  BDD::Node_ptr node;
+struct Origin {
   Target_ptr target;
+  BDD::Node_ptr root;
+  std::vector<BDD::Node_ptr> nodes;
+
+  Origin(Target_ptr _target, BDD::Node_ptr _root) : target(_target), root(_root) {}
 };
 
-typedef std::shared_ptr<StartingPoint> StartingPoint_ptr;
+typedef std::shared_ptr<Origin> Origin_ptr;
 
 private:
-  std::deque<StartingPoint_ptr> starting_points;
-  std::map<BDD::Node_ptr, Target_ptr> node_to_target;
-  bool is_inited = false;
+  std::deque<Origin_ptr> origins;
+  std::map<BDD::node_id_t, Origin_ptr> root_to_origin;
+  std::map<target_id_t, Origin_ptr> target_to_origin;
 
 public:
   CloneMemoryBank() {}
 
-  CloneMemoryBank(const CloneMemoryBank &mb)
-      :starting_points(mb.starting_points), node_to_target(mb.node_to_target), is_inited(mb.is_inited) {}
+  CloneMemoryBank(const CloneMemoryBank &mb) : 
+    origins(mb.origins),
+    root_to_origin(mb.root_to_origin),
+    target_to_origin(mb.target_to_origin)
+    {}
 
   virtual TargetMemoryBank_ptr clone() const override {
     auto clone = new CloneMemoryBank(*this);
     return TargetMemoryBank_ptr(clone);
   }
 
-  StartingPoint_ptr get_next_starting_point() const {
-    if(starting_points.size() == 0) {
+  Origin_ptr get_next_origin() const {
+    if(origins.size() == 0) {
       return nullptr;
     }
-    return starting_points[0];
+    return origins[0];
   }
 
-  void pop_starting_point() {
-    assert(starting_points.size() > 0);
-    starting_points.erase(starting_points.begin());
+  void pop_origin() {
+    assert(origins.size() > 0);
+    origins.erase(origins.begin());
   }
 
-  Target_ptr get_target_from_node(BDD::Node_ptr node) const {
-    assert(node_to_target.find(node) != node_to_target.end());
-    return node_to_target.at(node);
+  const std::map<target_id_t, Origin_ptr>& get_origins() const {
+    return target_to_origin;
   }
 
-  void add_starting_point(BDD::Node_ptr node, Target_ptr target) {
-    starting_points.push_back(std::make_shared<StartingPoint>(StartingPoint{node, target}));
-    node_to_target[node] = target;  
-    is_inited = true;
+  Origin_ptr get_origin_from_node(BDD::Node_ptr node) const {
+    assert(root_to_origin.count(node->get_id()));
+    return root_to_origin.at(node->get_id());
   }
 
-  bool is_initialised() const {
-    return is_inited;
+  Origin_ptr get_origin_from_target(Target_ptr target) const {
+    if(!target_to_origin.count(target->id)) {
+      return nullptr;
+    }
+    return target_to_origin.at(target->id);
+  }
+
+  void add_origin(Target_ptr target, BDD::Node_ptr node) {
+    auto origin = Origin_ptr(new Origin(target, node));
+    origins.push_back(origin);
+    root_to_origin[node->get_id()] = origin;  
+    target_to_origin[target->id] = origin;
+  }
+
+  void add_origin_nodes(Target_ptr target, BDD::Node_ptr node) {
+    assert(target_to_origin.count(target->id));
+    auto origin = target_to_origin.at(target->id);
+    origin->nodes.push_back(node);
   }
 };
 

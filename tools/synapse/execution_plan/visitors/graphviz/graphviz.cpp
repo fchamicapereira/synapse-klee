@@ -53,6 +53,20 @@ void sanitize_html_label(std::string &label) {
                           });
 }
 
+void Graphviz::initialise_border_colours(const ExecutionPlan &ep) {
+  unsigned i = 0;
+  for(auto& device: ep.get_infrastructure()->get_devices()) {
+    if(i > border_colors.size()) {
+      Log::wrn() << "Too many devices! Add more border colours";
+      i = 0;
+    }
+
+    auto& color = border_colors[i];
+    node_borders[device.first] = color;
+    ++i;
+  }
+}
+
 std::string Graphviz::get_rand_fname() const {
   std::stringstream ss;
   static unsigned counter = 1;
@@ -102,7 +116,12 @@ void Graphviz::function_call(const ExecutionPlanNode *ep_node,
   ofs << "] ";
 
   ofs << label << "\", ";
-  ofs << "color=" << node_colors[target] << "];";
+  if(target != TargetType::CloNe && node_borders.size() && ep_node->get_target()) {
+    auto color = node_borders[ep_node->get_target()->instance->name];
+    ofs << "color=" << color << ", ";
+    ofs << "penwidth=7, ";
+  }
+  ofs << "fillcolor=" << node_colors[target] << "];";
   ofs << "\n";
 }
 
@@ -116,7 +135,13 @@ void Graphviz::branch(const ExecutionPlanNode *ep_node, BDD::Node_ptr node,
   ofs << "] ";
 
   ofs << label << "\", ";
-  ofs << "color=" << node_colors[target] << "];";
+  if(target != TargetType::CloNe && node_borders.size() && ep_node->get_target()) {
+    auto instance = ep_node->get_target()->instance->name;
+    auto color = node_borders[instance];
+    ofs << "color=" << color << ", ";
+    ofs << "penwidth=7, ";
+  }
+  ofs << "fillcolor=" << node_colors[target] << "];";
   ofs << "\n";
 }
 
@@ -205,7 +230,7 @@ std::string Graphviz::get_bdd_node_name(const BDD::Node *node) const {
   case BDD::Node::NodeType::BRANCH: {
     auto branch = static_cast<const BDD::Branch *>(node);
     ss << "if(";
-    ss << kutil::expr_to_string(branch->get_condition(), true);
+    ss << kutil::pretty_print_expr(branch->get_condition());
     ss << ")";
     break;
   }
@@ -260,6 +285,9 @@ std::string Graphviz::get_bdd_node_name(const BDD::Node *node) const {
 void Graphviz::visualize(const ExecutionPlan &ep, bool interrupt) {
   if (ep.get_root()) {
     Graphviz gv;
+    if(ep.get_infrastructure()) {
+      gv.initialise_border_colours(ep);
+    }
     ep.visit(gv);
     gv.open();
 
@@ -309,7 +337,7 @@ std::string stringify_bdd_node(BDD::Node_ptr node) {
     auto branch_node = BDD_CAST_BRANCH(node);
     auto condition = branch_node->get_condition();
     node_builder << "if (";
-    node_builder << kutil::expr_to_string(condition);
+    node_builder << kutil::pretty_print_expr(condition);
     node_builder << ")";
   } break;
   case BDD::Node::NodeType::RETURN_PROCESS: {
@@ -601,7 +629,7 @@ void Graphviz::visit(const ExecutionPlanNode *ep_node,
       label_builder << "\n&& ";
     }
 
-    label_builder << kutil::expr_to_string(condition, true) << "\n";
+    label_builder << kutil::pretty_print_expr(condition) << "\n";
   }
 
   auto label = label_builder.str();
@@ -646,7 +674,7 @@ void Graphviz::visit(const ExecutionPlanNode *ep_node,
   label_builder << "Parser condition ";
   label_builder << " [apply: " << apply_is_valid << "]";
   label_builder << "\n";
-  label_builder << kutil::expr_to_string(condition);
+  label_builder << kutil::pretty_print_expr(condition);
 
   auto label = label_builder.str();
   find_and_replace(label, {{"\n", "\\n"}});
@@ -816,6 +844,8 @@ DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86::DchainFreeIndex)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86::LoadBalancedFlowHash)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86::ChtFindBackend)
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86::HashObj)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86::SendToDevice)
+DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86::PacketParseCPU)
 
 
 /********************************************

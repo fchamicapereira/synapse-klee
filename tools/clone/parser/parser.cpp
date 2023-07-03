@@ -56,7 +56,7 @@ namespace Clone {
 		return NFPtr(new NF(id, path));;
 	}
 
-	LinkPtr parse_link(const vector<string> &words) {
+	LinkPtr parse_link(const vector<string> &words, DeviceMap &devices) {
 		if(words.size() != LENGTH_LINK_INPUT) {
 			danger("Invalid link at line: ");
 			exit(1);
@@ -68,6 +68,14 @@ namespace Clone {
 		const string node2 = words[3];
 		const string sport2 = words[4];
 		const unsigned port2 = stoul(sport2);
+
+		if(devices.count(node1) && devices.count(node2)) {
+			auto device1 = devices.at(node1);
+			auto device2 = devices.at(node2);
+
+			device1->add_neighbour(node2, port1, port2);
+			device2->add_neighbour(node1, port2, port1);
+		}
 
 		return LinkPtr(new Link(node1, port1, node2, port2));
 	}
@@ -127,7 +135,7 @@ namespace Clone {
 				nfs[nf->get_id()] = move(nf);
 			} 
 			else if(type == STRING_LINK) {
-				auto link = parse_link(words);
+				auto link = parse_link(words, devices);
 				links.push_back(move(link));
 			}
 			else if(type == STRING_PORT) {
@@ -171,7 +179,7 @@ namespace Clone {
 				devices[device->get_id()] = move(device);
 			} 
 			else if(type == STRING_LINK) {
-				auto link = parse_link(words);
+				auto link = parse_link(words, devices);
 				links.push_back(move(link));
 			}
 			else if(type == STRING_PORT) {

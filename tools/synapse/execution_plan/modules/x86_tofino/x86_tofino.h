@@ -40,7 +40,7 @@ namespace x86_tofino {
 
 class x86TofinoTarget : public Target {
 public:
-  x86TofinoTarget()
+  x86TofinoTarget(Instance_ptr _instance)
       : Target(TargetType::x86_Tofino,
                {
                    MODULE(Ignore),
@@ -73,9 +73,10 @@ public:
                    MODULE(DchainFreeIndex),
                    MODULE(HashObj),
                },
-               TargetMemoryBank_ptr(new x86TofinoMemoryBank())) {}
+               TargetMemoryBank_ptr(new x86TofinoMemoryBank()),
+               _instance) {}
 
-  static Target_ptr build() { return Target_ptr(new x86TofinoTarget()); }
+  static Target_ptr build(Instance_ptr _instance = nullptr) { return Target_ptr(new x86TofinoTarget(_instance)); }
 };
 
 } // namespace x86_tofino

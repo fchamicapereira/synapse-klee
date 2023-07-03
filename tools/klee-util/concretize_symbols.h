@@ -1,5 +1,6 @@
 #pragma once
 
+#include "exprs.h"
 #include "klee/Expr.h"
 #include "klee/ExprBuilder.h"
 #include "klee/Constraints.h"
@@ -26,31 +27,39 @@ public:
     return Action::doChildren();
   }
 
-  klee::ExprVisitor::Action visitRead(const klee::ReadExpr &e) {
+  klee::ExprVisitor::Action visitConcat(const klee::ConcatExpr &e) {
     RetrieveSymbols retriever;
 
-    auto expr = e;
-    const klee::ref<klee::Expr> ref = &expr;
-    retriever.visit(ref);
-
-    if(retriever.get_retrieved_strings().find(target_symbol) != retriever.get_retrieved_strings().end()) {
-      assert(retriever.get_retrieved().size() == 1);
-      klee::ref<klee::Expr> symbol = retriever.get_retrieved().front();
-      assert(symbol->getNumKids() == 1);
-      assert(symbol->getKid(0)->getKind() == klee::Expr::Constant);
-      auto constant = symbol->getKid(0);
-      uint32_t val = static_cast<klee::ConstantExpr*>(constant.get())->getZExtValue();
-
-      auto new_symbol = solver_toolbox.create_new_symbol("VIGOR_DEVICE", 32);
-      auto extract = solver_toolbox.exprBuilder->Extract(new_symbol, val, symbol->getWidth());
-
-      auto eq = solver_toolbox.exprBuilder->Eq(new_symbol, solver_toolbox.exprBuilder->Constant(replacement, new_symbol->getWidth()));
-      klee::ConstraintManager cm;
-      cm.addConstraint(eq);
-
-      auto replace = solver_toolbox.exprBuilder->Constant(replacement, symbol->getWidth());
-      return Action::changeTo(replace);
+    klee::ConcatExpr concat_cloned = e;
+    klee::ref<klee::Expr> expr = klee::ref<klee::Expr>(&concat_cloned);
+    std::string symbol;
+    if(kutil::is_readLSB(expr, symbol) && symbol == target_symbol) {
+      auto width = concat_cloned.getWidth();
+      klee::ref<klee::Expr> constant = solver_toolbox.exprBuilder->Constant(replacement, width);
+      return Action::changeTo(constant);
     }
+    //auto expr = e;
+    //klee::ref<klee::Expr> ref = expr;
+    //retriever.visit(ref);
+//
+    //if(retriever.get_retrieved_strings().find(target_symbol) != retriever.get_retrieved_strings().end()) {
+    //  assert(retriever.get_retrieved().size() == 1);
+    //  klee::ref<klee::Expr> symbol = retriever.get_retrieved().front();
+    //  assert(symbol->getNumKids() == 1);
+    //  assert(symbol->getKid(0)->getKind() == klee::Expr::Constant);
+    //  auto constant = symbol->getKid(0);
+    //  uint32_t val = static_cast<klee::ConstantExpr*>(constant.get())->getZExtValue();
+//
+    //  auto new_symbol = solver_toolbox.create_new_symbol("VIGOR_DEVICE", 32);
+    //  auto extract = solver_toolbox.exprBuilder->Extract(new_symbol, val, symbol->getWidth());
+//
+    //  auto eq = solver_toolbox.exprBuilder->Eq(new_symbol, solver_toolbox.exprBuilder->Constant(replacement, new_symbol->getWidth()));
+    //  klee::ConstraintManager cm;
+    //  cm.addConstraint(eq);
+//
+    //  auto replace = solver_toolbox.exprBuilder->Constant(replacement, symbol->getWidth());
+    //  return Action::changeTo(replace);
+    //}
 
     return Action::doChildren();
   }

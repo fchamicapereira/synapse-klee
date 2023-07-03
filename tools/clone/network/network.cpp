@@ -200,7 +200,7 @@ namespace Clone {
 
 		reorder_roots();
 
-		GraphvizGenerator::visualize(*builder->get_bdd(), false, false);
+		GraphvizGenerator::visualize(*builder->get_bdd(), true, false);
 		builder->dump(name + ".bdd");
 	}
 

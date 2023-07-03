@@ -1,9 +1,13 @@
 #include "x86_generator.h"
+#include "constants.h"
+#include "exprs.h"
 #include "klee-util.h"
 
 #include "../../../../log.h"
 #include "../../../modules/modules.h"
 #include "../util.h"
+#include "solver_toolbox.h"
+#include "symbex.h"
 #include "transpiler.h"
 
 #include <sstream>
@@ -1236,6 +1240,154 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   nf_process_builder.append(", ");
   nf_process_builder.append(size_transpiled);
   nf_process_builder.append(");");
+  nf_process_builder.append_new_line();
+}
+
+
+void x86Generator::visit(const ExecutionPlanNode *ep_node,
+                         const target::SendToDevice *node) {
+  auto port = node->get_outgoing_port();
+  
+  nf_process_builder.indent();
+  nf_process_builder.append(BDD::symbex::FN_RETURN_ALL_CHUNKS);
+  nf_process_builder.append("(");
+  nf_process_builder.append("*");
+  nf_process_builder.append(PACKET_VAR_LABEL);
+  nf_process_builder.append(")");
+  nf_process_builder.append(";");
+  nf_process_builder.append_new_line();
+
+  auto path_label = vars.get_new_label(PATH_HDR_LABEL);
+  auto path_var = Variable(path_label, 8);
+  vars.append(path_var);
+
+  nf_process_builder.indent();
+  nf_process_builder.append("uint8_t *");
+  nf_process_builder.append(path_var.get_label());
+  nf_process_builder.append(" = (uint8_t *)");
+  nf_process_builder.append(CHUNKS_BORROWED_LABEL);
+  nf_process_builder.append("[0];");
+  nf_process_builder.append_new_line();
+
+  nf_process_builder.indent();
+  nf_process_builder.append(BDD::symbex::FN_INSERT_CHUNK);
+  nf_process_builder.append("(");
+  nf_process_builder.append("(void**)");
+  nf_process_builder.append(PACKET_VAR_LABEL);
+  nf_process_builder.append(", ");
+  nf_process_builder.append(std::to_string(CODE_PATH_HDR_SIZE)); // chunk length
+  nf_process_builder.append(", ");
+  nf_process_builder.append(CHUNKS_BORROWED_LABEL);
+  nf_process_builder.append(", ");
+  nf_process_builder.append("&");
+  nf_process_builder.append(CHUNKS_BORROWED_NUM_LABEL);
+  nf_process_builder.append(", ");
+  nf_process_builder.append(MBUF_VAR_LABEL);
+  nf_process_builder.append(")");
+  nf_process_builder.append(";");
+  nf_process_builder.append_new_line();
+
+  for(unsigned i = 0; i < CODE_PATH_HDR_SIZE; ++i) {
+    nf_process_builder.indent();
+    nf_process_builder.append(path_var.get_label());
+    nf_process_builder.append("[");
+    nf_process_builder.append(std::to_string(i));
+    nf_process_builder.append("] = ");
+    unsigned path = node->get_cpu_code_path() >> (8*i);
+    nf_process_builder.append(std::to_string(path & 0xFF));
+    nf_process_builder.append(";");
+    nf_process_builder.append_new_line();
+  }
+  
+  nf_process_builder.indent();
+  nf_process_builder.append("return ");
+  nf_process_builder.append(port);
+  nf_process_builder.append(";");
+  nf_process_builder.append_new_line();
+
+  auto closed = pending_ifs.close();
+
+  for (auto i = 0; i < closed; i++) {
+    vars.pop();
+  }
+}
+
+void x86Generator::visit(const ExecutionPlanNode *ep_node,
+                         const target::PacketParseCPU *node) {
+
+  auto var = Variable(std::string(PATH_HDR_LABEL), 16, {"hdr_path"});
+  vars.append(var);
+
+  auto var_cpu = Variable(std::string(PATH_LABEL), 16, {"cpu_code_path"});
+  vars.append(var_cpu);
+
+  nf_process_builder.indent();
+  nf_process_builder.append("void* ");
+  nf_process_builder.append(PATH_HDR_LABEL);
+  nf_process_builder.append(";");
+  nf_process_builder.append_new_line();
+
+  nf_process_builder.indent();
+  nf_process_builder.append(BDD::symbex::FN_BORROW_CHUNK);
+  nf_process_builder.append("(");
+  nf_process_builder.append("*");
+  nf_process_builder.append(PACKET_VAR_LABEL);
+  nf_process_builder.append(", ");
+  nf_process_builder.append(CODE_PATH_HDR_SIZE);
+  nf_process_builder.append(", ");
+  nf_process_builder.append("&");
+  nf_process_builder.append(PATH_HDR_LABEL);
+  nf_process_builder.append(")");
+  nf_process_builder.append(";");
+  nf_process_builder.append_new_line();
+
+  nf_process_builder.indent();
+  nf_process_builder.append("uint16_t ");
+  nf_process_builder.append(var_cpu.get_label());
+  nf_process_builder.append(" = 0");
+  nf_process_builder.append(";");
+  nf_process_builder.append_new_line(); 
+
+  for(unsigned i = 0; i < CODE_PATH_HDR_SIZE; ++i) {
+    nf_process_builder.indent();
+    nf_process_builder.append(var_cpu.get_label());
+    nf_process_builder.append(" += ");
+    nf_process_builder.append("((uint8_t*)");
+    nf_process_builder.append(var.get_label());
+    nf_process_builder.append(")[");
+    nf_process_builder.append(std::to_string(i));
+    nf_process_builder.append("]");
+    nf_process_builder.append(" << ");
+    nf_process_builder.append(std::to_string(8*i));
+    nf_process_builder.append(";");
+    nf_process_builder.append_new_line();
+  }
+
+
+  nf_process_builder.indent();
+  nf_process_builder.append(BDD::symbex::FN_SHRINK_CHUNK);
+  nf_process_builder.append("(");
+  nf_process_builder.append("(void**)");
+  nf_process_builder.append(PACKET_VAR_LABEL);
+  nf_process_builder.append(", ");
+  nf_process_builder.append(0); // shrink to 0
+  nf_process_builder.append(", ");
+  nf_process_builder.append(CHUNKS_BORROWED_LABEL);
+  nf_process_builder.append(", ");
+  nf_process_builder.append(CHUNKS_BORROWED_NUM_LABEL);
+  nf_process_builder.append(", ");
+  nf_process_builder.append(MBUF_VAR_LABEL);
+  nf_process_builder.append(")");
+  nf_process_builder.append(";");
+  nf_process_builder.append_new_line();
+
+  nf_process_builder.indent();
+  nf_process_builder.append(BDD::symbex::FN_RETURN_ALL_CHUNKS);
+  nf_process_builder.append("(");
+  nf_process_builder.append("*");
+  nf_process_builder.append(PACKET_VAR_LABEL);
+  nf_process_builder.append(")");
+  nf_process_builder.append(";");
   nf_process_builder.append_new_line();
 }
 

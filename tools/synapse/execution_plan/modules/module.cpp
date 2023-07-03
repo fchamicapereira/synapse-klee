@@ -3,6 +3,7 @@
 #include "../execution_plan.h"
 #include "../visitors/graphviz/graphviz.h"
 #include "../visitors/visitor.h"
+#include "bdd/nodes/node.h"
 #include "module.h"
 
 #include <algorithm>
@@ -36,7 +37,8 @@ std::vector<ExecutionPlan> get_reordered(const ExecutionPlan &ep,
   auto current_bdd = ep.get_bdd();
   auto current_target = ep.get_current_target();
   auto starting_points_of_targets = ep.get_targets_bdd_starting_points();
-  auto current_starting_points = starting_points_of_targets[current_target->id];
+  auto s = starting_points_of_targets[current_target->id];
+  auto current_starting_points =  std::unordered_set<BDD::node_id_t>(s.begin(), s.end());
 
   auto reordered_bdds =
       BDD::reorder(current_bdd, current_node, current_starting_points);

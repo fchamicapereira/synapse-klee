@@ -5,9 +5,11 @@
 #include "bdd.h"
 
 #include "call-paths-groups.h"
-#include "nodes/node.h"
+#include "klee-util.h"
 #include "visitor.h"
 
+#include "nodes/branch.h"
+#include "nodes/call.h"
 #include "nodes/return_init.h"
 #include "nodes/return_process.h"
 #include "nodes/return_raw.h"
@@ -132,8 +134,8 @@ get_common_constraints(std::vector<call_path_t *> call_paths,
 
     for (auto cp : call_paths) {
       auto constraints = kutil::join_managers(cp->constraints, exclusion_list);
-      auto is_true =
-          kutil::solver_toolbox.is_expr_always_true(constraints, constraint);
+      auto is_true = kutil::solver_toolbox.is_expr_always_true(
+          constraints, constraint, true);
 
       if (!is_true) {
         is_common = false;
@@ -207,7 +209,8 @@ Node_ptr BDD::populate(call_paths_t call_paths,
 
       auto not_discriminating_constraint =
           kutil::solver_toolbox.exprBuilder->Not(discriminating_constraint);
-      auto not_constraint_simpl = kutil::simplify(not_discriminating_constraint);
+      auto not_constraint_simpl =
+          kutil::simplify(not_discriminating_constraint);
 
       auto on_true_accumulated = accumulated;
       auto on_false_accumulated = accumulated;
@@ -543,6 +546,138 @@ void BDD::rename_symbols(Node_ptr node, SymbolFactory &factory) {
 std::string BDD::hash() const {
   assert(nf_process);
   return nf_process->hash(true);
+}
+
+struct symbols_merger_t {
+  std::unordered_map<std::string, klee::UpdateList> roots_updates;
+  kutil::ReplaceSymbols replacer;
+
+  klee::ConstraintManager
+  save_and_merge(const klee::ConstraintManager &constraints) {
+    klee::ConstraintManager new_constraints;
+
+    for (auto c : constraints) {
+      auto new_c = save_and_merge(c);
+      new_constraints.addConstraint(new_c);
+    }
+
+    return new_constraints;
+  }
+
+  call_t save_and_merge(const call_t &call) {
+    call_t new_call = call;
+
+    for (auto it = call.args.begin(); it != call.args.end(); it++) {
+      const auto &arg = call.args.at(it->first);
+
+      new_call.args[it->first].expr = save_and_merge(arg.expr);
+      new_call.args[it->first].in = save_and_merge(arg.in);
+      new_call.args[it->first].out = save_and_merge(arg.out);
+    }
+
+    for (auto it = call.extra_vars.begin(); it != call.extra_vars.end(); it++) {
+      const auto &extra_var = call.extra_vars.at(it->first);
+
+      new_call.extra_vars[it->first].first = save_and_merge(extra_var.first);
+      new_call.extra_vars[it->first].second = save_and_merge(extra_var.second);
+    }
+
+    new_call.ret = save_and_merge(call.ret);
+
+    return new_call;
+  }
+
+  klee::ref<klee::Expr> save_and_merge(klee::ref<klee::Expr> expr) {
+    if (expr.isNull()) {
+      return expr;
+    }
+
+    kutil::RetrieveSymbols retriever;
+    retriever.visit(expr);
+
+    auto expr_roots_updates = retriever.get_retrieved_roots_updates();
+
+    for (auto it = expr_roots_updates.begin(); it != expr_roots_updates.end();
+         it++) {
+      if (roots_updates.find(it->first) != roots_updates.end()) {
+        continue;
+      }
+
+      roots_updates.insert({it->first, it->second});
+    }
+
+    replacer.add_roots_updates(expr_roots_updates);
+    return replacer.visit(expr);
+  }
+};
+
+void BDD::merge_symbols() {
+  symbols_merger_t merger;
+  std::vector<Node_ptr> nodes{nf_init, nf_process};
+
+  while (nodes.size()) {
+    auto node = nodes[0];
+    nodes.erase(nodes.begin());
+
+    auto constraints = node->get_node_constraints();
+    auto new_constraints = merger.save_and_merge(constraints);
+    node->set_node_constraints(new_constraints);
+    assert(new_constraints.size() == constraints.size());
+
+    switch (node->get_type()) {
+    case Node::NodeType::CALL: {
+      auto call_node = static_cast<Call *>(node.get());
+      auto call = call_node->get_call();
+      auto new_call = merger.save_and_merge(call);
+
+      call_node->set_call(new_call);
+
+      nodes.push_back(call_node->get_next());
+    } break;
+    case Node::NodeType::BRANCH: {
+      auto branch_node = static_cast<Branch *>(node.get());
+      auto condition = branch_node->get_condition();
+      auto new_condition = merger.save_and_merge(condition);
+
+      branch_node->set_condition(new_condition);
+
+      nodes.push_back(branch_node->get_on_true());
+      nodes.push_back(branch_node->get_on_false());
+    } break;
+    default:
+      continue;
+    }
+  }
+
+  roots_updates = merger.roots_updates;
+}
+
+klee::ref<klee::Expr> BDD::get_symbol(const std::string &name) const {
+  assert(roots_updates.find(name) != roots_updates.end());
+
+  const auto &updates = roots_updates.at(name);
+  const auto &root = updates.root;
+
+  const auto &size = root->getSize();
+  const auto &domain = root->domain;
+
+  auto read_entire_symbol = klee::ref<klee::Expr>();
+
+  for (auto i = 0u; i < size; i++) {
+    auto index = kutil::solver_toolbox.exprBuilder->Constant(i, domain);
+
+    if (read_entire_symbol.isNull()) {
+      read_entire_symbol =
+          kutil::solver_toolbox.exprBuilder->Read(updates, index);
+      continue;
+    }
+
+    read_entire_symbol = kutil::solver_toolbox.exprBuilder->Concat(
+        kutil::solver_toolbox.exprBuilder->Read(updates, index),
+        read_entire_symbol);
+  }
+
+  return read_entire_symbol;
 }
 
 } // namespace BDD

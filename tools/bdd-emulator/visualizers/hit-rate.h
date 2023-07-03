@@ -10,7 +10,7 @@
 #include "call-paths-to-bdd.h"
 
 namespace BDD {
-
+  
 class HitRateGraphvizGenerator : public GraphvizGenerator {
 private:
   bdd_hit_rate_t hit_rate;

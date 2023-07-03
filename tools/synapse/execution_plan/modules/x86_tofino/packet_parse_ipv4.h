@@ -29,7 +29,8 @@ private:
     auto call_node = static_cast<const BDD::Call *>(ethernet_node);
     auto call = call_node->get_call();
 
-    auto ethernet_chunk = call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
+    auto ethernet_chunk =
+        call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
 
     assert(!ethernet_chunk.isNull());
     assert(!len.isNull());
@@ -47,13 +48,7 @@ private:
     auto eq =
         kutil::solver_toolbox.exprBuilder->Eq(eth_type_expr, eth_type_ipv4);
 
-    kutil::RetrieveSymbols symbol_retriever;
-    symbol_retriever.visit(eq);
-    auto symbols = symbol_retriever.get_retrieved();
-    kutil::ReplaceSymbols symbol_replacer(symbols);
-
-    return kutil::solver_toolbox.is_expr_always_true(constraints, eq,
-                                                     symbol_replacer);
+    return kutil::solver_toolbox.is_expr_always_true(constraints, eq);
   }
 
   processing_result_t process(const ExecutionPlan &ep,
@@ -81,7 +76,8 @@ private:
     }
 
     assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr.isNull());
-    assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
+    assert(
+        !call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
 
     auto _length = call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr;
     auto _chunk = call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;

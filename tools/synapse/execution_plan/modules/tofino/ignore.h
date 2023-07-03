@@ -104,7 +104,7 @@ private:
 
     if (recall_to_ignore(ep, node)) {
       auto new_module = std::make_shared<Ignore>(node);
-      auto new_ep = ep.ignore_leaf(node->get_next(), TargetType::Tofino);
+      auto new_ep = ep.ignore_leaf(node->get_next());
 
       result.module = new_module;
       result.next_eps.push_back(new_ep);
@@ -123,7 +123,7 @@ private:
 
     if (should_ignore) {
       auto new_module = std::make_shared<Ignore>(node);
-      auto new_ep = ep.ignore_leaf(node->get_next(), TargetType::Tofino);
+      auto new_ep = ep.ignore_leaf(node->get_next());
 
       result.module = new_module;
       result.next_eps.push_back(new_ep);
