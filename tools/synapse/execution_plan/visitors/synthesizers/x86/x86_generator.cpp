@@ -1,5 +1,7 @@
 #include "x86_generator.h"
 #include "constants.h"
+#include "domain/byte_array.h"
+#include "domain/variable.h"
 #include "exprs.h"
 #include "klee-util.h"
 
@@ -1257,17 +1259,34 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   nf_process_builder.append(";");
   nf_process_builder.append_new_line();
 
+  auto hdr_label = vars.get_new_label(HEADER_BASE_LABEL);
+  auto hdr_var = ByteArray(hdr_label, 124124); // TODO: random number
+  vars.append(hdr_var);
+
+  nf_process_builder.indent();
+  nf_process_builder.append("void* ");
+  nf_process_builder.append(hdr_var.get_label());
+  nf_process_builder.append(";");
+
+  nf_process_builder.append_new_line();
+
+  nf_process_builder.indent();
+  nf_process_builder.append(BDD::symbex::FN_BORROW_CHUNK);
+  nf_process_builder.append("(");
+  nf_process_builder.append("*");
+  nf_process_builder.append(PACKET_VAR_LABEL);
+  nf_process_builder.append(", ");
+  nf_process_builder.append("14");
+  nf_process_builder.append(", ");
+  nf_process_builder.append("&");
+  nf_process_builder.append(hdr_var.get_label());
+  nf_process_builder.append(")");
+  nf_process_builder.append(";");
+  nf_process_builder.append_new_line();
+
   auto path_label = vars.get_new_label(PATH_HDR_LABEL);
   auto path_var = Variable(path_label, 8);
   vars.append(path_var);
-
-  nf_process_builder.indent();
-  nf_process_builder.append("uint8_t *");
-  nf_process_builder.append(path_var.get_label());
-  nf_process_builder.append(" = (uint8_t *)");
-  nf_process_builder.append(CHUNKS_BORROWED_LABEL);
-  nf_process_builder.append("[0];");
-  nf_process_builder.append_new_line();
 
   nf_process_builder.indent();
   nf_process_builder.append(BDD::symbex::FN_INSERT_CHUNK);
@@ -1286,6 +1305,15 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   nf_process_builder.append(")");
   nf_process_builder.append(";");
   nf_process_builder.append_new_line();
+
+  nf_process_builder.indent();
+  nf_process_builder.append("uint8_t *");
+  nf_process_builder.append(path_var.get_label());
+  nf_process_builder.append(" = (uint8_t *)");
+  nf_process_builder.append(CHUNKS_BORROWED_LABEL);
+  nf_process_builder.append("[0];");
+  nf_process_builder.append_new_line();
+  
 
   for(unsigned i = 0; i < CODE_PATH_HDR_SIZE; ++i) {
     nf_process_builder.indent();
@@ -1317,6 +1345,31 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
 
   auto var = Variable(std::string(PATH_HDR_LABEL), 16, {"hdr_path"});
   vars.append(var);
+
+  auto hdr_label = vars.get_new_label(HEADER_BASE_LABEL);
+  auto hdr_var = ByteArray(hdr_label, 124125); // TODO: random number
+  vars.append(hdr_var);
+
+  nf_process_builder.indent();
+  nf_process_builder.append("void* ");
+  nf_process_builder.append(hdr_var.get_label());
+  nf_process_builder.append(";");
+
+  nf_process_builder.append_new_line();
+
+  nf_process_builder.indent();
+  nf_process_builder.append(BDD::symbex::FN_BORROW_CHUNK);
+  nf_process_builder.append("(");
+  nf_process_builder.append("*");
+  nf_process_builder.append(PACKET_VAR_LABEL);
+  nf_process_builder.append(", ");
+  nf_process_builder.append("14");
+  nf_process_builder.append(", ");
+  nf_process_builder.append("&");
+  nf_process_builder.append(hdr_var.get_label());
+  nf_process_builder.append(")");
+  nf_process_builder.append(";");
+  nf_process_builder.append_new_line();
 
   auto var_cpu = Variable(std::string(PATH_LABEL), 16, {"cpu_code_path"});
   vars.append(var_cpu);
