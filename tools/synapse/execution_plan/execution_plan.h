@@ -52,15 +52,10 @@ public:
   };
 
 private:
-  ep_id_t id;
-
   ExecutionPlanNode_ptr root;
   std::vector<leaf_t> leaves;
   BDD::BDD bdd;
   std::map<target_id_t, BDD_ptr> bdds; // TODO: check if i really use this
-
-  std::unordered_set<TargetType> targets;
-  TargetType initial_target;
 
   MemoryBank_ptr shared_memory_bank;
   std::map<target_id_t, Target_ptr> targets;
@@ -73,17 +68,15 @@ private:
   BDD::node_id_t clone_bdd_id;
   std::map<target_id_t, BDD::node_id_t> clone_leaves;
 
-
   unsigned depth;
   unsigned nodes;
   Target_ptr initial_target;
   Target_ptr current_target;
   std::map<target_id_t, std::set<BDD::node_id_t>>
       targets_bdd_starting_points;
-  std::map<TargetType, unsigned> nodes_per_target_type; // TODO: change to target
-  unsigned reordered_nodes;
-  unsigned id;
 
+  unsigned reordered_nodes;
+  ep_id_t id;
   ep_meta_t meta;
 
 public:
@@ -96,15 +89,7 @@ public:
   unsigned get_depth() const;
   unsigned get_nodes() const;
 
-  const std::map<target_id_t, std::set<BDD::node_id_t>> &
-  get_targets_bdd_starting_points() const;
-
-  std::set<BDD::node_id_t>
-  get_current_target_bdd_starting_points() const;
-
   BDD::Node_ptr get_bdd_root(BDD::Node_ptr node) const;
-
-  const std::map<TargetType, unsigned> &get_nodes_per_target_type() const;
 
   const ep_meta_t &get_meta() const;
   ep_id_t get_id() const;

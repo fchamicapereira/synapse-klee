@@ -40,7 +40,7 @@ ExecutionPlan::leaf_t::leaf_t(const leaf_t &_leaf)
     : leaf(_leaf.leaf), next(_leaf.next), current_platform(_leaf.current_platform), next_target(_leaf.next_target) {}
 
 ExecutionPlan::ExecutionPlan(const BDD::BDD &_bdd)
-    : id(counter++), bdd(_bdd), shared_memory_bank(MemoryBank::build()) {
+    : bdd(_bdd), shared_memory_bank(MemoryBank::build()), id(counter++) {
   assert(bdd.get_process());
 
   leaf_t leaf(bdd.get_process());
@@ -55,7 +55,7 @@ ExecutionPlan::ExecutionPlan(const ExecutionPlan &ep)
       clone_leaves(ep.clone_leaves), depth(ep.depth), nodes(ep.nodes), 
       initial_target(ep.initial_target), current_target(ep.current_target),
       targets_bdd_starting_points(ep.targets_bdd_starting_points),
-      nodes_per_target_type(ep.nodes_per_target_type), reordered_nodes(ep.reordered_nodes), id(ep.id),
+      reordered_nodes(ep.reordered_nodes), id(ep.id),
       meta(ep.meta) {}
 
 ExecutionPlan::ExecutionPlan(const ExecutionPlan &ep,
@@ -84,27 +84,6 @@ ExecutionPlan::ExecutionPlan(const ExecutionPlan &ep,
 unsigned ExecutionPlan::get_depth() const { return depth; }
 unsigned ExecutionPlan::get_nodes() const { return nodes; }
 
-const std::map<TargetType, unsigned> &
-ExecutionPlan::get_nodes_per_target_type() const {
-  return nodes_per_target_type;
-}
-
-const std::map<target_id_t, std::set<BDD::node_id_t>> &
-ExecutionPlan::get_targets_bdd_starting_points() const {
-  return targets_bdd_starting_points;
-}
-
-std::set<BDD::node_id_t>
-ExecutionPlan::get_current_target_bdd_starting_points() const {
-  auto target = get_current_target();
-  auto found_it = targets_bdd_starting_points.find(target->id);
-
-  if (found_it == targets_bdd_starting_points.end()) {
-    return std::set<BDD::node_id_t>();
-  }
-
-  return found_it->second;
-}
 const ep_meta_t &ExecutionPlan::get_meta() const { return meta; }
 
 BDD::Node_ptr ExecutionPlan::get_bdd_root(BDD::Node_ptr node) const {
@@ -239,6 +218,7 @@ void ExecutionPlan::add_target(Target_ptr target) {
 
   targets[target->id] = target;
   target_types[target->type].push_back(target);
+  meta.add_target(target);
 }
 
 const std::vector<Target_ptr>& ExecutionPlan::get_from_target_type(TargetType type) const {
@@ -349,14 +329,8 @@ MemoryBank_ptr ExecutionPlan::get_memory_bank() const {
   return shared_memory_bank;
 }
 
-const std::unordered_set<BDD::node_id_t> &
-ExecutionPlan::get_processed_bdd_nodes() const {
-  return processed_bdd_nodes;
-}
-
-void ExecutionPlan::update_targets_starting_points(
-    std::vector<leaf_t> new_leaves) {
-  auto target = get_current_target();
+void ExecutionPlan::update_roots(const std::vector<leaf_t> &new_leaves) {
+  auto current_target = get_current_target();
 
   for (auto leaf : new_leaves) {
     if (!leaf.next) {
@@ -366,7 +340,7 @@ void ExecutionPlan::update_targets_starting_points(
     assert(leaf.current_platform.first);
     auto next_target = leaf.next_target;
 
-    if (target->id != next_target->id) {
+    if (current_target != next_target) {
       auto starting_point = leaf.next->get_id();
       meta.roots_per_target[next_target->id].insert(starting_point);
     }
@@ -602,7 +576,8 @@ ExecutionPlan ExecutionPlan::add_leaves(std::vector<leaf_t> _leaves,
     new_ep.root = _leaves[0].leaf;
 
     auto module = _leaves[0].leaf->get_module();
-    new_ep.meta.nodes_per_target[module->get_target()->id]++;
+    auto target = _leaves[0].leaf->get_target();
+    new_ep.meta.nodes_per_target[target->id]++;
   } else {
     assert(new_ep.root);
     assert(new_ep.leaves.size());
@@ -617,7 +592,8 @@ ExecutionPlan ExecutionPlan::add_leaves(std::vector<leaf_t> _leaves,
       new_ep.meta.nodes++;
 
       auto module = leaf.leaf->get_module();
-      new_ep.meta.nodes_per_target[module->get_target()->id]++;
+      auto target = leaf.leaf->get_target();
+      new_ep.meta.nodes_per_target[target->id]++;
     }
 
     new_ep.leaves[0].leaf->set_next(branches);

@@ -16,8 +16,8 @@ struct ep_meta_t {
   unsigned nodes;
   unsigned reordered_nodes;
 
-  std::unordered_map<TargetType, root_nodes_t> roots_per_target;
-  std::unordered_map<TargetType, unsigned> nodes_per_target;
+  std::unordered_map<target_id_t, root_nodes_t> roots_per_target;
+  std::unordered_map<target_id_t, unsigned> nodes_per_target;
 
   std::unordered_set<BDD::node_id_t> processed_nodes;
 
@@ -30,9 +30,9 @@ struct ep_meta_t {
         nodes_per_target(meta.nodes_per_target),
         processed_nodes(meta.processed_nodes) {}
 
-  void add_target(TargetType type) {
-    roots_per_target[type].emplace();
-    nodes_per_target[type] = 0;
+  void add_target(Target_ptr target) {
+    roots_per_target[target->id].emplace();
+    nodes_per_target[target->id] = 0;
   }
 
   ep_meta_t &operator=(const ep_meta_t &) = default;
