@@ -51,14 +51,6 @@ llvm::cl::opt<bool>
            llvm::cl::cat(BDDEmulator));
 } // namespace
 
-BDD::emulation::meta_t run(const BDD::BDD &bdd,
-                           const BDD::emulation::cfg_t &cfg,
-                           const std::string &pcap_file, uint16_t device) {
-  BDD::emulation::Emulator emulator(bdd, cfg);
-  emulator.run(pcap_file, device);
-  return emulator.get_meta();
-}
-
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv);
 
@@ -79,21 +71,37 @@ int main(int argc, char **argv) {
   cfg.warmup = Warmup;
   cfg.report = true;
 
-  auto meta = run(bdd, cfg, InputPcap, InputDevice);
-  std::cerr << meta << "\n";
+  BDD::emulation::Emulator emulator(bdd, cfg);
+  emulator.run(InputPcap, InputDevice);
+
+  const auto &reporter = emulator.get_reporter();
 
   if (Show) {
-    BDD::HitRateGraphvizGenerator::visualize(bdd, meta.get_hit_rate(), false);
+    reporter.render_hit_rate_dot(false);
   }
 
   if (OutputReport.size() != 0) {
-    auto report = std::ofstream(OutputReport, std::ios::out);
+    auto hit_rate_report = std::ofstream(OutputReport, std::ios::out);
 
-    if (report.is_open()) {
-      report.close();
-    } else {
+    if (!hit_rate_report.is_open()) {
       std::cerr << "Unable to open report file " << OutputReport << "\n";
+      return 1;
     }
+
+    reporter.dump_hit_rate_csv(hit_rate_report);
+    hit_rate_report.close();
+  }
+
+  if (OutputDot.size()) {
+    auto dot = std::ofstream(OutputDot, std::ios::out);
+
+    if (!dot.is_open()) {
+      std::cerr << "Unable to open dot file " << OutputDot << "\n";
+      return 1;
+    }
+
+    reporter.dump_hit_rate_dot(dot);
+    dot.close();
   }
 
   return 0;

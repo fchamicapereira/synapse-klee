@@ -42,15 +42,19 @@ void find_and_replace(
 }
 
 void sanitize_html_label(std::string &label) {
-  find_and_replace(label, {
-                              {"{", "&#123;"},
-                              {"}", "&#125;"},
-                              {"[", "&#91;"},
-                              {"]", "&#93;"},
-                              {"<", "&lt;"},
-                              {">", "&gt;"},
-                              {"\n", "<br/>"},
-                          });
+  find_and_replace(
+      label, {
+                 {"&", "&amp;"}, // Careful, this needs to be the first
+                                 // one, otherwise we mess everything up. Notice
+                                 // that all the others use ampersands.
+                 {"{", "&#123;"},
+                 {"}", "&#125;"},
+                 {"[", "&#91;"},
+                 {"]", "&#93;"},
+                 {"<", "&lt;"},
+                 {">", "&gt;"},
+                 {"\n", "<br/>"},
+             });
 }
 
 void Graphviz::initialise_border_colours(const ExecutionPlan &ep) {
@@ -412,7 +416,7 @@ void visit_definitions(std::ofstream &ofs,
   ofs << "<td ";
   ofs << "bgcolor=\"" << target_color << "\"";
   ofs << ">";
-  ofs << "EP: " << data.execution_plan_id;
+  ofs << "EP: " << data.execution_plan;
   ofs << "</td>\n";
 
   indent(4);
@@ -524,7 +528,7 @@ void Graphviz::visit(ExecutionPlan ep) {
   ofs.flush();
 
   auto bdd = ep.get_bdd();
-  auto processed = ep.get_processed_bdd_nodes();
+  auto processed = ep.get_meta().processed_nodes;
   const BDD::Node *next_node = nullptr;
 
   if (ep.get_next_node()) {

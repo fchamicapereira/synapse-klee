@@ -7,25 +7,27 @@
 #include "heuristics/heuristic.h"
 #include "heuristics/score.h"
 
+#include "execution_plan/execution_plan.h"
+
 namespace synapse {
 
 struct generated_data_t {
   TargetType target;
-  int execution_plan_id;
+  ep_id_t execution_plan;
   Score score;
   Module_ptr module;
   BDD::Node_ptr node;
 
-  generated_data_t(TargetType _target, int _execution_plan_id, Score _score)
-      : target(_target), execution_plan_id(_execution_plan_id), score(_score) {}
+  generated_data_t(TargetType _target, ep_id_t _execution_plan_id, Score _score)
+      : target(_target), execution_plan(_execution_plan_id), score(_score) {}
 
-  generated_data_t(TargetType _target, int _execution_plan_id, Score _score,
+  generated_data_t(TargetType _target, ep_id_t _execution_plan_id, Score _score,
                    const Module_ptr &_module, BDD::Node_ptr _node)
-      : target(_target), execution_plan_id(_execution_plan_id), score(_score),
+      : target(_target), execution_plan(_execution_plan_id), score(_score),
         module(_module), node(_node) {}
 
   generated_data_t(const generated_data_t &data)
-      : target(data.target), execution_plan_id(data.execution_plan_id),
+      : target(data.target), execution_plan(data.execution_plan),
         score(data.score), module(data.module), node(data.node) {}
 };
 
@@ -50,14 +52,24 @@ typedef std::shared_ptr<ss_node_t> ss_node_ref;
 class SearchSpace {
 private:
   struct pending_leaves_t {
-    int source_execution_plan_id;
+    std::pair<bool, ep_id_t> source_execution_plan;
     std::vector<generated_data_t> data;
 
-    pending_leaves_t() : source_execution_plan_id(-1) {}
+    pending_leaves_t() : source_execution_plan(false, 0) {}
 
     void reset() {
-      source_execution_plan_id = -1;
+      source_execution_plan.first = false;
       data.clear();
+    }
+
+    void set(ep_id_t _source_execution_plan) {
+      if (source_execution_plan.first) {
+        assert(source_execution_plan.second == _source_execution_plan);
+        return;
+      }
+
+      source_execution_plan.first = true;
+      source_execution_plan.second = _source_execution_plan;
     }
 
     void add(const generated_data_t &_data) { data.push_back(_data); }
@@ -99,13 +111,9 @@ public:
     assert(module);
 
     auto target = ep.get_current_target();
+    auto source_execution_plan = ep.get_id();
 
-    int source_execution_plan_id = ep.get_id();
-
-    assert(pending_leaves.source_execution_plan_id == -1 ||
-           pending_leaves.source_execution_plan_id == source_execution_plan_id);
-
-    pending_leaves.source_execution_plan_id = source_execution_plan_id;
+    pending_leaves.set(source_execution_plan);
 
     auto n_elems = next_eps.size();
 
@@ -124,8 +132,9 @@ public:
     }
 
     auto ss_node_matcher = [&](ss_node_ref node) {
-      return node->data.execution_plan_id ==
-             pending_leaves.source_execution_plan_id;
+      return pending_leaves.source_execution_plan.first &&
+             pending_leaves.source_execution_plan.second ==
+                 node->data.execution_plan;
     };
 
     auto found_it = std::find_if(leaves.begin(), leaves.end(), ss_node_matcher);
@@ -149,12 +158,7 @@ public:
     winners.clear();
 
     auto ss_node_matcher = [&](ss_node_ref node) {
-      if (node->data.execution_plan_id < 0) {
-        return false;
-      }
-
-      auto node_id = static_cast<unsigned>(node->data.execution_plan_id);
-      return node_id == ep.get_id();
+      return node->data.execution_plan == ep.get_id();
     };
 
     auto found_it = std::find_if(leaves.begin(), leaves.end(), ss_node_matcher);

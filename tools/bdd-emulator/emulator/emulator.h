@@ -40,6 +40,7 @@ public:
   void run(const std::string &pcap_file, uint16_t device);
 
   const meta_t &get_meta() { return meta; }
+  const Reporter &get_reporter() const { return reporter; }
 
 private:
   void dump_context(const context_t &ctx) const;

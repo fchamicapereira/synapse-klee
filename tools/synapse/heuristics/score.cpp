@@ -6,7 +6,8 @@
 namespace synapse {
 
 Score::score_value_t Score::get_nr_nodes(const ExecutionPlan &ep) const {
-  return ep.get_nodes();
+  const auto &meta = ep.get_meta();
+  return meta.nodes;
 }
 
 std::vector<ExecutionPlanNode_ptr>
@@ -71,13 +72,14 @@ Score::get_nr_int_allocator_ops(const ExecutionPlan &ep) const {
 }
 
 Score::score_value_t Score::get_depth(const ExecutionPlan &ep) const {
-  return ep.get_depth();
+  const auto &meta = ep.get_meta();
+  return meta.depth;
 }
 
 Score::score_value_t Score::get_nr_switch_nodes(const ExecutionPlan &ep) const {
   auto switch_nodes = 0;
-
-  const auto &nodes_per_target = ep.get_nodes_per_target_type();
+  const auto &meta = ep.get_meta();
+  const auto &nodes_per_target = meta.nodes_per_target;
 
   auto bmv2_nodes_it = nodes_per_target.find(TargetType::BMv2);
   auto tofino_nodes_it = nodes_per_target.find(TargetType::Tofino);
@@ -102,7 +104,8 @@ Score::score_value_t Score::get_nr_switch_nodes(const ExecutionPlan &ep) const {
 Score::score_value_t
 Score::get_nr_controller_nodes(const ExecutionPlan &ep) const {
   auto controller_nodes = 0;
-  const auto &nodes_per_target = ep.get_nodes_per_target_type();
+  const auto &meta = ep.get_meta();
+  const auto &nodes_per_target = meta.nodes_per_target;
 
   auto bmv2_controller_nodes_it = nodes_per_target.find(TargetType::x86_BMv2);
   auto tofino_controller_nodes_it =
@@ -121,7 +124,8 @@ Score::get_nr_controller_nodes(const ExecutionPlan &ep) const {
 
 Score::score_value_t
 Score::get_nr_reordered_nodes(const ExecutionPlan &ep) const {
-  return ep.get_reordered_nodes();
+  const auto &meta = ep.get_meta();
+  return meta.reordered_nodes;
 }
 
 Score::score_value_t

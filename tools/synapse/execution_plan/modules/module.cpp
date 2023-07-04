@@ -18,7 +18,8 @@ std::vector<ExecutionPlan> get_reordered(const ExecutionPlan &ep,
                                          int max_reordered) {
   std::vector<ExecutionPlan> reordered;
 
-  if (max_reordered >= 0 && (int)ep.get_reordered_nodes() >= max_reordered) {
+  if (max_reordered >= 0 &&
+      (int)ep.get_meta().reordered_nodes >= max_reordered) {
     return reordered;
   }
 
@@ -36,12 +37,12 @@ std::vector<ExecutionPlan> get_reordered(const ExecutionPlan &ep,
 
   auto current_bdd = ep.get_bdd();
   auto current_target = ep.get_current_target();
-  auto starting_points_of_targets = ep.get_targets_bdd_starting_points();
-  auto s = starting_points_of_targets[current_target->id];
-  auto current_starting_points =  std::unordered_set<BDD::node_id_t>(s.begin(), s.end());
+
+  const auto &meta = ep.get_meta();
+  auto roots_per_target = meta.roots_per_target.at(current_target->id);
 
   auto reordered_bdds =
-      BDD::reorder(current_bdd, current_node, current_starting_points);
+      BDD::reorder(current_bdd, current_node, roots_per_target);
 
   for (auto reordered_bdd : reordered_bdds) {
     auto ep_cloned = ep.clone(reordered_bdd.bdd);
@@ -57,8 +58,8 @@ std::vector<ExecutionPlan> get_reordered(const ExecutionPlan &ep,
 
     // If the next node was a BDD starting point, then actually the starting
     // point becomes the candidate node.
-    ep_cloned.replace_current_target_starting_points(
-        next_node->get_id(), reordered_bdd.candidate->get_id());
+    ep_cloned.replace_roots(next_node->get_id(),
+                            reordered_bdd.candidate->get_id());
 
     reordered.push_back(ep_cloned);
   }
@@ -126,17 +127,17 @@ Module::get_prev_fn(const ExecutionPlan &ep, BDD::Node_ptr node,
   std::vector<BDD::Node_ptr> prev_functions;
 
   auto target = ep.get_current_target();
+  const auto &meta = ep.get_meta();
 
-  auto targets_bdd_starting_points = ep.get_targets_bdd_starting_points();
-  auto starting_points_it = targets_bdd_starting_points.find(target->id);
+  const auto &roots_per_target = meta.roots_per_target;
+  auto roots_it = roots_per_target.find(target->id);
 
   auto is_starting_point = [&](const BDD::Node_ptr &node) -> bool {
-    if (ignore_targets ||
-        starting_points_it == targets_bdd_starting_points.end()) {
+    if (ignore_targets || roots_it == roots_per_target.end()) {
       return false;
     }
 
-    auto starting_points = starting_points_it->second;
+    auto starting_points = roots_it->second;
     return starting_points.find(node->get_id()) != starting_points.end();
   };
 

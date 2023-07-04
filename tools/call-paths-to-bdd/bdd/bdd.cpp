@@ -1,4 +1,3 @@
-#include "klee-util.h"
 #include <iostream>
 
 #include "bdd-io.h"
@@ -151,6 +150,39 @@ get_common_constraints(std::vector<call_path_t *> call_paths,
   return common;
 }
 
+klee::ref<klee::Expr> simplify_constraint(klee::ref<klee::Expr> constraint) {
+  assert(!constraint.isNull());
+
+  auto simplified = kutil::simplify(constraint);
+
+  if (kutil::is_bool(simplified)) {
+    return simplified;
+  }
+
+  auto width = simplified->getWidth();
+  auto zero = kutil::solver_toolbox.exprBuilder->Constant(0, width);
+  auto is_not_zero = kutil::solver_toolbox.exprBuilder->Ne(simplified, zero);
+
+  return is_not_zero;
+}
+
+klee::ref<klee::Expr>
+negate_and_simplify_constraint(klee::ref<klee::Expr> constraint) {
+  assert(!constraint.isNull());
+
+  auto simplified = kutil::simplify(constraint);
+
+  if (kutil::is_bool(simplified)) {
+    return kutil::solver_toolbox.exprBuilder->Not(simplified);
+  }
+
+  auto width = simplified->getWidth();
+  auto zero = kutil::solver_toolbox.exprBuilder->Constant(0, width);
+  auto is_zero = kutil::solver_toolbox.exprBuilder->Eq(simplified, zero);
+
+  return is_zero;
+}
+
 Node_ptr BDD::populate(call_paths_t call_paths,
                        klee::ConstraintManager accumulated) {
   Node_ptr local_root = nullptr;
@@ -201,22 +233,34 @@ Node_ptr BDD::populate(call_paths_t call_paths,
       }
     } else {
       auto discriminating_constraint = group.get_discriminating_constraint();
-      auto constraint_simpl = kutil::simplify(discriminating_constraint);
-      auto node =
-          std::make_shared<Branch>(id, empty_contraints, constraint_simpl);
+
+      auto constraint = simplify_constraint(discriminating_constraint);
+      auto not_constraint =
+          negate_and_simplify_constraint(discriminating_constraint);
+
+      auto node = std::make_shared<Branch>(id, empty_contraints, constraint);
 
       id++;
-
-      auto not_discriminating_constraint =
-          kutil::solver_toolbox.exprBuilder->Not(discriminating_constraint);
-      auto not_constraint_simpl =
-          kutil::simplify(not_discriminating_constraint);
 
       auto on_true_accumulated = accumulated;
       auto on_false_accumulated = accumulated;
 
-      on_true_accumulated.addConstraint(constraint_simpl);
-      on_false_accumulated.addConstraint(not_constraint_simpl);
+      for (auto cp : on_true.cp) {
+        assert(kutil::solver_toolbox.is_expr_always_true(cp->constraints,
+                                                         constraint));
+        assert(kutil::solver_toolbox.is_expr_always_false(cp->constraints,
+                                                          not_constraint));
+      }
+
+      for (auto cp : on_false.cp) {
+        assert(kutil::solver_toolbox.is_expr_always_true(cp->constraints,
+                                                         not_constraint));
+        assert(kutil::solver_toolbox.is_expr_always_false(cp->constraints,
+                                                          constraint));
+      }
+
+      on_true_accumulated.addConstraint(constraint);
+      on_false_accumulated.addConstraint(not_constraint);
 
       auto on_true_root = populate(on_true, on_true_accumulated);
       auto on_false_root = populate(on_false, on_false_accumulated);

@@ -18,8 +18,13 @@ private:
 public:
   HitRateGraphvizGenerator(std::ostream &os, const bdd_hit_rate_t &_hit_rate)
       : GraphvizGenerator(os), hit_rate(_hit_rate) {
-    auto colors_per_node = get_colors_per_node(_hit_rate);
-    set_node_colors(colors_per_node);
+    bdd_visualizer_opts_t opts;
+
+    opts.colors_per_node = get_colors_per_node(hit_rate);
+    opts.default_color.first = true;
+    opts.default_color.second = hit_rate_to_blue(0);
+
+    set_opts(opts);
   }
 
   static void visualize(const BDD &bdd, const bdd_hit_rate_t &hit_rate,

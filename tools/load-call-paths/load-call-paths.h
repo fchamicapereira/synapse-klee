@@ -51,6 +51,8 @@ struct call_paths_t {
     }
 
     assert(cp.size() == backup.size());
+
+    merge_symbols();
   }
 
   size_t size() const { return cp.size(); }
@@ -69,6 +71,8 @@ struct call_paths_t {
     cp.push_back(pair.first);
     backup.push_back(pair.second);
   }
+
+  void merge_symbols();
 
   static std::vector<std::string> skip_functions;
   static bool is_skip_function(const std::string &fname);

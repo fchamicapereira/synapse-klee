@@ -127,14 +127,16 @@ bool is_bool(klee::ref<klee::Expr> expr) {
   }
 
   if (expr->getKind() == klee::Expr::ZExt ||
-      expr->getKind() == klee::Expr::SExt) {
+      expr->getKind() == klee::Expr::SExt ||
+      expr->getKind() == klee::Expr::Not) {
     return is_bool(expr->getKid(0));
   }
 
+  if (expr->getKind() == klee::Expr::Or || expr->getKind() == klee::Expr::And) {
+    return is_bool(expr->getKid(0)) && is_bool(expr->getKid(1));
+  }
+
   return expr->getKind() == klee::Expr::Eq ||
-         expr->getKind() == klee::Expr::Not ||
-         expr->getKind() == klee::Expr::Or ||
-         expr->getKind() == klee::Expr::And ||
          expr->getKind() == klee::Expr::Uge ||
          expr->getKind() == klee::Expr::Ugt ||
          expr->getKind() == klee::Expr::Ule ||
@@ -254,7 +256,9 @@ klee::ConstraintManager join_managers(klee::ConstraintManager m1,
   }
 
   for (auto c : m2) {
-    m.addConstraint(c);
+    if (!manager_contains(m, c)) {
+      m.addConstraint(c);
+    }
   }
 
   return m;

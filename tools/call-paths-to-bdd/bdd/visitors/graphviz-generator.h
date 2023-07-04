@@ -91,12 +91,19 @@ private:
 
 public:
   GraphvizGenerator(std::ostream &_os, const bdd_visualizer_opts_t &opts)
-      : os(_os), show_init_graph(!opts.process_only), processed(opts.processed),
-        colors_per_node(opts.colors_per_node),
-        default_color(opts.default_color) {}
+      : os(_os) {
+    set_opts(opts);
+  }
 
   GraphvizGenerator(std::ostream &_os)
       : GraphvizGenerator(_os, bdd_visualizer_opts_t()) {}
+
+  void set_opts(const bdd_visualizer_opts_t &opts) {
+    show_init_graph = !opts.process_only;
+    processed = opts.processed;
+    colors_per_node = opts.colors_per_node;
+    default_color = opts.default_color;
+  }
 
   void set_processed(const bdd_visualizer_opts_t::processed_t &_processed) {
     processed = _processed;

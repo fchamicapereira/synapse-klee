@@ -165,7 +165,7 @@ bool can_be_negated(klee::ref<klee::Expr> expr) {
 klee::ref<klee::Expr> negate(klee::ref<klee::Expr> expr) {
   klee::ref<klee::Expr> other;
 
-  if (is_cmp_0(expr, other) && other->getWidth() == 1) {
+  if (is_cmp_0(expr, other) && kutil::is_bool(other)) {
     return other;
   }
 
@@ -294,6 +294,7 @@ klee::ref<klee::Expr> negate(klee::ref<klee::Expr> expr) {
   return expr;
 }
 
+// Simplify expressions like (Ne (0) (And X Y)) which could be (And X Y)
 bool simplify_cmp_ne_0(klee::ref<klee::Expr> expr, klee::ref<klee::Expr> &out) {
   klee::ref<klee::Expr> other;
 
@@ -302,6 +303,10 @@ bool simplify_cmp_ne_0(klee::ref<klee::Expr> expr, klee::ref<klee::Expr> &out) {
   }
 
   if (!is_cmp_0(expr, other)) {
+    return false;
+  }
+
+  if (!kutil::is_bool(other)) {
     return false;
   }
 
@@ -319,6 +324,10 @@ bool simplify_cmp_eq_0(klee::ref<klee::Expr> expr, klee::ref<klee::Expr> &out) {
   }
 
   if (!is_cmp_0(expr, other)) {
+    return false;
+  }
+
+  if (!kutil::is_bool(other)) {
     return false;
   }
 
@@ -345,32 +354,6 @@ bool simplify_not_eq(klee::ref<klee::Expr> expr, klee::ref<klee::Expr> &out) {
   auto rhs = expr->getKid(1);
 
   out = kutil::solver_toolbox.exprBuilder->Ne(lhs, rhs);
-  return true;
-}
-
-// Simplify expressions like (Ne (0) (And X Y)) which could be (And X Y)
-bool simplify_cmp_neq_0(klee::ref<klee::Expr> expr,
-                        klee::ref<klee::Expr> &out) {
-  klee::ref<klee::Expr> other;
-
-  if (!is_cmp_0(expr, other)) {
-    return false;
-  }
-
-  auto allowed_exprs = std::vector<klee::Expr::Kind>{
-      klee::Expr::Or,  klee::Expr::And, klee::Expr::Eq,  klee::Expr::Ne,
-      klee::Expr::Ult, klee::Expr::Ule, klee::Expr::Ugt, klee::Expr::Uge,
-      klee::Expr::Slt, klee::Expr::Sle, klee::Expr::Sgt, klee::Expr::Sge,
-  };
-
-  auto found_it =
-      std::find(allowed_exprs.begin(), allowed_exprs.end(), other->getKind());
-
-  if (found_it == allowed_exprs.end()) {
-    return false;
-  }
-
-  out = other;
   return true;
 }
 
@@ -477,8 +460,8 @@ klee::ref<klee::Expr> simplify(klee::ref<klee::Expr> expr) {
   }
 
   auto simplifiers = simplifiers_t{
-      simplify_extract,          simplify_cmp_eq_0, simplify_cmp_neq_0,
-      simplify_cmp_zext_eq_size, simplify_not_eq,   simplify_cmp_ne_0,
+      simplify_extract, simplify_cmp_eq_0, simplify_cmp_zext_eq_size,
+      simplify_not_eq,  simplify_cmp_ne_0,
   };
 
   std::vector<klee::ref<klee::Expr>> prev_exprs{expr};

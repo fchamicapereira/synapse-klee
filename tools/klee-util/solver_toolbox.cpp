@@ -77,8 +77,10 @@ solver_toolbox_t::merge_symbols(const klee::ConstraintManager &constraints,
   ReplaceSymbols replacer(symbols);
 
   klee::ConstraintManager renamed_constraints;
+
   for (auto c : constraints) {
-    renamed_constraints.addConstraint(replacer.visit(c));
+    auto renamed_constraint = replacer.visit(c);
+    renamed_constraints.addConstraint(renamed_constraint);
   }
 
   return renamed_constraints;
@@ -93,9 +95,9 @@ solver_toolbox_t::merge_symbols(klee::ref<klee::Expr> expr1,
 
   RetrieveSymbols retriever;
   retriever.visit(expr1);
-  auto symbols = retriever.get_retrieved();
+  auto updates = retriever.get_retrieved_roots_updates();
 
-  ReplaceSymbols replacer(symbols);
+  ReplaceSymbols replacer(updates);
   return replacer.visit(expr2);
 }
 

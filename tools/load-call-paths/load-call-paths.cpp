@@ -19,8 +19,10 @@
 #include <expr/Parser.h>
 #include <fstream>
 #include <iostream>
+#include <unordered_map>
 #include <vector>
 
+#include "../klee-util/klee-util.h"
 #include "load-call-paths.h"
 
 #define DEBUG
@@ -557,4 +559,83 @@ call_path_t *load_call_path(std::string file_name) {
   }
 
   return call_path;
+}
+
+struct symbols_merger_t {
+  std::unordered_map<std::string, klee::UpdateList> roots_updates;
+  kutil::ReplaceSymbols replacer;
+
+  klee::ConstraintManager
+  save_and_merge(const klee::ConstraintManager &constraints) {
+    klee::ConstraintManager new_constraints;
+
+    for (auto c : constraints) {
+      auto new_c = save_and_merge(c);
+      new_constraints.addConstraint(new_c);
+    }
+
+    return new_constraints;
+  }
+
+  call_t save_and_merge(const call_t &call) {
+    call_t new_call = call;
+
+    for (auto it = call.args.begin(); it != call.args.end(); it++) {
+      const auto &arg = call.args.at(it->first);
+
+      new_call.args[it->first].expr = save_and_merge(arg.expr);
+      new_call.args[it->first].in = save_and_merge(arg.in);
+      new_call.args[it->first].out = save_and_merge(arg.out);
+    }
+
+    for (auto it = call.extra_vars.begin(); it != call.extra_vars.end(); it++) {
+      const auto &extra_var = call.extra_vars.at(it->first);
+
+      new_call.extra_vars[it->first].first = save_and_merge(extra_var.first);
+      new_call.extra_vars[it->first].second = save_and_merge(extra_var.second);
+    }
+
+    new_call.ret = save_and_merge(call.ret);
+
+    return new_call;
+  }
+
+  klee::ref<klee::Expr> save_and_merge(klee::ref<klee::Expr> expr) {
+    if (expr.isNull()) {
+      return expr;
+    }
+
+    kutil::RetrieveSymbols retriever;
+    retriever.visit(expr);
+
+    auto expr_roots_updates = retriever.get_retrieved_roots_updates();
+
+    for (auto it = expr_roots_updates.begin(); it != expr_roots_updates.end();
+         it++) {
+      if (roots_updates.find(it->first) != roots_updates.end()) {
+        continue;
+      }
+
+      roots_updates.insert({it->first, it->second});
+    }
+
+    replacer.add_roots_updates(expr_roots_updates);
+    return replacer.visit(expr);
+  }
+};
+
+void call_paths_t::merge_symbols() {
+  symbols_merger_t merger;
+
+  for (auto call_path : cp) {
+    auto constraints = call_path->constraints;
+    auto new_constraints = merger.save_and_merge(constraints);
+    call_path->constraints = new_constraints;
+
+    for (auto i = 0u; i < call_path->calls.size(); i++) {
+      const auto &call = call_path->calls[i];
+      auto new_call = merger.save_and_merge(call);
+      call_path->calls[i] = new_call;
+    }
+  }
 }

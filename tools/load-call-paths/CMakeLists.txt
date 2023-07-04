@@ -10,10 +10,15 @@ file(GLOB_RECURSE load-call-paths-sources
   "*.cpp"
 )
 
-list(FILTER util-sources EXCLUDE REGEX ".*main\\.cpp$")
+file(GLOB_RECURSE klee-util-sources
+  "../klee-util/*.cpp"
+)
+
+list(FILTER klee-util-sources EXCLUDE REGEX ".*main\\.cpp$")
 
 add_executable(load-call-paths
   ${load-call-paths-sources}
+  ${klee-util-sources}
 )
 
 set(KLEE_LIBS
@@ -21,7 +26,7 @@ set(KLEE_LIBS
   kleeCore
 )
 
-target_include_directories(load-call-paths PRIVATE)
+target_include_directories(load-call-paths PRIVATE ../klee-util)
 target_link_libraries(load-call-paths ${KLEE_LIBS})
 
 install(TARGETS load-call-paths RUNTIME DESTINATION bin)

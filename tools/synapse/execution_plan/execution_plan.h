@@ -4,6 +4,7 @@
 #include "bdd/nodes/node.h"
 #include "bdd/visitors/graphviz-generator.h"
 #include "call-paths-to-bdd.h"
+#include "meta.h"
 #include "target.h"
 #include "clone.h"
 #include "visitors/graphviz/graphviz.h"
@@ -29,6 +30,8 @@ typedef std::shared_ptr<BDD::BDD> BDD_ptr;
 
 class ExecutionPlanVisitor;
 
+typedef uint64_t ep_id_t;
+
 class ExecutionPlan {
   friend class ExecutionPlanNode;
 
@@ -49,10 +52,15 @@ public:
   };
 
 private:
+  ep_id_t id;
+
   ExecutionPlanNode_ptr root;
   std::vector<leaf_t> leaves;
   BDD::BDD bdd;
   std::map<target_id_t, BDD_ptr> bdds; // TODO: check if i really use this
+
+  std::unordered_set<TargetType> targets;
+  TargetType initial_target;
 
   MemoryBank_ptr shared_memory_bank;
   std::map<target_id_t, Target_ptr> targets;
@@ -76,7 +84,7 @@ private:
   unsigned reordered_nodes;
   unsigned id;
 
-  static int counter;
+  ep_meta_t meta;
 
 public:
   ExecutionPlan(const BDD::BDD &_bdd);
@@ -98,11 +106,12 @@ public:
 
   const std::map<TargetType, unsigned> &get_nodes_per_target_type() const;
 
-  unsigned get_id() const;
+  const ep_meta_t &get_meta() const;
+  ep_id_t get_id() const;
+
   const std::vector<leaf_t> &get_leaves() const;
   const BDD::BDD &get_bdd() const;
   BDD::BDD &get_bdd();
-  unsigned get_reordered_nodes() const;
 
   std::vector<ExecutionPlanNode_ptr> get_prev_nodes() const;
   std::vector<ExecutionPlanNode_ptr> get_prev_nodes_of_current_target() const;
@@ -149,8 +158,6 @@ public:
     return static_cast<MB *>(targets.at(id)->memory_bank.get());
   }
 
-  const std::unordered_set<BDD::node_id_t> &get_processed_bdd_nodes() const;
-
   BDD::Node_ptr get_next_node() const;
   ExecutionPlanNode_ptr get_active_leaf() const;
   Target_ptr get_current_target() const;
@@ -179,8 +186,7 @@ public:
   float get_bdd_processing_progress() const;
   void remove_from_processed_bdd_nodes(BDD::node_id_t id);
   void add_processed_bdd_node(BDD::node_id_t id);
-  void replace_current_target_starting_points(BDD::node_id_t _old,
-                                              BDD::node_id_t _new);
+  void replace_roots(BDD::node_id_t _old, BDD::node_id_t _new);
 
   inline void set_infrastructure(std::shared_ptr<Clone::Infrastructure> _infrastructure) {
     infrastructure = _infrastructure;
@@ -196,14 +202,16 @@ public:
   ExecutionPlan clone(bool deep = false) const;
 
 private:
-  void update_targets_starting_points(std::vector<leaf_t> new_leaves);
-  void update_leaves(std::vector<leaf_t> _leaves, bool is_terminal);
+  void update_roots(const std::vector<leaf_t> &new_leaves);
+  void update_leaves(const std::vector<leaf_t> &_leaves, bool is_terminal);
   void update_processed_nodes();
 
   void update_clone_target_info(Target_ptr next_target) const;
 
   ExecutionPlanNode_ptr clone_nodes(ExecutionPlan &ep,
                                     const ExecutionPlanNode *node) const;
+
+  static ep_id_t counter;
 };
 
 bool operator==(const ExecutionPlan &lhs, const ExecutionPlan &rhs);
