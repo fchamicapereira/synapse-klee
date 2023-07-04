@@ -78,7 +78,7 @@ processing_result_t Module::process_node(const ExecutionPlan &ep,
   assert(node);
   processing_result_t result;
 
-  if (can_process_platform(ep, target)) {
+  if (can_process_platform(ep, target_type)) {
     result = process(ep, node);
   }
 

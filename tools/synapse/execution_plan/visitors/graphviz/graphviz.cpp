@@ -15,13 +15,13 @@
 
 #define DEFAULT_VISIT_PRINT_MODULE_NAME(M)                                     \
   void Graphviz::visit(const ExecutionPlanNode *ep_node, const M *node) {      \
-    function_call(ep_node, node->get_node(), node->get_target(),               \
+    function_call(ep_node, node->get_node(), node->get_target_type(),               \
                   node->get_name());                                           \
   }
 
 #define DEFAULT_BRANCH_VISIT_PRINT_MODULE_NAME(M)                              \
   void Graphviz::visit(const ExecutionPlanNode *ep_node, const M *node) {      \
-    branch(ep_node, node->get_node(), node->get_target(), node->get_name());   \
+    branch(ep_node, node->get_node(), node->get_target_type(), node->get_name());   \
   }
 
 namespace synapse {
@@ -623,7 +623,7 @@ void Graphviz::visit(const ExecutionPlanNode *ep_node,
   std::stringstream label_builder;
 
   auto bdd_node = node->get_node();
-  auto target = node->get_target();
+  auto target = node->get_target_type();
   auto conditions = node->get_conditions();
 
   for (auto i = 0u; i < conditions.size(); i++) {
@@ -651,7 +651,7 @@ void Graphviz::visit(const ExecutionPlanNode *ep_node,
   std::stringstream label_builder;
 
   auto bdd_node = node->get_node();
-  auto target = node->get_target();
+  auto target_type = node->get_target_type();
   auto size = node->get_size();
 
   label_builder << "Parse header [";
@@ -663,7 +663,7 @@ void Graphviz::visit(const ExecutionPlanNode *ep_node,
   auto label = label_builder.str();
   find_and_replace(label, {{"\n", "\\n"}});
 
-  function_call(ep_node, bdd_node, target, label);
+  function_call(ep_node, bdd_node, target_type, label);
 }
 
 void Graphviz::visit(const ExecutionPlanNode *ep_node,
@@ -671,7 +671,7 @@ void Graphviz::visit(const ExecutionPlanNode *ep_node,
   std::stringstream label_builder;
 
   auto bdd_node = node->get_node();
-  auto target = node->get_target();
+  auto target_type = node->get_target_type();
   auto condition = node->get_condition();
   auto apply_is_valid = node->get_apply_is_valid();
 
@@ -683,7 +683,7 @@ void Graphviz::visit(const ExecutionPlanNode *ep_node,
   auto label = label_builder.str();
   find_and_replace(label, {{"\n", "\\n"}});
 
-  branch(ep_node, bdd_node, target, label);
+  branch(ep_node, bdd_node, target_type, label);
 }
 
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::tofino::ModifyCustomHeader)
@@ -694,7 +694,7 @@ void Graphviz::visit(const ExecutionPlanNode *ep_node,
   std::stringstream label_builder;
 
   auto bdd_node = node->get_node();
-  auto target = node->get_target();
+  auto target = node->get_target_type();
   auto table = node->get_table();
 
   assert(table);
@@ -731,7 +731,7 @@ void Graphviz::visit(const ExecutionPlanNode *ep_node,
   std::stringstream label_builder;
 
   auto bdd_node = node->get_node();
-  auto target = node->get_target();
+  auto target = node->get_target_type();
   auto cpu_path = node->get_cpu_code_path();
   auto state = node->get_dataplane_state();
 
@@ -769,7 +769,7 @@ void Graphviz::visit(const ExecutionPlanNode *ep_node,
   std::stringstream label_builder;
 
   auto bdd_node = node->get_node();
-  auto target = node->get_target();
+  auto target_type = node->get_target_type();
   auto state = node->get_dataplane_state();
 
   label_builder << "Parse CPU Header\n";
@@ -783,7 +783,7 @@ void Graphviz::visit(const ExecutionPlanNode *ep_node,
   auto label = label_builder.str();
   find_and_replace(label, {{"\n", "\\l"}});
 
-  function_call(ep_node, bdd_node, target, label);
+  function_call(ep_node, bdd_node, target_type, label);
 }
 
 DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_tofino::PacketParseIPv4)

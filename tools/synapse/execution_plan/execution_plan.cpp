@@ -141,7 +141,7 @@ ExecutionPlan::get_prev_nodes_of_current_target() const {
     auto m = current->get_module();
     assert(m);
 
-    if (m->get_target() == target->type) {
+    if (m->get_target_type() == target->type) {
       prev_nodes.push_back(current);
     }
 
@@ -500,9 +500,9 @@ ExecutionPlan ExecutionPlan::replace_leaf(Module_ptr new_module,
 
   auto old_module = old_leaf.leaf->get_module();
 
-  if (old_module->get_target() != new_module->get_target()) {
-    new_ep.meta.nodes_per_target[old_module->get_target()]--;
-    new_ep.meta.nodes_per_target[new_module->get_target()]++;
+  if (old_module->get_target_type() != new_module->get_target_type()) {
+    new_ep.meta.nodes_per_target[old_module->get_target_type()]--;
+    new_ep.meta.nodes_per_target[new_module->get_target_type()]++;
   }
 
   new_ep.leaves[0].current_platform.first = true;

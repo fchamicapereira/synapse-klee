@@ -181,7 +181,7 @@ protected:
 
 protected:
   ModuleType type;
-  TargetType target;
+  TargetType target_type;
   TargetType next_target_type;
   const char *name;
   BDD::Node_ptr node;
@@ -189,20 +189,20 @@ protected:
 protected:
   Module(ModuleType _type, TargetType _target, const char *_name,
          BDD::Node_ptr _node)
-      : type(_type), target(_target), next_target_type(_target), name(_name),
+      : type(_type), target_type(_target), next_target_type(_target), name(_name),
         node(_node) {}
 
   Module(ModuleType _type, TargetType _target, const char *_name)
-      : type(_type), target(_target), next_target_type(_target), name(_name),
+      : type(_type), target_type(_target), next_target_type(_target), name(_name),
         node(nullptr) {}
 
 public:
   Module() {}
-  Module(const Module &m) : Module(m.type, m.target, m.name, m.node) {}
+  Module(const Module &m) : Module(m.type, m.target_type, m.name, m.node) {}
 
   ModuleType get_type() const { return type; }
   const char *get_name() const { return name; }
-  TargetType get_target() const { return target; }
+  TargetType get_target_type() const { return target_type; }
   TargetType get_next_target_type() const { return next_target_type; }
   BDD::Node_ptr get_node() const { return node; }
 
@@ -211,8 +211,8 @@ public:
     assert(node);
   }
 
-  static std::string target_to_string(TargetType target) {
-    switch (target) {
+  static std::string target_to_string(TargetType target_type) {
+    switch (target_type) {
     case x86_BMv2:
       return "x86 (BMv2)";
     case x86_Tofino:
@@ -235,7 +235,7 @@ public:
     exit(1);
   }
 
-  std::string get_target_name() const { return target_to_string(target); }
+  std::string get_target_name() const { return target_to_string(target_type); }
 
   processing_result_t process_node(const ExecutionPlan &_ep, BDD::Node_ptr node,
                                    int max_reordered);

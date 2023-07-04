@@ -9,7 +9,7 @@ namespace synapse {
 namespace synthesizer {
 
 bool pending_packet_borrow_next_chunk(const ExecutionPlanNode *ep_node,
-                                      TargetType target) {
+                                      TargetType target_type) {
   assert(ep_node);
   // std::vector<ExecutionPlanNode_ptr> nodes;
   std::vector<const ExecutionPlanNode *> nodes{ep_node};
@@ -27,7 +27,7 @@ bool pending_packet_borrow_next_chunk(const ExecutionPlanNode *ep_node,
     auto module = node->get_module();
     assert(module);
 
-    if (module->get_target() != target) {
+    if (module->get_target_type() != target_type) {
       continue;
     }
 

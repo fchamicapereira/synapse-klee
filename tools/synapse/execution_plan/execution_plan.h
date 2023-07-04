@@ -110,7 +110,7 @@ public:
 
   void add_target(Target_ptr target);
   const std::vector<Target_ptr>& get_from_target_type(TargetType type) const;
-  const std::map<target_id_t, Target_ptr> & get_targets() const;
+  const std::map<target_id_t, Target_ptr>& get_targets() const;
   bool has_target_type(TargetType type) const;
 
   MemoryBank_ptr get_memory_bank() const;

@@ -1155,8 +1155,8 @@ void x86BMv2Generator::fill_is_controller() {
 
     auto module = node->get_module();
 
-    if (module->get_target() != TargetType::x86_BMv2) {
-      is_controller = std::make_pair(true, module->get_target());
+    if (module->get_target_type() != TargetType::x86_BMv2) {
+      is_controller = std::make_pair(true, module->get_target_type());
       return;
     }
 
