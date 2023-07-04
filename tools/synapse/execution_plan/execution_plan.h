@@ -39,7 +39,6 @@ public:
   struct leaf_t {
     ExecutionPlanNode_ptr leaf;
     BDD::Node_ptr next;
-    std::pair<bool, TargetType> current_platform;
 
     Target_ptr next_target;
 

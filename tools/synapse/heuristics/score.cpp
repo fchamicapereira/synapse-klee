@@ -136,12 +136,12 @@ Score::get_nr_switch_leaves(const ExecutionPlan &ep) const {
       std::vector<TargetType>{TargetType::BMv2, TargetType::Tofino};
 
   for (auto leaf : leaves) {
-    if (!leaf.current_platform.first) {
+    if (!leaf.next_target) {
       continue;
     }
 
     auto found_it = std::find(switch_types.begin(), switch_types.end(),
-                              leaf.current_platform.second);
+                              leaf.leaf->get_target()->type);
 
     if (found_it != switch_types.end()) {
       switch_leaves++;

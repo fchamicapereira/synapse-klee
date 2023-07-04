@@ -20,7 +20,6 @@ ep_id_t ExecutionPlan::counter = 0;
 // goto constructors
 
 ExecutionPlan::leaf_t::leaf_t(BDD::Node_ptr _next) : next(_next) {
-  current_platform.first = false;
   next_target = nullptr;
 }
 
@@ -31,13 +30,11 @@ ExecutionPlan::leaf_t::leaf_t(Module_ptr _module, BDD::Node_ptr _next, Target_pt
     : leaf(ExecutionPlanNode::build(_module, target)), next(_next) {
   assert(_module);
 
-  current_platform.first = true;
-  current_platform.second = _module->get_next_target_type();
   this->next_target = next_target;
 }
 
 ExecutionPlan::leaf_t::leaf_t(const leaf_t &_leaf)
-    : leaf(_leaf.leaf), next(_leaf.next), current_platform(_leaf.current_platform), next_target(_leaf.next_target) {}
+    : leaf(_leaf.leaf), next(_leaf.next), next_target(_leaf.next_target) {}
 
 ExecutionPlan::ExecutionPlan(const BDD::BDD &_bdd)
     : bdd(_bdd), shared_memory_bank(MemoryBank::build()), id(counter++) {
@@ -337,7 +334,7 @@ void ExecutionPlan::update_roots(const std::vector<leaf_t> &new_leaves) {
       continue;
     }
 
-    assert(leaf.current_platform.first);
+    assert(leaf.next_target);
     auto next_target = leaf.next_target;
 
     if (current_target != next_target) {
@@ -505,9 +502,7 @@ ExecutionPlan ExecutionPlan::replace_leaf(Module_ptr new_module,
     new_ep.meta.nodes_per_target[new_module->get_target_type()]++;
   }
 
-  new_ep.leaves[0].current_platform.first = true;
-  new_ep.leaves[0].current_platform.second = next_target->type;
-  
+  new_ep.leaves[0].next_target = next_target;  
   new_ep.current_target = next_target;
 
   return new_ep;
@@ -530,9 +525,8 @@ ExecutionPlan ExecutionPlan::ignore_leaf(const BDD::Node_ptr &next,
 
   assert(new_ep.leaves.size());
   new_ep.leaves[0].next = next;
-
-  new_ep.leaves[0].current_platform.first = true;
-  new_ep.leaves[0].current_platform.second = next_target->type;
+  
+  new_ep.leaves[0].next_target = next_target;
 
   new_ep.current_target = next_target;
   new_ep.meta.nodes_per_target[next_target->id]++;
@@ -738,7 +732,7 @@ bool operator==(const ExecutionPlan &lhs, const ExecutionPlan &rhs) {
     auto lhs_leaf = lhs_leaves[i];
     auto rhs_leaf = rhs_leaves[i];
 
-    if (lhs_leaf.current_platform != rhs_leaf.current_platform) {
+    if (lhs_leaf.next_target->id != rhs_leaf.next_target->id) {
       return false;
     }
 
