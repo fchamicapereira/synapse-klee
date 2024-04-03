@@ -10,7 +10,7 @@
 #include <regex>
 #include <unistd.h>
 
-#define BMV2_BOILERPLATE_FILE "boilerplate.p4"
+#define BMV2_BOILERPLATE_FILE "bmv2.template.p4"
 
 namespace synapse {
 namespace synthesizer {
@@ -594,10 +594,9 @@ private:
 
 public:
   BMv2Generator()
-      : Synthesizer(GET_BOILERPLATE_PATH(BMV2_BOILERPLATE_FILE)),
-        parsing_headers(true), parser(*this), verify_checksum(*this),
-        ingress(*this), egress(*this), compute_checksum(*this),
-        deparser(*this) {}
+      : Synthesizer(BMV2_BOILERPLATE_FILE), parsing_headers(true),
+        parser(*this), verify_checksum(*this), ingress(*this), egress(*this),
+        compute_checksum(*this), deparser(*this) {}
 
   virtual void generate(ExecutionPlan &target_ep) override { visit(target_ep); }
 

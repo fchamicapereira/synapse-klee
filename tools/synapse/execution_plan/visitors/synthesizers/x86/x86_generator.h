@@ -34,7 +34,7 @@ private:
 
 public:
   x86Generator()
-      : Synthesizer(GET_BOILERPLATE_PATH(BOILERPLATE_FILE)),
+      : Synthesizer(BOILERPLATE_FILE),
         global_state_builder(get_indentation_level(MARKER_GLOBAL_STATE)),
         nf_init_builder(get_indentation_level(MARKER_NF_INIT)),
         nf_process_builder(get_indentation_level(MARKER_NF_PROCESS)),

@@ -74,11 +74,10 @@ constexpr char FN_MAP_GET[] = "map_get";
 constexpr char FN_MAP_PUT[] = "map_put";
 constexpr char FN_MAP_ERASE[] = "map_erase";
 constexpr char FN_MAP_ARG_CAPACITY[] = "capacity";
-constexpr char FN_MAP_ARG_KEY_EQUAL[] = "keq";
-constexpr char FN_MAP_ARG_KEY_HASH[] = "khash";
 constexpr char FN_MAP_ARG_MAP_OUT[] = "map_out";
 constexpr char FN_MAP_ARG_MAP[] = "map";
 constexpr char FN_MAP_ARG_KEY[] = "key";
+constexpr char FN_MAP_ARG_KEY_SIZE[] = "key_size";
 constexpr char FN_MAP_ARG_VALUE[] = "value";
 constexpr char FN_MAP_ARG_OUT[] = "value_out";
 constexpr char FN_MAP_ARG_TRASH[] = "trash";
@@ -90,7 +89,6 @@ constexpr char FN_VECTOR_BORROW[] = "vector_borrow";
 constexpr char FN_VECTOR_RETURN[] = "vector_return";
 constexpr char FN_VECTOR_ARG_CAPACITY[] = "capacity";
 constexpr char FN_VECTOR_ARG_ELEM_SIZE[] = "elem_size";
-constexpr char FN_VECTOR_ARG_INIT_ELEM[] = "init_elem";
 constexpr char FN_VECTOR_ARG_VECTOR_OUT[] = "vector_out";
 constexpr char FN_VECTOR_ARG_VECTOR[] = "vector";
 constexpr char FN_VECTOR_ARG_INDEX[] = "index";
@@ -119,7 +117,7 @@ constexpr char FN_SKETCH_TOUCH_BUCKETS[] = "sketch_touch_buckets";
 constexpr char FN_SKETCH_ARG_CAPACITY[] = "capacity";
 constexpr char FN_SKETCH_ARG_KEY[] = "key";
 constexpr char FN_SKETCH_ARG_THRESHOLD[] = "threshold";
-constexpr char FN_SKETCH_ARG_KEY_HASH[] = "khash";
+constexpr char FN_SKETCH_ARG_KEY_SIZE[] = "key_size";
 constexpr char FN_SKETCH_ARG_SKETCH[] = "sketch";
 constexpr char FN_SKETCH_ARG_SKETCH_OUT[] = "sketch_out";
 constexpr char FN_SKETCH_ARG_TIME[] = "time";
@@ -189,21 +187,17 @@ struct dchain_config_t {
 struct map_config_t {
   uint64_t capacity;
   bits_t key_size;
-  std::string key_eq;   // function ptr
-  std::string key_hash; // function ptr
 };
 
 struct vector_config_t {
   uint64_t capacity;
   uint64_t elem_size;
-  std::string init_elem; // function ptr
 };
 
 struct sketch_config_t {
   uint64_t capacity;
   uint64_t threshold;
   bits_t key_size;
-  std::string key_hash; // function ptr
 };
 
 struct cht_config_t {

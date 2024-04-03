@@ -129,13 +129,11 @@ map_config_t get_map_config(const BDD &bdd, addr_t map_addr) {
     auto call = call_node->get_call();
 
     assert(!call.args[FN_MAP_ARG_CAPACITY].expr.isNull());
-    assert(call.args[FN_MAP_ARG_KEY_EQUAL].fn_ptr_name.first);
-    assert(call.args[FN_MAP_ARG_KEY_HASH].fn_ptr_name.first);
+    assert(!call.args[FN_MAP_ARG_KEY_SIZE].expr.isNull());
     assert(!call.args[FN_MAP_ARG_MAP_OUT].out.isNull());
 
     auto capacity = call.args[FN_MAP_ARG_CAPACITY].expr;
-    auto keq = call.args[FN_MAP_ARG_KEY_EQUAL].fn_ptr_name.second;
-    auto khash = call.args[FN_MAP_ARG_KEY_HASH].fn_ptr_name.second;
+    auto key_size = call.args[FN_MAP_ARG_KEY_SIZE].expr;
     auto map_out = call.args[FN_MAP_ARG_MAP_OUT].out;
 
     auto map_out_addr = kutil::expr_addr_to_obj_addr(map_out);
@@ -145,9 +143,9 @@ map_config_t get_map_config(const BDD &bdd, addr_t map_addr) {
     }
 
     auto capacity_value = kutil::solver_toolbox.value_from_expr(capacity);
-    auto key_size = get_key_size(bdd, map_addr);
+    bits_t key_size_value = kutil::solver_toolbox.value_from_expr(key_size) * 8;
 
-    return map_config_t{capacity_value, key_size, keq, khash};
+    return map_config_t{capacity_value, static_cast<bits_t>(key_size_value)};
   }
 
   assert(false && "Should have found map configuration");
@@ -167,12 +165,10 @@ vector_config_t get_vector_config(const BDD &bdd, addr_t vector_addr) {
 
     assert(!call.args[FN_VECTOR_ARG_CAPACITY].expr.isNull());
     assert(!call.args[FN_VECTOR_ARG_ELEM_SIZE].expr.isNull());
-    assert(call.args[FN_VECTOR_ARG_INIT_ELEM].fn_ptr_name.first);
     assert(!call.args[FN_VECTOR_ARG_VECTOR_OUT].out.isNull());
 
     auto capacity = call.args[FN_VECTOR_ARG_CAPACITY].expr;
     auto elem_size = call.args[FN_VECTOR_ARG_ELEM_SIZE].expr;
-    auto init_elem = call.args[FN_VECTOR_ARG_INIT_ELEM].fn_ptr_name.second;
     auto vector_out = call.args[FN_VECTOR_ARG_VECTOR_OUT].out;
 
     auto vector_out_addr = kutil::expr_addr_to_obj_addr(vector_out);
@@ -184,7 +180,7 @@ vector_config_t get_vector_config(const BDD &bdd, addr_t vector_addr) {
     auto capacity_value = kutil::solver_toolbox.value_from_expr(capacity);
     auto elem_size_value = kutil::solver_toolbox.value_from_expr(elem_size);
 
-    return vector_config_t{capacity_value, elem_size_value, init_elem};
+    return vector_config_t{capacity_value, elem_size_value};
   }
 
   assert(false && "Should have found vector configuration");
@@ -204,12 +200,12 @@ sketch_config_t get_sketch_config(const BDD &bdd, addr_t sketch_addr) {
 
     assert(!call.args[FN_SKETCH_ARG_CAPACITY].expr.isNull());
     assert(!call.args[FN_SKETCH_ARG_THRESHOLD].expr.isNull());
-    assert(call.args[FN_SKETCH_ARG_KEY_HASH].fn_ptr_name.first);
+    assert(!call.args[FN_SKETCH_ARG_KEY_SIZE].expr.isNull());
     assert(!call.args[FN_SKETCH_ARG_SKETCH_OUT].out.isNull());
 
     auto capacity = call.args[FN_SKETCH_ARG_CAPACITY].expr;
     auto threshold = call.args[FN_SKETCH_ARG_THRESHOLD].expr;
-    auto khash = call.args[FN_SKETCH_ARG_KEY_HASH].fn_ptr_name.second;
+    auto key_size = call.args[FN_SKETCH_ARG_KEY_SIZE].expr;
     auto sketch_out = call.args[FN_SKETCH_ARG_SKETCH_OUT].out;
 
     auto sketch_out_addr = kutil::expr_addr_to_obj_addr(sketch_out);
@@ -220,9 +216,9 @@ sketch_config_t get_sketch_config(const BDD &bdd, addr_t sketch_addr) {
 
     auto capacity_value = kutil::solver_toolbox.value_from_expr(capacity);
     auto threshold_value = kutil::solver_toolbox.value_from_expr(threshold);
-    auto key_size = get_key_size(bdd, sketch_addr);
+    bits_t key_size_value = kutil::solver_toolbox.value_from_expr(key_size) * 8;
 
-    return sketch_config_t{capacity_value, threshold_value, key_size, khash};
+    return sketch_config_t{capacity_value, threshold_value, key_size_value};
   }
 
   assert(false && "Should have found sketch configuration");

@@ -222,3 +222,13 @@ int main(int argc, char **argv) {
 
   return 0;
 }
+
+/*@{GLOBAL STATE}@*/
+
+bool nf_init(void) {
+  /*@{NF INIT}@*/
+}
+
+int nf_process(uint16_t device, uint8_t *buffer, uint16_t packet_length, time_ns_t now) {
+  /*@{NF PROCESS}@*/
+}

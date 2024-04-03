@@ -12,7 +12,7 @@
 #include <regex>
 #include <unistd.h>
 
-#define X86_BMV2_BOILERPLATE_FILE "boilerplate.c"
+#define X86_BMV2_BOILERPLATE_FILE "bmv2-controller.template.c"
 
 namespace synapse {
 namespace synthesizer {
@@ -370,8 +370,7 @@ private:
 
 public:
   x86BMv2Generator()
-      : Synthesizer(GET_BOILERPLATE_PATH(X86_BMV2_BOILERPLATE_FILE)), lvl(0),
-        stack() {}
+      : Synthesizer(X86_BMV2_BOILERPLATE_FILE), lvl(0), stack() {}
 
   virtual void generate(ExecutionPlan &target_ep) override { visit(target_ep); }
 

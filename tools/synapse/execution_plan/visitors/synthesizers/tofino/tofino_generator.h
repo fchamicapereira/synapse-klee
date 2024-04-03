@@ -23,7 +23,7 @@ private:
 
 public:
   TofinoGenerator()
-      : Synthesizer(GET_BOILERPLATE_PATH(TOFINO_BOILERPLATE_FILE)),
+      : Synthesizer(TOFINO_BOILERPLATE_FILE),
         ingress(get_indentation_level(MARKER_INGRESS_HEADERS_DEF),
                 get_indentation_level(MARKER_INGRESS_HEADERS_DECL),
                 get_indentation_level(MARKER_INGRESS_METADATA),

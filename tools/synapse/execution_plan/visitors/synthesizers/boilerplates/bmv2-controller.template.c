@@ -1,3 +1,6 @@
+#include <stdint.h>
+#include <stdbool.h>
+
 #define DATA_BUFFER_SZ 512
 
 unsigned char data_buffer[DATA_BUFFER_SZ];

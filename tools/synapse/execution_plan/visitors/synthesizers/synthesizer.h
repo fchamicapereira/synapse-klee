@@ -14,9 +14,7 @@
 #define CODE_BUILDER_MARKER_BEGIN "/*@{"
 #define CODE_BUILDER_MARKER_END "}@*/"
 
-#define GET_BOILERPLATE_PATH(fname)                                            \
-  (std::string(__FILE__).substr(0, std::string(__FILE__).rfind("/")) + "/" +   \
-   (fname))
+#define BOILERPLATES_RELATIVE_DIR "boilerplates"
 
 namespace synapse {
 namespace synthesizer {
@@ -31,7 +29,8 @@ protected:
   const ExecutionPlan *original_ep;
 
 public:
-  Synthesizer(const std::string &boilerplate_fpath) : original_ep(nullptr) {
+  Synthesizer(const std::string &boilerplate_fname) : original_ep(nullptr) {
+    auto boilerplate_fpath = get_boilerplate_path(boilerplate_fname);
     os = std::unique_ptr<std::ostream>(new std::ostream(std::cerr.rdbuf()));
 
     auto boilerplate_stream = std::ifstream(boilerplate_fpath);
@@ -113,6 +112,14 @@ protected:
     }
 
     return spaces / 2;
+  }
+
+private:
+  std::string get_boilerplate_path(const std::string &fname) const {
+    auto last_backslash = std::string(__FILE__).rfind("/");
+    auto this_path = std::string(__FILE__).substr(0, last_backslash);
+    auto boilerplates_dir = this_path + "/" BOILERPLATES_RELATIVE_DIR;
+    return boilerplates_dir + "/" + fname;
   }
 };
 

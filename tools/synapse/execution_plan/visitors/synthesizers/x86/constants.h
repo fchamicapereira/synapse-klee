@@ -4,7 +4,7 @@ namespace synapse {
 namespace synthesizer {
 namespace x86 {
 
-constexpr char BOILERPLATE_FILE[] = "boilerplate.c";
+constexpr char BOILERPLATE_FILE[] = "x86.template.cpp";
 
 constexpr char MARKER_GLOBAL_STATE[] = "GLOBAL STATE";
 constexpr char MARKER_NF_INIT[] = "NF INIT";
@@ -38,13 +38,6 @@ constexpr char LOADBALANCED_FLOW_HASH_BASE_LABEL[] = "lb_hash";
 constexpr char PREFERED_BACKEND_BASE_LABEL[] = "prefered_backend";
 constexpr char CHOSEN_BACKEND_BASE_LABEL[] = "chosen_backend";
 constexpr char HASH_BASE_LABEL[] = "hash";
-
-constexpr char KEY_EQ_MACRO[] = "KEY_EQ";
-constexpr char KEY_HASH_MACRO[] = "KEY_HASH";
-constexpr char ELEM_INIT_MACRO[] = "INIT_ELEM";
-constexpr char KEY_EQ_FN_NAME_SUFFIX[] = "_key_eq";
-constexpr char KEY_HASH_FN_NAME_SUFFIX[] = "_key_hash";
-constexpr char ELEM_INIT_FN_NAME_SUFFIX[] = "_init_elem";
 
 constexpr char FN_SET_IPV4_TCPUDP_CHECKSUM[] = "set_rte_ipv4_udptcp_checksum";
 

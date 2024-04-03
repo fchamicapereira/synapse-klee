@@ -4,7 +4,7 @@ namespace synapse {
 namespace synthesizer {
 namespace x86_tofino {
 
-constexpr char BOILERPLATE_FILE[] = "boilerplate.cpp";
+constexpr char BOILERPLATE_FILE[] = "tofino-cpu.template.cpp";
 
 constexpr char MARKER_STATE_DECL[] = "NF STATE DECL";
 constexpr char MARKER_STATE_INIT[] = "NF STATE INIT";

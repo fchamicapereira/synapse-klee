@@ -4,7 +4,7 @@ namespace synapse {
 namespace synthesizer {
 namespace tofino {
 
-constexpr char TOFINO_BOILERPLATE_FILE[] = "boilerplate.p4";
+constexpr char TOFINO_BOILERPLATE_FILE[] = "tofino.template.p4";
 
 constexpr char MARKER_INGRESS_HEADERS_DEF[] = "INGRESS HEADERS DEFINITIONS";
 constexpr char MARKER_INGRESS_HEADERS_DECL[] = "INGRESS HEADERS DECLARATIONS";

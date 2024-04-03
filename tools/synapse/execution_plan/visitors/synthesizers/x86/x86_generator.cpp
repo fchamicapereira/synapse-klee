@@ -70,40 +70,15 @@ void x86Generator::map_init(addr_t addr, const BDD::symbex::map_config_t &cfg) {
   global_state_builder.append(";");
   global_state_builder.append_new_line();
 
-  auto key_eq_fn = map_label + std::string(KEY_EQ_FN_NAME_SUFFIX);
-  auto key_hash_fn = map_label + std::string(KEY_HASH_FN_NAME_SUFFIX);
-
   assert(cfg.key_size % 8 == 0);
-
-  global_state_builder.indent();
-  global_state_builder.append(KEY_EQ_MACRO);
-  global_state_builder.append("(");
-  global_state_builder.append(map_label);
-  global_state_builder.append(", ");
-  global_state_builder.append(cfg.key_size / 8);
-  global_state_builder.append(")");
-  global_state_builder.append(";");
-  global_state_builder.append_new_line();
-
-  global_state_builder.indent();
-  global_state_builder.append(KEY_HASH_MACRO);
-  global_state_builder.append("(");
-  global_state_builder.append(map_label);
-  global_state_builder.append(", ");
-  global_state_builder.append(cfg.key_size / 8);
-  global_state_builder.append(")");
-  global_state_builder.append(";");
-  global_state_builder.append_new_line();
 
   nf_init_builder.indent();
   nf_init_builder.append("if (!");
   nf_init_builder.append(BDD::symbex::FN_MAP_ALLOCATE);
   nf_init_builder.append("(");
-  nf_init_builder.append(key_eq_fn);
-  nf_init_builder.append(", ");
-  nf_init_builder.append(key_hash_fn);
-  nf_init_builder.append(", ");
   nf_init_builder.append(cfg.capacity);
+  nf_init_builder.append(", ");
+  nf_init_builder.append(cfg.key_size);
   nf_init_builder.append(", ");
   nf_init_builder.append("&");
   nf_init_builder.append(map_label);
@@ -126,18 +101,6 @@ void x86Generator::vector_init(addr_t addr,
   global_state_builder.append(";");
   global_state_builder.append_new_line();
 
-  auto elem_init_fn = vector_label + std::string(ELEM_INIT_FN_NAME_SUFFIX);
-
-  global_state_builder.indent();
-  global_state_builder.append(ELEM_INIT_MACRO);
-  global_state_builder.append("(");
-  global_state_builder.append(vector_label);
-  global_state_builder.append(", ");
-  global_state_builder.append(cfg.elem_size);
-  global_state_builder.append(")");
-  global_state_builder.append(";");
-  global_state_builder.append_new_line();
-
   nf_init_builder.indent();
   nf_init_builder.append("if (!");
   nf_init_builder.append(BDD::symbex::FN_VECTOR_ALLOCATE);
@@ -145,8 +108,6 @@ void x86Generator::vector_init(addr_t addr,
   nf_init_builder.append(cfg.elem_size);
   nf_init_builder.append(", ");
   nf_init_builder.append(cfg.capacity);
-  nf_init_builder.append(", ");
-  nf_init_builder.append(elem_init_fn);
   nf_init_builder.append(", ");
   nf_init_builder.append("&");
   nf_init_builder.append(vector_label);
@@ -196,29 +157,17 @@ void x86Generator::sketch_init(addr_t addr,
   global_state_builder.append(";");
   global_state_builder.append_new_line();
 
-  auto key_hash_fn = sketch_label + std::string(KEY_HASH_FN_NAME_SUFFIX);
-
   assert(cfg.key_size % 8 == 0);
-
-  global_state_builder.indent();
-  global_state_builder.append(KEY_HASH_MACRO);
-  global_state_builder.append("(");
-  global_state_builder.append(sketch_label);
-  global_state_builder.append(", ");
-  global_state_builder.append(cfg.key_size / 8);
-  global_state_builder.append(")");
-  global_state_builder.append(";");
-  global_state_builder.append_new_line();
 
   nf_init_builder.indent();
   nf_init_builder.append("if (!");
   nf_init_builder.append(BDD::symbex::FN_SKETCH_ALLOCATE);
   nf_init_builder.append("(");
-  nf_init_builder.append(key_hash_fn);
-  nf_init_builder.append(", ");
   nf_init_builder.append(cfg.capacity);
   nf_init_builder.append(", ");
   nf_init_builder.append(cfg.threshold);
+  nf_init_builder.append(", ");
+  nf_init_builder.append(cfg.key_size);
   nf_init_builder.append(", ");
   nf_init_builder.append("&");
   nf_init_builder.append(sketch_label);

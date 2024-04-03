@@ -38,7 +38,7 @@ private:
 
 public:
   x86TofinoGenerator()
-      : Synthesizer(GET_BOILERPLATE_PATH(BOILERPLATE_FILE)),
+      : Synthesizer(BOILERPLATE_FILE),
         state_decl_builder(get_indentation_level(MARKER_STATE_DECL)),
         state_init_builder(get_indentation_level(MARKER_STATE_INIT)),
         nf_process_builder(get_indentation_level(MARKER_NF_PROCESS)),

@@ -89,13 +89,13 @@ public:
       output_file += "bmv2.p4";
       break;
     case TargetType::x86_Tofino:
-      output_file += "tofino-x86.cpp";
+      output_file += "tofino-cpu.cpp";
       break;
     case TargetType::Tofino:
-      output_file += "tofino.p4";
+      output_file += "tofino-asic.p4";
       break;
     case TargetType::x86:
-      output_file += "x86.c";
+      output_file += "x86.cpp";
       break;
     }
 
