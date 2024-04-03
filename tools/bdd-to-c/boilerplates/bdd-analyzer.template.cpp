@@ -145,6 +145,7 @@ struct pkt_t {
 };
 
 struct config_t {
+  std::string nf_name;
   uint16_t device;
   const char *pcap;
   uint64_t total_packets;
@@ -378,7 +379,17 @@ void nf_config_print(void) {
   NF_INFO("--- ---------- ---");
 }
 
+std::string nf_name_from_executable(const char *argv0) {
+  std::string nf_name = argv0;
+  size_t last_slash = nf_name.find_last_of('/');
+  if (last_slash != std::string::npos) {
+    nf_name = nf_name.substr(last_slash + 1);
+  }
+  return nf_name;
+}
+
 void nf_config_init(int argc, char **argv) {
+  config.nf_name = nf_name_from_executable(argv[0]);
   config.device = DEFAULT_DEVICE;
   config.pcap = NULL;
   config.total_packets = DEFAULT_TOTAL_PACKETS;
@@ -496,7 +507,8 @@ void generate_report() {
   }
 
   std::stringstream report_fname_ss;
-  report_fname_ss << REPORT_NAME;
+  report_fname_ss << config.nf_name;
+  report_fname_ss << "-" << REPORT_NAME;
   report_fname_ss << "-dev-" << config.device;
   if (config.pcap) {
     report_fname_ss << "-pcap-" << config.pcap;
