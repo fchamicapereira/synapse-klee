@@ -28,6 +28,7 @@ public:
 
     std::cerr << "==========================================="
               << "\n";
+    std::cerr << "node:      " << node->get_id() << "\n";
     std::cerr << "type:      branch"
               << "\n";
     std::cerr << "condition: ";
@@ -43,6 +44,7 @@ public:
 
     std::cerr << "==========================================="
               << "\n";
+    std::cerr << "node:      " << node->get_id() << "\n";
     std::cerr << "type:      call"
               << "\n";
     std::cerr << "function:  " << call.function_name << "\n";
@@ -70,6 +72,7 @@ public:
 
     std::cerr << "==========================================="
               << "\n";
+    std::cerr << "node:      " << node->get_id() << "\n";
     std::cerr << "type:      return raw"
               << "\n";
     std::cerr << "lcalls:    " << calls_list.size() << "\n";
@@ -92,6 +95,7 @@ public:
 
     std::cerr << "==========================================="
               << "\n";
+    std::cerr << "node:      " << node->get_id() << "\n";
     std::cerr << "type:      return init"
               << "\n";
     std::cerr << "value:     ";
@@ -121,6 +125,7 @@ public:
 
     std::cerr << "==========================================="
               << "\n";
+    std::cerr << "node:      " << node->get_id() << "\n";
     std::cerr << "type:      return process"
               << "\n";
     std::cerr << "operation: ";

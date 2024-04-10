@@ -48,12 +48,16 @@ private:
 public:
   static constexpr char CHUNK_LAYER_2[] = "ether_header";
   static constexpr char CHUNK_LAYER_3[] = "ipv4_header";
-  static constexpr char CHUNK_LAYER_4[] = "tcpudp_header";
+  static constexpr char CHUNK_LAYER_4_TCPUDP[] = "tcpudp_header";
+  static constexpr char CHUNK_LAYER_4_TCP[] = "tcp_header";
+  static constexpr char CHUNK_LAYER_4_UDP[] = "udp_header";
 
   struct chunk_t {
     Variable_ptr var;
     unsigned int start_index;
   };
+
+  bool is_addr_in_use(unsigned int addr);
 
   chunk_t get_chunk_from_local(unsigned int idx);
   klee::ref<klee::Expr> get_expr_from_local_by_addr(unsigned int addr);

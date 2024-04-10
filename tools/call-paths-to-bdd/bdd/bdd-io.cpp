@@ -897,7 +897,7 @@ void BDD::deserialize(const std::string &file_path) {
   std::ifstream bdd_file(file_path);
 
   if (!bdd_file.is_open()) {
-    std::cerr << "Unable to open BDD file.\n";
+    std::cerr << "Unable to open BDD file \"" << file_path << "\".\n";
     exit(1);
   }
 

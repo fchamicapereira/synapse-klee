@@ -1,11 +1,12 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include <lib/unverified/sketch.h>
 #include <lib/verified/cht.h>
 #include <lib/verified/double-chain.h>
 #include <lib/verified/map.h>
 #include <lib/verified/vector.h>
+#include <lib/unverified/sketch.h>
+#include <lib/unverified/util.h>
 
 #include <lib/verified/expirator.h>
 #include <lib/verified/packet-io.h>

@@ -1,11 +1,12 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include <lib/unverified/sketch.h>
 #include <lib/verified/cht.h>
 #include <lib/verified/double-chain.h>
 #include <lib/verified/map.h>
 #include <lib/verified/vector.h>
+#include <lib/unverified/sketch.h>
+#include <lib/unverified/util.h>
 
 #include <lib/verified/expirator.h>
 #include <lib/verified/packet-io.h>
@@ -237,6 +238,8 @@ private:
       return false;
     }
 
+    const flow_t &flow = get_next_flow();
+
     // Generate a packet
     pkt.len = config.packet_sizes;
     pkt.ts = last_time + 1e9 / config.rate_pps;
@@ -248,12 +251,13 @@ private:
     struct rte_udp_hdr *udp_hdr = (struct rte_udp_hdr *)(ip_hdr + 1);
 
     eth_hdr->ether_type = rte_bswap16(RTE_ETHER_TYPE_IPV4);
-    ip_hdr->version_ihl = RTE_IPV4_VHL_DEF;
-    ip_hdr->next_proto_id = IPPROTO_UDP;
 
-    const flow_t &flow = get_next_flow();
+    ip_hdr->version_ihl = RTE_IPV4_VHL_DEF;
+    ip_hdr->total_length = rte_bswap16(pkt.len - sizeof(struct rte_ether_hdr));
+    ip_hdr->next_proto_id = IPPROTO_UDP;
     ip_hdr->src_addr = flow.src_ip;
     ip_hdr->dst_addr = flow.dst_ip;
+
     udp_hdr->src_port = flow.src_port;
     udp_hdr->dst_port = flow.dst_port;
 

@@ -23,7 +23,7 @@ const Color YELLOW = "\033[33m";
 const Color BLUE = "\033[34m";
 const Color MAGENTA = "\033[35m";
 const Color CYAN = "\033[36m";
-const Color WHITE = "\033[37m";
+const Color WHITE = "";
 const Color BOLD = "\033[1m";
 } // namespace Colors
 
@@ -54,11 +54,11 @@ private:
       break;
     case DEBUG:
       stream.rdbuf(std::cerr.rdbuf());
-      color = Colors::BLUE;
+      color = Colors::CYAN;
       break;
     case WARNING:
       stream.rdbuf(std::cerr.rdbuf());
-      color = Colors::CYAN;
+      color = Colors::RED;
       break;
     case ERROR:
       stream.rdbuf(std::cerr.rdbuf());

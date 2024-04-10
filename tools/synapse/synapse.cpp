@@ -41,9 +41,6 @@ using llvm::cl::values;
 using namespace synapse;
 
 namespace {
-llvm::cl::list<std::string> InputCallPathFiles(desc("<call paths>"),
-                                               Positional);
-
 llvm::cl::OptionCategory SyNAPSE("SyNAPSE specific options");
 
 llvm::cl::list<TargetType> TargetList(
@@ -86,26 +83,6 @@ llvm::cl::opt<bool> Verbose("v", desc("Verbose mode."),
                             cat(SyNAPSE));
 } // namespace
 
-BDD::BDD build_bdd() {
-  assert((InputBDDFile.size() != 0 || InputCallPathFiles.size() != 0) &&
-         "Please provide either at least 1 call path file, or a bdd file");
-
-  if (InputBDDFile.size() > 0) {
-    return BDD::BDD(InputBDDFile);
-  }
-
-  std::vector<call_path_t *> call_paths;
-
-  for (auto file : InputCallPathFiles) {
-    std::cerr << "Loading: " << file << std::endl;
-
-    call_path_t *call_path = load_call_path(file);
-    call_paths.push_back(call_path);
-  }
-
-  return BDD::BDD(call_paths);
-}
-
 std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd,
                                              BDD::node_id_t peek) {
   SearchEngine search_engine(bdd, MaxReordered);
@@ -133,8 +110,8 @@ std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd,
   return {winner, ss};
 }
 
-void synthesize(const ExecutionPlan &ep) {
-  CodeGenerator code_generator(Out);
+void synthesize(const std::string &fname, const ExecutionPlan &ep) {
+  CodeGenerator code_generator(Out, fname);
 
   for (unsigned i = 0; i != TargetList.size(); ++i) {
     auto target = TargetList[i];
@@ -142,6 +119,13 @@ void synthesize(const ExecutionPlan &ep) {
   }
 
   code_generator.generate(ep);
+}
+
+std::string nf_name_from_bdd(const std::string &bdd_fname) {
+  std::string nf_name = bdd_fname;
+  nf_name = nf_name.substr(nf_name.find_last_of("/") + 1);
+  nf_name = nf_name.substr(0, nf_name.find_last_of("."));
+  return nf_name;
 }
 
 int main(int argc, char **argv) {
@@ -153,7 +137,9 @@ int main(int argc, char **argv) {
     Log::MINIMUM_LOG_LEVEL = Log::Level::LOG;
   }
 
-  BDD::BDD bdd = build_bdd();
+  assert(InputBDDFile.size() && "Missing BDD file");
+  auto bdd = BDD::BDD(InputBDDFile);
+  auto nf_name = nf_name_from_bdd(InputBDDFile);
 
   auto start_search = std::chrono::steady_clock::now();
   auto search_results = search(bdd, Peek);
@@ -175,7 +161,7 @@ int main(int argc, char **argv) {
 
   if (Out.size()) {
     auto start_synthesis = std::chrono::steady_clock::now();
-    synthesize(search_results.first);
+    synthesize(nf_name, search_results.first);
     auto end_synthesis = std::chrono::steady_clock::now();
 
     synthesis_dt = std::chrono::duration_cast<std::chrono::seconds>(

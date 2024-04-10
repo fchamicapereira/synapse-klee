@@ -161,7 +161,9 @@ std::vector<Expr_ptr> apply_changes(AST *ast, Expr_ptr variable,
 
   case Type::TypeKind::STRUCT:
   case Type::TypeKind::ARRAY:
-  case Type::TypeKind::PRIMITIVE: { assert(false && "TODO"); }
+  case Type::TypeKind::PRIMITIVE: {
+    assert(false && "TODO");
+  }
   }
 
   return changes;
@@ -183,8 +185,8 @@ std::vector<Expr_ptr> build_and_fill_byte_array(AST *ast, Expr_ptr var,
         Constant::build(PrimitiveType::PrimitiveKind::UINT32_T, byte);
     Expr_ptr var_read = Read::build(var, byte_type, byte_const);
 
-    auto extracted = kutil::solver_toolbox.exprBuilder->Extract(expr, byte * 8,
-                                                              klee::Expr::Int8);
+    auto extracted = kutil::solver_toolbox.exprBuilder->Extract(
+        expr, byte * 8, klee::Expr::Int8);
     Expr_ptr val_read = transpile(ast, extracted);
 
     statements.push_back(Assignment::build(var_read, val_read));
@@ -217,12 +219,13 @@ apply_changes_to_match(AST *ast, const klee::ref<klee::Expr> &before,
     for (auto field : fields) {
       auto field_size = field->get_type()->get_size();
 
-      auto e1_chunk =
-          kutil::solver_toolbox.exprBuilder->Extract(before, offset, field_size);
+      auto e1_chunk = kutil::solver_toolbox.exprBuilder->Extract(before, offset,
+                                                                 field_size);
       auto e2_chunk =
           kutil::solver_toolbox.exprBuilder->Extract(after, offset, field_size);
 
-      bool eq = kutil::solver_toolbox.are_exprs_always_equal(e1_chunk, e2_chunk);
+      bool eq =
+          kutil::solver_toolbox.are_exprs_always_equal(e1_chunk, e2_chunk);
 
       if (!eq) {
         auto field_changes = apply_changes_to_match(ast, e1_chunk, e2_chunk);
@@ -251,7 +254,8 @@ apply_changes_to_match(AST *ast, const klee::ref<klee::Expr> &before,
       auto e2_chunk =
           kutil::solver_toolbox.exprBuilder->Extract(after, offset, elem_sz);
 
-      bool eq = kutil::solver_toolbox.are_exprs_always_equal(e1_chunk, e2_chunk);
+      bool eq =
+          kutil::solver_toolbox.are_exprs_always_equal(e1_chunk, e2_chunk);
 
       if (!eq) {
         Expr_ptr e1_chunk_ast = transpile(ast, e1_chunk);

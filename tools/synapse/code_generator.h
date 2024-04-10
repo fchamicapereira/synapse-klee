@@ -36,7 +36,6 @@ private:
   std::vector<target_helper_t> target_helpers_loaded;
   std::map<TargetType, target_helper_t> target_helpers_bank;
 
-private:
   ExecutionPlan x86_extractor(const ExecutionPlan &execution_plan) const;
   ExecutionPlan x86_bmv2_extractor(const ExecutionPlan &execution_plan) const;
   ExecutionPlan x86_tofino_extractor(const ExecutionPlan &execution_plan) const;
@@ -44,9 +43,11 @@ private:
   ExecutionPlan tofino_extractor(const ExecutionPlan &execution_plan) const;
 
   std::string directory;
+  std::string fname;
 
 public:
-  CodeGenerator(const std::string &_directory) : directory(_directory) {
+  CodeGenerator(const std::string &_directory, const std::string &_fname)
+      : directory(_directory), fname(_fname) {
     target_helpers_bank = {
         {TargetType::x86_BMv2,
          target_helper_t(&CodeGenerator::x86_bmv2_extractor,
@@ -79,7 +80,7 @@ public:
       return;
     }
 
-    auto output_file = directory + "/";
+    auto output_file = directory + "/" + fname + "-";
 
     switch (target) {
     case TargetType::x86_BMv2:

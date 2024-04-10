@@ -345,6 +345,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   nf_process_builder.append("(void*)");
   nf_process_builder.append(key_label);
   nf_process_builder.append(", ");
+  nf_process_builder.append("(int*)");
   nf_process_builder.append("&");
   nf_process_builder.append(value_var.get_label());
   nf_process_builder.append(");");
@@ -380,6 +381,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   nf_process_builder.indent();
   nf_process_builder.append(BDD::symbex::FN_BORROW_CHUNK);
   nf_process_builder.append("(");
+  nf_process_builder.append("(void*)");
   nf_process_builder.append("*");
   nf_process_builder.append(PACKET_VAR_LABEL);
   nf_process_builder.append(", ");
@@ -728,6 +730,7 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   nf_process_builder.append("(");
   nf_process_builder.append(dchain.var->get_label());
   nf_process_builder.append(", ");
+  nf_process_builder.append("(int*)");
   nf_process_builder.append("&");
   nf_process_builder.append(index_out_var.get_label());
   nf_process_builder.append(", ");

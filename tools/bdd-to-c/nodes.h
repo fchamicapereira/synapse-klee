@@ -2417,6 +2417,9 @@ private:
       return;
     }
 
+    std::cerr << "Error synthesizing expression: ";
+    expr->debug(std::cerr);
+    std::cerr << "Index: " << idx_val << std::endl;
     assert(false);
   }
 
@@ -3046,6 +3049,14 @@ public:
   void synthesize_expr(std::ostream &ofs, unsigned int lvl = 0) const override {
     variable->synthesize(ofs);
     ofs << " = ";
+
+    if (variable->get_type()->get_type_kind() != Type::TypeKind::POINTER &&
+        value->get_type()->get_type_kind() == Type::TypeKind::POINTER) {
+      ofs << "*(";
+      variable->get_type()->synthesize(ofs);
+      ofs << "*)";
+    }
+
     value->synthesize(ofs);
   }
 

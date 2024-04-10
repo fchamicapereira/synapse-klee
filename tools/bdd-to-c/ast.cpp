@@ -6,7 +6,9 @@ using std::string;
 
 constexpr char AST::CHUNK_LAYER_2[];
 constexpr char AST::CHUNK_LAYER_3[];
-constexpr char AST::CHUNK_LAYER_4[];
+constexpr char AST::CHUNK_LAYER_4_TCPUDP[];
+constexpr char AST::CHUNK_LAYER_4_TCP[];
+constexpr char AST::CHUNK_LAYER_4_UDP[];
 
 std::string get_symbol_label(const std::string &wanted,
                              const BDD::symbols_t &symbols) {
@@ -240,7 +242,8 @@ AST::chunk_t AST::get_chunk_from_local(unsigned int idx) {
     std::string symbol = var->get_symbol();
 
     if (symbol != CHUNK_LAYER_2 && symbol != CHUNK_LAYER_3 &&
-        symbol != CHUNK_LAYER_4) {
+        symbol != CHUNK_LAYER_4_TCP && symbol != CHUNK_LAYER_4_UDP &&
+        symbol != CHUNK_LAYER_4_TCPUDP) {
       return false;
     }
 
@@ -363,9 +366,24 @@ Variable_ptr AST::get_from_local_by_addr(const std::string &symbol,
   dump_stack();
   assert(false);
   exit(1);
+}
 
-  Variable_ptr ptr;
-  return ptr;
+bool AST::is_addr_in_use(unsigned int addr) {
+  for (const auto &var : state) {
+    if (var->get_addr() == addr) {
+      return true;
+    }
+  }
+
+  for (const auto &stack : local_variables) {
+    for (const auto &var : stack) {
+      if (var.first->get_addr() == addr) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 Variable_ptr AST::get_from_state(unsigned int addr) {
@@ -927,7 +945,8 @@ Node_ptr AST::process_state_node_from_call(const BDD::Call *bdd_call,
 
     Type_ptr hdr_type;
     std::string hdr_symbol;
-    klee::ref<klee::Expr> hdr_expr;
+
+    klee::ref<klee::Expr> hdr_expr = call.extra_vars["the_chunk"].second;
 
     auto prev_functions = get_prev_functions(
         bdd_call->get_prev(), "packet_borrow_next_chunk", {"current_time"});
@@ -1007,18 +1026,85 @@ Node_ptr AST::process_state_node_from_call(const BDD::Call *bdd_call,
         break;
       }
 
-      std::vector<Variable_ptr> tcpudp_hdr_fields{
-          Variable::build(
-              "src_port",
-              PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT16_T)),
-          Variable::build(
-              "dst_port",
-              PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT16_T))};
+      // HACK: we should infer this from the proto values
+      switch (hdr_expr->getWidth()) {
+      case 32: {
+        std::vector<Variable_ptr> tcpudp_hdr_fields{
+            Variable::build(
+                "src_port",
+                PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT16_T)),
+            Variable::build(
+                "dst_port",
+                PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT16_T)),
+        };
 
-      Struct_ptr tcpudp_hdr = Struct::build("tcpudp_hdr", tcpudp_hdr_fields);
+        Struct_ptr tcpudp_hdr = Struct::build("tcpudp_hdr", tcpudp_hdr_fields);
 
-      hdr_type = Pointer::build(tcpudp_hdr);
-      hdr_symbol = CHUNK_LAYER_4;
+        hdr_type = Pointer::build(tcpudp_hdr);
+        hdr_symbol = CHUNK_LAYER_4_TCPUDP;
+      } break;
+      case 64: {
+        std::vector<Variable_ptr> udp_hdr_fields{
+            Variable::build(
+                "src_port",
+                PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT16_T)),
+            Variable::build(
+                "dst_port",
+                PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT16_T)),
+            Variable::build(
+                "dgram_len",
+                PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT16_T)),
+            Variable::build(
+                "dgram_cksum",
+                PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT16_T)),
+        };
+
+        Struct_ptr udp_hdr = Struct::build("rte_udp_hdr", udp_hdr_fields);
+
+        hdr_type = Pointer::build(udp_hdr);
+        hdr_symbol = CHUNK_LAYER_4_UDP;
+      } break;
+      case 160: {
+        std::vector<Variable_ptr> tcp_hdr_fields{
+            Variable::build(
+                "src_port",
+                PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT16_T)),
+            Variable::build(
+                "dst_port",
+                PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT16_T)),
+            Variable::build(
+                "sent_seq",
+                PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT32_T)),
+            Variable::build(
+                "recv_ack",
+                PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT32_T)),
+            Variable::build(
+                "data_off",
+                PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT8_T)),
+            Variable::build(
+                "tcp_flags",
+                PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT8_T)),
+            Variable::build(
+                "rx_win",
+                PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT16_T)),
+            Variable::build(
+                "cksum",
+                PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT16_T)),
+            Variable::build(
+                "tcp_urp",
+                PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT16_T)),
+        };
+
+        Struct_ptr tcp_hdr = Struct::build("rte_tcp_hdr", tcp_hdr_fields);
+
+        hdr_type = Pointer::build(tcp_hdr);
+        hdr_symbol = CHUNK_LAYER_4_TCP;
+      } break;
+      default:
+        std::cerr << "Unknown L4 protocol with size " << hdr_expr->getWidth()
+                  << "\n";
+        assert(false && "Unknown L4 protocol");
+      }
 
       layer.back()++;
       break;
@@ -1027,8 +1113,6 @@ Node_ptr AST::process_state_node_from_call(const BDD::Call *bdd_call,
       assert(false && "Missing layers implementation");
     }
     }
-
-    hdr_expr = call.extra_vars["the_chunk"].second;
 
     auto nf_count =
         get_prev_functions(bdd_call->get_prev(), "current_time", {});
@@ -1232,11 +1316,21 @@ Node_ptr AST::process_state_node_from_call(const BDD::Call *bdd_call,
     assert(map_expr->get_kind() == Node::NodeKind::CONSTANT);
     uint64_t map_addr = (static_cast<Constant *>(map_expr.get()))->get_value();
 
+    Expr_ptr key_addr_expr = transpile(this, call.args["key"].expr);
+    assert(key_addr_expr->get_kind() == Node::NodeKind::CONSTANT);
+    uint64_t key_addr =
+        (static_cast<Constant *>(key_addr_expr.get()))->get_value();
+
     auto key_klee_expr = call.args["key"].in;
     key_klee_expr = fix_key_klee_expr(key_klee_expr);
 
     Type_ptr key_type = type_from_klee_expr(key_klee_expr, true);
     Variable_ptr key = generate_new_symbol("map_key", key_type);
+
+    if (!is_addr_in_use(key_addr)) {
+      key->set_addr(key_addr);
+    }
+
     push_to_local(key);
 
     VariableDecl_ptr key_decl = VariableDecl::build(key);
@@ -1641,6 +1735,19 @@ Node_ptr AST::process_state_node_from_call(const BDD::Call *bdd_call,
 
     // actually this is an int, but we never use it in any call path...
     ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::VOID);
+  } else if (fname == "hash_obj") {
+    Expr_ptr obj_expr = transpile(this, call.args["obj"].expr);
+    assert(obj_expr->get_kind() == Node::NodeKind::CONSTANT);
+    uint64_t obj_addr = (static_cast<Constant *>(obj_expr.get()))->get_value();
+    Expr_ptr obj = get_from_local_by_addr("obj", obj_addr);
+
+    Expr_ptr size = transpile(this, call.args["size"].expr);
+    assert(size);
+
+    args = std::vector<ExpressionType_ptr>{obj, size};
+    ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::INT);
+    ret_symbol = get_symbol_label("hash", symbols);
+    ret_expr = call.ret;
   } else {
     std::cerr << call.function_name << "\n";
 
