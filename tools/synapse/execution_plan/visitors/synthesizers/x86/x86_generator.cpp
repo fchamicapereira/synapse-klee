@@ -382,7 +382,6 @@ void x86Generator::visit(const ExecutionPlanNode *ep_node,
   nf_process_builder.append(BDD::symbex::FN_BORROW_CHUNK);
   nf_process_builder.append("(");
   nf_process_builder.append("(void*)");
-  nf_process_builder.append("*");
   nf_process_builder.append(PACKET_VAR_LABEL);
   nf_process_builder.append(", ");
   nf_process_builder.append(len_transpiled);
