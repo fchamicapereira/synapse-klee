@@ -48,7 +48,7 @@ struct stack_t {
     push();
 
     cp_var_to_code_translation = {{"rte_ether_addr_hash", "hash"},
-                                  {"VIGOR_DEVICE", "device"}};
+                                  {"DEVICE", "device"}};
   }
 
   void push() { frames.emplace_back(); }

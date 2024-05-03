@@ -4,8 +4,8 @@
 #include <string>
 
 namespace BDD {
-	constexpr char INIT_CONTEXT_MARKER[] = "start_time";
-	constexpr char MAGIC_SIGNATURE[] = "===== VIGOR_BDD_SIG =====";
+constexpr char INIT_CONTEXT_MARKER[] = "start_time";
+constexpr char MAGIC_SIGNATURE[] = "===== BDD =====";
 
-	extern std::vector<std::string> skip_conditions_with_symbol;
-}
+extern std::vector<std::string> skip_conditions_with_symbol;
+} // namespace BDD

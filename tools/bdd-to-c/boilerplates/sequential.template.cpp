@@ -6,7 +6,8 @@ extern "C" {
 #include <lib/verified/map.h>
 #include <lib/verified/vector.h>
 #include <lib/unverified/sketch.h>
-#include <lib/unverified/util.h>
+#include <lib/unverified/hash.h>
+#include <lib/unverified/expirator.h>
 
 #include <lib/verified/expirator.h>
 #include <lib/verified/packet-io.h>
@@ -50,7 +51,8 @@ extern "C" {
 #define IP_MIN_SIZE_WORDS 5
 #define WORD_SIZE 4
 
-#define FLOOD_FRAME ((uint16_t)-1)
+#define DROP ((uint16_t)-1)
+#define FLOOD ((uint16_t)-2)
 
 static const uint16_t RX_QUEUE_SIZE = 1024;
 static const uint16_t TX_QUEUE_SIZE = 1024;
@@ -163,7 +165,7 @@ static void worker_main(void) {
         uint16_t dst_device =
             nf_process(mbufs[n]->port, data, mbufs[n]->pkt_len, now);
 
-        if (dst_device == dev) {
+        if (dst_device == DROP) {
           rte_pktmbuf_free(mbufs[n]);
         } else { // includes flood when 2 devices, which is equivalent
                  // to just

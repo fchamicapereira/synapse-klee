@@ -156,16 +156,16 @@ bool fn_can_be_reordered(std::string fn) {
 }
 
 node_id_t get_readLSB_base(klee::ref<klee::Expr> chunk) {
-  std::vector<unsigned> bytes_read;
+  std::vector<kutil::byte_read_t> bytes_read;
   auto success = kutil::get_bytes_read(chunk, bytes_read);
 
   assert(success);
   assert(bytes_read.size());
 
-  unsigned min = bytes_read[0];
+  unsigned min = bytes_read[0].offset;
 
   for (auto read : bytes_read) {
-    min = read < min ? read : min;
+    min = read.offset < min ? read.offset : min;
   }
 
   return min;
@@ -990,9 +990,8 @@ double approximate_number_of_reordered_bdds(const BDD &bdd, Node_ptr root) {
   double total = 0;
   static double total_max = 0;
 
-  std::cerr << "Total ~ "
-            << std::setprecision(2)
-            << std::scientific << total_max << "\r";
+  std::cerr << "Total ~ " << std::setprecision(2) << std::scientific
+            << total_max << "\r";
 
   if (!root) {
     return 0;

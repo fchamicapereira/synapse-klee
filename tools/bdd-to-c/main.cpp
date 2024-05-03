@@ -178,21 +178,25 @@ Node_ptr build_ast(AST &ast, const BDD::Node *root, TargetOption target,
       auto return_process = static_cast<const BDD::ReturnProcess *>(root);
       Node_ptr new_node;
 
+      Expr_ptr ret_value = Constant::build(PrimitiveType::PrimitiveKind::INT,
+                                           return_process->get_return_value());
+      Node_ptr ret = Return::build(ret_value);
+
       switch (return_process->get_return_operation()) {
-      case BDD::ReturnProcess::Operation::FWD:
-      case BDD::ReturnProcess::Operation::BCAST: {
-        Expr_ptr ret_value =
-            Constant::build(PrimitiveType::PrimitiveKind::INT,
-                            return_process->get_return_value());
-        new_node = Return::build(ret_value);
+      case BDD::ReturnProcess::Operation::FWD: {
+        new_node = ret;
         break;
-      };
+      }
+      case BDD::ReturnProcess::Operation::BCAST: {
+        Comment_ptr comm = Comment::build("broadcasting");
+        new_node = Block::build(std::vector<Node_ptr>{comm, ret}, false);
+        break;
+      }
       case BDD::ReturnProcess::Operation::DROP: {
-        Node_ptr ret = Return::build(ast.get_from_local("device"));
         Comment_ptr comm = Comment::build("dropping");
         new_node = Block::build(std::vector<Node_ptr>{comm, ret}, false);
         break;
-      };
+      }
       default: {
         assert(false && "Unknown return operation");
         std::cerr << "ERROR: unknown return operation\n";

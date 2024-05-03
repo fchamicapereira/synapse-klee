@@ -209,27 +209,6 @@ Expr_ptr AddressOf::simplify(AST *ast) const {
 Expr_ptr Read::simplify(AST *ast) const {
   Expr_ptr idx_simplified = idx->simplify(ast);
   Expr_ptr expr_simplified = expr->simplify(ast);
-
-  Type_ptr expr_type = expr_simplified->get_type();
-  while (expr_type->get_type_kind() == Type::TypeKind::POINTER) {
-    expr_type = static_cast<Pointer *>(expr_type.get())->get_type();
-  }
-
-  if (idx_simplified->get_kind() == Node::NodeKind::CONSTANT) {
-    Constant *idx_constant = static_cast<Constant *>(idx_simplified.get());
-    Type_ptr expr_type = expr_simplified->get_type();
-
-    auto size = type->get_size();
-    auto idx_value = idx_constant->get_value();
-    auto expr_size = expr_type->get_size();
-
-    if (expr_simplified->get_kind() != Node::NodeKind::CAST && idx_value == 0 &&
-        size == expr_size && type->get_type_kind() != Type::TypeKind::POINTER &&
-        type->get_type_kind() != Type::TypeKind::ARRAY) {
-      return expr_simplified;
-    }
-  }
-
   return Read::build(expr_simplified, type, idx_simplified);
 }
 
@@ -338,8 +317,8 @@ Expr_ptr Assignment::simplify(AST *ast) const {
   return Assignment::build(variable_simplified, value_simplified);
 }
 
-Type_ptr type_from_size(uint64_t size, bool is_signed) {
-  return type_from_size(size, is_signed, false);
+Type_ptr type_from_size(uint64_t size, bool force_byte_array) {
+  return type_from_size(size, false, force_byte_array);
 }
 
 Type_ptr type_from_size(uint64_t size, bool is_signed, bool force_byte_array) {

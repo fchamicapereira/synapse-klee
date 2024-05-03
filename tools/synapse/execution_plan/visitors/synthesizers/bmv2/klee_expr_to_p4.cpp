@@ -44,16 +44,13 @@ klee::ExprVisitor::Action KleeExprToP4::visitSelect(const klee::SelectExpr &e) {
 
 klee::ExprVisitor::Action KleeExprToP4::visitConcat(const klee::ConcatExpr &e) {
   klee::ref<klee::Expr> eref = const_cast<klee::ConcatExpr *>(&e);
+  std::string symbol;
 
-  if (kutil::is_readLSB(eref)) {
+  if (kutil::is_readLSB(eref, symbol)) {
     kutil::RetrieveSymbols retriever;
     retriever.visit(eref);
 
-    auto symbols = retriever.get_retrieved_strings();
-    assert(symbols.size() == 1);
-    auto symbol = *symbols.begin();
-
-    if (symbol == "VIGOR_DEVICE") {
+    if (symbol == "DEVICE") {
       code << "standard_metadata.ingress_port";
       return klee::ExprVisitor::Action::skipChildren();
     }
@@ -557,12 +554,9 @@ klee::ExprVisitor::Action KleeExprToP4::visitEq(const klee::EqExpr &e) {
   auto rhs = e.getKid(1);
 
   bool convert_to_bool = false;
+  std::string symbol;
 
-  if (kutil::is_readLSB(rhs)) {
-    auto symbols = kutil::get_symbols(rhs);
-    assert(symbols.size() == 1);
-    auto symbol = *symbols.begin();
-
+  if (kutil::is_readLSB(rhs, symbol)) {
     for (auto local_var : generator.local_vars.get()) {
       auto local_var_vigor_symbol = local_var.symbol;
 

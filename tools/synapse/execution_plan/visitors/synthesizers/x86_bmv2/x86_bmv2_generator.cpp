@@ -1124,14 +1124,14 @@ x86BMv2Generator::get_associated_p4_tables(
 }
 
 klee::ref<klee::Expr>
-get_readLSB_vigor_device(klee::ConstraintManager constraints) {
+get_readLSB_device(klee::ConstraintManager constraints) {
   for (auto constraint : constraints) {
     kutil::RetrieveSymbols retriever(true);
     retriever.visit(constraint);
 
     auto symbols = retriever.get_retrieved_strings();
 
-    if (symbols.size() != 1 || *symbols.begin() != "VIGOR_DEVICE") {
+    if (symbols.size() != 1 || *symbols.begin() != "DEVICE") {
       continue;
     }
 
@@ -1140,7 +1140,7 @@ get_readLSB_vigor_device(klee::ConstraintManager constraints) {
     }
   }
 
-  assert(false && "Could not find VIGOR_DEVICE in constraints");
+  assert(false && "Could not find DEVICE in constraints");
 }
 
 void x86BMv2Generator::fill_is_controller() {
@@ -1197,13 +1197,13 @@ void x86BMv2Generator::build_runtime_configure() {
       auto bdd_node = module->get_node();
       auto constraints = bdd_node->get_constraints();
 
-      auto vigor_device = get_readLSB_vigor_device(constraints);
+      auto device = get_readLSB_device(constraints);
 
       auto value =
-          kutil::solver_toolbox.value_from_expr(vigor_device, constraints);
+          kutil::solver_toolbox.value_from_expr(device, constraints);
       auto eq = kutil::solver_toolbox.exprBuilder->Eq(
-          vigor_device, kutil::solver_toolbox.exprBuilder->Constant(
-                            value, vigor_device->getWidth()));
+          device, kutil::solver_toolbox.exprBuilder->Constant(
+                            value, device->getWidth()));
 
       auto always_eq =
           kutil::solver_toolbox.is_expr_always_true(constraints, eq);
@@ -1371,14 +1371,14 @@ void x86BMv2Generator::visit(ExecutionPlan ep) {
     build_runtime_configure();
   }
 
-  std::string vigor_device_label = "VIGOR_DEVICE";
+  std::string device_label = "DEVICE";
   std::string packet_label = "p";
   std::string pkt_len_label = "pkt_len";
   std::string now_label = "now";
 
   stack.push();
 
-  stack.add(vigor_device_label);
+  stack.add(device_label);
   stack.add(packet_label);
   stack.add(pkt_len_label);
   stack.add(now_label);

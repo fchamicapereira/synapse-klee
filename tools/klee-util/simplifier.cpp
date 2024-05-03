@@ -26,16 +26,16 @@ bool simplify_extract(klee::ref<klee::Expr> extract_expr,
 
     auto rhs_size = rhs->getWidth();
 
-    // Either completely on the right side, or completely on the left side
-    assert(
-        rhs_size >= offset + size ||
-        (offset >= rhs_size && lhs->getWidth() >= (offset - rhs_size) + size));
-
-    if (rhs_size >= offset + size) {
-      expr = rhs;
-    } else {
+    if (offset >= rhs_size) {
+      // completely on the left side
       offset -= rhs_size;
       expr = lhs;
+    } else if (rhs_size >= offset + size) {
+      // completely on the right side
+      expr = rhs;
+    } else {
+      // between the two
+      break;
     }
   }
 

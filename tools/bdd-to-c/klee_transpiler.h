@@ -29,11 +29,7 @@ class AST;
 
 Expr_ptr transpile(AST *ast, const klee::ref<klee::Expr> &e,
                    bool pointer_to_int = false);
-std::vector<Expr_ptr> apply_changes_to_match(AST *ast,
-                                             const klee::ref<klee::Expr> &e1,
-                                             const klee::ref<klee::Expr> &e2);
-std::vector<Expr_ptr> apply_changes(AST *ast, Expr_ptr variable,
-                                    klee::ref<klee::Expr> before,
+std::vector<Expr_ptr> apply_changes(AST *ast, klee::ref<klee::Expr> before,
                                     klee::ref<klee::Expr> after);
 std::vector<Expr_ptr> build_and_fill_byte_array(AST *ast, Expr_ptr var,
                                                 klee::ref<klee::Expr> expr);

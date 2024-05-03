@@ -59,7 +59,6 @@ public:
     exprs.push_back(expr);
 
     BDD::label_t symbol;
-
     if (!kutil::is_readLSB(expr, symbol)) {
       return;
     }

@@ -137,63 +137,40 @@ public:
 
   klee::ExprVisitor::Action visitConcat(const klee::ConcatExpr &e) {
     klee::ref<klee::Expr> eref = const_cast<klee::ConcatExpr *>(&e);
+
+    std::vector<expr_group_t> groups = get_expr_groups(eref);
+
+    if (groups.size() == 1 && groups[0].has_symbol && groups[0].offset == 0 &&
+        groups[0].n_bytes == (eref->getWidth() / 8)) {
+      result = groups[0].symbol;
+      return klee::ExprVisitor::Action::skipChildren();
+    }
+
     std::stringstream ss;
 
-    RetrieveSymbols retriever;
-    retriever.visit(eref);
-    auto retrieved_strs = retriever.get_retrieved_strings();
-
-    assert(retrieved_strs.size());
-    auto symbol = *retrieved_strs.begin();
-
-    if (is_readLSB(eref)) {
-      result = symbol;
-      return klee::ExprVisitor::Action::skipChildren();
-    }
-
-    std::vector<unsigned> bytes_read;
-    auto success = get_bytes_read(eref, bytes_read);
-
-    if (success && bytes_read.size() && retrieved_strs.size() == 1) {
-      auto bytes_grouped = group_bytes(bytes_read);
-
-      for (auto i = 0u; i < bytes_grouped.size(); i++) {
-        if (i > 0) {
-          ss << "++";
-        }
-
-        auto group = bytes_grouped[i];
-        assert(group.size() > 0);
-
-        auto higher = group[0];
-        auto lower = group.back();
-
-        ss << symbol;
-
-        if (lower == higher) {
-          ss << "[" << lower << "]";
-        } else {
-          ss << "[" << lower << ":" << higher << "]";
-        }
+    for (auto i = 0u; i < groups.size(); i++) {
+      if (i > 0) {
+        ss << "++";
       }
 
-      result = ss.str();
-      return klee::ExprVisitor::Action::skipChildren();
+      const expr_group_t &group = groups[i];
+
+      if (!group.has_symbol) {
+        ss << pretty_print_expr(group.expr);
+      } else {
+        ss << group.symbol;
+
+        if (group.n_bytes == 1) {
+          ss << "[" << group.offset << "]";
+        } else {
+          ss << "[";
+          ss << group.offset;
+          ss << ":";
+          ss << (group.offset + group.n_bytes);
+          ss << "]";
+        }
+      }
     }
-
-    auto left = e.getLeft();
-    auto right = e.getRight();
-
-    assert(!left.isNull());
-    assert(!right.isNull());
-
-    ss << "(";
-    ss << pretty_print_expr(left);
-    ss << ")";
-    ss << "++";
-    ss << "(";
-    ss << pretty_print_expr(right);
-    ss << ")";
 
     result = ss.str();
     return klee::ExprVisitor::Action::skipChildren();
@@ -527,8 +504,7 @@ public:
 };
 
 std::string pretty_print_expr(klee::ref<klee::Expr> expr) {
-  auto printed = ExprPrettyPrinter::print(expr);
-  return printed;
+  return ExprPrettyPrinter::print(expr);
 }
 
 std::string expr_to_string(klee::ref<klee::Expr> expr, bool one_liner) {

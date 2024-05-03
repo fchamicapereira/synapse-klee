@@ -2,10 +2,12 @@
 #include "printer.h"
 #include "retrieve_symbols.h"
 #include "solver_toolbox.h"
+#include "simplifier.h"
 
 namespace kutil {
 
-bool get_bytes_read(klee::ref<klee::Expr> expr, std::vector<unsigned> &bytes) {
+bool get_bytes_read(klee::ref<klee::Expr> expr,
+                    std::vector<byte_read_t> &bytes) {
   switch (expr->getKind()) {
   case klee::Expr::Kind::Read: {
     klee::ReadExpr *read = dyn_cast<klee::ReadExpr>(expr);
@@ -17,7 +19,11 @@ bool get_bytes_read(klee::ref<klee::Expr> expr, std::vector<unsigned> &bytes) {
 
     klee::ConstantExpr *index_const =
         static_cast<klee::ConstantExpr *>(index.get());
-    bytes.push_back(index_const->getZExtValue());
+
+    unsigned byte = index_const->getZExtValue();
+    std::string symbol = read->updates.root->name;
+
+    bytes.push_back({byte, symbol});
 
     return true;
   };
@@ -34,81 +40,152 @@ bool get_bytes_read(klee::ref<klee::Expr> expr, std::vector<unsigned> &bytes) {
     return true;
   };
   default: {
+    return false;
   }
   }
-
-  return false;
 }
 
-bool is_readLSB(klee::ref<klee::Expr> expr) {
-  std::string symbol;
-  return is_readLSB(expr, symbol);
+klee::ref<klee::Expr> concat_lsb(klee::ref<klee::Expr> expr,
+                                 klee::ref<klee::Expr> byte) {
+  if (expr->getKind() != klee::Expr::Concat) {
+    return solver_toolbox.exprBuilder->Concat(expr, byte);
+  }
+
+  auto lhs = expr->getKid(0);
+  auto rhs = expr->getKid(1);
+
+  klee::ref<klee::Expr> new_kids[] = {lhs, concat_lsb(rhs, byte)};
+  return expr->rebuild(new_kids);
+}
+
+std::vector<expr_group_t> get_expr_groups(klee::ref<klee::Expr> expr) {
+  std::vector<expr_group_t> groups;
+
+  auto old = expr;
+
+  auto process_read = [&](klee::ref<klee::Expr> read_expr) {
+    assert(read_expr->getKind() == klee::Expr::Read);
+    klee::ReadExpr *read = dyn_cast<klee::ReadExpr>(read_expr);
+
+    klee::ref<klee::Expr> index = read->index;
+    const std::string symbol = read->updates.root->name;
+
+    assert(index->getKind() == klee::Expr::Kind::Constant);
+
+    klee::ConstantExpr *index_const =
+        static_cast<klee::ConstantExpr *>(index.get());
+
+    unsigned byte = index_const->getZExtValue();
+
+    if (groups.size() && groups.back().has_symbol &&
+        groups.back().symbol == symbol && groups.back().offset - 1 == byte) {
+      groups.back().n_bytes++;
+      groups.back().offset = byte;
+      groups.back().expr = concat_lsb(groups.back().expr, read_expr);
+    } else {
+      groups.emplace_back(expr_group_t{true, symbol, byte,
+                                       read_expr->getWidth() / 8, read_expr});
+    }
+  };
+
+  auto process_not_read = [&](klee::ref<klee::Expr> not_read_expr) {
+    assert(not_read_expr->getKind() != klee::Expr::Read);
+    unsigned size = not_read_expr->getWidth();
+    assert(size % 8 == 0);
+    groups.emplace_back(expr_group_t{false, "", 0, size / 8, not_read_expr});
+  };
+
+  if (expr->getKind() == klee::Expr::Extract) {
+    klee::ref<klee::Expr> extract_expr = expr;
+    klee::ref<klee::Expr> out;
+    if (simplify_extract(extract_expr, out)) {
+      expr = out;
+    }
+  }
+
+  while (expr->getKind() == klee::Expr::Concat) {
+    klee::ref<klee::Expr> lhs = expr->getKid(0);
+    klee::ref<klee::Expr> rhs = expr->getKid(1);
+
+    assert(lhs->getKind() != klee::Expr::Concat);
+
+    if (lhs->getKind() == klee::Expr::Read) {
+      process_read(lhs);
+    } else {
+      process_not_read(lhs);
+    }
+
+    expr = rhs;
+  }
+
+  if (expr->getKind() == klee::Expr::Read) {
+    process_read(expr);
+  } else {
+    process_not_read(expr);
+  }
+
+  return groups;
+}
+
+void print_groups(const std::vector<expr_group_t> &groups) {
+  std::cerr << "Groups: " << groups.size() << "\n";
+  for (const auto &group : groups) {
+    if (group.has_symbol) {
+      std::cerr << "Group:"
+                << " symbol=" << group.symbol << " offset=" << group.offset
+                << " n_bytes=" << group.n_bytes
+                << " expr=" << kutil::expr_to_string(group.expr, true) << "\n";
+    } else {
+      std::cerr << "Group: offset=" << group.offset
+                << " n_bytes=" << group.n_bytes
+                << " expr=" << kutil::expr_to_string(group.expr, true) << "\n";
+    }
+  }
 }
 
 bool is_readLSB(klee::ref<klee::Expr> expr, std::string &symbol) {
+  assert(!expr.isNull());
+
   if (expr->getKind() != klee::Expr::Concat) {
     return false;
   }
 
-  auto size = expr->getWidth();
-  assert(size % 8 == 0);
-  size /= 8;
+  auto groups = get_expr_groups(expr);
 
-  RetrieveSymbols retriever;
-  retriever.visit(expr);
-
-  auto symbols = retriever.get_retrieved_strings();
-
-  if (symbols.size() > 1) {
+  if (groups.size() <= 1) {
     return false;
   }
 
-  std::vector<unsigned> bytes_read;
-  if (!get_bytes_read(expr, bytes_read)) {
-    return false;
-  }
-
-  unsigned expected_byte = size - 1;
-  for (const auto &byte : bytes_read) {
-    if (byte != expected_byte) {
-      return false;
-    }
-
-    expected_byte -= 1;
-  }
-
-  symbol = *symbols.begin();
+  const expr_group_t &group = groups[0];
+  assert(group.has_symbol);
+  symbol = group.symbol;
 
   return true;
 }
 
 bool is_packet_readLSB(klee::ref<klee::Expr> expr, bytes_t &offset,
                        int &n_bytes) {
-  RetrieveSymbols retriever;
-  retriever.visit(expr);
+  assert(!expr.isNull());
 
-  auto symbols = retriever.get_retrieved_strings();
-
-  if (symbols.size() != 1 || *symbols.begin() != "packet_chunks") {
+  if (expr->getKind() != klee::Expr::Concat) {
     return false;
   }
 
-  std::vector<unsigned> bytes_read;
-  if (!get_bytes_read(expr, bytes_read) || bytes_read.size() == 0) {
+  auto groups = get_expr_groups(expr);
+
+  if (groups.size() <= 1) {
     return false;
   }
 
-  auto expected_byte = bytes_read[0];
-  for (const auto &byte : bytes_read) {
-    if (byte != expected_byte) {
-      return false;
-    }
+  const expr_group_t &group = groups[0];
+  assert(group.has_symbol);
 
-    expected_byte -= 1;
+  if (group.symbol != "packet_chunks") {
+    return false;
   }
 
-  offset = bytes_read.back();
-  n_bytes = bytes_read.size();
+  offset = group.offset;
+  n_bytes = group.n_bytes;
 
   return true;
 }

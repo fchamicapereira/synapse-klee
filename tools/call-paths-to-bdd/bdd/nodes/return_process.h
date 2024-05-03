@@ -12,7 +12,7 @@ private:
   int value;
   Operation operation;
 
-  std::pair<unsigned, unsigned> analyse_packet_sends(calls_t calls) const;
+  std::pair<unsigned, unsigned> analyze_packet_sends(calls_t calls) const;
   void fill_return_value(calls_t calls);
 
 public:

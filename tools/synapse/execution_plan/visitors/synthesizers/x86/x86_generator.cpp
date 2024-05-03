@@ -44,9 +44,9 @@ x86Generator::search_variable(klee::ref<klee::Expr> expr) const {
     return var;
   }
 
-  if (kutil::is_readLSB(expr)) {
-    auto symbol = kutil::get_symbol(expr);
-    auto variable = search_variable(symbol.second);
+  std::string symbol;
+  if (kutil::is_readLSB(expr, symbol)) {
+    auto variable = search_variable(symbol);
 
     if (variable.valid) {
       return variable;

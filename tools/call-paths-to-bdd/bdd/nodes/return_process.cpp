@@ -38,7 +38,7 @@ std::string ReturnProcess::dump(bool one_liner) const {
 }
 
 std::pair<unsigned, unsigned>
-ReturnProcess::analyse_packet_sends(calls_t calls) const {
+ReturnProcess::analyze_packet_sends(calls_t calls) const {
   unsigned counter = 0;
   unsigned dst_device = 0;
 
@@ -62,43 +62,25 @@ ReturnProcess::analyse_packet_sends(calls_t calls) const {
 }
 
 void ReturnProcess::fill_return_value(calls_t calls) {
-  auto counter_dst_device_pair = analyse_packet_sends(calls);
-
-  if (counter_dst_device_pair.first == 1) {
-    value = counter_dst_device_pair.second;
-    operation = FWD;
-    return;
-  }
+  auto counter_dst_device_pair = analyze_packet_sends(calls);
 
   if (counter_dst_device_pair.first > 1) {
-    value = ((uint16_t)-1);
+    value = ((uint16_t)-2);
     operation = BCAST;
     return;
   }
 
-  auto packet_receive_finder = [](call_t call) -> bool {
-    return call.function_name == "packet_receive";
-  };
-
-  auto packet_receive_it =
-      std::find_if(calls.begin(), calls.end(), packet_receive_finder);
-
-  if (packet_receive_it == calls.end()) {
-    operation = ERR;
-    value = -1;
+  if (counter_dst_device_pair.first == 0 ||
+      counter_dst_device_pair.second == ((uint16_t)-1)) {
+    value = ((uint16_t)-1);
+    operation = DROP;
     return;
   }
 
-  auto packet_receive = *packet_receive_it;
-  auto src_device_expr = packet_receive.args["src_devices"].expr;
-  assert(src_device_expr->getKind() == klee::Expr::Kind::Constant);
+  assert(counter_dst_device_pair.first == 1);
+  value = counter_dst_device_pair.second;
+  operation = FWD;
 
-  klee::ConstantExpr *src_device_const =
-      static_cast<klee::ConstantExpr *>(src_device_expr.get());
-  auto src_device = src_device_const->getZExtValue();
-
-  operation = DROP;
-  value = src_device;
   return;
 }
 

@@ -14,7 +14,7 @@ constexpr char TIME[] = "next_time";
 constexpr char RECEIVED_PACKET[] = "received_a_packet";
 constexpr char BUFFER_LENGTH[] = "data_len";
 constexpr char PACKET_LENGTH[] = "pkt_len";
-constexpr char PORT[] = "VIGOR_DEVICE";
+constexpr char PORT[] = "DEVICE";
 
 constexpr klee::Expr::Width PORT_SYMBOL_SIZE = 32;
 constexpr klee::Expr::Width PACKET_LENGTH_SYMBOL_SIZE = 32;

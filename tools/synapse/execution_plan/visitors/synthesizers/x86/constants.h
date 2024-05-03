@@ -16,7 +16,7 @@ constexpr char PACKET_LEN_VAR_LABEL[] = "packet_length";
 constexpr char TIME_VAR_LABEL[] = "now";
 constexpr char MBUF_VAR_LABEL[] = "mbuf";
 
-constexpr char FLOOD_DEVICE[] = "FLOOD_FRAME";
+constexpr char FLOOD_DEVICE[] = "FLOOD";
 
 constexpr char HEADER_BASE_LABEL[] = "hdr";
 constexpr char MAP_BASE_LABEL[] = "map";

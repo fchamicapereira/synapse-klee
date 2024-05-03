@@ -18,7 +18,7 @@ symbols_t Node::get_generated_symbols(
 
   // hack: symbols always known
   klee::ref<klee::Expr> empty_expr;
-  symbols.emplace("VIGOR_DEVICE", "VIGOR_DEVICE", empty_expr);
+  symbols.emplace("DEVICE", "DEVICE", empty_expr);
   symbols.emplace("pkt_len", "pkt_len", empty_expr);
   symbols.emplace("data_len", "data_len", empty_expr);
   symbols.emplace("received_a_packet", "received_a_packet", empty_expr);

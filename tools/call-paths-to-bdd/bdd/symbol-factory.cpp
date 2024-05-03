@@ -5,7 +5,7 @@
 
 namespace BDD {
 
-std::vector<std::string> SymbolFactory::ignored_symbols{"VIGOR_DEVICE"};
+std::vector<std::string> SymbolFactory::ignored_symbols{"DEVICE"};
 std::vector<std::string> SymbolFactory::symbols_without_translation{
     "packet_chunks"};
 

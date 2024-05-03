@@ -35,7 +35,8 @@ public:
       return klee::ExprVisitor::Action::doChildren();
     }
 
-    if (collapse_readLSB && is_readLSB(eref)) {
+    std::string symbol;
+    if (collapse_readLSB && is_readLSB(eref, symbol)) {
       retrieved_readLSB.push_back(eref);
       collapse_readLSB = false;
     }
@@ -63,19 +64,19 @@ public:
     return klee::ExprVisitor::Action::doChildren();
   }
 
-  const std::vector<klee::ref<klee::ReadExpr>>& get_retrieved() {
+  const std::vector<klee::ref<klee::ReadExpr>> &get_retrieved() {
     return retrieved_reads;
   }
 
-  const std::vector<klee::ref<klee::ReadExpr>>& get_retrieved_packet_chunks() {
+  const std::vector<klee::ref<klee::ReadExpr>> &get_retrieved_packet_chunks() {
     return retrieved_reads_packet_chunks;
   }
 
-  const std::vector<klee::ref<klee::Expr>>& get_retrieved_readLSB() {
+  const std::vector<klee::ref<klee::Expr>> &get_retrieved_readLSB() {
     return retrieved_readLSB;
   }
 
-  const std::unordered_set<std::string>& get_retrieved_strings() {
+  const std::unordered_set<std::string> &get_retrieved_strings() {
     return retrieved_strings;
   }
 

@@ -93,7 +93,9 @@ Expr_ptr transpile(AST *ast, const klee::ref<klee::Expr> &e,
   result = converter.get_result();
   assert(result);
 
-  return result->simplify(ast);
+  auto simplified = result->simplify(ast);
+
+  return simplified;
 }
 
 uint64_t get_first_concat_idx(const klee::ref<klee::Expr> &e) {
@@ -129,46 +131,6 @@ uint64_t get_last_concat_idx(const klee::ref<klee::Expr> &e) {
   return idx_const->get_value();
 }
 
-std::vector<Expr_ptr> apply_changes(AST *ast, Expr_ptr variable,
-                                    klee::ref<klee::Expr> before,
-                                    klee::ref<klee::Expr> after) {
-  std::vector<Expr_ptr> changes;
-
-  if (kutil::solver_toolbox.are_exprs_always_equal(before, after)) {
-    return changes;
-  }
-
-  Type_ptr var_type = variable->get_type();
-
-  switch (var_type->get_type_kind()) {
-  case Type::TypeKind::POINTER: {
-    Type_ptr byte_type =
-        PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT8_T);
-
-    for (unsigned int byte = 0; byte < after->getWidth() / 8; byte++) {
-      Constant_ptr byte_const =
-          Constant::build(PrimitiveType::PrimitiveKind::UINT32_T, byte);
-      Expr_ptr var_read = Read::build(variable, byte_type, byte_const);
-
-      auto extracted = kutil::solver_toolbox.exprBuilder->Extract(
-          after, byte * 8, klee::Expr::Int8);
-      Expr_ptr val_read = transpile(ast, extracted);
-
-      changes.push_back(Assignment::build(var_read, val_read));
-    }
-    break;
-  }
-
-  case Type::TypeKind::STRUCT:
-  case Type::TypeKind::ARRAY:
-  case Type::TypeKind::PRIMITIVE: {
-    assert(false && "TODO");
-  }
-  }
-
-  return changes;
-}
-
 std::vector<Expr_ptr> build_and_fill_byte_array(AST *ast, Expr_ptr var,
                                                 klee::ref<klee::Expr> expr) {
   std::vector<Expr_ptr> statements;
@@ -195,24 +157,67 @@ std::vector<Expr_ptr> build_and_fill_byte_array(AST *ast, Expr_ptr var,
   return statements;
 }
 
-std::vector<Expr_ptr>
-apply_changes_to_match(AST *ast, const klee::ref<klee::Expr> &before,
-                       const klee::ref<klee::Expr> &after) {
+static bool same_exprs_byte(const klee::ref<klee::Expr> &e1,
+                            const klee::ref<klee::Expr> &e2, unsigned byte) {
+  assert(e1->getWidth() / 8 > byte);
+  assert(e2->getWidth() / 8 > byte);
+
+  auto e1_byte = kutil::solver_toolbox.exprBuilder->Extract(e1, byte * 8,
+                                                            klee::Expr::Int8);
+  auto e2_byte = kutil::solver_toolbox.exprBuilder->Extract(e2, byte * 8,
+                                                            klee::Expr::Int8);
+
+  return kutil::solver_toolbox.are_exprs_always_equal(e1_byte, e2_byte);
+}
+
+std::vector<Expr_ptr> copy_byte_by_byte(AST *ast, Expr_ptr variable,
+                                        klee::ref<klee::Expr> before,
+                                        klee::ref<klee::Expr> after) {
+  std::vector<Expr_ptr> changes;
+
+  for (unsigned int byte = 0; byte < after->getWidth() / 8; byte++) {
+    if (same_exprs_byte(before, after, byte)) {
+      continue;
+    }
+
+    Type_ptr byte_type =
+        PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT8_T);
+    Constant_ptr byte_const =
+        Constant::build(PrimitiveType::PrimitiveKind::UINT32_T, byte);
+    Expr_ptr var_read = Read::build(variable, byte_type, byte_const);
+
+    auto extracted = kutil::solver_toolbox.exprBuilder->Extract(
+        after, byte * 8, klee::Expr::Int8);
+    Expr_ptr val_read = transpile(ast, extracted);
+
+    changes.push_back(Assignment::build(var_read, val_read));
+  }
+
+  return changes;
+}
+
+std::vector<Expr_ptr> apply_changes(AST *ast, klee::ref<klee::Expr> before,
+                                    klee::ref<klee::Expr> after) {
   assert(before->getWidth() == after->getWidth());
 
   std::vector<Expr_ptr> changes;
 
-  Expr_ptr before_expr = transpile(ast, before);
-  Type_ptr type = before_expr->get_type();
-
-  while (type->get_type_kind() == Type::TypeKind::POINTER) {
-    Pointer *ptr = static_cast<Pointer *>(before_expr->get_type().get());
-    type = ptr->get_type();
+  if (kutil::solver_toolbox.are_exprs_always_equal(before, after)) {
+    return changes;
   }
 
-  switch (type->get_type_kind()) {
+  Expr_ptr variable = transpile(ast, before);
+  Type_ptr var_type = variable->get_type();
+
+  switch (var_type->get_type_kind()) {
+  case Type::TypeKind::PRIMITIVE: {
+    Expr_ptr after_expr = transpile(ast, after);
+    Expr_ptr change = Assignment::build(variable, after_expr);
+    changes.push_back(change->simplify(ast));
+    return changes;
+  }
   case Type::TypeKind::STRUCT: {
-    Struct *s = static_cast<Struct *>(type.get());
+    Struct *s = static_cast<Struct *>(var_type.get());
     std::vector<Variable_ptr> fields = s->query_fields();
 
     unsigned int offset = 0;
@@ -228,7 +233,7 @@ apply_changes_to_match(AST *ast, const klee::ref<klee::Expr> &before,
           kutil::solver_toolbox.are_exprs_always_equal(e1_chunk, e2_chunk);
 
       if (!eq) {
-        auto field_changes = apply_changes_to_match(ast, e1_chunk, e2_chunk);
+        auto field_changes = apply_changes(ast, e1_chunk, e2_chunk);
         changes.insert(changes.end(), field_changes.begin(),
                        field_changes.end());
       }
@@ -236,41 +241,83 @@ apply_changes_to_match(AST *ast, const klee::ref<klee::Expr> &before,
       offset += field_size;
     }
 
-    break;
+    return changes;
   }
-  case Type::TypeKind::PRIMITIVE: {
-    Expr_ptr after_expr = transpile(ast, after);
-    Expr_ptr change = Assignment::build(before_expr, after_expr);
-    changes.push_back(change->simplify(ast));
+  case Type::TypeKind::POINTER: {
+    Pointer *ptr = static_cast<Pointer *>(var_type.get());
+    Type_ptr pointee_type = ptr->get_type();
+
+    if (pointee_type->get_type_kind() != Type::TypeKind::PRIMITIVE ||
+        pointee_type->get_size() != 8) {
+      variable =
+          Cast::build(variable, Pointer::build(PrimitiveType::build(
+                                    PrimitiveType::PrimitiveKind::UINT8_T)));
+      var_type = variable->get_type();
+    }
     break;
   }
   case Type::TypeKind::ARRAY: {
-    Array *a = static_cast<Array *>(type.get());
-    auto elem_sz = a->get_elem_type()->get_size();
-
-    for (unsigned int offset = 0; offset < a->get_size(); offset += elem_sz) {
-      auto e1_chunk =
-          kutil::solver_toolbox.exprBuilder->Extract(before, offset, elem_sz);
-      auto e2_chunk =
-          kutil::solver_toolbox.exprBuilder->Extract(after, offset, elem_sz);
-
-      bool eq =
-          kutil::solver_toolbox.are_exprs_always_equal(e1_chunk, e2_chunk);
-
-      if (!eq) {
-        Expr_ptr e1_chunk_ast = transpile(ast, e1_chunk);
-        Expr_ptr e2_chunk_ast = transpile(ast, e2_chunk);
-
-        Expr_ptr change = Assignment::build(e1_chunk_ast, e2_chunk_ast);
-        changes.push_back(change->simplify(ast));
-      }
-    }
-
+    variable =
+        Cast::build(variable, Pointer::build(PrimitiveType::build(
+                                  PrimitiveType::PrimitiveKind::UINT8_T)));
+    var_type = variable->get_type();
     break;
   }
-  case Type::TypeKind::POINTER:
-    assert(false && "Should not be here");
-    break;
+  }
+
+  std::vector<kutil::expr_group_t> groups = kutil::get_expr_groups(after);
+
+  unsigned offset = 0;
+  for (auto group_it = groups.rbegin(); group_it != groups.rend(); group_it++) {
+    auto &group = *group_it;
+
+    auto e1_chunk = kutil::solver_toolbox.exprBuilder->Extract(
+        before, offset * 8, klee::Expr::Int8 * group.n_bytes);
+    bool eq =
+        kutil::solver_toolbox.are_exprs_always_equal(e1_chunk, group.expr);
+
+    if (eq) {
+      continue;
+    }
+
+    if (group.has_symbol) {
+      assert(var_type->get_type_kind() == Type::TypeKind::POINTER);
+      Pointer *ptr = static_cast<Pointer *>(var_type.get());
+      Type_ptr base_type = ptr->get_type();
+
+      assert(base_type->get_type_kind() == Type::TypeKind::PRIMITIVE &&
+             base_type->get_size() == 8);
+
+      auto group_expr = transpile(ast, group.expr);
+      assert(group_expr);
+
+      // hack
+      if (group_expr->get_type()->get_type_kind() != Type::TypeKind::POINTER) {
+        group_expr = Cast::build(AddressOf::build(group_expr),
+                                 Pointer::build(PrimitiveType::build(
+                                     PrimitiveType::PrimitiveKind::VOID)));
+      }
+
+      std::vector<ExpressionType_ptr> args{
+          Add::build(
+              variable,
+              Constant::build(PrimitiveType::PrimitiveKind::UINT64_T, offset)),
+          group_expr,
+          Constant::build(PrimitiveType::PrimitiveKind::UINT64_T,
+                          group.n_bytes),
+      };
+
+      Type_ptr ret_type =
+          PrimitiveType::build(PrimitiveType::PrimitiveKind::VOID);
+      FunctionCall_ptr fcall = FunctionCall::build("memcpy", args, ret_type);
+
+      changes.push_back(fcall);
+    } else {
+      auto new_changes = copy_byte_by_byte(ast, variable, e1_chunk, group.expr);
+      changes.insert(changes.end(), new_changes.begin(), new_changes.end());
+    }
+
+    offset += group.n_bytes;
   }
 
   return changes;
@@ -287,7 +334,7 @@ KleeExprToASTNodeConverter::visitRead(const klee::ReadExpr &e) {
   const klee::Array *root = ul.root;
   std::string symbol = root->name;
 
-  if (symbol == "VIGOR_DEVICE") {
+  if (symbol == "DEVICE") {
     symbol = "src_devices";
   } else if (symbol.find("next_time") != std::string::npos) {
     symbol = "now";
@@ -312,7 +359,6 @@ KleeExprToASTNodeConverter::visitRead(const klee::ReadExpr &e) {
     assert(read);
 
     save_result(read);
-
     return klee::ExprVisitor::Action::skipChildren();
   }
 
@@ -332,7 +378,7 @@ KleeExprToASTNodeConverter::visitRead(const klee::ReadExpr &e) {
       std::cerr << kutil::expr_to_string(eref) << "\n";
       std::cerr << "\n";
 
-      assert(var != nullptr);
+      assert(false && "Variable not found");
     }
   }
 
@@ -513,7 +559,6 @@ KleeExprToASTNodeConverter::visitExtract(const klee::ExtractExpr &e) {
   }
 
   Cast_ptr cast = Cast::build(extract, type);
-
   save_result(cast);
   return klee::ExprVisitor::Action::skipChildren();
 }
@@ -843,7 +888,6 @@ KleeExprToASTNodeConverter::visitNe(const klee::NeExpr &e) {
   NotEquals_ptr ne = NotEquals::build(left, right);
 
   save_result(ne);
-
   return klee::ExprVisitor::Action::skipChildren();
 }
 

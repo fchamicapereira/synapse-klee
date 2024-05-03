@@ -22,10 +22,6 @@ llvm::cl::opt<std::string>
 llvm::cl::opt<std::string>
     OutputBDDFile("out", llvm::cl::desc("Output file for BDD serialization."),
                   llvm::cl::cat(BDDGeneratorCat));
-
-llvm::cl::opt<bool> Show("s", llvm::cl::desc("Render dot file."),
-                         llvm::cl::ValueDisallowed, llvm::cl::init(false),
-                         llvm::cl::cat(BDDGeneratorCat));
 } // namespace
 
 void assert_bdd(const BDD::BDD &bdd) {

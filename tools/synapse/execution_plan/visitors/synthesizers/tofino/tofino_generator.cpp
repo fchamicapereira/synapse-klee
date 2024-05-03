@@ -62,9 +62,9 @@ TofinoGenerator::search_variable(klee::ref<klee::Expr> expr) const {
     return hdr_field;
   }
 
-  if (kutil::is_readLSB(expr)) {
-    auto symbol = kutil::get_symbol(expr);
-    auto variable = search_variable(symbol.second);
+  std::string symbol;
+  if (kutil::is_readLSB(expr, symbol)) {
+    auto variable = search_variable(symbol);
 
     if (variable.valid) {
       return variable;

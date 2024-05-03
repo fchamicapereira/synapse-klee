@@ -305,13 +305,13 @@ InternalTranspiler::visitSelect(const klee::SelectExpr &e) {
 klee::ExprVisitor::Action
 InternalTranspiler::visitConcat(const klee::ConcatExpr &e) {
   auto eref = const_cast<klee::ConcatExpr *>(&e);
+  std::string symbol;
 
-  if (kutil::is_readLSB(eref)) {
-    auto symbol = kutil::get_symbol(eref);
-    auto variable = tg.search_variable(symbol.second);
+  if (kutil::is_readLSB(eref, symbol)) {
+    auto variable = tg.search_variable(symbol);
 
     if (!variable.valid) {
-      Log::err() << "Unknown variable with symbol " << symbol.second << "\n";
+      Log::err() << "Unknown variable with symbol " << symbol << "\n";
       exit(1);
     }
 

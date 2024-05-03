@@ -2254,62 +2254,14 @@ public:
 
 typedef std::shared_ptr<Struct> Struct_ptr;
 
-class AddressOf : public Expression {
-private:
-  Expr_ptr expr;
-
-  AddressOf(Expr_ptr _expr)
-      : Expression(ADDRESSOF, PrimitiveType::build(
-                                  PrimitiveType::PrimitiveKind::UINT32_T)) {
-    expr = _expr->clone();
-  }
-
-public:
-  Expr_ptr get_expr() const { return expr; }
-
-  void synthesize_expr(std::ostream &ofs, unsigned int lvl = 0) const override {
-    ofs << "&";
-    expr->synthesize(ofs, lvl);
-  }
-
-  void debug(std::ostream &ofs, unsigned int lvl = 0) const override {
-    indent(ofs, lvl);
-    ofs << "<address_of>"
-        << "\n";
-
-    expr->debug(ofs, lvl + 2);
-
-    indent(ofs, lvl);
-    ofs << "</address_of>"
-        << "\n";
-  }
-
-  Expr_ptr simplify(AST *ast) const override;
-
-  void set_wrap(bool _wrap) override {
-    // ignore
-  }
-
-  Expr_ptr clone() const override {
-    Expression *e = new AddressOf(expr);
-    return Expr_ptr(e);
-  }
-
-  static std::shared_ptr<AddressOf> build(Expr_ptr _expr) {
-    AddressOf *address_of = new AddressOf(_expr);
-    return std::shared_ptr<AddressOf>(address_of);
-  }
-};
-
-typedef std::shared_ptr<AddressOf> AddressOf_ptr;
-
 class Read : public Expression {
 private:
   Expr_ptr expr;
   Expr_ptr idx;
+  bool mask;
 
   Read(Expr_ptr _expr, Type_ptr _type, Expr_ptr _idx)
-      : Expression(READ, _type), expr(_expr->clone()), idx(_idx) {}
+      : Expression(READ, _type), expr(_expr->clone()), idx(_idx), mask(true) {}
 
   void synthesize_pointer(std::ostream &ofs, unsigned int lvl) const {
     Variable *var;
@@ -2367,10 +2319,61 @@ private:
     ofs << "]";
   }
 
+  void synthesize_cast(std::ostream &ofs, unsigned int lvl) const {
+    Cast *cast = static_cast<Cast *>(expr.get());
+    Type_ptr cast_type = cast->get_type();
+    Expr_ptr cast_expr = cast->get_expression();
+    Type_ptr cast_expr_type = cast_expr->get_type();
+
+    assert(cast_expr->get_kind() == Node::NodeKind::VARIABLE);
+    assert(cast_type->get_type_kind() == Type::TypeKind::POINTER);
+    assert(cast_expr_type->get_type_kind() == Type::TypeKind::POINTER);
+
+    Pointer *cast_ptr = static_cast<Pointer *>(cast_type.get());
+    Pointer *cast_expr_ptr = static_cast<Pointer *>(cast_expr_type.get());
+
+    Type_ptr cast_type_ptr = cast_ptr->get_type();
+    Type_ptr cast_expr_type_ptr = cast_expr_ptr->get_type();
+
+    assert(idx->get_kind() == CONSTANT);
+    Constant *idx_const = static_cast<Constant *>(idx.get());
+    unsigned int idx_val = idx_const->get_value();
+
+    if (type->get_size() == cast_type_ptr->get_size() && idx_val == 0) {
+      ofs << "*";
+      expr->synthesize(ofs);
+      return;
+    }
+
+    assert(cast_type_ptr->get_type_kind() == Type::TypeKind::PRIMITIVE);
+    assert(cast_type_ptr->get_size() == 8);
+
+    switch (cast_expr_type_ptr->get_type_kind()) {
+    case Type::TypeKind::STRUCT: {
+      Variable *var = static_cast<Variable *>(cast_expr.get());
+      ofs << "(";
+      ofs << "(uint8_t*)";
+      ofs << var->get_symbol();
+      ofs << ")";
+      ofs << "[";
+      idx->synthesize(ofs);
+      ofs << "]";
+      break;
+    }
+    case Type::TypeKind::PRIMITIVE:
+    case Type::TypeKind::ARRAY:
+    case Type::TypeKind::POINTER: {
+      cast->synthesize(ofs);
+      ofs << "[";
+      idx->synthesize(ofs);
+      ofs << "]";
+      break;
+    }
+    }
+  }
+
   void synthesize_struct(std::ostream &ofs, unsigned int lvl,
                          bool open_parenthesis) const {
-    assert(expr->get_kind() != Node::NodeKind::CAST && "Not implemented");
-
     Variable *var = static_cast<Variable *>(expr.get());
     Type_ptr t = var->get_type();
     bool is_ptr = false;
@@ -2427,18 +2430,16 @@ private:
                          bool open_parenthesis) const {
     Variable *var;
     Type_ptr t;
+    unsigned int size = type->get_size();
 
     if (expr->get_kind() == Node::NodeKind::CAST) {
-      Cast *cast = static_cast<Cast *>(expr.get());
-      assert(cast->get_expression()->get_kind() == Node::NodeKind::VARIABLE);
-
-      var = static_cast<Variable *>(cast->get_expression().get());
-      t = cast->get_type();
-    } else {
-      assert(expr->get_kind() == Node::NodeKind::VARIABLE);
-      var = static_cast<Variable *>(expr.get());
-      t = var->get_type();
+      synthesize_cast(ofs, lvl);
+      return;
     }
+
+    assert(expr->get_kind() == Node::NodeKind::VARIABLE);
+    var = static_cast<Variable *>(expr.get());
+    t = var->get_type();
 
     if (t->get_type_kind() == Type::TypeKind::POINTER) {
       Pointer *ptr = static_cast<Pointer *>(var->get_type().get());
@@ -2461,13 +2462,11 @@ private:
       return;
     }
 
-    unsigned int size = type->get_size();
-
     if (idx->get_kind() == CONSTANT) {
       Constant *idx_const = static_cast<Constant *>(idx.get());
       unsigned int idx_val = idx_const->get_value();
 
-      if (idx_val == 0 && size == expr->get_type()->get_size()) {
+      if (idx_val == 0 && (size == expr->get_type()->get_size() || !mask)) {
         expr->synthesize(ofs);
         return;
       }
@@ -2494,7 +2493,7 @@ private:
       ofs << ")";
     }
 
-    if (size != expr->get_type()->get_size()) {
+    if (size < expr->get_type()->get_size()) {
       ofs << " & 0x";
       assert(size > 0);
       assert(size % 8 == 0);
@@ -2523,6 +2522,8 @@ public:
     return symbol;
   }
 
+  void set_mask(bool _mask) { mask = _mask; }
+
   void synthesize_expr(std::ostream &ofs, unsigned int lvl = 0) const override {
     synthesize_helper(ofs, lvl, true);
   }
@@ -2548,10 +2549,6 @@ public:
 
   Expr_ptr simplify(AST *ast) const override;
 
-  void set_wrap(bool _wrap) override {
-    // ignore
-  }
-
   Expr_ptr clone() const override {
     Expression *e = new Read(expr, type, idx);
     return Expr_ptr(e);
@@ -2571,6 +2568,60 @@ public:
 };
 
 typedef std::shared_ptr<Read> Read_ptr;
+
+class AddressOf : public Expression {
+private:
+  Expr_ptr expr;
+
+  AddressOf(Expr_ptr _expr)
+      : Expression(ADDRESSOF, PrimitiveType::build(
+                                  PrimitiveType::PrimitiveKind::UINT32_T)) {
+    expr = _expr->clone();
+
+    if (expr->get_kind() == NodeKind::READ) {
+      Read *read = static_cast<Read *>(expr.get());
+      read->set_mask(false);
+    }
+  }
+
+public:
+  Expr_ptr get_expr() const { return expr; }
+
+  void synthesize_expr(std::ostream &ofs, unsigned int lvl = 0) const override {
+    ofs << "&";
+    expr->synthesize(ofs, lvl);
+  }
+
+  void debug(std::ostream &ofs, unsigned int lvl = 0) const override {
+    indent(ofs, lvl);
+    ofs << "<address_of>"
+        << "\n";
+
+    expr->debug(ofs, lvl + 2);
+
+    indent(ofs, lvl);
+    ofs << "</address_of>"
+        << "\n";
+  }
+
+  Expr_ptr simplify(AST *ast) const override;
+
+  void set_wrap(bool _wrap) override {
+    // ignore
+  }
+
+  Expr_ptr clone() const override {
+    Expression *e = new AddressOf(expr);
+    return Expr_ptr(e);
+  }
+
+  static std::shared_ptr<AddressOf> build(Expr_ptr _expr) {
+    AddressOf *address_of = new AddressOf(_expr);
+    return std::shared_ptr<AddressOf>(address_of);
+  }
+};
+
+typedef std::shared_ptr<AddressOf> AddressOf_ptr;
 
 class Concat : public Expression {
 private:

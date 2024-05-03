@@ -6,7 +6,8 @@ extern "C" {
 #include <lib/verified/map.h>
 #include <lib/verified/vector.h>
 #include <lib/unverified/sketch.h>
-#include <lib/unverified/util.h>
+#include <lib/unverified/hash.h>
+#include <lib/unverified/expirator.h>
 
 #include <lib/verified/expirator.h>
 #include <lib/verified/packet-io.h>

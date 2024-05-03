@@ -31,7 +31,7 @@ private:
   std::map<std::pair<std::string, TargetOption>, std::string>
       struct_translation;
 
-  std::vector<unsigned int> layer;
+  std::vector<uint8_t> network_layers_stack;
   std::stack<std::stack<Expr_ptr>> pkt_buffer_offset;
 
   Context context;
@@ -46,11 +46,13 @@ private:
   Node_ptr nf_process;
 
 public:
-  static constexpr char CHUNK_LAYER_2[] = "ether_header";
-  static constexpr char CHUNK_LAYER_3[] = "ipv4_header";
-  static constexpr char CHUNK_LAYER_4_TCPUDP[] = "tcpudp_header";
-  static constexpr char CHUNK_LAYER_4_TCP[] = "tcp_header";
-  static constexpr char CHUNK_LAYER_4_UDP[] = "udp_header";
+  static constexpr char CHUNK_ETHER_LABEL[] = "ether_header";
+  static constexpr char CHUNK_IPV4_LABEL[] = "ipv4_header";
+  static constexpr char CHUNK_IPV4_OPTIONS_LABEL[] = "ip_options";
+  static constexpr char CHUNK_TCPUDP_LABEL[] = "tcpudp_header";
+  static constexpr char CHUNK_TCP_LABEL[] = "tcp_header";
+  static constexpr char CHUNK_UDP_LABEL[] = "udp_header";
+  static constexpr char CHUNK_L5_LABEL[] = "app_header";
 
   struct chunk_t {
     Variable_ptr var;
@@ -109,7 +111,7 @@ private:
 
 public:
   AST() {
-    layer.push_back(2);
+    network_layers_stack.push_back(2);
 
     context_switch(INIT);
 
