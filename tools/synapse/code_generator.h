@@ -7,10 +7,8 @@
 #include <vector>
 
 using synapse::synthesizer::Synthesizer;
-using synapse::synthesizer::bmv2::BMv2Generator;
 using synapse::synthesizer::tofino::TofinoGenerator;
 using synapse::synthesizer::x86::x86Generator;
-using synapse::synthesizer::x86_bmv2::x86BMv2Generator;
 using synapse::synthesizer::x86_tofino::x86TofinoGenerator;
 
 namespace synapse {
@@ -37,9 +35,7 @@ private:
   std::map<TargetType, target_helper_t> target_helpers_bank;
 
   ExecutionPlan x86_extractor(const ExecutionPlan &execution_plan) const;
-  ExecutionPlan x86_bmv2_extractor(const ExecutionPlan &execution_plan) const;
   ExecutionPlan x86_tofino_extractor(const ExecutionPlan &execution_plan) const;
-  ExecutionPlan bmv2_extractor(const ExecutionPlan &execution_plan) const;
   ExecutionPlan tofino_extractor(const ExecutionPlan &execution_plan) const;
 
   std::string directory;
@@ -49,13 +45,6 @@ public:
   CodeGenerator(const std::string &_directory, const std::string &_fname)
       : directory(_directory), fname(_fname) {
     target_helpers_bank = {
-        {TargetType::x86_BMv2,
-         target_helper_t(&CodeGenerator::x86_bmv2_extractor,
-                         std::make_shared<x86BMv2Generator>())},
-
-        {TargetType::BMv2, target_helper_t(&CodeGenerator::bmv2_extractor,
-                                           std::make_shared<BMv2Generator>())},
-
         {TargetType::x86_Tofino,
          target_helper_t(&CodeGenerator::x86_tofino_extractor,
                          std::make_shared<x86TofinoGenerator>())},
@@ -83,12 +72,6 @@ public:
     auto output_file = directory + "/" + fname + "-";
 
     switch (target) {
-    case TargetType::x86_BMv2:
-      output_file += "bmv2-x86.c";
-      break;
-    case TargetType::BMv2:
-      output_file += "bmv2.p4";
-      break;
     case TargetType::x86_Tofino:
       output_file += "tofino-cpu.cpp";
       break;

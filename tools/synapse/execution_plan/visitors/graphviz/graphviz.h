@@ -36,9 +36,7 @@ private:
 public:
   Graphviz(const std::string &path) : fpath(path) {
     node_colors = std::map<TargetType, std::string>{
-        {TargetType::BMv2, "darkolivegreen2"},
         {TargetType::Tofino, "cornflowerblue"},
-        {TargetType::x86_BMv2, "darkorange2"},
         {TargetType::x86_Tofino, "firebrick2"},
         {TargetType::x86, "cadetblue1"},
     };
@@ -82,59 +80,6 @@ public:
   void visit(const SearchSpace &search_space);
 
   void log(const ExecutionPlanNode *ep_node) const override;
-
-  /********************************************
-   *
-   *                x86 BMv2
-   *
-   ********************************************/
-
-  DECLARE_VISIT(targets::x86_bmv2::MapGet)
-  DECLARE_VISIT(targets::x86_bmv2::CurrentTime)
-  DECLARE_VISIT(targets::x86_bmv2::PacketBorrowNextChunk)
-  DECLARE_VISIT(targets::x86_bmv2::PacketGetMetadata)
-  DECLARE_VISIT(targets::x86_bmv2::PacketReturnChunk)
-  DECLARE_VISIT(targets::x86_bmv2::If)
-  DECLARE_VISIT(targets::x86_bmv2::Then)
-  DECLARE_VISIT(targets::x86_bmv2::Else)
-  DECLARE_VISIT(targets::x86_bmv2::Forward)
-  DECLARE_VISIT(targets::x86_bmv2::Broadcast)
-  DECLARE_VISIT(targets::x86_bmv2::Drop)
-  DECLARE_VISIT(targets::x86_bmv2::ExpireItemsSingleMap)
-  DECLARE_VISIT(targets::x86_bmv2::RteEtherAddrHash)
-  DECLARE_VISIT(targets::x86_bmv2::DchainRejuvenateIndex)
-  DECLARE_VISIT(targets::x86_bmv2::VectorBorrow)
-  DECLARE_VISIT(targets::x86_bmv2::VectorReturn)
-  DECLARE_VISIT(targets::x86_bmv2::DchainAllocateNewIndex)
-  DECLARE_VISIT(targets::x86_bmv2::MapPut)
-  DECLARE_VISIT(targets::x86_bmv2::PacketGetUnreadLength)
-  DECLARE_VISIT(targets::x86_bmv2::SetIpv4UdpTcpChecksum)
-  DECLARE_VISIT(targets::x86_bmv2::DchainIsIndexAllocated)
-
-  /********************************************
-   *
-   *                   BMv2
-   *
-   ********************************************/
-
-  DECLARE_VISIT(targets::bmv2::SendToController)
-  DECLARE_VISIT(targets::bmv2::Ignore)
-  DECLARE_VISIT(targets::bmv2::SetupExpirationNotifications)
-  DECLARE_VISIT(targets::bmv2::If)
-  DECLARE_VISIT(targets::bmv2::Then)
-  DECLARE_VISIT(targets::bmv2::Else)
-  DECLARE_VISIT(targets::bmv2::EthernetConsume)
-  DECLARE_VISIT(targets::bmv2::EthernetModify)
-  DECLARE_VISIT(targets::bmv2::TableLookup)
-  DECLARE_VISIT(targets::bmv2::IPv4Consume)
-  DECLARE_VISIT(targets::bmv2::IPv4Modify)
-  DECLARE_VISIT(targets::bmv2::TcpUdpConsume)
-  DECLARE_VISIT(targets::bmv2::TcpUdpModify)
-  DECLARE_VISIT(targets::bmv2::IPOptionsConsume)
-  DECLARE_VISIT(targets::bmv2::IPOptionsModify)
-  DECLARE_VISIT(targets::bmv2::Drop)
-  DECLARE_VISIT(targets::bmv2::Forward)
-  DECLARE_VISIT(targets::bmv2::VectorReturn)
 
   /********************************************
    *

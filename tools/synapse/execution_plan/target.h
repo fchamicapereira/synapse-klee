@@ -13,10 +13,8 @@ typedef std::shared_ptr<TargetMemoryBank> TargetMemoryBank_ptr;
 
 enum TargetType {
   x86,
-  x86_BMv2,
   x86_Tofino,
   Tofino,
-  BMv2,
 };
 
 std::ostream &operator<<(std::ostream &os, TargetType type);

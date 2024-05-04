@@ -536,59 +536,6 @@ void Graphviz::log(const ExecutionPlanNode *ep_node) const {
 
 /********************************************
  *
- *                x86 BMv2
- *
- ********************************************/
-
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::MapGet)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::CurrentTime)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::PacketBorrowNextChunk)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::PacketGetMetadata)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::PacketReturnChunk)
-DEFAULT_BRANCH_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::If)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::Then)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::Else)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::Forward)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::Broadcast)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::Drop)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::ExpireItemsSingleMap)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::RteEtherAddrHash)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::DchainRejuvenateIndex)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::VectorBorrow)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::VectorReturn)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::DchainAllocateNewIndex)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::MapPut)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::PacketGetUnreadLength)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::SetIpv4UdpTcpChecksum)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::x86_bmv2::DchainIsIndexAllocated)
-
-/********************************************
- *
- *                   BMv2
- *
- ********************************************/
-
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::bmv2::SendToController)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::bmv2::Ignore)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::bmv2::SetupExpirationNotifications)
-DEFAULT_BRANCH_VISIT_PRINT_MODULE_NAME(targets::bmv2::If)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::bmv2::Then)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::bmv2::Else)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::bmv2::EthernetConsume)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::bmv2::EthernetModify)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::bmv2::TableLookup)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::bmv2::IPv4Consume)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::bmv2::IPv4Modify)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::bmv2::TcpUdpConsume)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::bmv2::TcpUdpModify)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::bmv2::IPOptionsConsume)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::bmv2::IPOptionsModify)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::bmv2::Drop)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::bmv2::Forward)
-DEFAULT_VISIT_PRINT_MODULE_NAME(targets::bmv2::VectorReturn)
-
-/********************************************
- *
  *                  Tofino
  *
  ********************************************/

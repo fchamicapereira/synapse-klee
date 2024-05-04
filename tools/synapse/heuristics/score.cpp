@@ -81,12 +81,7 @@ Score::score_value_t Score::get_nr_switch_nodes(const ExecutionPlan &ep) const {
   const auto &meta = ep.get_meta();
   const auto &nodes_per_target = meta.nodes_per_target;
 
-  auto bmv2_nodes_it = nodes_per_target.find(TargetType::BMv2);
   auto tofino_nodes_it = nodes_per_target.find(TargetType::Tofino);
-
-  if (bmv2_nodes_it != nodes_per_target.end()) {
-    switch_nodes += bmv2_nodes_it->second;
-  }
 
   if (tofino_nodes_it != nodes_per_target.end()) {
     switch_nodes += tofino_nodes_it->second;
@@ -107,13 +102,8 @@ Score::get_nr_controller_nodes(const ExecutionPlan &ep) const {
   const auto &meta = ep.get_meta();
   const auto &nodes_per_target = meta.nodes_per_target;
 
-  auto bmv2_controller_nodes_it = nodes_per_target.find(TargetType::x86_BMv2);
   auto tofino_controller_nodes_it =
       nodes_per_target.find(TargetType::x86_Tofino);
-
-  if (bmv2_controller_nodes_it != nodes_per_target.end()) {
-    controller_nodes += bmv2_controller_nodes_it->second;
-  }
 
   if (tofino_controller_nodes_it != nodes_per_target.end()) {
     controller_nodes += tofino_controller_nodes_it->second;
@@ -132,8 +122,7 @@ Score::score_value_t
 Score::get_nr_switch_leaves(const ExecutionPlan &ep) const {
   int switch_leaves = 0;
   auto leaves = ep.get_leaves();
-  auto switch_types =
-      std::vector<TargetType>{TargetType::BMv2, TargetType::Tofino};
+  auto switch_types = std::vector<TargetType>{TargetType::Tofino};
 
   for (auto leaf : leaves) {
     if (!leaf.current_platform.first) {
@@ -155,7 +144,7 @@ Score::score_value_t
 Score::next_op_same_obj_in_switch(const ExecutionPlan &ep) const {
   auto target = ep.get_current_platform();
 
-  if (target != TargetType::BMv2 && target != TargetType::Tofino) {
+  if (target != TargetType::Tofino) {
     return 0;
   }
 
@@ -197,7 +186,7 @@ Score::score_value_t
 Score::next_op_is_stateful_in_switch(const ExecutionPlan &ep) const {
   auto target = ep.get_current_platform();
 
-  if (target != TargetType::BMv2 && target != TargetType::Tofino) {
+  if (target != TargetType::Tofino) {
     return 0;
   }
 

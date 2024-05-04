@@ -47,17 +47,11 @@ public:
 
   void add_target(TargetType target) {
     switch (target) {
-    case TargetType::x86_BMv2:
-      targets.push_back(targets::x86_bmv2::x86BMv2Target::build());
-      break;
     case TargetType::x86_Tofino:
       targets.push_back(targets::x86_tofino::x86TofinoTarget::build());
       break;
     case TargetType::Tofino:
       targets.push_back(targets::tofino::TofinoTarget::build());
-      break;
-    case TargetType::BMv2:
-      targets.push_back(targets::bmv2::BMv2Target::build());
       break;
     case TargetType::x86:
       targets.push_back(targets::x86::x86Target::build());

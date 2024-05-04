@@ -45,9 +45,7 @@ llvm::cl::OptionCategory SyNAPSE("SyNAPSE specific options");
 
 llvm::cl::list<TargetType> TargetList(
     desc("Available targets:"), Required, OneOrMore,
-    values(clEnumValN(TargetType::x86_BMv2, "x86-bmv2", "BMv2 ctrl (C)"),
-           clEnumValN(TargetType::BMv2, "bmv2", "BMv2 (P4)"),
-           clEnumValN(TargetType::Tofino, "tofino", "Tofino (P4)"),
+    values(clEnumValN(TargetType::Tofino, "tofino", "Tofino (P4)"),
            clEnumValN(TargetType::x86_Tofino, "x86-tofino",
                       "Tofino ctrl (C++)"),
            clEnumValN(TargetType::x86, "x86", "x86 (DPDK C)"), clEnumValEnd),

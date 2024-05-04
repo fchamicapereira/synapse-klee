@@ -26,48 +26,6 @@ struct processing_result_t {
 class Module {
 public:
   enum ModuleType {
-    x86_BMv2_CurrentTime,
-    x86_BMv2_IfThen,
-    x86_BMv2_If,
-    x86_BMv2_Then,
-    x86_BMv2_Else,
-    x86_BMv2_MapGet,
-    x86_BMv2_PacketBorrowNextChunk,
-    x86_BMv2_PacketGetMetadata,
-    x86_BMv2_PacketReturnChunk,
-    x86_BMv2_Forward,
-    x86_BMv2_Drop,
-    x86_BMv2_Broadcast,
-    x86_BMv2_ExpireItemsSingleMap,
-    x86_BMv2_RteEtherAddrHash,
-    x86_BMv2_DchainRejuvenateIndex,
-    x86_BMv2_VectorBorrow,
-    x86_BMv2_VectorReturn,
-    x86_BMv2_DchainAllocateNewIndex,
-    x86_BMv2_MapPut,
-    x86_BMv2_PacketGetUnreadLength,
-    x86_BMv2_SetIpv4UdpTcpChecksum,
-    x86_BMv2_DchainIsIndexAllocated,
-    BMv2_SendToController,
-    BMv2_Ignore,
-    BMv2_SetupExpirationNotifications,
-    BMv2_If,
-    BMv2_Then,
-    BMv2_Else,
-    BMv2_EthernetConsume,
-    BMv2_EthernetModify,
-    BMv2_TableLookup,
-    BMv2_TableMatch,
-    BMv2_TableMiss,
-    BMv2_IPv4Consume,
-    BMv2_IPv4Modify,
-    BMv2_TcpUdpConsume,
-    BMv2_TcpUdpModify,
-    BMv2_IPOptionsConsume,
-    BMv2_IPOptionsModify,
-    BMv2_Drop,
-    BMv2_Forward,
-    BMv2_VectorReturn,
     Tofino_Ignore,
     Tofino_If,
     Tofino_IfHeaderValid,
@@ -207,14 +165,10 @@ public:
 
   static std::string target_to_string(TargetType target) {
     switch (target) {
-    case x86_BMv2:
-      return "x86 (BMv2)";
     case x86_Tofino:
       return "x86 (Tofino)";
     case Tofino:
       return "Tofino";
-    case BMv2:
-      return "BMv2";
     case x86:
       return "x86";
     }

@@ -15,52 +15,6 @@ class ExecutionPlanNode;
 
 namespace targets {
 
-namespace x86_bmv2 {
-class MapGet;
-class CurrentTime;
-class PacketBorrowNextChunk;
-class PacketGetMetadata;
-class PacketReturnChunk;
-class If;
-class Then;
-class Else;
-class Forward;
-class Broadcast;
-class Drop;
-class ExpireItemsSingleMap;
-class RteEtherAddrHash;
-class DchainRejuvenateIndex;
-class VectorBorrow;
-class VectorReturn;
-class DchainAllocateNewIndex;
-class MapPut;
-class PacketGetUnreadLength;
-class SetIpv4UdpTcpChecksum;
-class DchainIsIndexAllocated;
-} // namespace x86_bmv2
-
-namespace bmv2 {
-class SendToController;
-class ParserConsume;
-class Ignore;
-class SetupExpirationNotifications;
-class If;
-class Then;
-class Else;
-class EthernetConsume;
-class EthernetModify;
-class TableLookup;
-class IPv4Consume;
-class IPv4Modify;
-class TcpUdpConsume;
-class TcpUdpModify;
-class IPOptionsConsume;
-class IPOptionsModify;
-class Drop;
-class Forward;
-class VectorReturn;
-} // namespace bmv2
-
 namespace tofino {
 class Ignore;
 class If;
@@ -159,59 +113,6 @@ class ExecutionPlanVisitor {
 public:
   virtual void visit(ExecutionPlan ep);
   virtual void visit(const ExecutionPlanNode *ep_node);
-
-  /*************************************
-   *
-   *              x86 BMv2
-   *
-   * **********************************/
-
-  VISIT(targets::x86_bmv2::MapGet)
-  VISIT(targets::x86_bmv2::CurrentTime)
-  VISIT(targets::x86_bmv2::PacketBorrowNextChunk)
-  VISIT(targets::x86_bmv2::PacketReturnChunk)
-  VISIT(targets::x86_bmv2::PacketGetMetadata)
-  VISIT(targets::x86_bmv2::If)
-  VISIT(targets::x86_bmv2::Then)
-  VISIT(targets::x86_bmv2::Else)
-  VISIT(targets::x86_bmv2::Forward)
-  VISIT(targets::x86_bmv2::Broadcast)
-  VISIT(targets::x86_bmv2::Drop)
-  VISIT(targets::x86_bmv2::ExpireItemsSingleMap)
-  VISIT(targets::x86_bmv2::RteEtherAddrHash)
-  VISIT(targets::x86_bmv2::DchainRejuvenateIndex)
-  VISIT(targets::x86_bmv2::VectorBorrow)
-  VISIT(targets::x86_bmv2::VectorReturn)
-  VISIT(targets::x86_bmv2::DchainAllocateNewIndex)
-  VISIT(targets::x86_bmv2::MapPut)
-  VISIT(targets::x86_bmv2::PacketGetUnreadLength)
-  VISIT(targets::x86_bmv2::SetIpv4UdpTcpChecksum)
-  VISIT(targets::x86_bmv2::DchainIsIndexAllocated)
-
-  /*************************************
-   *
-   *                 BMv2
-   *
-   * **********************************/
-
-  VISIT(targets::bmv2::SendToController)
-  VISIT(targets::bmv2::Ignore)
-  VISIT(targets::bmv2::SetupExpirationNotifications)
-  VISIT(targets::bmv2::If)
-  VISIT(targets::bmv2::Then)
-  VISIT(targets::bmv2::Else)
-  VISIT(targets::bmv2::EthernetConsume)
-  VISIT(targets::bmv2::EthernetModify)
-  VISIT(targets::bmv2::TableLookup)
-  VISIT(targets::bmv2::IPv4Consume)
-  VISIT(targets::bmv2::IPv4Modify)
-  VISIT(targets::bmv2::TcpUdpConsume)
-  VISIT(targets::bmv2::TcpUdpModify)
-  VISIT(targets::bmv2::IPOptionsConsume)
-  VISIT(targets::bmv2::IPOptionsModify)
-  VISIT(targets::bmv2::Drop)
-  VISIT(targets::bmv2::Forward)
-  VISIT(targets::bmv2::VectorReturn)
 
   /*************************************
    *
