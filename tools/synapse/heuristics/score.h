@@ -2,7 +2,7 @@
 
 #include "../execution_plan/execution_plan.h"
 #include "../execution_plan/execution_plan_node.h"
-#include "../execution_plan/modules/modules.h"
+#include "../targets/modules/modules.h"
 #include "../log.h"
 
 #include <iostream>

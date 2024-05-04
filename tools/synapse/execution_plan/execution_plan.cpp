@@ -1,10 +1,8 @@
 #include "execution_plan.h"
-#include "../log.h"
 #include "execution_plan_node.h"
-#include "memory_bank.h"
-#include "modules/modules.h"
-#include "visitors/graphviz/graphviz.h"
-#include "visitors/visitor.h"
+#include "visitor.h"
+#include "../targets/targets.h"
+#include "../log.h"
 
 namespace synapse {
 

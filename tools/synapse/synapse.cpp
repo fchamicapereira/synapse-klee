@@ -26,10 +26,10 @@
 
 #include "code_generator.h"
 #include "execution_plan/execution_plan.h"
-#include "execution_plan/visitors/graphviz/graphviz.h"
+#include "graphviz/graphviz.h"
 #include "heuristics/heuristics.h"
-#include "log.h"
 #include "search.h"
+#include "log.h"
 
 using llvm::cl::cat;
 using llvm::cl::desc;

@@ -1,7 +1,7 @@
 #include "execution_plan_node.h"
+#include "visitor.h"
+#include "../targets/targets.h"
 #include "../log.h"
-#include "modules/module.h"
-#include "visitors/visitor.h"
 
 namespace synapse {
 

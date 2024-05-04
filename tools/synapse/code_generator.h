@@ -1,7 +1,7 @@
 #pragma once
 
 #include "execution_plan/execution_plan.h"
-#include "execution_plan/visitors/synthesizers/synthesizers.h"
+#include "synthesizers/synthesizers.h"
 
 #include <sys/stat.h>
 #include <vector>

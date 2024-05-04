@@ -1,8 +1,9 @@
 #include "code_generator.h"
+
 #include "execution_plan/execution_plan.h"
 #include "execution_plan/execution_plan_node.h"
-#include "execution_plan/modules/modules.h"
-#include "execution_plan/visitors/graphviz/graphviz.h"
+#include "graphviz/graphviz.h"
+#include "targets/modules/modules.h"
 
 namespace synapse {
 using targets::tofino::TofinoMemoryBank;

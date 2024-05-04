@@ -1,10 +1,10 @@
 #pragma once
 
 #include "execution_plan/execution_plan.h"
-#include "execution_plan/visitors/graphviz/graphviz.h"
+#include "graphviz/graphviz.h"
 #include "heuristics/heuristic.h"
-#include "log.h"
 #include "search_space.h"
+#include "log.h"
 
 namespace synapse {
 

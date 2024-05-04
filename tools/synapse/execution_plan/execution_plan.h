@@ -1,8 +1,9 @@
 #pragma once
 
 #include "call-paths-to-bdd.h"
+
 #include "meta.h"
-#include "target.h"
+#include "../targets/target.h"
 
 #include <unordered_map>
 #include <unordered_set>

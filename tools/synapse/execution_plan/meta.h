@@ -3,7 +3,7 @@
 #include "call-paths-to-bdd.h"
 #include "klee-util.h"
 
-#include "target.h"
+#include "../targets/target.h"
 
 #include <unordered_map>
 
