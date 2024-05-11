@@ -11,16 +11,16 @@ private:
   addr_t p_addr;
   klee::ref<klee::Expr> unread_length;
 
-  BDD::symbols_t generated_symbols;
+  bdd::symbols_t generated_symbols;
 
 public:
   PacketGetUnreadLength()
       : x86Module(ModuleType::x86_PacketGetUnreadLength,
                   "PacketGetUnreadLength") {}
 
-  PacketGetUnreadLength(BDD::Node_ptr node, addr_t _p_addr,
+  PacketGetUnreadLength(bdd::Node_ptr node, addr_t _p_addr,
                         klee::ref<klee::Expr> _unread_length,
-                        BDD::symbols_t _generated_symbols)
+                        bdd::symbols_t _generated_symbols)
       : x86Module(ModuleType::x86_PacketGetUnreadLength,
                   "PacketGetUnreadLength", node),
         p_addr(_p_addr), unread_length(_unread_length),
@@ -28,10 +28,10 @@ public:
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -39,14 +39,14 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == BDD::symbex::FN_GET_UNREAD_LEN) {
+    if (call.function_name == "packet_get_unread_length") {
       assert(!call.ret.isNull());
-      assert(!call.args[BDD::symbex::FN_BORROW_ARG_PACKET].expr.isNull());
+      assert(!call.args["p"].expr.isNull());
 
-      auto _p = call.args[BDD::symbex::FN_BORROW_ARG_PACKET].expr;
+      auto _p = call.args["p"].expr;
       auto _unread_length = call.ret;
 
-      auto _generated_symbols = casted->get_local_generated_symbols();
+      auto _generated_symbols = casted->get_locally_generated_symbols();
       auto _p_addr = kutil::expr_addr_to_obj_addr(_p);
 
       auto new_module = std::make_shared<PacketGetUnreadLength>(
@@ -100,7 +100,7 @@ public:
     return unread_length;
   }
 
-  const BDD::symbols_t &get_generated_symbols() const {
+  const bdd::symbols_t &get_generated_symbols() const {
     return generated_symbols;
   }
 };

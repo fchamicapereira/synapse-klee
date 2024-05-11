@@ -81,8 +81,8 @@ llvm::cl::opt<bool> Verbose("v", desc("Verbose mode."),
                             cat(SyNAPSE));
 } // namespace
 
-std::pair<ExecutionPlan, SearchSpace> search(const BDD::BDD &bdd,
-                                             BDD::node_id_t peek) {
+std::pair<ExecutionPlan, SearchSpace> search(const bdd::BDD &bdd,
+                                             bdd::node_id_t peek) {
   SearchEngine search_engine(bdd, MaxReordered);
 
   for (unsigned i = 0; i != TargetList.size(); ++i) {
@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
   }
 
   assert(InputBDDFile.size() && "Missing BDD file");
-  auto bdd = BDD::BDD(InputBDDFile);
+  auto bdd = bdd::BDD(InputBDDFile);
   auto nf_name = nf_name_from_bdd(InputBDDFile);
 
   auto start_search = std::chrono::steady_clock::now();

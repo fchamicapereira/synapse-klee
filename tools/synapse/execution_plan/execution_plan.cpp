@@ -8,11 +8,11 @@ namespace synapse {
 
 ep_id_t ExecutionPlan::counter = 0;
 
-ExecutionPlan::leaf_t::leaf_t(BDD::Node_ptr _next) : next(_next) {
+ExecutionPlan::leaf_t::leaf_t(bdd::Node_ptr _next) : next(_next) {
   current_platform.first = false;
 }
 
-ExecutionPlan::leaf_t::leaf_t(Module_ptr _module, BDD::Node_ptr _next)
+ExecutionPlan::leaf_t::leaf_t(Module_ptr _module, bdd::Node_ptr _next)
     : leaf(ExecutionPlanNode::build(_module)), next(_next) {
   assert(_module);
 
@@ -24,7 +24,7 @@ ExecutionPlan::leaf_t::leaf_t(const leaf_t &_leaf)
     : leaf(_leaf.leaf), next(_leaf.next),
       current_platform(_leaf.current_platform) {}
 
-ExecutionPlan::ExecutionPlan(const BDD::BDD &_bdd)
+ExecutionPlan::ExecutionPlan(const bdd::BDD &_bdd)
     : id(counter++), bdd(_bdd), shared_memory_bank(MemoryBank::build()) {
   assert(bdd.get_process());
 
@@ -62,13 +62,13 @@ ExecutionPlan::ExecutionPlan(const ExecutionPlan &ep,
 
 const ep_meta_t &ExecutionPlan::get_meta() const { return meta; }
 
-BDD::Node_ptr ExecutionPlan::get_bdd_root(BDD::Node_ptr node) const {
+bdd::Node_ptr ExecutionPlan::get_bdd_root(bdd::Node_ptr node) const {
   assert(node);
 
   auto current_platform = get_current_platform();
   auto roots_per_target = meta.roots_per_target.at(current_platform);
 
-  auto is_root = [&](BDD::Node_ptr n) {
+  auto is_root = [&](bdd::Node_ptr n) {
     auto found_it = roots_per_target.find(n->get_id());
     return found_it != roots_per_target.end();
   };
@@ -86,8 +86,8 @@ const std::vector<ExecutionPlan::leaf_t> &ExecutionPlan::get_leaves() const {
   return leaves;
 }
 
-const BDD::BDD &ExecutionPlan::get_bdd() const { return bdd; }
-BDD::BDD &ExecutionPlan::get_bdd() { return bdd; }
+const bdd::BDD &ExecutionPlan::get_bdd() const { return bdd; }
+bdd::BDD &ExecutionPlan::get_bdd() { return bdd; }
 
 void ExecutionPlan::inc_reordered_nodes() { meta.reordered_nodes++; }
 
@@ -127,9 +127,9 @@ ExecutionPlan::get_prev_nodes_of_current_target() const {
   return prev_nodes;
 }
 
-std::vector<BDD::Node_ptr> ExecutionPlan::get_incoming_bdd_nodes() const {
-  std::vector<BDD::Node_ptr> incoming_nodes;
-  std::vector<BDD::Node_ptr> nodes;
+std::vector<bdd::Node_ptr> ExecutionPlan::get_incoming_bdd_nodes() const {
+  std::vector<bdd::Node_ptr> incoming_nodes;
+  std::vector<bdd::Node_ptr> nodes;
 
   auto node = get_next_node();
 
@@ -145,12 +145,12 @@ std::vector<BDD::Node_ptr> ExecutionPlan::get_incoming_bdd_nodes() const {
 
     incoming_nodes.push_back(node);
 
-    if (node->get_type() == BDD::Node::NodeType::CALL) {
+    if (node->get_type() == bdd::Node::NodeType::CALL) {
       auto call_node = BDD_CAST_CALL(node);
       nodes.push_back(call_node->get_next());
     }
 
-    else if (node->get_type() == BDD::Node::NodeType::BRANCH) {
+    else if (node->get_type() == bdd::Node::NodeType::BRANCH) {
       auto branch_node = BDD_CAST_BRANCH(node);
       nodes.push_back(branch_node->get_on_true());
       nodes.push_back(branch_node->get_on_false());
@@ -199,7 +199,7 @@ void ExecutionPlan::update_roots(const std::vector<leaf_t> &new_leaves) {
   }
 }
 
-void ExecutionPlan::replace_roots(BDD::node_id_t _old, BDD::node_id_t _new) {
+void ExecutionPlan::replace_roots(bdd::node_id_t _old, bdd::node_id_t _new) {
   auto current_target = get_current_platform();
   auto found_it = meta.roots_per_target.find(current_target);
 
@@ -295,8 +295,8 @@ void ExecutionPlan::update_processed_nodes() {
   meta.processed_nodes.insert(processed_node_id);
 }
 
-BDD::Node_ptr ExecutionPlan::get_next_node() const {
-  BDD::Node_ptr next;
+bdd::Node_ptr ExecutionPlan::get_next_node() const {
+  bdd::Node_ptr next;
 
   if (leaves.size()) {
     next = leaves[0].next;
@@ -324,7 +324,7 @@ TargetType ExecutionPlan::get_current_platform() const {
 }
 
 ExecutionPlan ExecutionPlan::replace_leaf(Module_ptr new_module,
-                                          const BDD::Node_ptr &next,
+                                          const bdd::Node_ptr &next,
                                           bool process_bdd_node) const {
   auto new_ep = clone();
 
@@ -364,7 +364,7 @@ ExecutionPlan ExecutionPlan::replace_leaf(Module_ptr new_module,
   return new_ep;
 }
 
-ExecutionPlan ExecutionPlan::ignore_leaf(const BDD::Node_ptr &next,
+ExecutionPlan ExecutionPlan::ignore_leaf(const bdd::Node_ptr &next,
                                          TargetType next_target,
                                          bool process_bdd_node) const {
   auto new_ep = clone();
@@ -390,7 +390,7 @@ void ExecutionPlan::force_termination() {
 }
 
 ExecutionPlan ExecutionPlan::add_leaves(Module_ptr new_module,
-                                        const BDD::Node_ptr &next,
+                                        const bdd::Node_ptr &next,
                                         bool is_terminal,
                                         bool process_bdd_node) const {
   std::vector<ExecutionPlan::leaf_t> _leaves;
@@ -442,7 +442,7 @@ ExecutionPlan ExecutionPlan::add_leaves(std::vector<leaf_t> _leaves,
   return new_ep;
 }
 
-void ExecutionPlan::replace_active_leaf_node(BDD::Node_ptr next,
+void ExecutionPlan::replace_active_leaf_node(bdd::Node_ptr next,
                                              bool process_bdd_node) {
   if (process_bdd_node) {
     update_processed_nodes();
@@ -459,12 +459,12 @@ float ExecutionPlan::get_bdd_processing_progress() const {
   return (float)meta.processed_nodes.size() / (float)total_nodes;
 }
 
-void ExecutionPlan::remove_from_processed_bdd_nodes(BDD::node_id_t id) {
+void ExecutionPlan::remove_from_processed_bdd_nodes(bdd::node_id_t id) {
   auto found_it = meta.processed_nodes.find(id);
   meta.processed_nodes.erase(found_it);
 }
 
-void ExecutionPlan::add_processed_bdd_node(BDD::node_id_t id) {
+void ExecutionPlan::add_processed_bdd_node(bdd::node_id_t id) {
   auto found_it = meta.processed_nodes.find(id);
   if (found_it == meta.processed_nodes.end()) {
     meta.processed_nodes.insert(id);
@@ -474,13 +474,13 @@ void ExecutionPlan::add_processed_bdd_node(BDD::node_id_t id) {
     assert(leaf.next);
     if (leaf.next->get_id() == id) {
       assert(leaf.next->get_next());
-      assert(leaf.next->get_type() != BDD::Node::NodeType::BRANCH);
+      assert(leaf.next->get_type() != bdd::Node::NodeType::BRANCH);
       leaf.next = leaf.next->get_next();
     }
   }
 }
 
-ExecutionPlan ExecutionPlan::clone(BDD::BDD new_bdd) const {
+ExecutionPlan ExecutionPlan::clone(bdd::BDD new_bdd) const {
   ExecutionPlan copy = *this;
 
   copy.id = counter++;
@@ -632,8 +632,8 @@ bool operator==(const ExecutionPlan &lhs, const ExecutionPlan &rhs) {
   auto lhs_bdd = lhs.get_bdd();
   auto rhs_bdd = rhs.get_bdd();
 
-  auto lhs_bdd_nodes = std::vector<BDD::Node_ptr>{lhs_bdd.get_process()};
-  auto rhs_bdd_nodes = std::vector<BDD::Node_ptr>{rhs_bdd.get_process()};
+  auto lhs_bdd_nodes = std::vector<bdd::Node_ptr>{lhs_bdd.get_process()};
+  auto rhs_bdd_nodes = std::vector<bdd::Node_ptr>{rhs_bdd.get_process()};
 
   while (lhs_bdd_nodes.size()) {
     auto lhs_bdd_node = lhs_bdd_nodes[0];
@@ -650,16 +650,16 @@ bool operator==(const ExecutionPlan &lhs, const ExecutionPlan &rhs) {
       return false;
     }
 
-    if (lhs_bdd_node->get_type() == BDD::Node::NodeType::BRANCH) {
-      auto lhs_branch = static_cast<BDD::Branch *>(lhs_bdd_node.get());
-      auto rhs_branch = static_cast<BDD::Branch *>(rhs_bdd_node.get());
+    if (lhs_bdd_node->get_type() == bdd::Node::NodeType::BRANCH) {
+      auto lhs_branch = static_cast<bdd::Branch *>(lhs_bdd_node.get());
+      auto rhs_branch = static_cast<bdd::Branch *>(rhs_bdd_node.get());
 
       lhs_bdd_nodes.push_back(lhs_branch->get_on_true());
       rhs_bdd_nodes.push_back(rhs_branch->get_on_true());
 
       lhs_bdd_nodes.push_back(lhs_branch->get_on_false());
       rhs_bdd_nodes.push_back(rhs_branch->get_on_false());
-    } else if (lhs_bdd_node->get_type() == BDD::Node::NodeType::CALL) {
+    } else if (lhs_bdd_node->get_type() == bdd::Node::NodeType::CALL) {
       lhs_bdd_nodes.push_back(lhs_bdd_node->get_next());
       rhs_bdd_nodes.push_back(rhs_bdd_node->get_next());
     }

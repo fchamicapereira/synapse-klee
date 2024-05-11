@@ -22,7 +22,7 @@ struct config_t {
   float traffic_zipf_param;
 };
 
-typedef std::unordered_map<BDD::node_id_t, uint64_t> bdd_node_counters;
+typedef std::unordered_map<bdd::node_id_t, uint64_t> bdd_node_counters;
 typedef uint64_t time_ns_t;
 
 struct bdd_analyzer_report_t {

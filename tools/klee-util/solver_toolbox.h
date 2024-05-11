@@ -15,13 +15,7 @@ struct solver_toolbox_t {
   klee::ExprBuilder *exprBuilder;
   klee::ArrayCache arr_cache;
 
-  solver_toolbox_t() : solver(nullptr) {}
-
-  void build() {
-    if (solver != nullptr) {
-      return;
-    }
-
+  solver_toolbox_t() {
     solver = klee::createCoreSolver(klee::Z3_SOLVER);
     assert(solver);
 
@@ -44,21 +38,21 @@ struct solver_toolbox_t {
                                       klee::ref<klee::Expr> expr2) const;
 
   bool is_expr_always_true(klee::ref<klee::Expr> expr) const;
-  bool is_expr_always_true(klee::ConstraintManager constraints,
+  bool is_expr_always_true(const klee::ConstraintManager &constraints,
                            klee::ref<klee::Expr> expr) const;
-  bool is_expr_always_true(klee::ConstraintManager constraints,
+  bool is_expr_always_true(const klee::ConstraintManager &constraints,
                            klee::ref<klee::Expr> expr,
                            bool force_symbol_merge) const;
 
-  bool is_expr_maybe_true(klee::ConstraintManager constraints,
+  bool is_expr_maybe_true(const klee::ConstraintManager &constraints,
                           klee::ref<klee::Expr> expr) const;
-  bool is_expr_maybe_false(klee::ConstraintManager constraints,
+  bool is_expr_maybe_false(const klee::ConstraintManager &constraints,
                            klee::ref<klee::Expr> expr) const;
 
   bool is_expr_always_false(klee::ref<klee::Expr> expr) const;
-  bool is_expr_always_false(klee::ConstraintManager constraints,
+  bool is_expr_always_false(const klee::ConstraintManager &constraints,
                             klee::ref<klee::Expr> expr) const;
-  bool is_expr_always_false(klee::ConstraintManager constraints,
+  bool is_expr_always_false(const klee::ConstraintManager &constraints,
                             klee::ref<klee::Expr> expr,
                             bool force_symbol_merge) const;
 
@@ -99,9 +93,10 @@ struct solver_toolbox_t {
 
   uint64_t value_from_expr(klee::ref<klee::Expr> expr) const;
   uint64_t value_from_expr(klee::ref<klee::Expr> expr,
-                           klee::ConstraintManager constraints) const;
-  int64_t signed_value_from_expr(klee::ref<klee::Expr> expr,
-                                 klee::ConstraintManager constraints) const;
+                           const klee::ConstraintManager &constraints) const;
+  int64_t
+  signed_value_from_expr(klee::ref<klee::Expr> expr,
+                         const klee::ConstraintManager &constraints) const;
 
   bool are_calls_equal(call_t c1, call_t c2) const;
 };

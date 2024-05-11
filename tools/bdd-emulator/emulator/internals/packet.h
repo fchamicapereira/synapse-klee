@@ -4,7 +4,7 @@
 #include <iostream>
 #include <stdint.h>
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 struct pkt_t {
@@ -46,4 +46,4 @@ inline std::ostream &operator<<(std::ostream &os, const pkt_t &pkt) {
 }
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

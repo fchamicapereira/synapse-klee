@@ -5,7 +5,7 @@
 
 #include <unordered_map>
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 class Map : public DataStructure {
@@ -70,4 +70,4 @@ public:
 };
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

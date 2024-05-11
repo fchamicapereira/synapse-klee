@@ -3,7 +3,7 @@
 #include "../data_structures/dchain.h"
 #include "../internals/internals.h"
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 inline void __dchain_allocate_new_index(const BDD &bdd, const Call *call_node,
@@ -12,19 +12,19 @@ inline void __dchain_allocate_new_index(const BDD &bdd, const Call *call_node,
                                         context_t &ctx, const cfg_t &cfg) {
   auto call = call_node->get_call();
 
-  assert(!call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
-  assert(!call.args[symbex::FN_DCHAIN_ARG_TIME].expr.isNull());
-  assert(!call.args[symbex::FN_DCHAIN_ARG_OUT].out.isNull());
+  assert(!call.args["chain"].expr.isNull());
+  assert(!call.args["time"].expr.isNull());
+  assert(!call.args["index_out"].out.isNull());
 
-  auto addr_expr = call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr;
-  auto index_out_expr = call.args[symbex::FN_DCHAIN_ARG_OUT].out;
+  auto addr_expr = call.args["chain"].expr;
+  auto index_out_expr = call.args["index_out"].out;
 
   auto addr = kutil::expr_addr_to_obj_addr(addr_expr);
 
-  auto generated_symbols = call_node->get_local_generated_symbols();
-  auto out_of_space_symbol =
-      get_symbol(generated_symbols, symbex::DCHAIN_OUT_OF_SPACE);
-  auto out_of_space_expr = bdd.get_symbol(out_of_space_symbol.label);
+  auto generated_symbols =
+      call_node->get_locally_generated_symbols({"out_of_space"});
+  assert(generated_symbols.size() == 1 && "Expected one symbol");
+  const auto &out_of_space_symbol = *generated_symbols.begin();
 
   auto ds_dchain = state.get(addr);
   auto dchain = Dchain::cast(ds_dchain);
@@ -32,7 +32,7 @@ inline void __dchain_allocate_new_index(const BDD &bdd, const Call *call_node,
   uint32_t index_out;
   auto out_of_space = !dchain->allocate_new_index(index_out, time);
 
-  concretize(ctx, out_of_space_expr, out_of_space);
+  concretize(ctx, out_of_space_symbol.expr, out_of_space);
 
   if (!out_of_space) {
     concretize(ctx, index_out_expr, index_out);
@@ -42,8 +42,8 @@ inline void __dchain_allocate_new_index(const BDD &bdd, const Call *call_node,
 }
 
 inline std::pair<std::string, operation_ptr> dchain_allocate_new_index() {
-  return {symbex::FN_DCHAIN_ALLOCATE_NEW_INDEX, __dchain_allocate_new_index};
+  return {"dchain_allocate_new_index", __dchain_allocate_new_index};
 }
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

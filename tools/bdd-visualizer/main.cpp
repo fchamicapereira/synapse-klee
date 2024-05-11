@@ -26,29 +26,29 @@ llvm::cl::opt<bool> Show("show", llvm::cl::desc("Render dot file."),
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv);
 
-  BDD::BDD bdd = BDD::BDD(InputBDDFile);
+  bdd::BDD bdd = bdd::BDD(InputBDDFile);
 
   if (BDDAnalyzerReport.size()) {
     auto report = parse_bdd_analyzer_report_t(BDDAnalyzerReport);
 
     if (OutputDot.size()) {
       std::ofstream ofs(OutputDot);
-      BDD::HitRateGraphvizGenerator generator(ofs, report.counters);
+      bdd::HitRateGraphvizGenerator generator(ofs, report.counters);
       generator.visit(bdd);
     }
 
     if (Show) {
-      BDD::HitRateGraphvizGenerator::visualize(bdd, report.counters, false);
+      bdd::HitRateGraphvizGenerator::visualize(bdd, report.counters, false);
     }
   } else {
     if (OutputDot.size()) {
       std::ofstream ofs(OutputDot);
-      BDD::GraphvizGenerator generator(ofs);
+      bdd::GraphvizGenerator generator(ofs);
       generator.visit(bdd);
     }
 
     if (Show) {
-      BDD::GraphvizGenerator::visualize(bdd, false);
+      bdd::GraphvizGenerator::visualize(bdd, false);
     }
   }
 

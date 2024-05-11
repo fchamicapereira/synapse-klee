@@ -9,11 +9,11 @@ namespace x86 {
 class Else : public x86Module {
 public:
   Else() : x86Module(ModuleType::x86_Else, "Else") {}
-  Else(BDD::Node_ptr node) : x86Module(ModuleType::x86_Else, "Else", node) {}
+  Else(bdd::Node_ptr node) : x86Module(ModuleType::x86_Else, "Else", node) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     return processing_result_t();
   }
 

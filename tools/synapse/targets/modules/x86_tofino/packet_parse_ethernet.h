@@ -15,17 +15,17 @@ public:
       : Module(ModuleType::x86_Tofino_PacketParseEthernet,
                TargetType::x86_Tofino, "PacketParseEthernet") {}
 
-  PacketParseEthernet(BDD::Node_ptr node, klee::ref<klee::Expr> _chunk)
+  PacketParseEthernet(bdd::Node_ptr node, klee::ref<klee::Expr> _chunk)
       : Module(ModuleType::x86_Tofino_PacketParseEthernet,
                TargetType::x86_Tofino, "PacketParseEthernet", node),
         chunk(_chunk) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -33,23 +33,22 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != BDD::symbex::FN_BORROW_CHUNK) {
+    if (call.function_name != "packet_borrow_next_chunk") {
       return result;
     }
 
     auto all_prev_packet_borrow_next_chunk =
-        get_prev_fn(ep, node, BDD::symbex::FN_BORROW_CHUNK);
+        get_prev_fn(ep, node, "packet_borrow_next_chunk");
 
     if (all_prev_packet_borrow_next_chunk.size() != 0) {
       return result;
     }
 
-    assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr.isNull());
-    assert(
-        !call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
+    assert(!call.args["length"].expr.isNull());
+    assert(!call.extra_vars["the_chunk"].second.isNull());
 
-    auto _length = call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr;
-    auto _chunk = call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
+    auto _length = call.args["length"].expr;
+    auto _chunk = call.extra_vars["the_chunk"].second;
 
     assert(kutil::solver_toolbox.value_from_expr(_length) == 14);
 

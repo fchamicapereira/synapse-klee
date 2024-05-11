@@ -9,7 +9,7 @@
 #include <assert.h>
 #include <unordered_map>
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 struct cfg_t {
@@ -23,4 +23,4 @@ struct cfg_t {
 };
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

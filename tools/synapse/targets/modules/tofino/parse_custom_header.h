@@ -16,18 +16,18 @@ public:
       : TofinoModule(ModuleType::Tofino_ParseCustomHeader,
                      "ParseCustomHeader") {}
 
-  ParseCustomHeader(BDD::Node_ptr node, klee::ref<klee::Expr> _chunk,
-                       bits_t _size)
-      : TofinoModule(ModuleType::Tofino_ParseCustomHeader,
-                     "ParseCustomHeader", node),
+  ParseCustomHeader(bdd::Node_ptr node, klee::ref<klee::Expr> _chunk,
+                    bits_t _size)
+      : TofinoModule(ModuleType::Tofino_ParseCustomHeader, "ParseCustomHeader",
+                     node),
         chunk(_chunk), size(_size) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -35,15 +35,15 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != BDD::symbex::FN_BORROW_CHUNK) {
+    if (call.function_name != "packet_borrow_next_chunk") {
       return result;
     }
 
-    assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr.isNull());
-    assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
+    assert(!call.args["length"].expr.isNull());
+    assert(!call.extra_vars["the_chunk"].second.isNull());
 
-    auto _length = call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr;
-    auto _chunk = call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
+    auto _length = call.args["length"].expr;
+    auto _chunk = call.extra_vars["the_chunk"].second;
 
     // Only interested in parsing fixed size headers.
     if (_length->getKind() != klee::Expr::Kind::Constant) {

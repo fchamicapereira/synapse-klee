@@ -38,7 +38,7 @@ public:
   ParserCondition()
       : TofinoModule(ModuleType::Tofino_ParserCondition, "ParserCondition") {}
 
-  ParserCondition(BDD::Node_ptr node, klee::ref<klee::Expr> _condition,
+  ParserCondition(bdd::Node_ptr node, klee::ref<klee::Expr> _condition,
                   bool _reject_on_false,
                   klee::ref<klee::Expr> _discriminated_chunk,
                   bool _has_variable_length,
@@ -50,7 +50,7 @@ public:
         has_variable_length(_has_variable_length),
         discriminated_on_false_condition(_discriminated_on_false_condition) {}
 
-  ParserCondition(BDD::Node_ptr node, klee::ref<klee::Expr> _condition,
+  ParserCondition(bdd::Node_ptr node, klee::ref<klee::Expr> _condition,
                   bool _reject_on_false)
       : TofinoModule(ModuleType::Tofino_ParserCondition, "ParserCondition",
                      node),
@@ -58,35 +58,35 @@ public:
         apply_is_valid(false) {}
 
 private:
-  bool borrow_has_variable_length(BDD::Node_ptr node) const {
-    auto call_node = BDD::cast_node<BDD::Call>(node);
+  bool borrow_has_variable_length(bdd::Node_ptr node) const {
+    auto call_node = bdd::cast_node<bdd::Call>(node);
     assert(call_node);
 
     auto call = call_node->get_call();
 
-    assert(call.function_name == BDD::symbex::FN_BORROW_CHUNK);
-    assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr.isNull());
+    assert(call.function_name == "packet_borrow_next_chunk");
+    assert(!call.args["length"].expr.isNull());
 
-    auto _length = call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr;
+    auto _length = call.args["length"].expr;
 
     return _length->getKind() != klee::Expr::Kind::Constant;
   }
 
-  klee::ref<klee::Expr> get_chunk_from_borrow(BDD::Node_ptr node) const {
-    auto call_node = BDD::cast_node<BDD::Call>(node);
+  klee::ref<klee::Expr> get_chunk_from_borrow(bdd::Node_ptr node) const {
+    auto call_node = bdd::cast_node<bdd::Call>(node);
     assert(call_node);
 
     auto call = call_node->get_call();
 
-    assert(call.function_name == BDD::symbex::FN_BORROW_CHUNK);
-    assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
+    assert(call.function_name == "packet_borrow_next_chunk");
+    assert(!call.extra_vars["the_chunk"].second.isNull());
 
-    auto _chunk = call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
+    auto _chunk = call.extra_vars["the_chunk"].second;
 
     return _chunk;
   }
 
-  void commit_module(const ExecutionPlan &ep, BDD::Node_ptr node,
+  void commit_module(const ExecutionPlan &ep, bdd::Node_ptr node,
                      Module_ptr new_module, bool build_on_false,
                      processing_result_t &result) const {
 
@@ -94,7 +94,7 @@ private:
       auto new_then_module = std::make_shared<Then>(node);
       auto new_else_module = std::make_shared<Else>(node);
 
-      auto casted = BDD::cast_node<BDD::Branch>(node);
+      auto casted = bdd::cast_node<bdd::Branch>(node);
       assert(casted);
 
       auto if_leaf = ExecutionPlan::leaf_t(new_module, nullptr);
@@ -118,7 +118,7 @@ private:
     result.module = new_module;
   }
 
-  void generate_parser_condition(const ExecutionPlan &ep, BDD::Node_ptr node,
+  void generate_parser_condition(const ExecutionPlan &ep, bdd::Node_ptr node,
                                  klee::ref<klee::Expr> _condition,
                                  bool _reject_on_false,
                                  processing_result_t &result) const {
@@ -128,7 +128,7 @@ private:
   }
 
   void generate_parser_condition_with_header_validation(
-      const ExecutionPlan &ep, BDD::Node_ptr node,
+      const ExecutionPlan &ep, bdd::Node_ptr node,
       klee::ref<klee::Expr> _condition,
       klee::ref<klee::Expr> _discriminated_chunk, bool _has_variable_length,
       bool _discriminated_on_false_condition,
@@ -140,10 +140,10 @@ private:
   }
 
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Branch>(node);
+    auto casted = bdd::cast_node<bdd::Branch>(node);
 
     if (!casted) {
       return result;
@@ -160,9 +160,9 @@ private:
     auto rhs = casted->get_on_false();
 
     auto lhs_borrows =
-        get_all_functions_after_node(lhs, {BDD::symbex::FN_BORROW_CHUNK}, true);
+        get_all_functions_after_node(lhs, {"packet_borrow_next_chunk"}, true);
     auto rhs_borrows =
-        get_all_functions_after_node(rhs, {BDD::symbex::FN_BORROW_CHUNK}, true);
+        get_all_functions_after_node(rhs, {"packet_borrow_next_chunk"}, true);
 
     if (lhs_borrows.size() == 0 && rhs_borrows.size() == 0) {
       generate_parser_condition(ep, node, _parsing_cond, false, result);

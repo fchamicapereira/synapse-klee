@@ -12,18 +12,18 @@ private:
   klee::ref<klee::Expr> l4_header_addr;
   klee::ref<klee::Expr> p_addr;
 
-  BDD::symbols_t generated_symbols;
+  bdd::symbols_t generated_symbols;
 
 public:
   PacketModifyChecksums()
       : Module(ModuleType::x86_Tofino_PacketModifyChecksums,
                TargetType::x86_Tofino, "SetIpChecksum") {}
 
-  PacketModifyChecksums(BDD::Node_ptr node,
+  PacketModifyChecksums(bdd::Node_ptr node,
                         klee::ref<klee::Expr> _ip_header_addr,
                         klee::ref<klee::Expr> _l4_header_addr,
                         klee::ref<klee::Expr> _p_addr,
-                        BDD::symbols_t _generated_symbols)
+                        bdd::symbols_t _generated_symbols)
       : Module(ModuleType::x86_Tofino_PacketModifyChecksums,
                TargetType::x86_Tofino, "SetIpChecksum", node),
         ip_header_addr(_ip_header_addr), l4_header_addr(_l4_header_addr),
@@ -31,10 +31,10 @@ public:
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -42,15 +42,15 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == BDD::symbex::FN_SET_CHECKSUM) {
-      assert(!call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_IP].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_L4].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_PACKET].expr.isNull());
+    if (call.function_name == "nf_set_rte_ipv4_udptcp_checksum") {
+      assert(!call.args["ip_header"].expr.isNull());
+      assert(!call.args["l4_header"].expr.isNull());
+      assert(!call.args["packet"].expr.isNull());
 
-      auto _ip_header_addr = call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_IP].expr;
-      auto _l4_header_addr = call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_L4].expr;
-      auto _p_addr = call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_PACKET].expr;
-      auto _generated_symbols = casted->get_local_generated_symbols();
+      auto _ip_header_addr = call.args["ip_header"].expr;
+      auto _l4_header_addr = call.args["l4_header"].expr;
+      auto _p_addr = call.args["packet"].expr;
+      auto _generated_symbols = casted->get_locally_generated_symbols();
 
       auto new_module = std::make_shared<PacketModifyChecksums>(
           node, _ip_header_addr, _l4_header_addr, _p_addr, _generated_symbols);
@@ -112,7 +112,7 @@ public:
   }
   const klee::ref<klee::Expr> &get_p_addr() const { return p_addr; }
 
-  const BDD::symbols_t &get_generated_symbols() const {
+  const bdd::symbols_t &get_generated_symbols() const {
     return generated_symbols;
   }
 };

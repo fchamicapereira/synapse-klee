@@ -10,24 +10,24 @@ class SketchTouchBuckets : public x86Module {
 private:
   addr_t sketch_addr;
   klee::ref<klee::Expr> time;
-  BDD::symbol_t success;
+  bdd::symbol_t success;
 
 public:
   SketchTouchBuckets()
       : x86Module(ModuleType::x86_SketchTouchBuckets, "SketchTouchBuckets") {}
 
-  SketchTouchBuckets(BDD::Node_ptr node, addr_t _sketch_addr,
-                     klee::ref<klee::Expr> _time, BDD::symbol_t _success)
+  SketchTouchBuckets(bdd::Node_ptr node, addr_t _sketch_addr,
+                     klee::ref<klee::Expr> _time, bdd::symbol_t _success)
       : x86Module(ModuleType::x86_SketchTouchBuckets, "SketchTouchBuckets",
                   node),
         sketch_addr(_sketch_addr), time(_time), success(_success) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -35,21 +35,20 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != BDD::symbex::FN_SKETCH_TOUCH_BUCKETS) {
+    if (call.function_name != "sketch_touch_buckets") {
       return result;
     }
 
-    assert(!call.args[BDD::symbex::FN_SKETCH_ARG_SKETCH].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_SKETCH_ARG_TIME].expr.isNull());
+    assert(!call.args["sketch"].expr.isNull());
+    assert(!call.args["time"].expr.isNull());
 
-    auto _sketch = call.args[BDD::symbex::FN_SKETCH_ARG_SKETCH].expr;
-    auto _time = call.args[BDD::symbex::FN_SKETCH_ARG_TIME].expr;
+    auto _sketch = call.args["sketch"].expr;
+    auto _time = call.args["time"].expr;
 
     auto _sketch_addr = kutil::expr_addr_to_obj_addr(_sketch);
 
-    auto _generated_symbols = casted->get_local_generated_symbols();
-    auto _success =
-        BDD::get_symbol(_generated_symbols, BDD::symbex::SKETCH_SUCCESS_SYMBOL);
+    auto _generated_symbols = casted->get_locally_generated_symbols();
+    auto _success = bdd::get_symbol(_generated_symbols, "success");
 
     save_sketch(ep, _sketch_addr);
 
@@ -99,7 +98,7 @@ public:
 
   addr_t get_sketch_addr() const { return sketch_addr; }
   klee::ref<klee::Expr> get_time() const { return time; }
-  const BDD::symbol_t &get_success() const { return success; }
+  const bdd::symbol_t &get_success() const { return success; }
 };
 } // namespace x86
 } // namespace targets

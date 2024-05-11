@@ -16,7 +16,7 @@ private:
 public:
   VectorReturn() : x86Module(ModuleType::x86_VectorReturn, "VectorReturn") {}
 
-  VectorReturn(BDD::Node_ptr node, addr_t _vector_addr,
+  VectorReturn(bdd::Node_ptr node, addr_t _vector_addr,
                klee::ref<klee::Expr> _index, addr_t _value_addr,
                const std::vector<modification_t> &_modifications)
       : x86Module(ModuleType::x86_VectorReturn, "VectorReturn", node),
@@ -25,10 +25,10 @@ public:
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -36,16 +36,16 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == BDD::symbex::FN_VECTOR_RETURN) {
-      assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].in.isNull());
+    if (call.function_name == "vector_return") {
+      assert(!call.args["vector"].expr.isNull());
+      assert(!call.args["index"].expr.isNull());
+      assert(!call.args["value"].expr.isNull());
+      assert(!call.args["value"].in.isNull());
 
-      auto _vector = call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
-      auto _index = call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr;
-      auto _value_addr_expr = call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].expr;
-      auto _value = call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].in;
+      auto _vector = call.args["vector"].expr;
+      auto _index = call.args["index"].expr;
+      auto _value_addr_expr = call.args["value"].expr;
+      auto _value = call.args["value"].in;
 
       auto _vector_addr = kutil::expr_addr_to_obj_addr(_vector);
       auto _value_addr = kutil::expr_addr_to_obj_addr(_value_addr_expr);

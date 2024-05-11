@@ -4,9 +4,6 @@
 
 #include <assert.h>
 
-using BDD::symbex::CHUNK;
-using BDD::symbex::PACKET_LENGTH;
-
 namespace synapse {
 namespace synthesizer {
 namespace tofino {
@@ -219,13 +216,13 @@ transpile_var_comparison(TofinoGenerator &tg, const klee::ref<klee::Expr> &lhs,
 }
 
 bool detect_packet_length_conditions(klee::ref<klee::Expr> expr) {
-  kutil::RetrieveSymbols retriever;
+  kutil::SymbolRetriever retriever;
   retriever.visit(expr);
   auto symbols = retriever.get_retrieved_strings();
 
   std::vector<std::string> allowed_symbols = {
-      BDD::symbex::PACKET_LENGTH,
-      BDD::symbex::CHUNK,
+      "pkt_len",
+      "packet_chunks",
   };
 
   // check if there are unexpected symbols
@@ -238,7 +235,7 @@ bool detect_packet_length_conditions(klee::ref<klee::Expr> expr) {
     }
   }
 
-  return symbols.find(BDD::symbex::PACKET_LENGTH) != symbols.end();
+  return symbols.find("pkt_len") != symbols.end();
 }
 
 std::string Transpiler::transpile(const klee::ref<klee::Expr> &expr) {

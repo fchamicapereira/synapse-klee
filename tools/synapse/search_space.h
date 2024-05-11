@@ -16,13 +16,13 @@ struct generated_data_t {
   ep_id_t execution_plan;
   Score score;
   Module_ptr module;
-  BDD::Node_ptr node;
+  bdd::Node_ptr node;
 
   generated_data_t(TargetType _target, ep_id_t _execution_plan_id, Score _score)
       : target(_target), execution_plan(_execution_plan_id), score(_score) {}
 
   generated_data_t(TargetType _target, ep_id_t _execution_plan_id, Score _score,
-                   const Module_ptr &_module, BDD::Node_ptr _node)
+                   const Module_ptr &_module, bdd::Node_ptr _node)
       : target(_target), execution_plan(_execution_plan_id), score(_score),
         module(_module), node(_node) {}
 
@@ -103,7 +103,7 @@ public:
     return node_id;
   }
 
-  void add_leaves(const ExecutionPlan &ep, BDD::Node_ptr node,
+  void add_leaves(const ExecutionPlan &ep, bdd::Node_ptr node,
                   Module_ptr module,
                   const std::vector<ExecutionPlan> &next_eps) {
     assert(hc);

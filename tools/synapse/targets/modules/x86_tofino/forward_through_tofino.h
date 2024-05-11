@@ -15,23 +15,23 @@ public:
       : Module(ModuleType::x86_Tofino_ForwardThroughTofino,
                TargetType::x86_Tofino, "ForwardThroughTofino") {}
 
-  ForwardThroughTofino(BDD::Node_ptr node, int _port)
+  ForwardThroughTofino(bdd::Node_ptr node, int _port)
       : Module(ModuleType::x86_Tofino_ForwardThroughTofino,
                TargetType::x86_Tofino, "ForwardThroughTofino", node),
         port(_port) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::ReturnProcess>(node);
+    auto casted = bdd::cast_node<bdd::ReturnProcess>(node);
 
     if (!casted) {
       return result;
     }
 
-    if (casted->get_return_operation() != BDD::ReturnProcess::Operation::FWD) {
+    if (casted->get_return_operation() != bdd::ReturnProcess::Operation::FWD) {
       return result;
     }
 

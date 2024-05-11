@@ -9,25 +9,25 @@ namespace x86_tofino {
 class EtherAddrHash : public Module {
 private:
   klee::ref<klee::Expr> addr;
-  BDD::symbol_t generated_symbol;
+  bdd::symbol_t generated_symbol;
 
 public:
   EtherAddrHash()
       : Module(ModuleType::x86_Tofino_EtherAddrHash, TargetType::x86_Tofino,
                "EtherAddrHash") {}
 
-  EtherAddrHash(BDD::Node_ptr node, klee::ref<klee::Expr> _addr,
-                BDD::symbol_t _generated_symbol)
+  EtherAddrHash(bdd::Node_ptr node, klee::ref<klee::Expr> _addr,
+                bdd::symbol_t _generated_symbol)
       : Module(ModuleType::x86_Tofino_EtherAddrHash, TargetType::x86_Tofino,
                "EtherAddrHash", node),
         addr(_addr), generated_symbol(_generated_symbol) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -35,11 +35,11 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == BDD::symbex::FN_ETHER_HASH) {
-      assert(!call.args[BDD::symbex::FN_ETHER_HASH_ARG_OBJ].in.isNull());
+    if (call.function_name == "rte_ether_addr_hash") {
+      assert(!call.args["obj"].in.isNull());
 
-      auto _addr = call.args[BDD::symbex::FN_ETHER_HASH_ARG_OBJ].in;
-      auto _generated_symbols = casted->get_local_generated_symbols();
+      auto _addr = call.args["obj"].in;
+      auto _generated_symbols = casted->get_locally_generated_symbols();
 
       assert(_generated_symbols.size() == 1);
       auto _generated_symbol = *_generated_symbols.begin();
@@ -86,7 +86,7 @@ public:
   }
 
   const klee::ref<klee::Expr> &get_addr() const { return addr; }
-  const BDD::symbol_t &get_generated_symbol() const { return generated_symbol; }
+  const bdd::symbol_t &get_generated_symbol() const { return generated_symbol; }
 };
 } // namespace x86_tofino
 } // namespace targets

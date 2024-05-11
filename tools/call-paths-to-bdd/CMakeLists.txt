@@ -7,6 +7,11 @@
 #
 #===------------------------------------------------------------------------===#
 file(GLOB_RECURSE call-paths-to-bdd-sources "*.cpp")
+# FIXME: remove this
+list(FILTER klee-util-sources EXCLUDE REGEX ".*symbol-factory\\.cpp$")
+list(FILTER klee-util-sources EXCLUDE REGEX ".*symbol-factory\\.h$")
+list(FILTER klee-util-sources EXCLUDE REGEX ".*return_raw\\.cpp$")
+list(FILTER klee-util-sources EXCLUDE REGEX ".*return_raw\\.h$")
 
 file(GLOB_RECURSE load-call-paths-sources "../load-call-paths/*.cpp")
 list(FILTER load-call-paths-sources EXCLUDE REGEX ".*main\\.cpp$")

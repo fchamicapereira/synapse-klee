@@ -13,16 +13,16 @@ private:
 public:
   CurrentTime() : x86Module(ModuleType::x86_CurrentTime, "CurrentTime") {}
 
-  CurrentTime(BDD::Node_ptr node, klee::ref<klee::Expr> _time)
+  CurrentTime(bdd::Node_ptr node, klee::ref<klee::Expr> _time)
       : x86Module(ModuleType::x86_CurrentTime, "CurrentTime", node),
         time(_time) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -30,7 +30,7 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == BDD::symbex::FN_CURRENT_TIME) {
+    if (call.function_name == "current_time") {
       assert(!call.ret.isNull());
       auto _time = call.ret;
 

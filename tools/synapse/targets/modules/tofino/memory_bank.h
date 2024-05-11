@@ -17,13 +17,13 @@ typedef std::shared_ptr<Module> Module_ptr;
 namespace targets {
 namespace tofino {
 
-typedef std::pair<BDD::node_id_t, Module_ptr> postponed_t;
+typedef std::pair<bdd::node_id_t, Module_ptr> postponed_t;
 
 class TofinoMemoryBank : public TargetMemoryBank {
 private:
   DataStructuresSet implementations;
   std::vector<postponed_t> postponed;
-  BDD::symbols_t dp_state;
+  bdd::symbols_t dp_state;
 
 public:
   TofinoMemoryBank() {}
@@ -44,11 +44,11 @@ public:
       addr_t obj,
       const std::vector<DataStructure::Type> &compatible_types) const;
 
-  void postpone(BDD::node_id_t node_id, Module_ptr module);
+  void postpone(bdd::node_id_t node_id, Module_ptr module);
   const std::vector<postponed_t> &get_postponed() const;
 
-  void add_dataplane_state(const BDD::symbols_t &symbols);
-  const BDD::symbols_t &get_dataplane_state() const;
+  void add_dataplane_state(const bdd::symbols_t &symbols);
+  const bdd::symbols_t &get_dataplane_state() const;
 
   virtual TargetMemoryBank_ptr clone() const override {
     auto clone = new TofinoMemoryBank(*this);

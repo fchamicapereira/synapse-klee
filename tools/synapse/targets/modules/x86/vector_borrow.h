@@ -16,7 +16,7 @@ private:
 public:
   VectorBorrow() : x86Module(ModuleType::x86_VectorBorrow, "VectorBorrow") {}
 
-  VectorBorrow(BDD::Node_ptr node, addr_t _vector_addr,
+  VectorBorrow(bdd::Node_ptr node, addr_t _vector_addr,
                klee::ref<klee::Expr> _index, addr_t _value_out,
                klee::ref<klee::Expr> _borrowed_cell)
       : x86Module(ModuleType::x86_VectorBorrow, "VectorBorrow", node),
@@ -25,10 +25,10 @@ public:
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -36,16 +36,16 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == BDD::symbex::FN_VECTOR_BORROW) {
-      assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_VECTOR_ARG_OUT].out.isNull());
-      assert(!call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second.isNull());
+    if (call.function_name == "vector_borrow") {
+      assert(!call.args["vector"].expr.isNull());
+      assert(!call.args["index"].expr.isNull());
+      assert(!call.args["val_out"].out.isNull());
+      assert(!call.extra_vars["borrowed_cell"].second.isNull());
 
-      auto _vector = call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
-      auto _index = call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr;
-      auto _value_out = call.args[BDD::symbex::FN_VECTOR_ARG_OUT].out;
-      auto _borrowed_cell = call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second;
+      auto _vector = call.args["vector"].expr;
+      auto _index = call.args["index"].expr;
+      auto _value_out = call.args["val_out"].out;
+      auto _borrowed_cell = call.extra_vars["borrowed_cell"].second;
 
       auto _vector_addr = kutil::expr_addr_to_obj_addr(_vector);
       auto _value_out_addr = kutil::expr_addr_to_obj_addr(_value_out);

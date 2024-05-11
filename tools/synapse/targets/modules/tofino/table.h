@@ -17,7 +17,7 @@ public:
       : TofinoModule(table_module_type, table_module_name) {}
 
   TableModule(Module::ModuleType table_module_type,
-              const char *table_module_name, BDD::Node_ptr node,
+              const char *table_module_name, bdd::Node_ptr node,
               TableRef _table)
       : TofinoModule(table_module_type, table_module_name, node),
         table(_table) {}
@@ -28,35 +28,35 @@ protected:
     addr_t obj;
     std::vector<Table::key_t> keys;
     std::vector<Table::param_t> values;
-    std::vector<BDD::symbol_t> hit;
-    std::unordered_set<BDD::node_id_t> nodes;
+    std::vector<bdd::symbol_t> hit;
+    std::unordered_set<bdd::node_id_t> nodes;
 
     extracted_data_t() : valid(false) {}
   };
 
-  extracted_data_t extract_from_map_get(const BDD::Call *casted) const {
+  extracted_data_t extract_from_map_get(const bdd::Call *casted) const {
     auto call = casted->get_call();
     extracted_data_t data;
 
-    if (call.function_name != BDD::symbex::FN_MAP_GET) {
+    if (call.function_name != "map_get") {
       return data;
     }
 
-    assert(call.function_name == BDD::symbex::FN_MAP_GET);
-    assert(!call.args[BDD::symbex::FN_MAP_ARG_MAP].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_MAP_ARG_KEY].in.isNull());
-    assert(!call.args[BDD::symbex::FN_MAP_ARG_OUT].out.isNull());
+    assert(call.function_name == "map_get");
+    assert(!call.args["map"].expr.isNull());
+    assert(!call.args["key"].in.isNull());
+    assert(!call.args["value_out"].out.isNull());
 
-    auto _map = call.args[BDD::symbex::FN_MAP_ARG_MAP].expr;
-    auto _key = call.args[BDD::symbex::FN_MAP_ARG_KEY].in;
-    auto _key_meta = call.args[BDD::symbex::FN_MAP_ARG_KEY].meta;
-    auto _value = call.args[BDD::symbex::FN_MAP_ARG_OUT].out;
+    auto _map = call.args["map"].expr;
+    auto _key = call.args["key"].in;
+    auto _key_meta = call.args["key"].meta;
+    auto _value = call.args["value_out"].out;
 
-    auto symbols = casted->get_local_generated_symbols();
+    auto symbols = casted->get_locally_generated_symbols();
     assert(symbols.size() == 2);
 
     auto symbols_it = symbols.begin();
-    assert(symbols_it->label_base == BDD::symbex::MAP_HAS_THIS_KEY);
+    assert(symbols_it->label_base == "map_has_this_key");
     auto _map_has_this_key = *symbols_it;
 
     auto _map_addr = kutil::expr_addr_to_obj_addr(_map);
@@ -71,22 +71,22 @@ protected:
     return data;
   }
 
-  extracted_data_t extract_from_vector_borrow(const BDD::Call *casted) const {
+  extracted_data_t extract_from_vector_borrow(const bdd::Call *casted) const {
     auto call = casted->get_call();
     extracted_data_t data;
 
-    if (call.function_name != BDD::symbex::FN_VECTOR_BORROW) {
+    if (call.function_name != "vector_borrow") {
       return data;
     }
 
-    assert(call.function_name == BDD::symbex::FN_VECTOR_BORROW);
-    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
-    assert(!call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second.isNull());
+    assert(call.function_name == "vector_borrow");
+    assert(!call.args["vector"].expr.isNull());
+    assert(!call.args["index"].expr.isNull());
+    assert(!call.extra_vars["borrowed_cell"].second.isNull());
 
-    auto _vector = call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
-    auto _index = call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr;
-    auto _borrowed_cell = call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second;
+    auto _vector = call.args["vector"].expr;
+    auto _index = call.args["index"].expr;
+    auto _borrowed_cell = call.extra_vars["borrowed_cell"].second;
 
     auto _vector_addr = kutil::expr_addr_to_obj_addr(_vector);
 
@@ -100,20 +100,20 @@ protected:
   }
 
   extracted_data_t
-  extract_from_dchain_rejuvenate(const BDD::Call *casted) const {
+  extract_from_dchain_rejuvenate(const bdd::Call *casted) const {
     auto call = casted->get_call();
     extracted_data_t data;
 
-    if (call.function_name != BDD::symbex::FN_DCHAIN_REJUVENATE) {
+    if (call.function_name != "dchain_rejuvenate_index") {
       return data;
     }
 
-    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_TIME].expr.isNull());
+    assert(!call.args["chain"].expr.isNull());
+    assert(!call.args["index"].expr.isNull());
+    assert(!call.args["time"].expr.isNull());
 
-    auto _dchain = call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
-    auto _index = call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr;
+    auto _dchain = call.args["chain"].expr;
+    auto _index = call.args["index"].expr;
     auto _dchain_addr = kutil::expr_addr_to_obj_addr(_dchain);
 
     data.valid = true;
@@ -125,24 +125,24 @@ protected:
   }
 
   extracted_data_t
-  extract_from_dchain_is_index_allocated(const BDD::Call *casted) const {
+  extract_from_dchain_is_index_allocated(const bdd::Call *casted) const {
     auto call = casted->get_call();
     extracted_data_t data;
 
-    if (call.function_name != BDD::symbex::FN_DCHAIN_IS_ALLOCATED) {
+    if (call.function_name != "dchain_is_index_allocated") {
       return data;
     }
 
-    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr.isNull());
+    assert(!call.args["chain"].expr.isNull());
+    assert(!call.args["index"].expr.isNull());
 
-    auto _dchain = call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
-    auto _index = call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr;
-    auto _generated_symbols = casted->get_local_generated_symbols();
+    auto _dchain = call.args["chain"].expr;
+    auto _index = call.args["index"].expr;
+    auto _generated_symbols = casted->get_locally_generated_symbols();
 
     auto _dchain_addr = kutil::expr_addr_to_obj_addr(_dchain);
     auto _is_allocated =
-        get_symbol(_generated_symbols, BDD::symbex::DCHAIN_IS_INDEX_ALLOCATED);
+        get_symbol(_generated_symbols, "dchain_is_index_allocated");
 
     data.valid = true;
     data.obj = _dchain_addr;
@@ -164,15 +164,15 @@ protected:
     auto root = bdd.get_process();
 
     auto is_index_allocated_nodes =
-        get_all_functions_after_node(root, {BDD::symbex::FN_DCHAIN_IS_ALLOCATED});
+        get_all_functions_after_node(root, {"dchain_is_index_allocated"});
 
     for (auto node : is_index_allocated_nodes) {
-      auto call_node = BDD::cast_node<BDD::Call>(node);
+      auto call_node = bdd::cast_node<bdd::Call>(node);
       auto call = call_node->get_call();
 
-      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
+      assert(!call.args["chain"].expr.isNull());
 
-      auto _dchain = call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
+      auto _dchain = call.args["chain"].expr;
       auto _dchain_addr = kutil::expr_addr_to_obj_addr(_dchain);
 
       if (_dchain_addr == data.dchain) {
@@ -184,16 +184,15 @@ protected:
   }
 
   std::vector<extracted_data_t>
-  get_incoming_vector_borrows(const BDD::Call *casted,
+  get_incoming_vector_borrows(const bdd::Call *casted,
                               const map_coalescing_data_t &data) const {
     std::vector<extracted_data_t> vector_borrows;
 
     auto root = casted->get_next();
-    auto incoming =
-        get_all_functions_after_node(root, {BDD::symbex::FN_VECTOR_BORROW});
+    auto incoming = get_all_functions_after_node(root, {"vector_borrow"});
 
     for (auto node : incoming) {
-      auto call_node = BDD::cast_node<BDD::Call>(node);
+      auto call_node = bdd::cast_node<bdd::Call>(node);
 
       // Might as well use this
       auto extracted = extract_from_vector_borrow(call_node);
@@ -208,7 +207,7 @@ protected:
   }
 
   void coalesce_with_incoming_vector_nodes(
-      const BDD::Call *casted, const map_coalescing_data_t &coalescing_data,
+      const bdd::Call *casted, const map_coalescing_data_t &coalescing_data,
       extracted_data_t &data) const {
     auto vector_borrows_data =
         get_incoming_vector_borrows(casted, coalescing_data);
@@ -243,7 +242,7 @@ protected:
   }
 
   bool already_coalesced(const ExecutionPlan &ep, DataStructure::Type type,
-                         BDD::Node_ptr node) const {
+                         bdd::Node_ptr node) const {
     auto mb = ep.get_memory_bank<TofinoMemoryBank>(Tofino);
     auto impls = mb->get_implementations(type);
 

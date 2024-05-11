@@ -22,25 +22,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "../klee-util/klee-util.h"
 #include "load-call-paths.h"
 
-#define DEBUG
-
-std::vector<std::string> call_paths_t::skip_functions{
-    "loop_invariant_consume",
-    "loop_invariant_produce",
-    "packet_receive",
-    "packet_state_total_length",
-    "packet_free",
-    "packet_send",
-    "packet_get_unread_length"};
-
-bool call_paths_t::is_skip_function(const std::string &fname) {
-  auto found_it = std::find(call_paths_t::skip_functions.begin(),
-                            call_paths_t::skip_functions.end(), fname);
-  return found_it != call_paths_t::skip_functions.end();
-}
+#include "../klee-util/klee-util.h"
 
 klee::ref<klee::Expr> parse_expr(const std::set<std::string> &declared_arrays,
                                  const std::string &expr_str) {
@@ -71,11 +55,43 @@ klee::ref<klee::Expr> parse_expr(const std::set<std::string> &declared_arrays,
   }
 
   assert(false && "Error parsing expr");
-  std::cerr << "Error parsing expr: " << expr_str << "\n";
-  exit(1);
 }
 
-call_path_t *load_call_path(std::string file_name) {
+static std::string base_from_name(const std::string &name) {
+  assert(name.size());
+
+  if (!std::isdigit(name.back())) {
+    return name;
+  }
+
+  size_t delim = name.rfind("_");
+  assert(delim != std::string::npos);
+
+  std::string base = name.substr(0, delim);
+  return base;
+}
+
+static symbol_t build_symbol(const klee::Array *array) {
+  klee::Expr::Width size = array->size;
+  std::string base = base_from_name(array->name);
+
+  // For some bizarre reason, the array size sometimes is in bits, and sometimes
+  // in bytes. It has no relation whatsoever with the domain and range values in
+  // the array.
+  // A good rule of thumb is to check if the value is greater than 8. If it is,
+  // it's probably in bits.
+
+  if (size <= 8) {
+    size *= 8;
+  }
+
+  klee::ref<klee::Expr> expr =
+      kutil::solver_toolbox.create_new_symbol(array->name, size);
+
+  return symbol_t({base, array, expr});
+}
+
+call_path_t *load_call_path(const std::string &file_name) {
   std::ifstream call_path_file(file_name);
   assert(call_path_file.is_open() && "Unable to open call path file.");
 
@@ -132,7 +148,7 @@ call_path_t *load_call_path(std::string file_name) {
           assert(!P->GetNumErrors() &&
                  "Error parsing kquery in call path file.");
           if (klee::expr::ArrayDecl *AD = dyn_cast<klee::expr::ArrayDecl>(D)) {
-            call_path->arrays[AD->Root->name] = AD->Root;
+            call_path->symbols.insert(build_symbol(AD->Root));
           } else if (klee::expr::QueryCommand *QC =
                          dyn_cast<klee::expr::QueryCommand>(D)) {
             call_path->constraints = klee::ConstraintManager(QC->Constraints);
@@ -570,7 +586,7 @@ struct symbols_merger_t {
     klee::ConstraintManager new_constraints;
 
     for (auto c : constraints) {
-      auto new_c = save_and_merge(c);
+      klee::ref<klee::Expr> new_c = save_and_merge(c);
       new_constraints.addConstraint(new_c);
     }
 
@@ -581,22 +597,20 @@ struct symbols_merger_t {
     call_t new_call = call;
 
     for (auto it = call.args.begin(); it != call.args.end(); it++) {
-      const auto &arg = call.args.at(it->first);
-
+      const arg_t &arg = call.args.at(it->first);
       new_call.args[it->first].expr = save_and_merge(arg.expr);
       new_call.args[it->first].in = save_and_merge(arg.in);
       new_call.args[it->first].out = save_and_merge(arg.out);
     }
 
     for (auto it = call.extra_vars.begin(); it != call.extra_vars.end(); it++) {
-      const auto &extra_var = call.extra_vars.at(it->first);
-
+      const std::pair<klee::ref<klee::Expr>, klee::ref<klee::Expr>> &extra_var =
+          call.extra_vars.at(it->first);
       new_call.extra_vars[it->first].first = save_and_merge(extra_var.first);
       new_call.extra_vars[it->first].second = save_and_merge(extra_var.second);
     }
 
     new_call.ret = save_and_merge(call.ret);
-
     return new_call;
   }
 
@@ -605,21 +619,19 @@ struct symbols_merger_t {
       return expr;
     }
 
-    kutil::RetrieveSymbols retriever;
+    kutil::SymbolRetriever retriever;
     retriever.visit(expr);
 
-    auto expr_roots_updates = retriever.get_retrieved_roots_updates();
+    const std::unordered_map<std::string, klee::UpdateList> &updates =
+        retriever.get_retrieved_roots_updates();
 
-    for (auto it = expr_roots_updates.begin(); it != expr_roots_updates.end();
-         it++) {
-      if (roots_updates.find(it->first) != roots_updates.end()) {
+    for (auto it = updates.begin(); it != updates.end(); it++) {
+      if (roots_updates.find(it->first) != roots_updates.end())
         continue;
-      }
-
       roots_updates.insert({it->first, it->second});
     }
 
-    replacer.add_roots_updates(expr_roots_updates);
+    replacer.add_roots_updates(updates);
     return replacer.visit(expr);
   }
 };
@@ -627,15 +639,24 @@ struct symbols_merger_t {
 void call_paths_t::merge_symbols() {
   symbols_merger_t merger;
 
-  for (auto call_path : cp) {
-    auto constraints = call_path->constraints;
-    auto new_constraints = merger.save_and_merge(constraints);
-    call_path->constraints = new_constraints;
+  for (call_path_t *call_path : cps) {
+    const klee::ConstraintManager &constraints = call_path->constraints;
+    call_path->constraints = merger.save_and_merge(constraints);
 
-    for (auto i = 0u; i < call_path->calls.size(); i++) {
-      const auto &call = call_path->calls[i];
-      auto new_call = merger.save_and_merge(call);
+    for (size_t i = 0; i < call_path->calls.size(); i++) {
+      call_t new_call = merger.save_and_merge(call_path->calls[i]);
       call_path->calls[i] = new_call;
     }
   }
+}
+
+bool get_symbol(const symbols_t &symbols, const std::string &base,
+                symbol_t &symbol) {
+  for (const symbol_t &s : symbols) {
+    if (s.base == base) {
+      symbol = s;
+      return true;
+    }
+  }
+  return false;
 }

@@ -47,17 +47,17 @@ bool TofinoMemoryBank::check_implementation_compatibility(
   return true;
 }
 
-void TofinoMemoryBank::add_dataplane_state(const BDD::symbols_t &symbols) {
+void TofinoMemoryBank::add_dataplane_state(const bdd::symbols_t &symbols) {
   for (const auto &symbol : symbols) {
     dp_state.insert(symbol);
   }
 }
 
-const BDD::symbols_t &TofinoMemoryBank::get_dataplane_state() const {
+const bdd::symbols_t &TofinoMemoryBank::get_dataplane_state() const {
   return dp_state;
 }
 
-void TofinoMemoryBank::postpone(BDD::node_id_t node_id, Module_ptr module) {
+void TofinoMemoryBank::postpone(bdd::node_id_t node_id, Module_ptr module) {
   postponed.emplace_back(node_id, module);
 }
 

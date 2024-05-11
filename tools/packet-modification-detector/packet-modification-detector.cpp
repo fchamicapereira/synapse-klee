@@ -86,8 +86,8 @@ struct chunk_t {
     auto width = in->getWidth(); // bits
 
     for (auto byte = 0u; byte < width / 8; byte++) {
-      auto in_byte = kutil::solver_toolbox.exprBuilder->Extract(in, byte * 8,
-                                                              klee::Expr::Int8);
+      auto in_byte = kutil::solver_toolbox.exprBuilder->Extract(
+          in, byte * 8, klee::Expr::Int8);
       auto out_byte = kutil::solver_toolbox.exprBuilder->Extract(
           out, byte * 8, klee::Expr::Int8);
       auto eq_bytes = kutil::solver_toolbox.exprBuilder->Eq(in_byte, out_byte);
@@ -156,7 +156,6 @@ get_chunks_per_call_path(std::vector<call_path_t *> call_paths) {
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv);
 
-  kutil::solver_toolbox.build();
   std::vector<call_path_t *> call_paths;
 
   for (auto file : InputCallPathFiles) {
@@ -176,8 +175,10 @@ int main(int argc, char **argv) {
     for (auto chunk : call_path_chunks.chunks) {
       std::cerr << "\n";
       std::cerr << "  label    : " << chunk.label << "\n";
-      std::cerr << "  in       : " << kutil::expr_to_string(chunk.in, true) << "\n";
-      std::cerr << "  out      : " << kutil::expr_to_string(chunk.out, true) << "\n";
+      std::cerr << "  in       : " << kutil::expr_to_string(chunk.in, true)
+                << "\n";
+      std::cerr << "  out      : " << kutil::expr_to_string(chunk.out, true)
+                << "\n";
 
       std::cerr << "  modified : ";
       auto modified = chunk.was_chunk_modified();

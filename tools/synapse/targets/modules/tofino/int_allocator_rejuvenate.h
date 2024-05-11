@@ -15,7 +15,7 @@ public:
       : IntegerAllocatorOperation(ModuleType::Tofino_IntegerAllocatorRejuvenate,
                                   "IntegerAllocatorRejuvenate") {}
 
-  IntegerAllocatorRejuvenate(BDD::Node_ptr node,
+  IntegerAllocatorRejuvenate(bdd::Node_ptr node,
                              IntegerAllocatorRef _int_allocator,
                              klee::ref<klee::Expr> _index)
       : IntegerAllocatorOperation(ModuleType::Tofino_IntegerAllocatorRejuvenate,
@@ -25,10 +25,10 @@ public:
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -36,16 +36,16 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != BDD::symbex::FN_DCHAIN_REJUVENATE) {
+    if (call.function_name != "dchain_rejuvenate_index") {
       return result;
     }
 
-    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_TIME].expr.isNull());
+    assert(!call.args["chain"].expr.isNull());
+    assert(!call.args["index"].expr.isNull());
+    assert(!call.args["time"].expr.isNull());
 
-    auto _dchain = call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
-    auto _index = call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr;
+    auto _dchain = call.args["chain"].expr;
+    auto _index = call.args["index"].expr;
     auto _dchain_addr = kutil::expr_addr_to_obj_addr(_dchain);
 
     IntegerAllocatorRef _int_allocator;
@@ -62,8 +62,7 @@ private:
     }
 
     if (!_int_allocator) {
-      auto dchain_config =
-          BDD::symbex::get_dchain_config(ep.get_bdd(), _dchain_addr);
+      auto dchain_config = bdd::get_dchain_config(ep.get_bdd(), _dchain_addr);
       auto _capacity = dchain_config.index_range;
       _int_allocator =
           IntegerAllocator::build(_capacity, _dchain_addr, {node->get_id()});

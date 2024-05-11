@@ -13,7 +13,7 @@ public:
       : TofinoModule(ModuleType::Tofino_SetupExpirationNotifications,
                      "SetupExpirationNotifications") {}
 
-  SetupExpirationNotifications(BDD::Node_ptr node)
+  SetupExpirationNotifications(bdd::Node_ptr node)
       : TofinoModule(ModuleType::Tofino_SetupExpirationNotifications,
                      "SetupExpirationNotifications", node) {}
 
@@ -38,7 +38,7 @@ private:
 
   void remember_expiration_data(const ExecutionPlan &ep,
                                 klee::ref<klee::Expr> time,
-                                const BDD::symbol_t &number_of_freed_flows) {
+                                const bdd::symbol_t &number_of_freed_flows) {
     auto expiration_time = get_expiration_time(time);
     expiration_data_t expiration_data(expiration_time, number_of_freed_flows);
 
@@ -47,10 +47,10 @@ private:
   }
 
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -58,21 +58,21 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != BDD::symbex::FN_EXPIRE_MAP) {
+    if (call.function_name != "expire_items_single_map") {
       return result;
     }
 
-    assert(!call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_CHAIN].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_VECTOR].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_MAP].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_TIME].expr.isNull());
+    assert(!call.args["chain"].expr.isNull());
+    assert(!call.args["vector"].expr.isNull());
+    assert(!call.args["map"].expr.isNull());
+    assert(!call.args["time"].expr.isNull());
     assert(!call.ret.isNull());
 
-    auto _dchain_addr = call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_CHAIN].expr;
-    auto _vector_addr = call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_VECTOR].expr;
-    auto _map_addr = call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_MAP].expr;
-    auto _time = call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_TIME].expr;
-    auto _generated_symbols = casted->get_local_generated_symbols();
+    auto _dchain_addr = call.args["chain"].expr;
+    auto _vector_addr = call.args["vector"].expr;
+    auto _map_addr = call.args["map"].expr;
+    auto _time = call.args["time"].expr;
+    auto _generated_symbols = casted->get_locally_generated_symbols();
 
     assert(_generated_symbols.size() == 1);
     auto _number_of_freed_flows = *_generated_symbols.begin();

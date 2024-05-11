@@ -6,43 +6,42 @@
 
 namespace kutil {
 
-bool get_bytes_read(klee::ref<klee::Expr> expr,
-                    std::vector<byte_read_t> &bytes) {
+std::vector<byte_read_t> get_bytes_read(klee::ref<klee::Expr> expr) {
+  std::vector<byte_read_t> bytes;
+
   switch (expr->getKind()) {
   case klee::Expr::Kind::Read: {
     klee::ReadExpr *read = dyn_cast<klee::ReadExpr>(expr);
-    auto index = read->index;
+    klee::ref<klee::Expr> index = read->index;
 
-    if (index->getKind() != klee::Expr::Kind::Constant) {
-      return false;
+    if (index->getKind() == klee::Expr::Kind::Constant) {
+      klee::ConstantExpr *index_const =
+          static_cast<klee::ConstantExpr *>(index.get());
+
+      unsigned byte = index_const->getZExtValue();
+      std::string symbol = read->updates.root->name;
+
+      bytes.push_back({byte, symbol});
     }
-
-    klee::ConstantExpr *index_const =
-        static_cast<klee::ConstantExpr *>(index.get());
-
-    unsigned byte = index_const->getZExtValue();
-    std::string symbol = read->updates.root->name;
-
-    bytes.push_back({byte, symbol});
-
-    return true;
-  };
+  } break;
   case klee::Expr::Kind::Concat: {
     klee::ConcatExpr *concat = dyn_cast<klee::ConcatExpr>(expr);
 
-    auto left = concat->getLeft();
-    auto right = concat->getRight();
+    klee::ref<klee::Expr> left = concat->getLeft();
+    klee::ref<klee::Expr> right = concat->getRight();
 
-    if (!get_bytes_read(left, bytes) || !get_bytes_read(right, bytes)) {
-      return false;
-    }
+    std::vector<byte_read_t> lbytes = get_bytes_read(left);
+    std::vector<byte_read_t> rbytes = get_bytes_read(right);
 
-    return true;
-  };
-  default: {
-    return false;
+    bytes.insert(bytes.end(), lbytes.begin(), lbytes.end());
+    bytes.insert(bytes.end(), rbytes.begin(), rbytes.end());
+  } break;
+  default:
+    // Nothing to do here.
+    break;
   }
-  }
+
+  return bytes;
 }
 
 klee::ref<klee::Expr> concat_lsb(klee::ref<klee::Expr> expr,
@@ -225,33 +224,29 @@ bool is_bool(klee::ref<klee::Expr> expr) {
 }
 
 bool has_symbols(klee::ref<klee::Expr> expr) {
-  if (expr.isNull()) {
+  if (expr.isNull())
     return false;
-  }
 
-  RetrieveSymbols retriever(false, true);
+  SymbolRetriever retriever;
   retriever.visit(expr);
   return retriever.get_retrieved().size() > 0;
 }
 
 std::unordered_set<std::string> get_symbols(klee::ref<klee::Expr> expr) {
-  if (expr.isNull()) {
+  if (expr.isNull())
     return std::unordered_set<std::string>();
-  }
 
-  RetrieveSymbols retriever;
+  SymbolRetriever retriever;
   retriever.visit(expr);
   return retriever.get_retrieved_strings();
 }
 
 bool is_constant(klee::ref<klee::Expr> expr) {
-  if (expr->getWidth() > 64) {
+  if (expr->getWidth() > 64)
     return false;
-  }
 
-  if (expr->getKind() == klee::Expr::Kind::Constant) {
+  if (expr->getKind() == klee::Expr::Kind::Constant)
     return true;
-  }
 
   auto value = solver_toolbox.value_from_expr(expr);
   auto const_value =
@@ -315,7 +310,7 @@ std::pair<bool, std::string> get_symbol(klee::ref<klee::Expr> expr) {
   return result;
 }
 
-bool manager_contains(klee::ConstraintManager constraints,
+bool manager_contains(const klee::ConstraintManager &constraints,
                       klee::ref<klee::Expr> expr) {
   auto found_it = std::find_if(
       constraints.begin(), constraints.end(), [&](klee::ref<klee::Expr> e) {
@@ -324,18 +319,17 @@ bool manager_contains(klee::ConstraintManager constraints,
   return found_it != constraints.end();
 }
 
-klee::ConstraintManager join_managers(klee::ConstraintManager m1,
-                                      klee::ConstraintManager m2) {
+klee::ConstraintManager join_managers(const klee::ConstraintManager &m1,
+                                      const klee::ConstraintManager &m2) {
   klee::ConstraintManager m;
 
-  for (auto c : m1) {
+  for (klee::ref<klee::Expr> c : m1) {
     m.addConstraint(c);
   }
 
-  for (auto c : m2) {
-    if (!manager_contains(m, c)) {
+  for (klee::ref<klee::Expr> c : m2) {
+    if (!manager_contains(m, c))
       m.addConstraint(c);
-    }
   }
 
   return m;

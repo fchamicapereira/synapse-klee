@@ -11,16 +11,16 @@ private:
   addr_t dchain_addr;
   klee::ref<klee::Expr> time;
   klee::ref<klee::Expr> index_out;
-  BDD::symbol_t out_of_space;
+  bdd::symbol_t out_of_space;
 
 public:
   DchainAllocateNewIndex()
       : x86Module(ModuleType::x86_DchainAllocateNewIndex, "DchainAllocate") {}
 
-  DchainAllocateNewIndex(BDD::Node_ptr node, addr_t _dchain_addr,
+  DchainAllocateNewIndex(bdd::Node_ptr node, addr_t _dchain_addr,
                          klee::ref<klee::Expr> _time,
                          klee::ref<klee::Expr> _index_out,
-                         const BDD::symbol_t &_out_of_space)
+                         const bdd::symbol_t &_out_of_space)
       : x86Module(ModuleType::x86_DchainAllocateNewIndex, "DchainAllocate",
                   node),
         dchain_addr(_dchain_addr), time(_time), index_out(_index_out),
@@ -28,10 +28,10 @@ public:
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -39,21 +39,20 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == BDD::symbex::FN_DCHAIN_ALLOCATE_NEW_INDEX) {
-      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_TIME].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_OUT].out.isNull());
+    if (call.function_name == "dchain_allocate_new_index") {
+      assert(!call.args["chain"].expr.isNull());
+      assert(!call.args["time"].expr.isNull());
+      assert(!call.args["index_out"].out.isNull());
       assert(!call.ret.isNull());
 
-      auto _dchain = call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
-      auto _time = call.args[BDD::symbex::FN_DCHAIN_ARG_TIME].expr;
-      auto _index_out = call.args[BDD::symbex::FN_DCHAIN_ARG_OUT].out;
+      auto _dchain = call.args["chain"].expr;
+      auto _time = call.args["time"].expr;
+      auto _index_out = call.args["index_out"].out;
 
       auto _dchain_addr = kutil::expr_addr_to_obj_addr(_dchain);
 
-      auto _generated_symbols = casted->get_local_generated_symbols();
-      auto _out_of_space =
-          BDD::get_symbol(_generated_symbols, BDD::symbex::DCHAIN_OUT_OF_SPACE);
+      auto _generated_symbols = casted->get_locally_generated_symbols();
+      auto _out_of_space = bdd::get_symbol(_generated_symbols, "out_of_space");
 
       save_dchain(ep, _dchain_addr);
 
@@ -111,7 +110,7 @@ public:
   const addr_t &get_dchain_addr() const { return dchain_addr; }
   const klee::ref<klee::Expr> &get_time() const { return time; }
   const klee::ref<klee::Expr> &get_index_out() const { return index_out; }
-  const BDD::symbol_t &get_out_of_space() const { return out_of_space; }
+  const bdd::symbol_t &get_out_of_space() const { return out_of_space; }
 };
 } // namespace x86
 } // namespace targets

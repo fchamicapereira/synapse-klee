@@ -1,11 +1,9 @@
 #pragma once
 
 #include "nodes/node.h"
-#include "symbol-factory.h"
+#include "nodes/manager.h"
 
-#include "klee-util.h"
-
-namespace BDD {
+namespace bdd {
 
 class BDDVisitor;
 
@@ -13,81 +11,54 @@ class BDD {
 private:
   node_id_t id;
 
-  Node_ptr nf_init;
-  Node_ptr nf_process;
+  klee::ref<klee::Expr> device;
+  klee::ref<klee::Expr> packet_len;
+  klee::ref<klee::Expr> time;
 
-  // For symbol building
-  std::unordered_map<std::string, klee::UpdateList> roots_updates;
+  std::vector<call_t> init;
+  Node *root;
+
+  NodeManager manager;
 
 public:
-  BDD(const std::vector<call_path_t *> &call_paths) : id(0) {
-    kutil::solver_toolbox.build();
+  BDD() : id(0) {}
 
-    call_paths_t cp(call_paths);
-    auto root = populate(cp);
+  BDD(const call_paths_t &call_paths);
+  BDD(const std::string &file_path);
 
-    nf_init = populate_init(root);
-    nf_process = populate_process(root);
-
-    rename_symbols();
-    merge_symbols();
+  BDD(BDD &&other)
+      : id(other.id), device(std::move(other.device)),
+        packet_len(std::move(other.packet_len)), time(std::move(other.time)),
+        init(std::move(other.init)), root(other.root),
+        manager(std::move(other.manager)) {
+    other.root = nullptr;
   }
 
-  BDD() : id(0) { kutil::solver_toolbox.build(); }
-
-  BDD(const BDD &bdd)
-      : id(bdd.id), nf_init(bdd.nf_init), nf_process(bdd.nf_process) {}
-
-  BDD(const std::string &file_path) : id(0) {
-    kutil::solver_toolbox.build();
-    deserialize(file_path);
-    merge_symbols();
+  BDD(const BDD &other)
+      : id(other.id), device(other.device), packet_len(other.packet_len),
+        time(other.time), init(other.init) {
+    root = other.root->clone(manager, true);
   }
 
   BDD &operator=(const BDD &) = default;
 
   node_id_t get_id() const { return id; }
+  klee::ref<klee::Expr> get_device() const { return device; }
+  klee::ref<klee::Expr> get_packet_len() const { return packet_len; }
+  klee::ref<klee::Expr> get_time() const { return time; }
+  const std::vector<call_t> &get_init() const { return init; }
+  const Node *get_root() const { return root; }
 
-  void set_id(node_id_t _id) {
-    assert(_id >= id);
-    id = _id;
-  }
-
-  Node_ptr get_init() const { return nf_init; }
-  Node_ptr get_process() const { return nf_process; }
-  Node_ptr get_node_by_id(node_id_t _id) const;
-
-  BDD clone() const;
+  std::string hash() const { return root->hash(true); }
 
   void visit(BDDVisitor &visitor) const;
-
-  void set_init(const Node_ptr &node) { nf_init = node; }
-  void set_process(const Node_ptr &node) { nf_process = node; }
-
-  // I/O
-  void serialize(std::string file_path) const;
+  void serialize(const std::string &file_path) const;
   void deserialize(const std::string &file_path);
 
-  // Useful operations
-  std::string hash() const;
-  klee::ref<klee::Expr> get_symbol(const std::string &name) const;
-  uint64_t get_max_node_id() const;
+  const Node *get_node_by_id(node_id_t _id) const;
 
-public:
-  friend class CallPathsGroup;
-  friend class Call;
-
-private:
-  void rename_symbols();
-  void rename_symbols(Node_ptr node, SymbolFactory &factory);
-  void merge_symbols();
-
-  Node_ptr
-  populate(call_paths_t call_paths,
-           klee::ConstraintManager accumulated = klee::ConstraintManager());
-
-  Node_ptr populate_init(const Node_ptr &root);
-  Node_ptr populate_process(const Node_ptr &root, bool store = false);
+  Node *get_mutable_node_by_id(node_id_t _id);
+  NodeManager &get_mutable_manager() { return manager; }
 };
 
-} // namespace BDD
+} // namespace bdd

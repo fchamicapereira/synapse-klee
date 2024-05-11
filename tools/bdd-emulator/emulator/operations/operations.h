@@ -20,7 +20,7 @@
 #include "vector_borrow.h"
 #include "vector_return.h"
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 inline operations_t get_operations() {
@@ -46,4 +46,4 @@ inline operations_t get_operations() {
 }
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

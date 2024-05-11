@@ -18,7 +18,7 @@ public:
       : Module(ModuleType::x86_Tofino_HashObj, TargetType::x86_Tofino,
                "HashObj") {}
 
-  HashObj(BDD::Node_ptr node, klee::ref<klee::Expr> _input, bits_t _size,
+  HashObj(bdd::Node_ptr node, klee::ref<klee::Expr> _input, bits_t _size,
           klee::ref<klee::Expr> _hash)
       : Module(ModuleType::x86_Tofino_HashObj, TargetType::x86_Tofino,
                "HashObj", node),
@@ -26,10 +26,10 @@ public:
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -37,14 +37,14 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == BDD::symbex::FN_HASH_OBJ) {
-      assert(!call.args[BDD::symbex::FN_HASH_OBJ_ARG_OBJ].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_HASH_OBJ_ARG_OBJ].in.isNull());
-      assert(!call.args[BDD::symbex::FN_HASH_OBJ_ARG_SIZE].expr.isNull());
+    if (call.function_name == "hash_obj") {
+      assert(!call.args["obj"].expr.isNull());
+      assert(!call.args["obj"].in.isNull());
+      assert(!call.args["size"].expr.isNull());
       assert(!call.ret.isNull());
 
-      auto _input = call.args[BDD::symbex::FN_HASH_OBJ_ARG_OBJ].in;
-      auto _size = call.args[BDD::symbex::FN_HASH_OBJ_ARG_SIZE].expr;
+      auto _input = call.args["obj"].in;
+      auto _size = call.args["size"].expr;
       auto _hash = call.ret;
 
       assert(kutil::is_constant(_size));

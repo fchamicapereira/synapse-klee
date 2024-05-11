@@ -10,21 +10,21 @@ typedef uint16_t cpu_code_path_t;
 
 class PacketParseCPU : public Module {
 private:
-  BDD::symbols_t dataplane_state;
+  bdd::symbols_t dataplane_state;
 
 public:
   PacketParseCPU()
       : Module(ModuleType::x86_Tofino_PacketParseCPU, TargetType::x86_Tofino,
                "PacketParseCPU") {}
 
-  PacketParseCPU(const BDD::symbols_t &_dataplane_state)
+  PacketParseCPU(const bdd::symbols_t &_dataplane_state)
       : Module(ModuleType::x86_Tofino_PacketParseCPU, TargetType::x86_Tofino,
                "PacketParseCPU", nullptr),
         dataplane_state(_dataplane_state) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
     return result;
   }
@@ -48,7 +48,7 @@ public:
     return true;
   }
 
-  const BDD::symbols_t &get_dataplane_state() const { return dataplane_state; }
+  const bdd::symbols_t &get_dataplane_state() const { return dataplane_state; }
 };
 } // namespace x86_tofino
 } // namespace targets

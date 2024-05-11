@@ -21,23 +21,23 @@ private:
   Table query;
   Table rejuvenation;
   std::vector<klee::ref<klee::Expr>> integer;
-  BDD::symbols_t out_of_space;
+  bdd::symbols_t out_of_space;
 
   uint64_t capacity;
   bits_t integer_size;
 
 public:
   IntegerAllocator(klee::ref<klee::Expr> _integer,
-                   const BDD::symbol_t &_out_of_space, uint64_t _capacity,
+                   const bdd::symbol_t &_out_of_space, uint64_t _capacity,
                    addr_t _obj,
-                   const std::unordered_set<BDD::node_id_t> &_nodes)
+                   const std::unordered_set<bdd::node_id_t> &_nodes)
       : IntegerAllocator(_capacity, _obj, _nodes) {
     integer.push_back(_integer);
     out_of_space.insert(_out_of_space);
   }
 
   IntegerAllocator(uint64_t _capacity, addr_t _obj,
-                   const std::unordered_set<BDD::node_id_t> &_nodes)
+                   const std::unordered_set<bdd::node_id_t> &_nodes)
       : DataStructure(Type::INTEGER_ALLOCATOR, {_obj}, _nodes),
         query("int_allocator_query", {}, {}, {}, {_obj}, _nodes),
         rejuvenation("int_allocator_rejuvenation", {}, {}, {}, {_obj}, _nodes),
@@ -50,11 +50,11 @@ public:
     integer.push_back(other_integer);
   }
 
-  void add_out_of_space(const BDD::symbol_t &other_out_of_space) {
+  void add_out_of_space(const bdd::symbol_t &other_out_of_space) {
     out_of_space.insert(other_out_of_space);
   }
 
-  void add_is_allocated(const BDD::symbol_t &is_allocated) {
+  void add_is_allocated(const bdd::symbol_t &is_allocated) {
     query.add_hit({is_allocated});
     rejuvenation.add_hit({is_allocated});
   }
@@ -72,22 +72,22 @@ public:
     return integer;
   }
 
-  const BDD::symbols_t &get_out_of_space() const { return out_of_space; }
+  const bdd::symbols_t &get_out_of_space() const { return out_of_space; }
 
   bits_t get_integer_size() const { return integer_size; }
   uint64_t get_capacity() const { return capacity; }
 
   static IntegerAllocatorRef
-  build(klee::ref<klee::Expr> _integer, const BDD::symbol_t &_out_of_space,
+  build(klee::ref<klee::Expr> _integer, const bdd::symbol_t &_out_of_space,
         uint64_t _capacity, addr_t _obj,
-        const std::unordered_set<BDD::node_id_t> &_nodes) {
+        const std::unordered_set<bdd::node_id_t> &_nodes) {
     return IntegerAllocatorRef(
         new IntegerAllocator(_integer, _out_of_space, _capacity, _obj, _nodes));
   }
 
   static IntegerAllocatorRef
   build(uint64_t _capacity, addr_t _obj,
-        const std::unordered_set<BDD::node_id_t> &_nodes) {
+        const std::unordered_set<bdd::node_id_t> &_nodes) {
     return IntegerAllocatorRef(new IntegerAllocator(_capacity, _obj, _nodes));
   }
 

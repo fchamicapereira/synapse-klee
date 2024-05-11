@@ -13,24 +13,24 @@ private:
   klee::ref<klee::Expr> key;
   klee::ref<klee::Expr> value_out;
   klee::ref<klee::Expr> success;
-  BDD::symbol_t map_has_this_key;
+  bdd::symbol_t map_has_this_key;
 
 public:
   MapGet() : x86Module(ModuleType::x86_MapGet, "MapGet") {}
 
-  MapGet(BDD::Node_ptr node, addr_t _map_addr, addr_t _key_addr,
+  MapGet(bdd::Node_ptr node, addr_t _map_addr, addr_t _key_addr,
          klee::ref<klee::Expr> _key, klee::ref<klee::Expr> _value_out,
-         klee::ref<klee::Expr> _success, const BDD::symbol_t &_map_has_this_key)
+         klee::ref<klee::Expr> _success, const bdd::symbol_t &_map_has_this_key)
       : x86Module(ModuleType::x86_MapGet, "MapGet", node), map_addr(_map_addr),
         key_addr(_key_addr), key(_key), value_out(_value_out),
         success(_success), map_has_this_key(_map_has_this_key) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -38,22 +38,22 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == BDD::symbex::FN_MAP_GET) {
-      assert(!call.args[BDD::symbex::FN_MAP_ARG_MAP].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_MAP_ARG_KEY].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_MAP_ARG_KEY].in.isNull());
+    if (call.function_name == "map_get") {
+      assert(!call.args["map"].expr.isNull());
+      assert(!call.args["key"].expr.isNull());
+      assert(!call.args["key"].in.isNull());
       assert(!call.ret.isNull());
-      assert(!call.args[BDD::symbex::FN_MAP_ARG_OUT].out.isNull());
+      assert(!call.args["value_out"].out.isNull());
 
-      auto _map = call.args[BDD::symbex::FN_MAP_ARG_MAP].expr;
-      auto _key_addr = call.args[BDD::symbex::FN_MAP_ARG_KEY].expr;
-      auto _key = call.args[BDD::symbex::FN_MAP_ARG_KEY].in;
+      auto _map = call.args["map"].expr;
+      auto _key_addr = call.args["key"].expr;
+      auto _key = call.args["key"].in;
       auto _success = call.ret;
-      auto _value_out = call.args[BDD::symbex::FN_MAP_ARG_OUT].out;
+      auto _value_out = call.args["value_out"].out;
 
-      auto _generated_symbols = casted->get_local_generated_symbols();
+      auto _generated_symbols = casted->get_locally_generated_symbols();
       auto _map_has_this_key =
-          BDD::get_symbol(_generated_symbols, BDD::symbex::MAP_HAS_THIS_KEY);
+          bdd::get_symbol(_generated_symbols, "map_has_this_key");
 
       auto _map_addr = kutil::expr_addr_to_obj_addr(_map);
       auto _key_addr_value = kutil::expr_addr_to_obj_addr(_key_addr);
@@ -126,7 +126,7 @@ public:
   klee::ref<klee::Expr> get_key() const { return key; }
   klee::ref<klee::Expr> get_value_out() const { return value_out; }
   klee::ref<klee::Expr> get_success() const { return success; }
-  const BDD::symbol_t &get_map_has_this_key() const { return map_has_this_key; }
+  const bdd::symbol_t &get_map_has_this_key() const { return map_has_this_key; }
 };
 } // namespace x86
 } // namespace targets

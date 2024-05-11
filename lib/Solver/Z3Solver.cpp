@@ -20,26 +20,6 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 
-namespace {
-// NOTE: Very useful for debugging Z3 behaviour. These files can be given to
-// the z3 binary to replay all Z3 API calls using its `-log` option.
-llvm::cl::opt<std::string> Z3LogInteractionFile(
-    "debug-z3-log-api-interaction", llvm::cl::init(""),
-    llvm::cl::desc("Log API interaction with Z3 to the specified path"));
-
-llvm::cl::opt<std::string> Z3QueryDumpFile(
-    "debug-z3-dump-queries", llvm::cl::init(""),
-    llvm::cl::desc("Dump Z3's representation of the query to the specified path"));
-
-llvm::cl::opt<bool> Z3ValidateModels(
-    "debug-z3-validate-models", llvm::cl::init(false),
-    llvm::cl::desc("When generating Z3 models validate these against the query"));
-
-llvm::cl::opt<unsigned>
-    Z3VerbosityLevel("debug-z3-verbosity", llvm::cl::init(0),
-                     llvm::cl::desc("Z3 verbosity level (default=0)"));
-}
-
 #include "llvm/Support/ErrorHandling.h"
 
 namespace klee {
@@ -49,16 +29,16 @@ private:
   Z3Builder *builder;
   double timeout;
   SolverRunStatus runStatusCode;
-  llvm::raw_fd_ostream* dumpedQueriesFile;
+  llvm::raw_fd_ostream *dumpedQueriesFile;
   ::Z3_params solverParameters;
   // Parameter symbols
   ::Z3_symbol timeoutParamStrSymbol;
 
   bool internalRunSolver(const Query &,
                          const std::vector<const Array *> *objects,
-                         std::vector<std::vector<unsigned char> > *values,
+                         std::vector<std::vector<unsigned char>> *values,
                          bool &hasSolution);
-bool validateZ3Model(::Z3_solver &theSolver, ::Z3_model &theModel);
+  bool validateZ3Model(::Z3_solver &theSolver, ::Z3_model &theModel);
 
 public:
   Z3SolverImpl();
@@ -80,22 +60,19 @@ public:
   bool computeValue(const Query &, ref<Expr> &result);
   bool computeInitialValues(const Query &,
                             const std::vector<const Array *> &objects,
-                            std::vector<std::vector<unsigned char> > &values,
+                            std::vector<std::vector<unsigned char>> &values,
                             bool &hasSolution);
   SolverRunStatus
   handleSolverResponse(::Z3_solver theSolver, ::Z3_lbool satisfiable,
                        const std::vector<const Array *> *objects,
-                       std::vector<std::vector<unsigned char> > *values,
+                       std::vector<std::vector<unsigned char>> *values,
                        bool &hasSolution);
   SolverRunStatus getOperationStatusCode();
 };
 
 Z3SolverImpl::Z3SolverImpl()
     : builder(new Z3Builder(
-          /*autoClearConstructCache=*/false,
-          /*z3LogInteractionFileArg=*/Z3LogInteractionFile.size() > 0
-              ? Z3LogInteractionFile.c_str()
-              : NULL)),
+          /*autoClearConstructCache=*/false, NULL)),
       timeout(0.0), runStatusCode(SOLVER_RUN_STATUS_FAILURE),
       dumpedQueriesFile(0) {
   assert(builder && "unable to create Z3Builder");
@@ -103,25 +80,6 @@ Z3SolverImpl::Z3SolverImpl()
   Z3_params_inc_ref(builder->ctx, solverParameters);
   timeoutParamStrSymbol = Z3_mk_string_symbol(builder->ctx, "timeout");
   setCoreSolverTimeout(timeout);
-
-  if (!Z3QueryDumpFile.empty()) {
-    std::string error;
-    dumpedQueriesFile = klee_open_output_file(Z3QueryDumpFile, error);
-    if (!error.empty()) {
-      klee_error("Error creating file for dumping Z3 queries: %s",
-                 error.c_str());
-    }
-    klee_message("Dumping Z3 queries to \"%s\"", Z3QueryDumpFile.c_str());
-  }
-
-  // Set verbosity
-  if (Z3VerbosityLevel > 0) {
-    std::string underlyingString;
-    llvm::raw_string_ostream ss(underlyingString);
-    ss << Z3VerbosityLevel;
-    ss.flush();
-    Z3_global_param_set("verbose", underlyingString.c_str());
-  }
 }
 
 Z3SolverImpl::~Z3SolverImpl() {
@@ -149,8 +107,6 @@ char *Z3SolverImpl::getConstraintLog(const Query &query) {
   // We use a different builder here because we don't want to interfere
   // with the solver's builder because it may change the solver builder's
   // cache.
-  // NOTE: The builder does not set `z3LogInteractionFile` to avoid conflicting
-  // with whatever the solver's builder is set to do.
   Z3Builder temp_builder(/*autoClearConstructCache=*/false,
                          /*z3LogInteractionFile=*/NULL);
   ConstantArrayFinder constant_arrays_in_query;
@@ -219,7 +175,7 @@ bool Z3SolverImpl::computeTruth(const Query &query, bool &isValid) {
 
 bool Z3SolverImpl::computeValue(const Query &query, ref<Expr> &result) {
   std::vector<const Array *> objects;
-  std::vector<std::vector<unsigned char> > values;
+  std::vector<std::vector<unsigned char>> values;
   bool hasSolution;
 
   // Find the object used in the expression, and compute an assignment
@@ -238,13 +194,13 @@ bool Z3SolverImpl::computeValue(const Query &query, ref<Expr> &result) {
 
 bool Z3SolverImpl::computeInitialValues(
     const Query &query, const std::vector<const Array *> &objects,
-    std::vector<std::vector<unsigned char> > &values, bool &hasSolution) {
+    std::vector<std::vector<unsigned char>> &values, bool &hasSolution) {
   return internalRunSolver(query, &objects, &values, hasSolution);
 }
 
 bool Z3SolverImpl::internalRunSolver(
     const Query &query, const std::vector<const Array *> *objects,
-    std::vector<std::vector<unsigned char> > *values, bool &hasSolution) {
+    std::vector<std::vector<unsigned char>> *values, bool &hasSolution) {
 
   TimerStatIncrementer t(stats::queryTime);
   // NOTE: Z3 will switch to using a slower solver internally if push/pop are
@@ -326,7 +282,7 @@ bool Z3SolverImpl::internalRunSolver(
 SolverImpl::SolverRunStatus Z3SolverImpl::handleSolverResponse(
     ::Z3_solver theSolver, ::Z3_lbool satisfiable,
     const std::vector<const Array *> *objects,
-    std::vector<std::vector<unsigned char> > *values, bool &hasSolution) {
+    std::vector<std::vector<unsigned char>> *values, bool &hasSolution) {
   switch (satisfiable) {
   case Z3_L_TRUE: {
     hasSolution = true;
@@ -373,13 +329,6 @@ SolverImpl::SolverRunStatus Z3SolverImpl::handleSolverResponse(
       values->push_back(data);
     }
 
-    // Validate the model if requested
-    if (Z3ValidateModels) {
-      bool success = validateZ3Model(theSolver, theModel);
-      if (!success)
-        abort();
-    }
-
     Z3_model_dec_ref(builder->ctx, theModel);
     return SolverImpl::SOLVER_RUN_STATUS_SUCCESS_SOLVABLE;
   }
@@ -404,7 +353,8 @@ SolverImpl::SolverRunStatus Z3SolverImpl::handleSolverResponse(
   }
 }
 
-bool Z3SolverImpl::validateZ3Model(::Z3_solver &theSolver, ::Z3_model &theModel) {
+bool Z3SolverImpl::validateZ3Model(::Z3_solver &theSolver,
+                                   ::Z3_model &theModel) {
   bool success = true;
   ::Z3_ast_vector constraints =
       Z3_solver_get_assertions(builder->ctx, theSolver);
@@ -430,8 +380,7 @@ bool Z3SolverImpl::validateZ3Model(::Z3_solver &theSolver, ::Z3_model &theModel)
     assert(Z3_get_sort_kind(builder->ctx, sort) == Z3_BOOL_SORT &&
            "Evaluated expression has wrong sort");
 
-    Z3_lbool evaluatedValue =
-        Z3_get_bool_value(builder->ctx, evaluatedExpr);
+    Z3_lbool evaluatedValue = Z3_get_bool_value(builder->ctx, evaluatedExpr);
     if (evaluatedValue != Z3_L_TRUE) {
       llvm::errs() << "Validating model failed:\n"
                    << "The expression:\n";
@@ -444,8 +393,10 @@ bool Z3SolverImpl::validateZ3Model(::Z3_solver &theSolver, ::Z3_model &theModel)
   }
 
   if (!success) {
-    llvm::errs() << "Solver state:\n" << Z3_solver_to_string(builder->ctx, theSolver) << "\n";
-    llvm::errs() << "Model:\n" << Z3_model_to_string(builder->ctx, theModel) << "\n";
+    llvm::errs() << "Solver state:\n"
+                 << Z3_solver_to_string(builder->ctx, theSolver) << "\n";
+    llvm::errs() << "Model:\n"
+                 << Z3_model_to_string(builder->ctx, theModel) << "\n";
   }
 
   Z3_ast_vector_dec_ref(builder->ctx, constraints);
@@ -455,5 +406,5 @@ bool Z3SolverImpl::validateZ3Model(::Z3_solver &theSolver, ::Z3_model &theModel)
 SolverImpl::SolverRunStatus Z3SolverImpl::getOperationStatusCode() {
   return runStatusCode;
 }
-}
+} // namespace klee
 #endif // ENABLE_Z3

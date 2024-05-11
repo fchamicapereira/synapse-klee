@@ -9,20 +9,20 @@ namespace x86 {
 class Drop : public x86Module {
 public:
   Drop() : x86Module(ModuleType::x86_Drop, "Drop") {}
-  Drop(BDD::Node_ptr node) : x86Module(ModuleType::x86_Drop, "Drop", node) {}
+  Drop(bdd::Node_ptr node) : x86Module(ModuleType::x86_Drop, "Drop", node) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::ReturnProcess>(node);
+    auto casted = bdd::cast_node<bdd::ReturnProcess>(node);
 
     if (!casted) {
       return result;
     }
 
-    if (casted->get_return_operation() == BDD::ReturnProcess::Operation::DROP) {
+    if (casted->get_return_operation() == bdd::ReturnProcess::Operation::DROP) {
       auto new_module = std::make_shared<Drop>(node);
       auto new_ep = ep.add_leaves(new_module, node->get_next(), true);
 

@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <assert.h>
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 #define DCHAIN_RESERVED (2)
@@ -232,4 +232,4 @@ public:
 };
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

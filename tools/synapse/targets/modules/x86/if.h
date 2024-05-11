@@ -16,15 +16,15 @@ private:
 public:
   If() : x86Module(ModuleType::x86_If, "If") {}
 
-  If(BDD::Node_ptr node, klee::ref<klee::Expr> _condition)
+  If(bdd::Node_ptr node, klee::ref<klee::Expr> _condition)
       : x86Module(ModuleType::x86_If, "If", node), condition(_condition) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Branch>(node);
+    auto casted = bdd::cast_node<bdd::Branch>(node);
 
     if (!casted) {
       return result;

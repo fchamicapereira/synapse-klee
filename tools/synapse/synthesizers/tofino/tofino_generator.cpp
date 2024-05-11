@@ -12,7 +12,7 @@ std::string TofinoGenerator::transpile(klee::ref<klee::Expr> expr) {
 }
 
 variable_query_t
-TofinoGenerator::search_variable(const BDD::symbol_t &symbol) const {
+TofinoGenerator::search_variable(const bdd::symbol_t &symbol) const {
   auto ingress_var = ingress.search_variable(symbol.label);
 
   if (ingress_var.valid) {

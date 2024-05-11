@@ -99,7 +99,7 @@ void Graphviz::open() {
 }
 
 void Graphviz::function_call(const ExecutionPlanNode *ep_node,
-                             BDD::Node_ptr node, TargetType target,
+                             bdd::Node_ptr node, TargetType target,
                              const std::string &label) {
   assert(node_colors.find(target) != node_colors.end());
   ofs << "[label=\"";
@@ -113,7 +113,7 @@ void Graphviz::function_call(const ExecutionPlanNode *ep_node,
   ofs << "\n";
 }
 
-void Graphviz::branch(const ExecutionPlanNode *ep_node, BDD::Node_ptr node,
+void Graphviz::branch(const ExecutionPlanNode *ep_node, bdd::Node_ptr node,
                       TargetType target, const std::string &label) {
   assert(node_colors.find(target) != node_colors.end());
   ofs << "[shape=Mdiamond, label=\"";
@@ -175,9 +175,9 @@ Graphviz::rgb_t Graphviz::get_color(float f) const {
   return rgb;
 }
 
-void Graphviz::dump_bdd(const BDD::BDD &bdd,
-                        const std::unordered_set<BDD::node_id_t> &processed,
-                        const BDD::Node *next) {
+void Graphviz::dump_bdd(const bdd::BDD &bdd,
+                        const std::unordered_set<bdd::node_id_t> &processed,
+                        const bdd::Node *next) {
   std::string leaf_fpath = get_rand_fname();
   bdd_fpaths.push_back(leaf_fpath);
   std::ofstream leaf_ofs;
@@ -191,10 +191,10 @@ void Graphviz::dump_bdd(const BDD::BDD &bdd,
   // leaf_ofs << "margin=0;\n";
   leaf_ofs << "node [shape=box,style=filled];\n";
 
-  BDD::bdd_visualizer_opts_t opts;
+  bdd::bdd_visualizer_opts_t opts;
   opts.processed.nodes = processed;
   opts.processed.next = next;
-  BDD::GraphvizGenerator bdd_graphviz(leaf_ofs, opts);
+  bdd::GraphvizGenerator bdd_graphviz(leaf_ofs, opts);
 
   assert(bdd.get_process());
   bdd.get_process()->visit(bdd_graphviz);
@@ -204,20 +204,20 @@ void Graphviz::dump_bdd(const BDD::BDD &bdd,
   leaf_ofs.close();
 }
 
-std::string Graphviz::get_bdd_node_name(const BDD::Node *node) const {
+std::string Graphviz::get_bdd_node_name(const bdd::Node *node) const {
   assert(node);
   std::stringstream ss;
 
   switch (node->get_type()) {
-  case BDD::Node::NodeType::BRANCH: {
-    auto branch = static_cast<const BDD::Branch *>(node);
+  case bdd::Node::NodeType::BRANCH: {
+    auto branch = static_cast<const bdd::Branch *>(node);
     ss << "if(";
     ss << kutil::pretty_print_expr(branch->get_condition());
     ss << ")";
     break;
   }
-  case BDD::Node::NodeType::CALL: {
-    auto call = static_cast<const BDD::Call *>(node);
+  case bdd::Node::NodeType::CALL: {
+    auto call = static_cast<const bdd::Call *>(node);
     ss << call->get_call().function_name;
     int i = 0;
     for (auto arg : call->get_call().args) {
@@ -229,19 +229,19 @@ std::string Graphviz::get_bdd_node_name(const BDD::Node *node) const {
     }
     break;
   }
-  case BDD::Node::NodeType::RETURN_PROCESS: {
-    auto return_process = static_cast<const BDD::ReturnProcess *>(node);
+  case bdd::Node::NodeType::RETURN_PROCESS: {
+    auto return_process = static_cast<const bdd::ReturnProcess *>(node);
 
     switch (return_process->get_return_operation()) {
-    case BDD::ReturnProcess::Operation::BCAST: {
+    case bdd::ReturnProcess::Operation::BCAST: {
       ss << "broadcast()";
       break;
     }
-    case BDD::ReturnProcess::Operation::DROP: {
+    case bdd::ReturnProcess::Operation::DROP: {
       ss << "drop()";
       break;
     }
-    case BDD::ReturnProcess::Operation::FWD: {
+    case bdd::ReturnProcess::Operation::FWD: {
       ss << "forward(";
       ss << return_process->get_return_value();
       ss << ")";
@@ -253,10 +253,10 @@ std::string Graphviz::get_bdd_node_name(const BDD::Node *node) const {
 
     break;
   }
-  case BDD::Node::NodeType::RETURN_INIT:
+  case bdd::Node::NodeType::RETURN_INIT:
     Log::err() << "return init\n";
     [[fallthrough]];
-  case BDD::Node::NodeType::RETURN_RAW:
+  case bdd::Node::NodeType::RETURN_RAW:
     Log::err() << "return raw\n";
     assert(false);
   }
@@ -297,7 +297,7 @@ std::string stringify_score(const Score &score) {
   return score_str;
 }
 
-std::string stringify_bdd_node(BDD::Node_ptr node) {
+std::string stringify_bdd_node(bdd::Node_ptr node) {
   assert(node);
 
   constexpr int MAX_STR_SIZE = 250;
@@ -308,28 +308,28 @@ std::string stringify_bdd_node(BDD::Node_ptr node) {
   node_builder << ": ";
 
   switch (node->get_type()) {
-  case BDD::Node::NodeType::CALL: {
+  case bdd::Node::NodeType::CALL: {
     auto call_node = BDD_CAST_CALL(node);
     node_builder << call_node->get_call().function_name;
   } break;
-  case BDD::Node::NodeType::BRANCH: {
+  case bdd::Node::NodeType::BRANCH: {
     auto branch_node = BDD_CAST_BRANCH(node);
     auto condition = branch_node->get_condition();
     node_builder << "if (";
     node_builder << kutil::pretty_print_expr(condition);
     node_builder << ")";
   } break;
-  case BDD::Node::NodeType::RETURN_PROCESS: {
+  case bdd::Node::NodeType::RETURN_PROCESS: {
     auto return_process = BDD_CAST_RETURN_PROCESS(node);
 
     switch (return_process->get_return_operation()) {
-    case BDD::ReturnProcess::Operation::BCAST: {
+    case bdd::ReturnProcess::Operation::BCAST: {
       node_builder << "broadcast()";
     } break;
-    case BDD::ReturnProcess::Operation::DROP: {
+    case bdd::ReturnProcess::Operation::DROP: {
       node_builder << "drop()";
     } break;
-    case BDD::ReturnProcess::Operation::FWD: {
+    case bdd::ReturnProcess::Operation::FWD: {
       node_builder << "forward(";
       node_builder << return_process->get_return_value();
       node_builder << ")";
@@ -504,7 +504,7 @@ void Graphviz::visit(ExecutionPlan ep) {
 
   auto bdd = ep.get_bdd();
   auto processed = ep.get_meta().processed_nodes;
-  const BDD::Node *next_node = nullptr;
+  const bdd::Node *next_node = nullptr;
 
   if (ep.get_next_node()) {
     next_node = ep.get_next_node().get();

@@ -1,4 +1,7 @@
+#include <unordered_map>
+#include <set>
 #include <iostream>
+#include <optional>
 
 #include "bdd-io.h"
 #include "bdd.h"
@@ -9,31 +12,150 @@
 
 #include "nodes/branch.h"
 #include "nodes/call.h"
-#include "nodes/return_init.h"
-#include "nodes/return_process.h"
-#include "nodes/return_raw.h"
+#include "nodes/route.h"
 
-#include <unordered_map>
+namespace bdd {
 
-namespace BDD {
+static std::vector<std::string> ignored_functions{
+    "start_time",
+    "current_time",
+    "loop_invariant_consume",
+    "loop_invariant_produce",
+    "packet_receive",
+    "packet_state_total_length",
+    "packet_get_unread_length",
+    "vector_reset",
+};
+
+static std::vector<std::string> init_functions{
+    "map_allocate",    "vector_allocate", "dchain_allocate",
+    "sketch_allocate", "cht_fill_cht",
+};
+
+static std::vector<std::string> symbols_in_skippable_conditions{
+    "received_a_packet",           "loop_termination",
+    "map_allocation_succeeded",    "vector_alloc_success",
+    "is_dchain_allocated",         "cht_fill_cht_successful",
+    "sketch_allocation_succeeded",
+};
+
+static std::vector<std::string> rounting_functions{
+    "packet_send",
+    "packet_free",
+    "packet_broadcast",
+};
+
+static std::unordered_set<std::string> bdd_symbols{
+    "DEVICE",
+    "pkt_len",
+    "next_time",
+};
+
+static std::unordered_map<std::string, std::unordered_set<std::string>>
+    symbols_from_call = {
+        {
+            "rte_lcore_count",
+            {"lcores"},
+        },
+        {
+            "rte_ether_addr_hash",
+            {"rte_ether_addr_hash"},
+        },
+        {
+            "nf_set_rte_ipv4_udptcp_checksum",
+            {"checksum"},
+        },
+        {
+            "current_time",
+            {"next_time"},
+        },
+        {
+            "packet_receive",
+            {"DEVICE", "pkt_len"},
+        },
+        {
+            "expire_items_single_map",
+            {"number_of_freed_flows"},
+        },
+        {
+            "expire_items_single_map_iteratively",
+            {"number_of_freed_flows"},
+        },
+        {
+            "map_get",
+            {"map_has_this_key", "allocated_index"},
+        },
+        {
+            "dchain_is_index_allocated",
+            {"dchain_is_index_allocated"},
+        },
+        {
+            "dchain_allocate_new_index",
+            {"out_of_space", "new_index"},
+        },
+        {
+            "vector_borrow",
+            {"vector_data_reset"},
+        },
+        {
+            "cht_find_preferred_available_backend",
+            {"chosen_backend", "prefered_backend_found"},
+        },
+        {
+            "sketch_fetch",
+            {"overflow"},
+        },
+        {
+            "sketch_touch_buckets",
+            {"success"},
+        },
+        {
+            "hash_obj",
+            {"hash"},
+        },
+};
+
+typedef symbols_t (*SymbolsExtractor)(const call_t &call,
+                                      const symbols_t &all_symbols);
+
+static symbols_t packet_chunks_symbol_extractor(const call_t &call,
+                                                const symbols_t &all_symbols) {
+  assert(call.function_name == "packet_borrow_next_chunk");
+
+  const extra_var_t &extra_var = call.extra_vars.at("the_chunk");
+  klee::ref<klee::Expr> packet_chunk = extra_var.second;
+
+  symbol_t symbol;
+  bool found = get_symbol(all_symbols, "packet_chunks", symbol);
+  assert(found && "Symbol not found");
+
+  symbol.expr = packet_chunk;
+  return {symbol};
+}
+
+static std::unordered_map<std::string, SymbolsExtractor>
+    special_symbols_extractors = {
+        {
+            "packet_borrow_next_chunk",
+            packet_chunks_symbol_extractor,
+        },
+};
 
 void BDD::visit(BDDVisitor &visitor) const { visitor.visit(*this); }
 
-Node_ptr BDD::get_node_by_id(node_id_t _id) const {
-  std::vector<Node_ptr> nodes{nf_init, nf_process};
-  Node_ptr node;
+const Node *BDD::get_node_by_id(node_id_t _id) const {
+  std::vector<const Node *> nodes{root};
+  const Node *node;
 
   while (nodes.size()) {
     node = nodes[0];
     nodes.erase(nodes.begin());
 
-    if (node->get_id() == _id) {
+    if (node->get_id() == _id)
       return node;
-    }
 
     if (node->get_type() == Node::NodeType::BRANCH) {
-      auto branch_node = static_cast<Branch *>(node.get());
-
+      const Branch *branch_node = static_cast<const Branch *>(node);
       nodes.push_back(branch_node->get_on_true());
       nodes.push_back(branch_node->get_on_false());
     } else if (node->get_next()) {
@@ -44,96 +166,116 @@ Node_ptr BDD::get_node_by_id(node_id_t _id) const {
   return node;
 }
 
-BDD BDD::clone() const {
-  BDD bdd = *this;
-
-  assert(bdd.nf_init);
-  assert(bdd.nf_process);
-
-  bdd.nf_init = bdd.nf_init->clone(true);
-  bdd.nf_process = bdd.nf_process->clone(true);
-
-  return bdd;
+static bool is_bdd_symbol(const std::string &symbol) {
+  return bdd_symbols.find(symbol) != bdd_symbols.end();
 }
 
-std::string get_fname(const Node *node) {
-  assert(node->get_type() == Node::NodeType::CALL);
-  const Call *call = static_cast<const Call *>(node);
-  return call->get_call().function_name;
+static bool is_init_function(const call_t &call) {
+  return std::find(init_functions.begin(), init_functions.end(),
+                   call.function_name) != init_functions.end();
 }
 
-bool is_skip_function(const Node *node) {
-  auto fname = get_fname(node);
-  return call_paths_t::is_skip_function(fname);
+static bool is_skip_function(const call_t &call) {
+  return std::find(ignored_functions.begin(), ignored_functions.end(),
+                   call.function_name) != ignored_functions.end();
 }
 
-bool is_skip_condition(const Node *node) {
-  assert(node->get_type() == Node::NodeType::BRANCH);
-  const Branch *branch = static_cast<const Branch *>(node);
-  auto cond = branch->get_condition();
+static bool is_routing_function(const call_t &call) {
+  return std::find(rounting_functions.begin(), rounting_functions.end(),
+                   call.function_name) != rounting_functions.end();
+}
 
-  kutil::RetrieveSymbols retriever;
-  retriever.visit(cond);
+static bool is_skip_condition(klee::ref<klee::Expr> condition) {
+  kutil::SymbolRetriever retriever;
+  retriever.visit(condition);
 
-  auto symbols = retriever.get_retrieved_strings();
-  for (const auto &symbol : symbols) {
-    auto found_it = std::find(skip_conditions_with_symbol.begin(),
-                              skip_conditions_with_symbol.end(), symbol);
-    if (found_it != skip_conditions_with_symbol.end()) {
+  const std::unordered_set<std::string> &symbols =
+      retriever.get_retrieved_strings();
+
+  for (const std::string &symbol : symbols) {
+    auto base_symbol_comparator = [symbol](const std::string &s) {
+      return symbol.find(s) != std::string::npos;
+    };
+
+    auto found_it = std::find_if(symbols_in_skippable_conditions.begin(),
+                                 symbols_in_skippable_conditions.end(),
+                                 base_symbol_comparator);
+
+    if (found_it != symbols_in_skippable_conditions.end())
       return true;
-    }
   }
 
   return false;
 }
 
-call_t get_successful_call(std::vector<call_path_t *> call_paths) {
-  assert(call_paths.size());
+static Route *route_node_from_call(const call_t &call,
+                                   const klee::ConstraintManager &constraints,
+                                   node_id_t id) {
+  assert(is_routing_function(call));
 
-  for (const auto &cp : call_paths) {
-    assert(cp->calls.size());
-    call_t call = cp->calls[0];
-
-    if (call.ret.isNull()) {
-      return call;
-    }
-
-    auto zero =
-        kutil::solver_toolbox.exprBuilder->Constant(0, call.ret->getWidth());
-    auto eq_zero = kutil::solver_toolbox.exprBuilder->Eq(call.ret, zero);
-    auto is_ret_success = kutil::solver_toolbox.is_expr_always_false(eq_zero);
-
-    if (is_ret_success) {
-      return call;
-    }
+  if (call.function_name == "packet_free") {
+    return new Route(id, constraints, bdd::Route::Operation::DROP);
   }
 
-  // no function with successful return
+  if (call.function_name == "packet_broadcast") {
+    return new Route(id, constraints, bdd::Route::Operation::BCAST);
+  }
+
+  assert(call.function_name == "packet_send");
+
+  klee::ref<klee::Expr> dst_device = call.args.at("dst_device").expr;
+  assert(!dst_device.isNull());
+
+  int value = kutil::solver_toolbox.value_from_expr(dst_device);
+  return new Route(id, constraints, bdd::Route::Operation::FWD, value);
+}
+
+static call_t
+get_successful_call(const std::vector<call_path_t *> &call_paths) {
+  assert(call_paths.size());
+
+  for (call_path_t *cp : call_paths) {
+    assert(cp->calls.size());
+    const call_t &call = cp->calls[0];
+
+    if (call.ret.isNull())
+      return call;
+
+    klee::ref<klee::Expr> zero =
+        kutil::solver_toolbox.exprBuilder->Constant(0, call.ret->getWidth());
+    klee::ref<klee::Expr> eq_zero =
+        kutil::solver_toolbox.exprBuilder->Eq(call.ret, zero);
+    bool is_ret_success = kutil::solver_toolbox.is_expr_always_false(eq_zero);
+
+    if (is_ret_success)
+      return call;
+  }
+
+  // No function with successful return.
   return call_paths[0]->calls[0];
 }
 
-klee::ConstraintManager
-get_common_constraints(std::vector<call_path_t *> call_paths,
+static klee::ConstraintManager
+get_common_constraints(const std::vector<call_path_t *> &call_paths,
                        const klee::ConstraintManager &exclusion_list) {
   klee::ConstraintManager common;
 
-  if (call_paths.size() == 0 || call_paths[0]->constraints.size() == 0) {
+  if (call_paths.size() == 0 || call_paths[0]->constraints.size() == 0)
     return common;
-  }
 
-  auto call_path = call_paths[0];
+  call_path_t *call_path = call_paths[0];
 
-  for (auto constraint : call_path->constraints) {
-    auto is_common = true;
-    auto is_excluded = kutil::manager_contains(exclusion_list, constraint);
+  for (klee::ref<klee::Expr> constraint : call_path->constraints) {
+    bool is_common = true;
+    bool is_excluded = kutil::manager_contains(exclusion_list, constraint);
 
-    if (is_excluded) {
+    if (is_excluded)
       continue;
-    }
 
-    for (auto cp : call_paths) {
-      auto constraints = kutil::join_managers(cp->constraints, exclusion_list);
-      auto is_true =
+    for (call_path_t *cp : call_paths) {
+      klee::ConstraintManager constraints =
+          kutil::join_managers(cp->constraints, exclusion_list);
+      bool is_true =
           kutil::solver_toolbox.is_expr_always_true(constraints, constraint);
 
       if (!is_true) {
@@ -142,616 +284,319 @@ get_common_constraints(std::vector<call_path_t *> call_paths,
       }
     }
 
-    if (is_common) {
+    if (is_common)
       common.addConstraint(constraint);
-    }
   }
 
   return common;
 }
 
-klee::ref<klee::Expr> simplify_constraint(klee::ref<klee::Expr> constraint) {
+static klee::ref<klee::Expr>
+simplify_constraint(klee::ref<klee::Expr> constraint) {
   assert(!constraint.isNull());
 
-  auto simplified = kutil::simplify(constraint);
+  klee::ref<klee::Expr> simplified = kutil::simplify(constraint);
 
-  if (kutil::is_bool(simplified)) {
+  if (kutil::is_bool(simplified))
     return simplified;
-  }
 
-  auto width = simplified->getWidth();
-  auto zero = kutil::solver_toolbox.exprBuilder->Constant(0, width);
-  auto is_not_zero = kutil::solver_toolbox.exprBuilder->Ne(simplified, zero);
+  klee::Expr::Width width = simplified->getWidth();
+  klee::ref<klee::Expr> zero =
+      kutil::solver_toolbox.exprBuilder->Constant(0, width);
+  klee::ref<klee::Expr> is_not_zero =
+      kutil::solver_toolbox.exprBuilder->Ne(simplified, zero);
 
   return is_not_zero;
 }
 
-klee::ref<klee::Expr>
+static klee::ref<klee::Expr>
 negate_and_simplify_constraint(klee::ref<klee::Expr> constraint) {
   assert(!constraint.isNull());
 
-  auto simplified = kutil::simplify(constraint);
+  klee::ref<klee::Expr> simplified = kutil::simplify(constraint);
 
-  if (kutil::is_bool(simplified)) {
+  if (kutil::is_bool(simplified))
     return kutil::solver_toolbox.exprBuilder->Not(simplified);
-  }
 
-  auto width = simplified->getWidth();
-  auto zero = kutil::solver_toolbox.exprBuilder->Constant(0, width);
-  auto is_zero = kutil::solver_toolbox.exprBuilder->Eq(simplified, zero);
+  klee::Expr::Width width = simplified->getWidth();
+  klee::ref<klee::Expr> zero =
+      kutil::solver_toolbox.exprBuilder->Constant(0, width);
+  klee::ref<klee::Expr> is_zero =
+      kutil::solver_toolbox.exprBuilder->Eq(simplified, zero);
 
   return is_zero;
 }
 
-Node_ptr BDD::populate(call_paths_t call_paths,
-                       klee::ConstraintManager accumulated) {
-  Node_ptr local_root = nullptr;
-  Node_ptr local_leaf = nullptr;
-  klee::ConstraintManager empty_contraints;
+static std::optional<symbol_t> get_generated_symbol(
+    const symbols_t &symbols, const std::string &base_symbol,
+    std::unordered_map<std::string, size_t> &base_symbols_generated) {
+  std::vector<symbol_t> filtered;
 
-  auto return_raw =
-      std::make_shared<ReturnRaw>(id, empty_contraints, call_paths.backup);
-  id++;
+  for (const symbol_t &symbol : symbols) {
+    if (symbol.base == base_symbol)
+      filtered.push_back(symbol);
+  }
 
-  while (call_paths.cp.size()) {
+  auto symbol_cmp = [base_symbol](const symbol_t &a, const symbol_t &b) {
+    size_t base_a_pos = a.array->name.find(base_symbol);
+    size_t base_b_pos = b.array->name.find(base_symbol);
+
+    std::string a_suffix =
+        a.array->name.substr(base_a_pos + base_symbol.size());
+    std::string b_suffix =
+        b.array->name.substr(base_b_pos + base_symbol.size());
+
+    if (a_suffix.size() == 0)
+      return true;
+
+    if (b_suffix.size() == 0)
+      return false;
+
+    assert(a_suffix[0] == '_');
+    assert(b_suffix[0] == '_');
+
+    int a_suffix_num = std::stoi(a_suffix.substr(1));
+    int b_suffix_num = std::stoi(b_suffix.substr(1));
+
+    return a_suffix_num < b_suffix_num;
+  };
+
+  std::sort(filtered.begin(), filtered.end(), symbol_cmp);
+
+  size_t total_base_symbols_generated = 0;
+
+  if (base_symbols_generated.find(base_symbol) !=
+      base_symbols_generated.end()) {
+    total_base_symbols_generated = base_symbols_generated[base_symbol];
+  } else {
+    base_symbols_generated[base_symbol] = 0;
+  }
+
+  if (total_base_symbols_generated >= filtered.size()) {
+    // Not enough symbols for translation
+    return std::nullopt;
+  }
+
+  return filtered[total_base_symbols_generated];
+}
+
+static symbols_t get_generated_symbols(
+    const call_t &call,
+    std::unordered_map<std::string, size_t> &base_symbols_generated,
+    const symbols_t &symbols) {
+  symbols_t generated_symbols;
+
+  if (special_symbols_extractors.find(call.function_name) !=
+      special_symbols_extractors.end()) {
+    return special_symbols_extractors[call.function_name](call, symbols);
+  }
+
+  auto found_it = symbols_from_call.find(call.function_name);
+  if (found_it == symbols_from_call.end())
+    return generated_symbols;
+
+  const std::unordered_set<std::string> &call_symbols = found_it->second;
+
+  for (const std::string &base_symbol : call_symbols) {
+    std::optional<symbol_t> new_symbol =
+        get_generated_symbol(symbols, base_symbol, base_symbols_generated);
+
+    if (new_symbol) {
+      generated_symbols.insert(*new_symbol);
+      base_symbols_generated[base_symbol]++;
+    }
+  }
+
+  return generated_symbols;
+}
+
+static void pop_call_paths(call_paths_t &call_paths) {
+  for (call_path_t *cp : call_paths.cps) {
+    assert(cp->calls.size());
+    cp->calls.erase(cp->calls.begin());
+  }
+}
+
+static void build_bdd_symbols(const symbols_t &symbols,
+                              symbols_t &bdd_symbols) {
+  for (const symbol_t &symbol : symbols) {
+    if (is_bdd_symbol(symbol.base)) {
+      bdd_symbols.insert(symbol);
+    }
+  }
+}
+
+static Node *bdd_from_call_paths(
+    call_paths_t call_paths, NodeManager &manager, std::vector<call_t> &init,
+    node_id_t &id, symbols_t &bdd_symbols,
+    klee::ConstraintManager constraints = klee::ConstraintManager(),
+    std::unordered_map<std::string, size_t> base_symbols_generated =
+        std::unordered_map<std::string, size_t>()) {
+  Node *root = nullptr;
+  Node *leaf = nullptr;
+
+  if (call_paths.cps[0]->calls.size() == 0)
+    return root;
+
+  symbols_t symbols = call_paths.get_symbols();
+
+  while (call_paths.cps.size()) {
     CallPathsGroup group(call_paths);
 
-    auto on_true = group.get_on_true();
-    auto on_false = group.get_on_false();
+    const call_paths_t &on_true = group.get_on_true();
+    const call_paths_t &on_false = group.get_on_false();
 
-    if (on_true.cp.size() == call_paths.cp.size()) {
-      assert(on_false.cp.size() == 0);
+    if (on_true.cps[0]->calls.size() == 0) {
+      break;
+    }
 
-      if (on_true.cp[0]->calls.size() == 0) {
-        break;
+    if (on_true.cps.size() == call_paths.cps.size()) {
+      assert(on_false.cps.size() == 0);
+
+      call_t call = get_successful_call(call_paths.cps);
+
+      symbols_t generated_symbols =
+          get_generated_symbols(call, base_symbols_generated, symbols);
+
+      build_bdd_symbols(generated_symbols, bdd_symbols);
+
+      klee::ConstraintManager common_constraints =
+          get_common_constraints(call_paths.cps, constraints);
+
+      constraints = kutil::join_managers(constraints, common_constraints);
+
+      std::cerr << "\n";
+      std::cerr << "==================================\n";
+      std::cerr << "Call: " << call << "\n";
+      std::cerr << "Call paths:\n";
+      for (const call_path_t *cp : call_paths.cps)
+        std::cerr << "  " << cp->file_name << "\n";
+      std::cerr << "Generated symbols (" << generated_symbols.size() << "):\n";
+      for (const symbol_t &symbol : generated_symbols)
+        std::cerr << "  " << kutil::expr_to_string(symbol.expr, true) << "\n";
+      std::cerr << "Constraints (" << constraints.size() << "):\n";
+      for (const klee::ref<klee::Expr> &constraint : constraints)
+        std::cerr << "  " << kutil::expr_to_string(constraint, true) << "\n";
+      std::cerr << "==================================\n";
+
+      if (is_init_function(call)) {
+        init.push_back(call);
+      } else if (!is_skip_function(call)) {
+        Node *node;
+
+        if (is_routing_function(call)) {
+          node = route_node_from_call(call, constraints, id);
+        } else {
+          node = new Call(id, constraints, call, generated_symbols);
+        }
+
+        manager.add_node(node);
+        id++;
+
+        if (root == nullptr) {
+          root = node;
+          leaf = node;
+        } else {
+          leaf->set_next(node);
+          node->set_prev(leaf);
+          leaf = node;
+        }
       }
 
-      auto call = get_successful_call(on_true.cp);
-      auto constraints = get_common_constraints(on_true.cp, accumulated);
-      auto node = std::make_shared<Call>(id, constraints, call);
-
-      accumulated = kutil::join_managers(accumulated, constraints);
-      id++;
-
-      // root node
-      if (local_root == nullptr) {
-        local_root = node;
-        local_leaf = node;
-      } else {
-        local_leaf->add_next(node);
-        node->add_prev(local_leaf);
-
-        assert(node->get_prev());
-        assert(node->get_prev()->get_id() == local_leaf->get_id());
-
-        local_leaf = node;
-      }
-
-      for (auto &cp : call_paths.cp) {
-        assert(cp->calls.size());
-        cp->calls.erase(cp->calls.begin());
-      }
+      pop_call_paths(call_paths);
     } else {
-      auto discriminating_constraint = group.get_discriminating_constraint();
+      klee::ref<klee::Expr> discriminating_constraint =
+          group.get_discriminating_constraint();
 
-      auto constraint = simplify_constraint(discriminating_constraint);
-      auto not_constraint =
+      klee::ref<klee::Expr> condition =
+          simplify_constraint(discriminating_constraint);
+      klee::ref<klee::Expr> not_condition =
           negate_and_simplify_constraint(discriminating_constraint);
 
-      auto node = std::make_shared<Branch>(id, empty_contraints, constraint);
-
-      id++;
-
-      auto on_true_accumulated = accumulated;
-      auto on_false_accumulated = accumulated;
-
-      for (auto cp : on_true.cp) {
-        assert(kutil::solver_toolbox.is_expr_always_true(cp->constraints,
-                                                         constraint));
-        assert(kutil::solver_toolbox.is_expr_always_false(cp->constraints,
-                                                          not_constraint));
-      }
-
-      for (auto cp : on_false.cp) {
-        assert(kutil::solver_toolbox.is_expr_always_true(cp->constraints,
-                                                         not_constraint));
-        assert(kutil::solver_toolbox.is_expr_always_false(cp->constraints,
-                                                          constraint));
-      }
-
-      on_true_accumulated.addConstraint(constraint);
-      on_false_accumulated.addConstraint(not_constraint);
-
-      auto on_true_root = populate(on_true, on_true_accumulated);
-      auto on_false_root = populate(on_false, on_false_accumulated);
-
-      node->add_on_true(on_true_root);
-      node->add_on_false(on_false_root);
-
-      on_true_root->replace_prev(node);
-      on_false_root->replace_prev(node);
-
-      assert(on_true_root->get_prev());
-      assert(on_true_root->get_prev()->get_id() == node->get_id());
-
-      assert(on_false_root->get_prev());
-      assert(on_false_root->get_prev()->get_id() == node->get_id());
-
-      if (local_root == nullptr) {
-        return node;
-      }
-
-      local_leaf->add_next(node);
-      node->add_prev(local_leaf);
-
-      assert(node->get_prev());
-      assert(node->get_prev()->get_id() == local_leaf->get_id());
-
-      return local_root;
-    }
-  }
-
-  if (local_root == nullptr) {
-    local_root = return_raw;
-  } else {
-    return_raw->update_id(id);
-    id++;
-
-    local_leaf->add_next(return_raw);
-    return_raw->add_prev(local_leaf);
-
-    assert(return_raw->get_prev());
-    assert(return_raw->get_prev()->get_id() == local_leaf->get_id());
-  }
-
-  return local_root;
-}
-
-Node_ptr BDD::populate_init(const Node_ptr &root) {
-  Node *node = root.get();
-  assert(node);
-
-  Node_ptr local_root;
-  Node_ptr local_leaf;
-  Node_ptr new_node;
-
-  bool build_return = true;
-
-  while (node) {
-    new_node = nullptr;
-
-    switch (node->get_type()) {
-    case Node::NodeType::CALL: {
-      if (get_fname(node) == INIT_CONTEXT_MARKER) {
-        node = nullptr;
-        break;
-      }
-
-      if (!is_skip_function(node)) {
-        new_node = node->clone();
-        new_node->disconnect();
-        assert(new_node);
-      }
-
-      node = node->get_next().get();
-      assert(node);
-      break;
-    };
-    case Node::NodeType::BRANCH: {
-      auto root_branch = static_cast<const Branch *>(node);
-
-      auto on_true_node = populate_init(root_branch->get_on_true());
-      auto on_false_node = populate_init(root_branch->get_on_false());
-
-      assert(on_true_node);
-      assert(on_false_node);
-
-      auto cloned = node->clone();
-      auto branch = static_cast<Branch *>(cloned.get());
-
-      branch->replace_on_true(on_true_node);
-      branch->replace_on_false(on_false_node);
-
-      on_true_node->replace_prev(cloned);
-      on_false_node->replace_prev(cloned);
-
-      assert(on_true_node->get_prev());
-      assert(on_true_node->get_prev()->get_id() == branch->get_id());
-
-      assert(on_false_node->get_prev());
-      assert(on_false_node->get_prev()->get_id() == branch->get_id());
-
-      new_node = cloned;
-      node = nullptr;
-      build_return = false;
-
-      break;
-    };
-    case Node::NodeType::RETURN_RAW: {
-      auto root_return_raw = static_cast<const ReturnRaw *>(node);
-      new_node = std::make_shared<ReturnInit>(id, root_return_raw);
-
-      id++;
-      node = nullptr;
-      build_return = false;
-      break;
-    };
-    default: {
-      assert(false && "Should not encounter return nodes here");
-    };
-    }
-
-    if (new_node && local_leaf == nullptr) {
-      local_root = new_node;
-      local_leaf = local_root;
-    } else if (new_node) {
-      local_leaf->replace_next(new_node);
-      new_node->replace_prev(local_leaf);
-
-      assert(new_node->get_prev());
-      assert(new_node->get_prev()->get_id() == local_leaf->get_id());
-
-      local_leaf = new_node;
-    }
-  }
-
-  auto empty_constraints = klee::ConstraintManager();
-
-  if (local_root == nullptr) {
-    local_root = std::make_shared<ReturnInit>(id, nullptr, empty_constraints,
-                                              ReturnInit::ReturnType::SUCCESS);
-    id++;
-  }
-
-  if (build_return && local_leaf) {
-    auto ret = std::make_shared<ReturnInit>(id, nullptr, empty_constraints,
-                                            ReturnInit::ReturnType::SUCCESS);
-    id++;
-
-    local_leaf->replace_next(ret);
-    ret->replace_prev(local_leaf);
-
-    assert(ret->get_prev());
-    assert(ret->get_prev()->get_id() == local_leaf->get_id());
-  }
-
-  return local_root;
-}
-
-Node_ptr BDD::populate_process(const Node_ptr &root, bool store) {
-  Node *node = root.get();
-
-  Node_ptr local_root;
-  Node_ptr local_leaf;
-  Node_ptr new_node;
-
-  while (node != nullptr) {
-    new_node = nullptr;
-
-    switch (node->get_type()) {
-    case Node::NodeType::CALL: {
-      if (get_fname(node) == INIT_CONTEXT_MARKER) {
-        store = true;
-        node = node->get_next().get();
-        break;
-      }
-
-      if (store && !is_skip_function(node)) {
-        new_node = node->clone();
-        new_node->disconnect();
-      }
-
-      node = node->get_next().get();
-      break;
-    };
-    case Node::NodeType::BRANCH: {
-      auto root_branch = static_cast<const Branch *>(node);
-      assert(root_branch->get_on_true());
-      assert(root_branch->get_on_false());
-
-      auto on_true_node = populate_process(root_branch->get_on_true(), store);
-      auto on_false_node = populate_process(root_branch->get_on_false(), store);
-
-      assert(on_true_node);
-      assert(on_false_node);
-
-      auto skip = is_skip_condition(node);
-      auto equal = false;
-
-      if (on_true_node->get_type() == Node::NodeType::RETURN_PROCESS &&
-          on_false_node->get_type() == Node::NodeType::RETURN_PROCESS) {
-
-        auto on_true_ret_process =
-            static_cast<ReturnProcess *>(on_true_node.get());
-        auto on_false_ret_process =
-            static_cast<ReturnProcess *>(on_false_node.get());
-
-        equal |= (on_true_ret_process->get_return_operation() ==
-                      on_false_ret_process->get_return_operation() &&
-                  on_true_ret_process->get_return_value() ==
-                      on_false_ret_process->get_return_value());
-      }
-
-      if (store && equal) {
-        new_node = on_true_node;
-      } else if (store && !skip) {
-        auto clone = node->clone();
-        auto branch = static_cast<Branch *>(clone.get());
-
-        branch->replace_on_true(on_true_node);
-        branch->replace_on_false(on_false_node);
-
-        on_true_node->replace_prev(clone);
-        on_false_node->replace_prev(clone);
-
-        assert(on_true_node->get_prev());
-        assert(on_true_node->get_prev()->get_id() == branch->get_id());
-
-        assert(on_false_node->get_prev());
-        assert(on_false_node->get_prev()->get_id() == branch->get_id());
-
-        new_node = clone;
-      } else {
-        auto on_true_empty =
-            on_true_node->get_type() == Node::NodeType::RETURN_INIT ||
-            on_true_node->get_type() == Node::NodeType::RETURN_PROCESS;
-
-        auto on_false_empty =
-            on_false_node->get_type() == Node::NodeType::RETURN_INIT ||
-            on_false_node->get_type() == Node::NodeType::RETURN_PROCESS;
-
-        if (on_true_node->get_type() == Node::NodeType::RETURN_PROCESS) {
-          auto on_true_return_process =
-              static_cast<ReturnProcess *>(on_true_node.get());
-          on_true_empty |= (on_true_return_process->get_return_operation() ==
-                            ReturnProcess::Operation::ERR);
+      klee::ConstraintManager on_true_constraints = constraints;
+      klee::ConstraintManager on_false_constraints = constraints;
+
+      on_true_constraints.addConstraint(condition);
+      on_false_constraints.addConstraint(not_condition);
+
+      std::cerr << "\n";
+      std::cerr << "==================================\n";
+      std::cerr << "Condition: " << kutil::expr_to_string(condition, true)
+                << "\n";
+      std::cerr << "On true call paths:\n";
+      for (const call_path_t *cp : on_true.cps)
+        std::cerr << "  " << cp->file_name << "\n";
+      std::cerr << "On False call paths:\n";
+      for (const call_path_t *cp : on_false.cps)
+        std::cerr << "  " << cp->file_name << "\n";
+      std::cerr << "==================================\n";
+
+      if (is_skip_condition(condition)) {
+        // Assumes the right path is the one with the most call paths (or the on
+        // true path, somehwat arbitrarily...)
+        if (on_true.cps.size() >= on_false.cps.size()) {
+          call_paths = on_true;
+        } else {
+          call_paths = on_false;
         }
-
-        if (on_false_node->get_type() == Node::NodeType::RETURN_PROCESS) {
-          auto on_false_return_process =
-              static_cast<ReturnProcess *>(on_false_node.get());
-          on_false_empty |= (on_false_return_process->get_return_operation() ==
-                             ReturnProcess::Operation::ERR);
-        }
-
-        assert(on_true_empty || on_false_empty);
-        new_node = on_false_empty ? on_true_node : on_false_node;
-      }
-
-      node = nullptr;
-      break;
-    };
-    case Node::NodeType::RETURN_RAW: {
-      auto root_return_raw = static_cast<const ReturnRaw *>(node);
-      new_node = std::make_shared<ReturnProcess>(id, root_return_raw);
-
-      id++;
-      node = nullptr;
-      break;
-    };
-    default: {
-      assert(false && "Should not encounter return nodes here");
-    };
-    }
-
-    if (new_node && local_leaf == nullptr) {
-      local_root = new_node;
-      local_leaf = new_node;
-    } else if (new_node) {
-      local_leaf->replace_next(new_node);
-      new_node->replace_prev(local_leaf);
-
-      local_leaf = new_node;
-    }
-  }
-
-  assert(local_root);
-  return local_root;
-}
-
-void BDD::rename_symbols() {
-  SymbolFactory factory;
-
-  rename_symbols(nf_init, factory);
-  rename_symbols(nf_process, factory);
-}
-
-void BDD::rename_symbols(Node_ptr node, SymbolFactory &factory) {
-  assert(node);
-
-  while (node) {
-    if (node->get_type() == Node::NodeType::BRANCH) {
-      auto branch_node = static_cast<Branch *>(node.get());
-
-      factory.push();
-      rename_symbols(branch_node->get_on_true(), factory);
-      factory.pop();
-
-      factory.push();
-      rename_symbols(branch_node->get_on_false(), factory);
-      factory.pop();
-
-      return;
-    }
-
-    if (node->get_type() == Node::NodeType::CALL) {
-      auto call_node = static_cast<Call *>(node.get());
-      auto call = call_node->get_call();
-
-      factory.translate(call, node);
-
-      node = node->get_next();
-    } else {
-      return;
-    }
-  }
-}
-
-std::string BDD::hash() const {
-  assert(nf_process);
-  return nf_process->hash(true);
-}
-
-struct symbols_merger_t {
-  std::unordered_map<std::string, klee::UpdateList> roots_updates;
-  kutil::ReplaceSymbols replacer;
-
-  klee::ConstraintManager
-  save_and_merge(const klee::ConstraintManager &constraints) {
-    klee::ConstraintManager new_constraints;
-
-    for (auto c : constraints) {
-      auto new_c = save_and_merge(c);
-      new_constraints.addConstraint(new_c);
-    }
-
-    return new_constraints;
-  }
-
-  call_t save_and_merge(const call_t &call) {
-    call_t new_call = call;
-
-    for (auto it = call.args.begin(); it != call.args.end(); it++) {
-      const auto &arg = call.args.at(it->first);
-
-      new_call.args[it->first].expr = save_and_merge(arg.expr);
-      new_call.args[it->first].in = save_and_merge(arg.in);
-      new_call.args[it->first].out = save_and_merge(arg.out);
-    }
-
-    for (auto it = call.extra_vars.begin(); it != call.extra_vars.end(); it++) {
-      const auto &extra_var = call.extra_vars.at(it->first);
-
-      new_call.extra_vars[it->first].first = save_and_merge(extra_var.first);
-      new_call.extra_vars[it->first].second = save_and_merge(extra_var.second);
-    }
-
-    new_call.ret = save_and_merge(call.ret);
-
-    return new_call;
-  }
-
-  klee::ref<klee::Expr> save_and_merge(klee::ref<klee::Expr> expr) {
-    if (expr.isNull()) {
-      return expr;
-    }
-
-    kutil::RetrieveSymbols retriever;
-    retriever.visit(expr);
-
-    auto expr_roots_updates = retriever.get_retrieved_roots_updates();
-
-    for (auto it = expr_roots_updates.begin(); it != expr_roots_updates.end();
-         it++) {
-      if (roots_updates.find(it->first) != roots_updates.end()) {
         continue;
       }
 
-      roots_updates.insert({it->first, it->second});
-    }
+      Branch *node = new Branch(id, constraints, condition);
+      id++;
+      manager.add_node(node);
 
-    replacer.add_roots_updates(expr_roots_updates);
-    return replacer.visit(expr);
-  }
-};
+      Node *on_true_root =
+          bdd_from_call_paths(on_true, manager, init, id, bdd_symbols,
+                              constraints, base_symbols_generated);
+      Node *on_false_root =
+          bdd_from_call_paths(on_false, manager, init, id, bdd_symbols,
+                              constraints, base_symbols_generated);
 
-void BDD::merge_symbols() {
-  symbols_merger_t merger;
-  std::vector<Node_ptr> nodes{nf_init, nf_process};
+      assert(on_true_root && on_false_root);
 
-  while (nodes.size()) {
-    auto node = nodes[0];
-    nodes.erase(nodes.begin());
+      node->set_on_true(on_true_root);
+      node->set_on_false(on_false_root);
 
-    auto constraints = node->get_node_constraints();
-    auto new_constraints = merger.save_and_merge(constraints);
-    node->set_node_constraints(new_constraints);
-    assert(new_constraints.size() == constraints.size());
+      on_true_root->set_prev(node);
+      on_false_root->set_prev(node);
 
-    switch (node->get_type()) {
-    case Node::NodeType::CALL: {
-      auto call_node = static_cast<Call *>(node.get());
-      auto call = call_node->get_call();
-      auto new_call = merger.save_and_merge(call);
+      if (root == nullptr)
+        return node;
 
-      call_node->set_call(new_call);
+      leaf->set_next(node);
+      node->set_prev(leaf);
 
-      nodes.push_back(call_node->get_next());
-    } break;
-    case Node::NodeType::BRANCH: {
-      auto branch_node = static_cast<Branch *>(node.get());
-      auto condition = branch_node->get_condition();
-      auto new_condition = merger.save_and_merge(condition);
-
-      branch_node->set_condition(new_condition);
-
-      nodes.push_back(branch_node->get_on_true());
-      nodes.push_back(branch_node->get_on_false());
-    } break;
-    default:
-      continue;
+      return root;
     }
   }
 
-  roots_updates = merger.roots_updates;
+  return root;
 }
 
-klee::ref<klee::Expr> BDD::get_symbol(const std::string &name) const {
-  assert(roots_updates.find(name) != roots_updates.end());
+BDD::BDD(const call_paths_t &call_paths) : id(0) {
+  symbols_t bdd_symbols;
+  root = bdd_from_call_paths(call_paths, manager, init, id, bdd_symbols);
 
-  const auto &updates = roots_updates.at(name);
-  const auto &root = updates.root;
-
-  const auto &size = root->getSize();
-  const auto &domain = root->domain;
-
-  auto read_entire_symbol = klee::ref<klee::Expr>();
-
-  for (auto i = 0u; i < size; i++) {
-    auto index = kutil::solver_toolbox.exprBuilder->Constant(i, domain);
-
-    if (read_entire_symbol.isNull()) {
-      read_entire_symbol =
-          kutil::solver_toolbox.exprBuilder->Read(updates, index);
-      continue;
-    }
-
-    read_entire_symbol = kutil::solver_toolbox.exprBuilder->Concat(
-        kutil::solver_toolbox.exprBuilder->Read(updates, index),
-        read_entire_symbol);
-  }
-
-  return read_entire_symbol;
-}
-
-uint64_t BDD::get_max_node_id() const {
-  std::vector<Node_ptr> nodes{nf_init, nf_process};
-  uint64_t max_id = 0;
-
-  while (nodes.size()) {
-    auto node = nodes[0];
-    nodes.erase(nodes.begin());
-
-    if (node->get_id() > max_id) {
-      max_id = node->get_id();
-    }
-
-    switch (node->get_type()) {
-    case Node::NodeType::CALL: {
-      auto call_node = static_cast<Call *>(node.get());
-      nodes.push_back(call_node->get_next());
-    } break;
-    case Node::NodeType::BRANCH: {
-      auto branch_node = static_cast<Branch *>(node.get());
-      nodes.push_back(branch_node->get_on_true());
-      nodes.push_back(branch_node->get_on_false());
-    } break;
-    default:
-      continue;
+  for (const symbol_t &symbol : bdd_symbols) {
+    if (symbol.base == "DEVICE") {
+      device = symbol.expr;
+    } else if (symbol.base == "pkt_len") {
+      packet_len = symbol.expr;
+    } else if (symbol.base == "next_time") {
+      time = symbol.expr;
+    } else {
+      assert(false && "Unknown BDD symbol");
     }
   }
 
-  return max_id;
+  // Some NFs don't care about the device, so it doesn't show up on the call
+  // paths.
+  if (device.isNull()) {
+    device = kutil::solver_toolbox.create_new_symbol("DEVICE", 32);
+  }
 }
 
-} // namespace BDD
+BDD::BDD(const std::string &file_path) : id(0) { deserialize(file_path); }
+
+} // namespace bdd

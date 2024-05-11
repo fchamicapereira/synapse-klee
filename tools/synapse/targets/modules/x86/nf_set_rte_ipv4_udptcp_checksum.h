@@ -10,24 +10,24 @@ class SetIpv4UdpTcpChecksum : public x86Module {
 private:
   addr_t ip_header_addr;
   addr_t l4_header_addr;
-  BDD::symbol_t checksum;
+  bdd::symbol_t checksum;
 
 public:
   SetIpv4UdpTcpChecksum()
       : x86Module(ModuleType::x86_SetIpv4UdpTcpChecksum, "SetIpChecksum") {}
 
-  SetIpv4UdpTcpChecksum(BDD::Node_ptr node, addr_t _ip_header_addr,
-                        addr_t _l4_header_addr, BDD::symbol_t _checksum)
+  SetIpv4UdpTcpChecksum(bdd::Node_ptr node, addr_t _ip_header_addr,
+                        addr_t _l4_header_addr, bdd::symbol_t _checksum)
       : x86Module(ModuleType::x86_SetIpv4UdpTcpChecksum, "SetIpChecksum", node),
         ip_header_addr(_ip_header_addr), l4_header_addr(_l4_header_addr),
         checksum(_checksum) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -35,17 +35,17 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == BDD::symbex::FN_SET_CHECKSUM) {
-      assert(!call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_IP].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_L4].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_PACKET].expr.isNull());
+    if (call.function_name == "nf_set_rte_ipv4_udptcp_checksum") {
+      assert(!call.args["ip_header"].expr.isNull());
+      assert(!call.args["l4_header"].expr.isNull());
+      assert(!call.args["packet"].expr.isNull());
 
-      auto _ip_header = call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_IP].expr;
-      auto _l4_header = call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_L4].expr;
-      auto _p = call.args[BDD::symbex::FN_SET_CHECKSUM_ARG_PACKET].expr;
+      auto _ip_header = call.args["ip_header"].expr;
+      auto _l4_header = call.args["l4_header"].expr;
+      auto _p = call.args["packet"].expr;
 
-      auto _generated_symbols = casted->get_local_generated_symbols();
-      auto _checksum = BDD::get_symbol(_generated_symbols, BDD::symbex::CHECKSUM);
+      auto _generated_symbols = casted->get_locally_generated_symbols();
+      auto _checksum = bdd::get_symbol(_generated_symbols, "checksum");
 
       auto _ip_header_addr = kutil::expr_addr_to_obj_addr(_ip_header);
       auto _l4_header_addr = kutil::expr_addr_to_obj_addr(_l4_header);
@@ -97,7 +97,7 @@ public:
 
   addr_t get_ip_header_addr() const { return ip_header_addr; }
   addr_t get_l4_header_addr() const { return l4_header_addr; }
-  const BDD::symbol_t &get_checksum() const { return checksum; }
+  const bdd::symbol_t &get_checksum() const { return checksum; }
 };
 } // namespace x86
 } // namespace targets

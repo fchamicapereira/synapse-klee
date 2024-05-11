@@ -18,7 +18,7 @@ private:
 public:
   If() : TofinoModule(ModuleType::Tofino_If, "If") {}
 
-  If(BDD::Node_ptr node, conditions_t _conditions)
+  If(bdd::Node_ptr node, conditions_t _conditions)
       : TofinoModule(ModuleType::Tofino_If, "If", node),
         conditions(_conditions) {}
 
@@ -29,7 +29,7 @@ private:
     constexpr int MAX_PACKET_BYTES = 4;
 
     for (auto condition : _conditions) {
-      kutil::RetrieveSymbols retriever;
+      kutil::SymbolRetriever retriever;
       retriever.visit(condition);
 
       auto chunks = retriever.get_retrieved_packet_chunks();
@@ -80,10 +80,10 @@ private:
   }
 
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Branch>(node);
+    auto casted = bdd::cast_node<bdd::Branch>(node);
 
     if (!casted) {
       return result;

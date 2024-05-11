@@ -1,6 +1,6 @@
 #include "reporter.h"
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 std::string get_human_readable_time_duration(std::chrono::nanoseconds elapsed) {
@@ -115,4 +115,4 @@ void Reporter::show(bool force_update) {
 }
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

@@ -18,8 +18,7 @@ public:
 
   ExprPrettyPrinter() : ExprPrettyPrinter(false) {}
 
-  static std::string print(klee::ref<klee::Expr> expr,
-                           bool use_signed = false) {
+  static std::string print(klee::ref<klee::Expr> expr, bool use_signed = true) {
     assert(!expr.isNull());
 
     if (expr->getKind() != klee::Expr::Kind::Constant) {
@@ -41,22 +40,22 @@ public:
       };
       case klee::Expr::Int8: {
         int8_t value = constant->getZExtValue(8);
-        ss << value;
+        ss << (int)value;
         break;
       };
       case klee::Expr::Int16: {
         int16_t value = constant->getZExtValue(16);
-        ss << value;
+        ss << (int)value;
         break;
       };
       case klee::Expr::Int32: {
         int32_t value = constant->getZExtValue(32);
-        ss << value;
+        ss << (int)value;
         break;
       };
       case klee::Expr::Int64: {
         int64_t value = constant->getZExtValue(64);
-        ss << value;
+        ss << (int)value;
         break;
       };
       default: {
@@ -503,8 +502,8 @@ public:
   }
 };
 
-std::string pretty_print_expr(klee::ref<klee::Expr> expr) {
-  return ExprPrettyPrinter::print(expr);
+std::string pretty_print_expr(klee::ref<klee::Expr> expr, bool use_signed) {
+  return ExprPrettyPrinter::print(expr, use_signed);
 }
 
 std::string expr_to_string(klee::ref<klee::Expr> expr, bool one_liner) {

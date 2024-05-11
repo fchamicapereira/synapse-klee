@@ -1,34 +1,38 @@
 #pragma once
 
+#include <optional>
+
 #include "node.h"
 
-namespace BDD {
+namespace bdd {
 
 class Call : public Node {
 private:
   call_t call;
+  symbols_t generated_symbols;
 
 public:
-  Call(node_id_t _id, const klee::ConstraintManager &_constraints, call_t _call)
-      : Node(_id, Node::NodeType::CALL, _constraints), call(_call) {}
+  Call(node_id_t _id, const klee::ConstraintManager &_constraints,
+       const call_t &_call, const symbols_t &_generated_symbols)
+      : Node(_id, Node::NodeType::CALL, _constraints), call(_call),
+        generated_symbols(_generated_symbols) {}
 
-  Call(node_id_t _id, const Node_ptr &_next, const Node_ptr &_prev,
-       const klee::ConstraintManager &_constraints, call_t _call)
+  Call(node_id_t _id, Node *_next, Node *_prev,
+       const klee::ConstraintManager &_constraints, call_t _call,
+       const symbols_t &_generated_symbols)
       : Node(_id, Node::NodeType::CALL, _next, _prev, _constraints),
-        call(_call) {}
+        call(_call), generated_symbols(_generated_symbols) {}
 
-  call_t get_call() const { return call; }
-  void set_call(call_t _call) { call = _call; }
+  const call_t &get_call() const { return call; }
 
-  symbols_t get_local_generated_symbols() const override;
+  symbols_t get_locally_generated_symbols(
+      std::vector<std::string> base_filters = {}) const;
 
-  virtual Node_ptr clone(bool recursive = false) const override;
-  virtual void recursive_update_ids(node_id_t &new_id) override;
+  virtual Node *clone(NodeManager &manager,
+                      bool recursive = false) const override;
 
   void visit(BDDVisitor &visitor) const override;
   std::string dump(bool one_liner = false) const;
 };
 
-#define BDD_CAST_CALL(NODE_PTR) (static_cast<BDD::Call *>((NODE_PTR).get()))
-
-} // namespace BDD
+} // namespace bdd

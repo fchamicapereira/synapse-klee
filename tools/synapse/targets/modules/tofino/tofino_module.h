@@ -4,8 +4,6 @@
 #include "data_structures/data_structures.h"
 #include "memory_bank.h"
 
-using BDD::symbex::CHUNK;
-
 namespace synapse {
 namespace targets {
 namespace tofino {
@@ -15,7 +13,7 @@ public:
   TofinoModule(ModuleType _type, const char *_name)
       : Module(_type, TargetType::Tofino, _name) {}
 
-  TofinoModule(ModuleType _type, const char *_name, BDD::Node_ptr node)
+  TofinoModule(ModuleType _type, const char *_name, bdd::Node_ptr node)
       : Module(_type, TargetType::Tofino, _name, node) {}
 
 protected:
@@ -23,7 +21,7 @@ protected:
   // other symbols (e.g. packet length).
   klee::ref<klee::Expr>
   cleanup_parsing_condition(klee::ref<klee::Expr> condition) const {
-    auto parser_cond = kutil::filter(condition, {BDD::symbex::CHUNK});
+    auto parser_cond = kutil::filter(condition, {"packet_chunks"});
 
     parser_cond = kutil::swap_packet_endianness(parser_cond);
     parser_cond = kutil::simplify(parser_cond);
@@ -41,15 +39,15 @@ protected:
   // A branch condition is considered a parsing condition if:
   //   - Has pending chunks to be borrowed in the future
   //   - Only looks at the packet
-  bool is_parser_condition(BDD::Node_ptr node) const {
-    auto casted = BDD::cast_node<BDD::Branch>(node);
+  bool is_parser_condition(bdd::Node_ptr node) const {
+    auto casted = bdd::cast_node<bdd::Branch>(node);
 
     if (!casted) {
       return false;
     }
 
     auto future_borrows =
-        get_all_functions_after_node(node, {BDD::symbex::FN_BORROW_CHUNK});
+        get_all_functions_after_node(node, {"packet_borrow_next_chunk"});
 
     if (future_borrows.size() == 0) {
       return false;
@@ -61,11 +59,11 @@ protected:
     return only_looks_at_packet;
   }
 
-  processing_result_t postpone(const ExecutionPlan &ep, BDD::Node_ptr node,
+  processing_result_t postpone(const ExecutionPlan &ep, bdd::Node_ptr node,
                                Module_ptr new_module) const;
-  ExecutionPlan apply_postponed(ExecutionPlan ep, BDD::Node_ptr current_node,
-                                BDD::Node_ptr next_node) const;
-  processing_result_t ignore(const ExecutionPlan &ep, BDD::Node_ptr node) const;
+  ExecutionPlan apply_postponed(ExecutionPlan ep, bdd::Node_ptr current_node,
+                                bdd::Node_ptr next_node) const;
+  processing_result_t ignore(const ExecutionPlan &ep, bdd::Node_ptr node) const;
 
 public:
   virtual void visit(ExecutionPlanVisitor &visitor,

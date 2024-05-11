@@ -16,7 +16,7 @@ public:
   PacketReturnChunk()
       : x86Module(ModuleType::x86_PacketReturnChunk, "PacketReturnChunk") {}
 
-  PacketReturnChunk(BDD::Node_ptr node, addr_t _chunk_addr,
+  PacketReturnChunk(bdd::Node_ptr node, addr_t _chunk_addr,
                     klee::ref<klee::Expr> _original_chunk,
                     const std::vector<modification_t> &_modifications)
       : x86Module(ModuleType::x86_PacketReturnChunk, "PacketReturnChunk", node),
@@ -25,31 +25,31 @@ public:
 
 private:
   klee::ref<klee::Expr> get_original_chunk(const ExecutionPlan &ep,
-                                           BDD::Node_ptr node) const {
-    auto prev_borrows = get_prev_fn(ep, node, BDD::symbex::FN_BORROW_CHUNK);
-    auto prev_returns = get_prev_fn(ep, node, BDD::symbex::FN_RETURN_CHUNK);
+                                           bdd::Node_ptr node) const {
+    auto prev_borrows = get_prev_fn(ep, node, "packet_borrow_next_chunk");
+    auto prev_returns = get_prev_fn(ep, node, "packet_return_chunk");
 
     assert(prev_borrows.size());
     assert(prev_borrows.size() > prev_returns.size());
 
     auto target = prev_borrows[prev_returns.size()];
 
-    auto call_node = BDD::cast_node<BDD::Call>(target);
+    auto call_node = bdd::cast_node<bdd::Call>(target);
     assert(call_node);
 
     auto call = call_node->get_call();
 
-    assert(call.function_name == BDD::symbex::FN_BORROW_CHUNK);
-    assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
+    assert(call.function_name == "packet_borrow_next_chunk");
+    assert(!call.extra_vars["the_chunk"].second.isNull());
 
-    return call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
+    return call.extra_vars["the_chunk"].second;
   }
 
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -57,15 +57,15 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != BDD::symbex::FN_RETURN_CHUNK) {
+    if (call.function_name != "packet_return_chunk") {
       return result;
     }
 
-    assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in.isNull());
+    assert(!call.args["the_chunk"].expr.isNull());
+    assert(!call.args["the_chunk"].in.isNull());
 
-    auto _chunk = call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].expr;
-    auto _current_chunk = call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in;
+    auto _chunk = call.args["the_chunk"].expr;
+    auto _current_chunk = call.args["the_chunk"].in;
     auto _original_chunk = get_original_chunk(ep, node);
 
     auto _chunk_addr = kutil::expr_addr_to_obj_addr(_chunk);

@@ -25,8 +25,7 @@ struct expr_group_t {
   klee::ref<klee::Expr> expr;
 };
 
-bool get_bytes_read(klee::ref<klee::Expr> expr,
-                    std::vector<byte_read_t> &bytes);
+std::vector<byte_read_t> get_bytes_read(klee::ref<klee::Expr> expr);
 std::vector<expr_group_t> get_expr_groups(klee::ref<klee::Expr> expr);
 void print_groups(const std::vector<expr_group_t> &groups);
 bool is_readLSB(klee::ref<klee::Expr> expr, std::string &symbol);
@@ -37,10 +36,10 @@ bool is_bool(klee::ref<klee::Expr> expr);
 bool is_constant(klee::ref<klee::Expr> expr);
 bool is_constant_signed(klee::ref<klee::Expr> expr);
 int64_t get_constant_signed(klee::ref<klee::Expr> expr);
-bool manager_contains(klee::ConstraintManager constraints,
+bool manager_contains(const klee::ConstraintManager &constraints,
                       klee::ref<klee::Expr> expr);
-klee::ConstraintManager join_managers(klee::ConstraintManager m1,
-                                      klee::ConstraintManager m2);
+klee::ConstraintManager join_managers(const klee::ConstraintManager &m1,
+                                      const klee::ConstraintManager &m2);
 
 bool has_symbols(klee::ref<klee::Expr> expr);
 std::unordered_set<std::string> get_symbols(klee::ref<klee::Expr> expr);

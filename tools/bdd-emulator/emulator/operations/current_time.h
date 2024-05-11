@@ -2,12 +2,12 @@
 
 #include "../internals/internals.h"
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
-inline void __current_time(const BDD& bdd, const Call *call_node, pkt_t &pkt, time_ns_t time,
-                           state_t &state, meta_t &meta, context_t &ctx,
-                           const cfg_t &cfg) {
+inline void __current_time(const BDD &bdd, const Call *call_node, pkt_t &pkt,
+                           time_ns_t time, state_t &state, meta_t &meta,
+                           context_t &ctx, const cfg_t &cfg) {
   auto call = call_node->get_call();
 
   assert(!call.ret.isNull());
@@ -17,8 +17,8 @@ inline void __current_time(const BDD& bdd, const Call *call_node, pkt_t &pkt, ti
 }
 
 inline std::pair<std::string, operation_ptr> current_time() {
-  return {symbex::FN_CURRENT_TIME, __current_time};
+  return {"current_time", __current_time};
 }
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

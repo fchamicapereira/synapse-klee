@@ -5,7 +5,7 @@
 
 #include <vector>
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 class Vector : public DataStructure {
@@ -37,4 +37,4 @@ public:
 };
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

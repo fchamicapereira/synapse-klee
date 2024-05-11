@@ -2,16 +2,18 @@
 #include "bdd.h"
 #include "nodes/nodes.h"
 
-namespace BDD {
+namespace bdd {
 void BDDVisitor::visit(const Branch *node) {
   if (!node)
     return;
 
-  auto action = visitBranch(node);
+  const Node *on_true = node->get_on_true();
+  const Node *on_false = node->get_on_false();
 
+  Action action = visitBranch(node);
   if (action == VISIT_CHILDREN) {
-    node->get_on_true()->visit(*this);
-    node->get_on_false()->visit(*this);
+    on_true->visit(*this);
+    on_false->visit(*this);
   }
 }
 
@@ -19,55 +21,34 @@ void BDDVisitor::visit(const Call *node) {
   if (!node)
     return;
 
-  auto action = visitCall(node);
+  const Node *next = node->get_next();
 
-  if (action == VISIT_CHILDREN) {
-    node->get_next()->visit(*this);
-  }
+  Action action = visitCall(node);
+  if (action == VISIT_CHILDREN && next)
+    next->visit(*this);
 }
 
-void BDDVisitor::visit(const ReturnInit *node) {
+void BDDVisitor::visit(const Route *node) {
   if (!node)
     return;
 
-  visitReturnInit(node);
-  assert(!node->get_next());
+  const Node *next = node->get_next();
+
+  Action action = visitRoute(node);
+  if (action == VISIT_CHILDREN && next)
+    next->visit(*this);
 }
 
-void BDDVisitor::visit(const ReturnProcess *node) {
-  if (!node)
+void BDDVisitor::visitRoot(const Node *root) {
+  if (!root)
     return;
-
-  visitReturnProcess(node);
-  assert(!node->get_next());
-}
-
-void BDDVisitor::visit(const ReturnRaw *node) {
-  if (!node)
-    return;
-
-  visitReturnRaw(node);
-  assert(!node->get_next());
+  root->visit(*this);
 }
 
 void BDDVisitor::visit(const BDD &bdd) {
-  assert(bdd.get_init());
-  visitInitRoot(bdd.get_init().get());
-
-  assert(bdd.get_process());
-  visitProcessRoot(bdd.get_process().get());
+  const Node *root = bdd.get_root();
+  assert(root);
+  visitRoot(root);
 }
 
-void BDDVisitor::visitInitRoot(const Node *root) {
-  if (!root)
-    return;
-  root->visit(*this);
-}
-
-void BDDVisitor::visitProcessRoot(const Node *root) {
-  if (!root)
-    return;
-  root->visit(*this);
-}
-
-} // namespace BDD
+} // namespace bdd

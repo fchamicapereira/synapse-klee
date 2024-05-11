@@ -14,18 +14,18 @@ private:
   klee::ref<klee::Expr> cht_height;
   klee::ref<klee::Expr> backend_capacity;
   klee::ref<klee::Expr> chosen_backend;
-  BDD::symbol_t found;
+  bdd::symbol_t found;
 
 public:
   ChtFindBackend()
       : x86Module(ModuleType::x86_ChtFindBackend, "ChtFindBackend") {}
 
-  ChtFindBackend(BDD::Node_ptr node, klee::ref<klee::Expr> _hash,
+  ChtFindBackend(bdd::Node_ptr node, klee::ref<klee::Expr> _hash,
                  addr_t _cht_addr, addr_t _active_backends_addr,
                  klee::ref<klee::Expr> _cht_height,
                  klee::ref<klee::Expr> _backend_capacity,
                  klee::ref<klee::Expr> _chosen_backend,
-                 const BDD::symbol_t &_found)
+                 const bdd::symbol_t &_found)
       : x86Module(ModuleType::x86_ChtFindBackend, "ChtFindBackend", node),
         hash(_hash), cht_addr(_cht_addr),
         active_backends_addr(_active_backends_addr), cht_height(_cht_height),
@@ -34,10 +34,10 @@ public:
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -45,30 +45,29 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != BDD::symbex::FN_CHT_FIND_BACKEND) {
+    if (call.function_name != "cht_find_preferred_available_backend") {
       return result;
     }
 
-    assert(!call.args[BDD::symbex::FN_CHT_ARG_HASH].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_CHT_ARG_CHT].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_CHT_ARG_ACTIVE].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_CHT_ARG_HEIGHT].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_CHT_ARG_CAPACITY].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_CHT_ARG_CHOSEN].out.isNull());
+    assert(!call.args["hash"].expr.isNull());
+    assert(!call.args["cht"].expr.isNull());
+    assert(!call.args["active_backends"].expr.isNull());
+    assert(!call.args["cht_height"].expr.isNull());
+    assert(!call.args["backend_capacity"].expr.isNull());
+    assert(!call.args["chosen_backend"].out.isNull());
 
-    auto _hash = call.args[BDD::symbex::FN_CHT_ARG_HASH].expr;
-    auto _cht = call.args[BDD::symbex::FN_CHT_ARG_CHT].expr;
-    auto _active = call.args[BDD::symbex::FN_CHT_ARG_ACTIVE].expr;
-    auto _height = call.args[BDD::symbex::FN_CHT_ARG_HEIGHT].expr;
-    auto _capacity = call.args[BDD::symbex::FN_CHT_ARG_CAPACITY].expr;
-    auto _chosen = call.args[BDD::symbex::FN_CHT_ARG_CHOSEN].out;
+    auto _hash = call.args["hash"].expr;
+    auto _cht = call.args["cht"].expr;
+    auto _active = call.args["active_backends"].expr;
+    auto _height = call.args["cht_height"].expr;
+    auto _capacity = call.args["backend_capacity"].expr;
+    auto _chosen = call.args["chosen_backend"].out;
 
     auto _cht_addr = kutil::expr_addr_to_obj_addr(_cht);
     auto _active_addr = kutil::expr_addr_to_obj_addr(_active);
 
-    auto _generated_symbols = casted->get_local_generated_symbols();
-    auto _found =
-        BDD::get_symbol(_generated_symbols, BDD::symbex::CHT_BACKEND_FOUND_SYMBOL);
+    auto _generated_symbols = casted->get_locally_generated_symbols();
+    auto _found = bdd::get_symbol(_generated_symbols, "prefered_backend_found");
 
     // cht is actually a vector
     save_vector(ep, _cht_addr);
@@ -151,7 +150,7 @@ public:
 
   klee::ref<klee::Expr> get_chosen_backend() const { return chosen_backend; }
 
-  const BDD::symbol_t &get_found() const { return found; }
+  const bdd::symbol_t &get_found() const { return found; }
 };
 } // namespace x86
 } // namespace targets

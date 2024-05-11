@@ -46,7 +46,7 @@ void ExecutionPlanNode::replace_prev(ExecutionPlanNode_ptr _prev) {
   prev = _prev;
 }
 
-void ExecutionPlanNode::replace_node(BDD::Node_ptr node) {
+void ExecutionPlanNode::replace_node(bdd::Node_ptr node) {
   module->replace_node(node);
 }
 

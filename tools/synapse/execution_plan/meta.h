@@ -9,7 +9,7 @@
 
 namespace synapse {
 
-typedef std::unordered_set<BDD::node_id_t> root_nodes_t;
+typedef std::unordered_set<bdd::node_id_t> root_nodes_t;
 
 struct ep_meta_t {
   unsigned depth;
@@ -19,7 +19,7 @@ struct ep_meta_t {
   std::unordered_map<TargetType, root_nodes_t> roots_per_target;
   std::unordered_map<TargetType, unsigned> nodes_per_target;
 
-  std::unordered_set<BDD::node_id_t> processed_nodes;
+  std::unordered_set<bdd::node_id_t> processed_nodes;
 
   ep_meta_t() : depth(0), nodes(0), reordered_nodes(0) {}
 

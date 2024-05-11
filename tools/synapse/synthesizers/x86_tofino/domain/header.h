@@ -116,7 +116,7 @@ public:
 
   const std::vector<hdr_field_t> &query_fields() const { return fields; }
 
-  Variable* get_field_var(hdr_field_id_t hdr_field_id) {
+  Variable *get_field_var(hdr_field_id_t hdr_field_id) {
     for (auto &field : fields) {
       if (field.hdr_field_id != hdr_field_id) {
         continue;
@@ -160,7 +160,7 @@ public:
   variable_query_t query_field(klee::ref<klee::Expr> expr) const {
     auto symbol = kutil::get_symbol(expr);
 
-    if (!symbol.first || symbol.second != BDD::symbex::CHUNK) {
+    if (!symbol.first || symbol.second != "packet_chunks") {
       return variable_query_t();
     }
 

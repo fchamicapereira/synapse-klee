@@ -25,7 +25,7 @@ void from_json(const json &j, config_t &config) {
 
 void from_json(const json &j, bdd_node_counters &counters) {
   for (const auto &kv : j.items()) {
-    BDD::node_id_t node_id = std::stoull(kv.key());
+    bdd::node_id_t node_id = std::stoull(kv.key());
     uint64_t count = kv.value();
     counters[node_id] = count;
   }

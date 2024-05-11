@@ -40,7 +40,7 @@ protected:
   std::string name;
   std::vector<key_t> keys;
   std::vector<param_t> params;
-  std::vector<BDD::symbol_t> hit;
+  std::vector<bdd::symbol_t> hit;
 
   bool manage_expirations;
   time_ms_t timeout;
@@ -53,14 +53,14 @@ public:
 
   Table(const std::string &_name, const std::vector<key_t> &_keys,
         const std::vector<param_t> &_params,
-        const std::vector<BDD::symbol_t> &_hit, addr_t _obj,
-        const std::unordered_set<BDD::node_id_t> &_nodes)
+        const std::vector<bdd::symbol_t> &_hit, addr_t _obj,
+        const std::unordered_set<bdd::node_id_t> &_nodes)
       : DataStructure(Type::TABLE, {_obj}, _nodes), name(_name), keys(_keys),
         params(_params), hit(_hit), manage_expirations(false) {}
 
   void change_keys(const std::vector<key_t> &_new_keys) { keys = _new_keys; }
 
-  void add_hit(const std::vector<BDD::symbol_t> &other_hit) {
+  void add_hit(const std::vector<bdd::symbol_t> &other_hit) {
     hit.insert(hit.end(), other_hit.begin(), other_hit.end());
   }
 
@@ -76,13 +76,13 @@ public:
   const std::string &get_name() const { return name; }
   const std::vector<key_t> &get_keys() const { return keys; }
   const std::vector<param_t> &get_params() const { return params; }
-  const std::vector<BDD::symbol_t> &get_hit() const { return hit; }
+  const std::vector<bdd::symbol_t> &get_hit() const { return hit; }
 
   static TableRef build(const std::string &_base_name,
                         const std::vector<key_t> &_keys,
                         const std::vector<param_t> &_params,
-                        const std::vector<BDD::symbol_t> &_hit, addr_t _obj,
-                        const std::unordered_set<BDD::node_id_t> &_nodes) {
+                        const std::vector<bdd::symbol_t> &_hit, addr_t _obj,
+                        const std::unordered_set<bdd::node_id_t> &_nodes) {
     auto _name = build_name(_base_name, _nodes);
     return TableRef(new Table(_name, _keys, _params, _hit, _obj, _nodes));
   }
@@ -90,8 +90,8 @@ public:
   static TableRef
   build_for_obj(const std::string &_base_name, const std::vector<key_t> &_keys,
                 const std::vector<param_t> &_params,
-                const std::vector<BDD::symbol_t> &_hit, addr_t _obj,
-                const std::unordered_set<BDD::node_id_t> &_nodes) {
+                const std::vector<bdd::symbol_t> &_hit, addr_t _obj,
+                const std::unordered_set<bdd::node_id_t> &_nodes) {
     auto _name = build_name(_base_name, _obj);
     return TableRef(new Table(_name, _keys, _params, _hit, _obj, _nodes));
   }
@@ -174,7 +174,7 @@ public:
 protected:
   static std::string
   build_name(const std::string &base_name,
-             const std::unordered_set<BDD::node_id_t> &nodes) {
+             const std::unordered_set<bdd::node_id_t> &nodes) {
     std::stringstream table_label_builder;
 
     table_label_builder << base_name;

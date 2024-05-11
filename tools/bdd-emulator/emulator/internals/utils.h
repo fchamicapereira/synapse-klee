@@ -8,7 +8,7 @@
 
 #include <assert.h>
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 inline bytes_t bytes_from_expr(klee::ref<klee::Expr> expr,
@@ -29,4 +29,4 @@ inline bytes_t bytes_from_expr(klee::ref<klee::Expr> expr,
 }
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

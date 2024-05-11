@@ -1,17 +1,15 @@
 #pragma once
 
 #include "nodes/node.h"
-#include "nodes/return_raw.h"
 
-namespace BDD {
+namespace bdd {
 
 class CallPathsGroup {
 private:
+  call_paths_t call_paths;
   klee::ref<klee::Expr> constraint;
   call_paths_t on_true;
   call_paths_t on_false;
-
-  call_paths_t call_paths;
 
 private:
   void group_call_paths();
@@ -31,8 +29,7 @@ private:
   call_t pop_call();
 
 public:
-  CallPathsGroup(const call_paths_t &_call_paths)
-      : call_paths(_call_paths) {
+  CallPathsGroup(const call_paths_t &_call_paths) : call_paths(_call_paths) {
     group_call_paths();
   }
 
@@ -40,8 +37,8 @@ public:
     return constraint;
   }
 
-  call_paths_t get_on_true() const { return on_true; }
-  call_paths_t get_on_false() const { return on_false; }
+  const call_paths_t &get_on_true() const { return on_true; }
+  const call_paths_t &get_on_false() const { return on_false; }
 };
 
-} // namespace BDD
+} // namespace bdd

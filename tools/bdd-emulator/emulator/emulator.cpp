@@ -1,7 +1,7 @@
 #include "emulator.h"
 #include "pcap.h"
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 void Emulator::list_operations() const {
@@ -20,88 +20,26 @@ void Emulator::dump_context(const context_t &ctx) const {
   std::cerr << "========================================\n";
 }
 
-void remember_device(const BDD &bdd, uint16_t device, context_t &ctx) {
-  auto device_symbol = bdd.get_symbol(symbex::PORT);
+static void remember_device(const BDD &bdd, uint16_t device, context_t &ctx) {
+  auto device_symbol = bdd.get_device();
   concretize(ctx, device_symbol, device);
 }
 
-void remember_pkt_len(const BDD &bdd, uint32_t len, context_t &ctx) {
-  auto length_symbol = bdd.get_symbol(symbex::PACKET_LENGTH);
+static void remember_pkt_len(const BDD &bdd, uint32_t len, context_t &ctx) {
+  auto length_symbol = bdd.get_packet_len();
   concretize(ctx, length_symbol, len);
 }
 
 bool Emulator::evaluate_condition(klee::ref<klee::Expr> condition,
                                   context_t &ctx) const {
   auto always_true = kutil::solver_toolbox.is_expr_always_true(ctx, condition);
-
-  assert(((kutil::solver_toolbox.is_expr_always_true(ctx, condition)) ^
-          (kutil::solver_toolbox.is_expr_always_false(ctx, condition))) &&
-         "Can't be sure...");
-
+  auto always_false =
+      kutil::solver_toolbox.is_expr_always_false(ctx, condition);
+  assert((always_true || always_false) && "Can't be sure...");
   return always_true;
 }
 
-void Emulator::run(pkt_t pkt, time_ns_t time, uint16_t device) {
-  context_t ctx;
-  auto next_node = bdd.get_process();
-
-  remember_device(bdd, device, ctx);
-  remember_pkt_len(bdd, pkt.size, ctx);
-
-  while (next_node) {
-    auto node = next_node;
-    next_node = nullptr;
-
-    auto id = node->get_id();
-    meta.hit_counter[id]++;
-
-    switch (node->get_type()) {
-    case Node::CALL: {
-      auto call_node = cast_node<Call>(node);
-      assert(call_node);
-
-      auto call = call_node->get_call();
-      auto operation = get_operation(call.function_name);
-
-      operation(bdd, call_node, pkt, time, state, meta, ctx, cfg);
-
-      next_node = node->get_next();
-    } break;
-    case Node::BRANCH: {
-      auto branch_node = cast_node<Branch>(node);
-      assert(branch_node);
-
-      auto condition = branch_node->get_condition();
-      auto result = evaluate_condition(condition, ctx);
-
-      if (result) {
-        next_node = branch_node->get_on_true();
-      } else {
-        next_node = branch_node->get_on_false();
-      }
-    } break;
-    case Node::RETURN_PROCESS: {
-      auto ret_node = cast_node<ReturnProcess>(node);
-      assert(ret_node);
-
-      auto op = ret_node->get_return_operation();
-
-      if (op == ReturnProcess::Operation::DROP) {
-        meta.rejected++;
-      } else {
-        meta.accepted++;
-      }
-    } break;
-    default: {
-      assert(false && "Should not be here.");
-      std::cerr << "Error: run in debug mode.\n";
-      exit(1);
-    }
-    }
-  }
-}
-
-uint64_t get_number_of_packets_from_pcap(pcap_t *pcap) {
+static uint64_t get_number_of_packets_from_pcap(pcap_t *pcap) {
   auto fpcap = pcap_file(pcap);
   assert(fpcap);
   auto pcap_start_pos = ftell(fpcap);
@@ -119,6 +57,57 @@ uint64_t get_number_of_packets_from_pcap(pcap_t *pcap) {
   fseek(fpcap, pcap_start_pos, SEEK_SET);
 
   return counter;
+}
+
+void Emulator::run(pkt_t pkt, time_ns_t time, uint16_t device) {
+  context_t ctx;
+  const Node *next_node = bdd.get_root();
+
+  remember_device(bdd, device, ctx);
+  remember_pkt_len(bdd, pkt.size, ctx);
+
+  while (next_node) {
+    auto node = next_node;
+    next_node = nullptr;
+
+    auto id = node->get_id();
+    meta.hit_counter[id]++;
+
+    switch (node->get_type()) {
+    case Node::CALL: {
+      const Call *call_node = static_cast<const Call *>(node);
+      const call_t &call = call_node->get_call();
+      operation_ptr operation = get_operation(call.function_name);
+      operation(bdd, call_node, pkt, time, state, meta, ctx, cfg);
+
+      const Node *next = node->get_next();
+      if (next) {
+        next_node = next;
+      }
+    } break;
+    case Node::BRANCH: {
+      const Branch *branch_node = static_cast<const Branch *>(node);
+      klee::ref<klee::Expr> condition = branch_node->get_condition();
+      bool result = evaluate_condition(condition, ctx);
+
+      if (result) {
+        next_node = branch_node->get_on_true();
+      } else {
+        next_node = branch_node->get_on_false();
+      }
+    } break;
+    case Node::ROUTE: {
+      const Route *route_node = static_cast<const Route *>(node);
+      Route::Operation op = route_node->get_operation();
+
+      if (op == Route::Operation::DROP) {
+        meta.rejected++;
+      } else {
+        meta.accepted++;
+      }
+    } break;
+    }
+  }
 }
 
 void Emulator::run(const std::string &pcap_filename, uint16_t device) {
@@ -229,42 +218,23 @@ void Emulator::run(const std::string &pcap_filename, uint16_t device) {
 
 operation_ptr Emulator::get_operation(const std::string &name) const {
   auto operation_it = operations.find(name);
-
-  if (operation_it == operations.end()) {
-    std::cerr << "Unknown operation \"" << name << "\"\n";
-    assert(false && "Unknown operation");
-    exit(1);
-  }
-
+  assert(operation_it != operations.end() && "Unknown operation");
   return *operation_it->second;
 }
 
 void Emulator::setup() {
-  auto node = bdd.get_init();
+  const calls_t &init_calls = bdd.get_init();
 
-  while (node) {
-    if (node->get_type() == Node::CALL) {
-      auto call_node = cast_node<Call>(node);
-      assert(call_node);
-
-      auto call = call_node->get_call();
-      auto operation = get_operation(call.function_name);
-
-      pkt_t mock_pkt;
-      context_t empty_ctx;
-
-      operation(bdd, call_node, mock_pkt, 0, state, meta, empty_ctx, cfg);
-
-      node = node->get_next();
-    } else if (node->get_type() == Node::BRANCH) {
-      auto branch_node = cast_node<Branch>(node);
-      assert(branch_node);
-      node = branch_node->get_on_true();
-    } else {
-      break;
-    }
+  for (const call_t &call : init_calls) {
+    operation_ptr operation = get_operation(call.function_name);
+    pkt_t mock_pkt;
+    context_t empty_ctx;
+    klee::ConstraintManager empty_constraints;
+    symbols_t no_symbols;
+    Call mock_call(-1, empty_constraints, call, no_symbols);
+    operation(bdd, &mock_call, mock_pkt, 0, state, meta, empty_ctx, cfg);
   }
 }
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

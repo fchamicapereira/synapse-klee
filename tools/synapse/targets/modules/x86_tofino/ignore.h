@@ -16,23 +16,23 @@ public:
       : Module(ModuleType::x86_Tofino_Ignore, TargetType::x86_Tofino,
                "Ignore") {
     functions_to_ignore = std::vector<std::string>{
-        BDD::symbex::FN_CURRENT_TIME,
-        BDD::symbex::FN_EXPIRE_MAP,
-        BDD::symbex::FN_ETHER_HASH,
+        "current_time",
+        "expire_items_single_map",
+        "rte_ether_addr_hash",
     };
   }
 
-  Ignore(BDD::Node_ptr node)
+  Ignore(bdd::Node_ptr node)
       : Module(ModuleType::x86_Tofino_Ignore, TargetType::x86_Tofino, "Ignore",
                node) {}
 
 private:
-  void process_current_time(const ExecutionPlan &ep, const BDD::Call *casted) {
+  void process_current_time(const ExecutionPlan &ep, const bdd::Call *casted) {
     auto call = casted->get_call();
     assert(!call.ret.isNull());
 
     auto _time = call.ret;
-    auto _generated_symbols = casted->get_local_generated_symbols();
+    auto _generated_symbols = casted->get_locally_generated_symbols();
     assert(_generated_symbols.size() == 1);
 
     auto time_symbol = *_generated_symbols.begin();
@@ -42,18 +42,18 @@ private:
   }
 
   void process_expire_items_single_map(const ExecutionPlan &ep,
-                                       const BDD::Call *casted) {
+                                       const bdd::Call *casted) {
     auto call = casted->get_call();
 
-    assert(!call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_CHAIN].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_MAP].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_VECTOR].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_TIME].expr.isNull());
+    assert(!call.args["chain"].expr.isNull());
+    assert(!call.args["map"].expr.isNull());
+    assert(!call.args["vector"].expr.isNull());
+    assert(!call.args["time"].expr.isNull());
 
-    auto _chain = call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_CHAIN].expr;
-    auto _map = call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_MAP].expr;
-    auto _vector = call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_VECTOR].expr;
-    auto _time = call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_TIME].expr;
+    auto _chain = call.args["chain"].expr;
+    auto _map = call.args["map"].expr;
+    auto _vector = call.args["vector"].expr;
+    auto _time = call.args["time"].expr;
 
     auto _chain_addr = kutil::expr_addr_to_obj_addr(_chain);
     auto _map_addr = kutil::expr_addr_to_obj_addr(_map);
@@ -67,10 +67,10 @@ private:
   }
 
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -81,9 +81,9 @@ private:
     auto found_it = std::find(functions_to_ignore.begin(),
                               functions_to_ignore.end(), call.function_name);
 
-    if (call.function_name == BDD::symbex::FN_CURRENT_TIME) {
+    if (call.function_name == "current_time") {
       process_current_time(ep, casted);
-    } else if (call.function_name == BDD::symbex::FN_EXPIRE_MAP) {
+    } else if (call.function_name == "expire_items_single_map") {
       process_expire_items_single_map(ep, casted);
     }
 

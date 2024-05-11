@@ -8,9 +8,6 @@
 #include <algorithm>
 #include <set>
 
-using BDD::symbex::CHUNK;
-using BDD::symbex::PACKET_LENGTH;
-
 namespace synapse {
 
 std::vector<ExecutionPlan> get_reordered(const ExecutionPlan &ep,
@@ -41,7 +38,7 @@ std::vector<ExecutionPlan> get_reordered(const ExecutionPlan &ep,
   auto roots_per_target = meta.roots_per_target.at(current_target);
 
   auto reordered_bdds =
-      BDD::reorder(current_bdd, current_node, roots_per_target);
+      bdd::reorder(current_bdd, current_node, roots_per_target);
 
   for (auto reordered_bdd : reordered_bdds) {
     auto ep_cloned = ep.clone(reordered_bdd.bdd);
@@ -72,7 +69,7 @@ bool can_process_platform(const ExecutionPlan &ep, TargetType target) {
 }
 
 processing_result_t Module::process_node(const ExecutionPlan &ep,
-                                         BDD::Node_ptr node,
+                                         bdd::Node_ptr node,
                                          int max_reordered) {
   assert(node);
   processing_result_t result;
@@ -98,18 +95,18 @@ processing_result_t Module::process_node(const ExecutionPlan &ep,
   return result;
 }
 
-bool Module::query_contains_map_has_key(const BDD::Branch *node) const {
+bool Module::query_contains_map_has_key(const bdd::Branch *node) const {
   assert(!node->get_condition().isNull());
   auto _condition = node->get_condition();
 
-  kutil::RetrieveSymbols retriever;
+  kutil::SymbolRetriever retriever;
   retriever.visit(_condition);
 
   auto symbols = retriever.get_retrieved_strings();
 
   auto found_it = std::find_if(
       symbols.begin(), symbols.end(), [](const std::string &symbol) -> bool {
-        return symbol.find(BDD::symbex::MAP_HAS_THIS_KEY) != std::string::npos;
+        return symbol.find("map_has_this_key") != std::string::npos;
       });
 
   if (found_it == symbols.end()) {
@@ -119,11 +116,11 @@ bool Module::query_contains_map_has_key(const BDD::Branch *node) const {
   return true;
 }
 
-std::vector<BDD::Node_ptr>
-Module::get_prev_fn(const ExecutionPlan &ep, BDD::Node_ptr node,
+std::vector<bdd::Node_ptr>
+Module::get_prev_fn(const ExecutionPlan &ep, bdd::Node_ptr node,
                     const std::vector<std::string> &functions_names,
                     bool ignore_targets) const {
-  std::vector<BDD::Node_ptr> prev_functions;
+  std::vector<bdd::Node_ptr> prev_functions;
 
   auto target = ep.get_current_platform();
   const auto &meta = ep.get_meta();
@@ -131,7 +128,7 @@ Module::get_prev_fn(const ExecutionPlan &ep, BDD::Node_ptr node,
   const auto &roots_per_target = meta.roots_per_target;
   auto roots_it = roots_per_target.find(target);
 
-  auto is_starting_point = [&](const BDD::Node_ptr &node) -> bool {
+  auto is_starting_point = [&](const bdd::Node_ptr &node) -> bool {
     if (ignore_targets || roots_it == roots_per_target.end()) {
       return false;
     }
@@ -143,11 +140,11 @@ Module::get_prev_fn(const ExecutionPlan &ep, BDD::Node_ptr node,
   assert(node);
 
   while (node && (node = node->get_prev()) && !is_starting_point(node)) {
-    if (node->get_type() != BDD::Node::NodeType::CALL) {
+    if (node->get_type() != bdd::Node::NodeType::CALL) {
       continue;
     }
 
-    auto call_node = static_cast<const BDD::Call *>(node.get());
+    auto call_node = static_cast<const bdd::Call *>(node.get());
     auto call = call_node->get_call();
 
     auto found_it = std::find(functions_names.begin(), functions_names.end(),
@@ -161,8 +158,8 @@ Module::get_prev_fn(const ExecutionPlan &ep, BDD::Node_ptr node,
   return prev_functions;
 }
 
-std::vector<BDD::Node_ptr> Module::get_prev_fn(const ExecutionPlan &ep,
-                                               BDD::Node_ptr node,
+std::vector<bdd::Node_ptr> Module::get_prev_fn(const ExecutionPlan &ep,
+                                               bdd::Node_ptr node,
                                                const std::string &function_name,
                                                bool ignore_targets) const {
   auto functions_names = std::vector<std::string>{function_name};
@@ -232,7 +229,7 @@ std::vector<Module::modification_t> Module::ignore_checksum_modifications(
 
     if (symbols.size() == 1 && simplified->getWidth() == 8) {
       auto symbol = *symbols.begin();
-      auto delim = symbol.find(BDD::symbex::CHECKSUM);
+      auto delim = symbol.find("checksum");
 
       if (delim != std::string::npos) {
         continue;
@@ -316,34 +313,34 @@ struct next_t {
   }
 };
 
-next_t get_next_maps_and_vectors(BDD::Node_ptr root,
+next_t get_next_maps_and_vectors(bdd::Node_ptr root,
                                  klee::ref<klee::Expr> index) {
   assert(root);
 
-  std::vector<BDD::Node_ptr> nodes{root};
+  std::vector<bdd::Node_ptr> nodes{root};
   next_t candidates;
 
   while (nodes.size()) {
     auto node = nodes[0];
     nodes.erase(nodes.begin());
 
-    if (node->get_type() == BDD::Node::BRANCH) {
-      auto branch_node = static_cast<const BDD::Branch *>(node.get());
+    if (node->get_type() == bdd::Node::BRANCH) {
+      auto branch_node = static_cast<const bdd::Branch *>(node.get());
       nodes.push_back(branch_node->get_on_true());
       nodes.push_back(branch_node->get_on_false());
       continue;
     }
 
-    if (node->get_type() != BDD::Node::CALL) {
+    if (node->get_type() != bdd::Node::CALL) {
       continue;
     }
 
-    auto call_node = static_cast<const BDD::Call *>(node.get());
+    auto call_node = static_cast<const bdd::Call *>(node.get());
     auto call = call_node->get_call();
 
-    if (call.function_name == BDD::symbex::FN_MAP_PUT) {
-      auto _map = call.args[BDD::symbex::FN_MAP_ARG_MAP].expr;
-      auto _value = call.args[BDD::symbex::FN_MAP_ARG_VALUE].expr;
+    if (call.function_name == "map_put") {
+      auto _map = call.args["map"].expr;
+      auto _value = call.args["value"].expr;
 
       auto _map_addr = kutil::expr_addr_to_obj_addr(_map);
       auto same_index =
@@ -354,9 +351,9 @@ next_t get_next_maps_and_vectors(BDD::Node_ptr root,
       }
     }
 
-    else if (call.function_name == BDD::symbex::FN_VECTOR_BORROW) {
-      auto _vector = call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
-      auto _value = call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr;
+    else if (call.function_name == "vector_borrow") {
+      auto _vector = call.args["vector"].expr;
+      auto _value = call.args["index"].expr;
 
       auto _vector_addr = kutil::expr_addr_to_obj_addr(_vector);
       auto same_index =
@@ -374,14 +371,14 @@ next_t get_next_maps_and_vectors(BDD::Node_ptr root,
 }
 
 bool Module::is_expr_only_packet_dependent(klee::ref<klee::Expr> expr) const {
-  kutil::RetrieveSymbols retriever;
+  kutil::SymbolRetriever retriever;
   retriever.visit(expr);
 
   auto symbols = retriever.get_retrieved_strings();
 
   std::vector<std::string> allowed_symbols = {
-      BDD::symbex::PACKET_LENGTH,
-      BDD::symbex::CHUNK,
+      "pkt_len",
+      "packet_chunks",
   };
 
   for (auto symbol : symbols) {
@@ -396,25 +393,25 @@ bool Module::is_expr_only_packet_dependent(klee::ref<klee::Expr> expr) const {
   return true;
 }
 
-std::vector<BDD::Node_ptr>
-Module::get_all_functions_after_node(BDD::Node_ptr root,
+std::vector<bdd::Node_ptr>
+Module::get_all_functions_after_node(bdd::Node_ptr root,
                                      const std::vector<std::string> &wanted,
                                      bool stop_on_branches) const {
-  std::vector<BDD::Node_ptr> functions;
-  std::vector<BDD::Node_ptr> nodes{root};
+  std::vector<bdd::Node_ptr> functions;
+  std::vector<bdd::Node_ptr> nodes{root};
 
   while (nodes.size()) {
     auto node = nodes[0];
     nodes.erase(nodes.begin());
 
-    if (node->get_type() == BDD::Node::BRANCH && !stop_on_branches) {
-      auto branch_node = static_cast<const BDD::Branch *>(node.get());
+    if (node->get_type() == bdd::Node::BRANCH && !stop_on_branches) {
+      auto branch_node = static_cast<const bdd::Branch *>(node.get());
       nodes.push_back(branch_node->get_on_true());
       nodes.push_back(branch_node->get_on_false());
     }
 
-    else if (node->get_type() == BDD::Node::CALL) {
-      auto call_node = static_cast<const BDD::Call *>(node.get());
+    else if (node->get_type() == bdd::Node::CALL) {
+      auto call_node = static_cast<const bdd::Call *>(node.get());
       auto call = call_node->get_call();
 
       auto found_it =
@@ -431,31 +428,31 @@ Module::get_all_functions_after_node(BDD::Node_ptr root,
   return functions;
 }
 
-bool Module::is_parser_drop(BDD::Node_ptr root) const {
+bool Module::is_parser_drop(bdd::Node_ptr root) const {
   assert(root);
 
-  std::vector<BDD::Node_ptr> functions;
-  std::vector<BDD::Node_ptr> nodes{root};
+  std::vector<bdd::Node_ptr> functions;
+  std::vector<bdd::Node_ptr> nodes{root};
 
   while (nodes.size()) {
     auto node = nodes[0];
     nodes.erase(nodes.begin());
 
     switch (node->get_type()) {
-    case BDD::Node::CALL: {
-      auto call_node = BDD::cast_node<BDD::Call>(node);
+    case bdd::Node::CALL: {
+      auto call_node = bdd::cast_node<bdd::Call>(node);
 
-      if (call_node->get_call().function_name != BDD::symbex::FN_RETURN_CHUNK) {
+      if (call_node->get_call().function_name != "packet_return_chunk") {
         return false;
       }
 
       nodes.push_back(node->get_next());
     } break;
-    case BDD::Node::RETURN_PROCESS: {
-      auto return_node = static_cast<const BDD::ReturnProcess *>(node.get());
+    case bdd::Node::RETURN_PROCESS: {
+      auto return_node = static_cast<const bdd::ReturnProcess *>(node.get());
       auto ret_value = return_node->get_return_operation();
 
-      if (ret_value != BDD::ReturnProcess::Operation::DROP) {
+      if (ret_value != bdd::ReturnProcess::Operation::DROP) {
         return false;
       }
     } break;
@@ -467,21 +464,19 @@ bool Module::is_parser_drop(BDD::Node_ptr root) const {
   return true;
 }
 
-next_t get_allowed_coalescing_objs(std::vector<BDD::Node_ptr> index_allocators,
+next_t get_allowed_coalescing_objs(std::vector<bdd::Node_ptr> index_allocators,
                                    addr_t obj) {
   next_t candidates;
 
   for (auto allocator : index_allocators) {
-    auto allocator_node = BDD::cast_node<BDD::Call>(allocator);
+    auto allocator_node = bdd::cast_node<bdd::Call>(allocator);
     auto allocator_call = allocator_node->get_call();
 
-    assert(!allocator_call.args[BDD::symbex::FN_DCHAIN_ARG_OUT].out.isNull());
-    assert(
-        !allocator_call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
+    assert(!allocator_call.args["index_out"].out.isNull());
+    assert(!allocator_call.args["chain"].expr.isNull());
 
-    auto allocated_index =
-        allocator_call.args[BDD::symbex::FN_DCHAIN_ARG_OUT].out;
-    auto dchain = allocator_call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
+    auto allocated_index = allocator_call.args["index_out"].out;
+    auto dchain = allocator_call.args["chain"].expr;
     auto dchain_addr = kutil::expr_addr_to_obj_addr(dchain);
 
     // We expect the coalescing candidates to be the same regardless of
@@ -527,8 +522,8 @@ Module::get_map_coalescing_data_t(const ExecutionPlan &ep, addr_t obj) const {
   auto root = bdd.get_process();
   assert(root);
 
-  auto index_allocators = get_all_functions_after_node(
-      root, {BDD::symbex::FN_DCHAIN_ALLOCATE_NEW_INDEX});
+  auto index_allocators =
+      get_all_functions_after_node(root, {"dchain_allocate_new_index"});
 
   if (index_allocators.size() == 0) {
     return data;
@@ -557,30 +552,29 @@ Module::get_map_coalescing_data_t(const ExecutionPlan &ep, addr_t obj) const {
 }
 
 klee::ref<klee::Expr>
-Module::get_original_vector_value(const ExecutionPlan &ep, BDD::Node_ptr node,
+Module::get_original_vector_value(const ExecutionPlan &ep, bdd::Node_ptr node,
                                   addr_t target_addr) const {
-  BDD::Node_ptr source;
+  bdd::Node_ptr source;
   return get_original_vector_value(ep, node, target_addr, source);
 }
 
 klee::ref<klee::Expr>
-Module::get_original_vector_value(const ExecutionPlan &ep, BDD::Node_ptr node,
+Module::get_original_vector_value(const ExecutionPlan &ep, bdd::Node_ptr node,
                                   addr_t target_addr,
-                                  BDD::Node_ptr &source) const {
-  auto all_prev_vector_borrow =
-      get_prev_fn(ep, node, BDD::symbex::FN_VECTOR_BORROW);
+                                  bdd::Node_ptr &source) const {
+  auto all_prev_vector_borrow = get_prev_fn(ep, node, "vector_borrow");
 
   for (auto prev_vector_borrow : all_prev_vector_borrow) {
-    auto call_node = BDD::cast_node<BDD::Call>(prev_vector_borrow);
+    auto call_node = bdd::cast_node<bdd::Call>(prev_vector_borrow);
     assert(call_node);
 
     auto call = call_node->get_call();
 
-    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-    assert(!call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second.isNull());
+    assert(!call.args["vector"].expr.isNull());
+    assert(!call.extra_vars["borrowed_cell"].second.isNull());
 
-    auto _vector = call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
-    auto _borrowed_cell = call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second;
+    auto _vector = call.args["vector"].expr;
+    auto _borrowed_cell = call.extra_vars["borrowed_cell"].second;
 
     auto _vector_addr = kutil::expr_addr_to_obj_addr(_vector);
 
@@ -696,10 +690,10 @@ std::pair<bool, uint64_t> get_max_value(klee::ref<klee::Expr> original_value,
   return max_value;
 }
 
-bool is_counter_inc_op(BDD::Node_ptr vector_borrow,
+bool is_counter_inc_op(bdd::Node_ptr vector_borrow,
                        std::pair<bool, uint64_t> &max_value) {
   auto branch = vector_borrow->get_next();
-  auto branch_node = BDD::cast_node<BDD::Branch>(branch);
+  auto branch_node = bdd::cast_node<bdd::Branch>(branch);
 
   if (!branch_node) {
     return false;
@@ -709,9 +703,9 @@ bool is_counter_inc_op(BDD::Node_ptr vector_borrow,
   auto on_true = branch_node->get_on_true();
   auto on_false = branch_node->get_on_false();
 
-  auto borrow_node = BDD::cast_node<BDD::Call>(vector_borrow);
-  auto on_true_node = BDD::cast_node<BDD::Call>(on_true);
-  auto on_false_node = BDD::cast_node<BDD::Call>(on_false);
+  auto borrow_node = bdd::cast_node<bdd::Call>(vector_borrow);
+  auto on_true_node = bdd::cast_node<bdd::Call>(on_true);
+  auto on_false_node = bdd::cast_node<bdd::Call>(on_false);
 
   if (!on_true_node || !on_false_node) {
     return false;
@@ -721,25 +715,23 @@ bool is_counter_inc_op(BDD::Node_ptr vector_borrow,
   auto on_true_call = on_true_node->get_call();
   auto on_false_call = on_false_node->get_call();
 
-  if (on_true_call.function_name != BDD::symbex::FN_VECTOR_RETURN ||
-      on_false_call.function_name != BDD::symbex::FN_VECTOR_RETURN) {
+  if (on_true_call.function_name != "vector_return" ||
+      on_false_call.function_name != "vector_return") {
     return false;
   }
 
-  assert(!borrow_call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-  assert(!borrow_call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second.isNull());
+  assert(!borrow_call.args["vector"].expr.isNull());
+  assert(!borrow_call.extra_vars["borrowed_cell"].second.isNull());
 
-  assert(!on_true_call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-  assert(!on_true_call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].in.isNull());
+  assert(!on_true_call.args["vector"].expr.isNull());
+  assert(!on_true_call.args["value"].in.isNull());
 
-  assert(!on_false_call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-  assert(!on_false_call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].in.isNull());
+  assert(!on_false_call.args["vector"].expr.isNull());
+  assert(!on_false_call.args["value"].in.isNull());
 
-  auto borrow_vector = borrow_call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
-  auto on_true_vector =
-      on_true_call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
-  auto on_false_vector =
-      on_false_call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
+  auto borrow_vector = borrow_call.args["vector"].expr;
+  auto on_true_vector = on_true_call.args["vector"].expr;
+  auto on_false_vector = on_false_call.args["vector"].expr;
 
   auto borrow_vector_addr = kutil::expr_addr_to_obj_addr(borrow_vector);
   auto on_true_vector_addr = kutil::expr_addr_to_obj_addr(on_true_vector);
@@ -750,10 +742,9 @@ bool is_counter_inc_op(BDD::Node_ptr vector_borrow,
     return false;
   }
 
-  auto borrow_value =
-      borrow_call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second;
-  auto on_true_value = on_true_call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].in;
-  auto on_false_value = on_false_call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].in;
+  auto borrow_value = borrow_call.extra_vars["borrowed_cell"].second;
+  auto on_true_value = on_true_call.args["value"].in;
+  auto on_false_value = on_false_call.args["value"].in;
 
   auto on_true_inc_op = is_incrementing_op(borrow_value, on_true_value);
 
@@ -779,11 +770,11 @@ bool is_counter_inc_op(BDD::Node_ptr vector_borrow,
   return true;
 }
 
-bool is_counter_read_op(BDD::Node_ptr vector_borrow) {
+bool is_counter_read_op(bdd::Node_ptr vector_borrow) {
   auto vector_return = vector_borrow->get_next();
 
-  auto borrow_node = BDD::cast_node<BDD::Call>(vector_borrow);
-  auto return_node = BDD::cast_node<BDD::Call>(vector_return);
+  auto borrow_node = bdd::cast_node<bdd::Call>(vector_borrow);
+  auto return_node = bdd::cast_node<bdd::Call>(vector_return);
 
   if (!return_node) {
     return false;
@@ -792,18 +783,18 @@ bool is_counter_read_op(BDD::Node_ptr vector_borrow) {
   auto borrow_call = borrow_node->get_call();
   auto return_call = return_node->get_call();
 
-  if (return_call.function_name != BDD::symbex::FN_VECTOR_RETURN) {
+  if (return_call.function_name != "vector_return") {
     return false;
   }
 
-  assert(!borrow_call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-  assert(!borrow_call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second.isNull());
+  assert(!borrow_call.args["vector"].expr.isNull());
+  assert(!borrow_call.extra_vars["borrowed_cell"].second.isNull());
 
-  assert(!return_call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-  assert(!return_call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].in.isNull());
+  assert(!return_call.args["vector"].expr.isNull());
+  assert(!return_call.args["value"].in.isNull());
 
-  auto borrow_vector = borrow_call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
-  auto return_vector = return_call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
+  auto borrow_vector = borrow_call.args["vector"].expr;
+  auto return_vector = return_call.args["vector"].expr;
 
   auto borrow_vector_addr = kutil::expr_addr_to_obj_addr(borrow_vector);
   auto return_vector_addr = kutil::expr_addr_to_obj_addr(return_vector);
@@ -812,9 +803,8 @@ bool is_counter_read_op(BDD::Node_ptr vector_borrow) {
     return false;
   }
 
-  auto borrow_value =
-      borrow_call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second;
-  auto return_value = return_call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].in;
+  auto borrow_value = borrow_call.extra_vars["borrowed_cell"].second;
+  auto return_value = return_call.args["value"].in;
 
   auto equal_values =
       kutil::solver_toolbox.are_exprs_always_equal(borrow_value, return_value);
@@ -827,22 +817,21 @@ Module::counter_data_t Module::is_counter(const ExecutionPlan &ep,
   Module::counter_data_t data;
 
   auto bdd = ep.get_bdd();
-  auto cfg = BDD::symbex::get_vector_config(ep.get_bdd(), obj);
+  auto cfg = bdd::get_vector_config(ep.get_bdd(), obj);
 
   if (cfg.elem_size > 64 || cfg.capacity != 1) {
     return data;
   }
 
   auto root = bdd.get_process();
-  auto vector_borrows =
-      get_all_functions_after_node(root, {BDD::symbex::FN_VECTOR_BORROW});
+  auto vector_borrows = get_all_functions_after_node(root, {"vector_borrow"});
 
   for (auto vector_borrow : vector_borrows) {
-    auto call_node = BDD::cast_node<BDD::Call>(vector_borrow);
+    auto call_node = bdd::cast_node<bdd::Call>(vector_borrow);
     auto call = call_node->get_call();
 
-    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-    auto _vector = call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
+    assert(!call.args["vector"].expr.isNull());
+    auto _vector = call.args["vector"].expr;
     auto _vector_addr = kutil::expr_addr_to_obj_addr(_vector);
 
     if (_vector_addr != obj) {
@@ -871,21 +860,21 @@ klee::ref<klee::Expr> Module::get_expr_from_addr(const ExecutionPlan &ep,
   auto bdd = ep.get_bdd();
   auto root = bdd.get_process();
   auto nodes = get_all_functions_after_node(root, {
-                                                      BDD::symbex::FN_MAP_GET,
+                                                      "map_get",
                                                   });
 
   for (auto node : nodes) {
-    auto call_node = BDD::cast_node<BDD::Call>(node);
+    auto call_node = bdd::cast_node<bdd::Call>(node);
     assert(call_node);
 
     auto call = call_node->get_call();
 
-    if (call.function_name == BDD::symbex::FN_MAP_GET) {
-      assert(!call.args[BDD::symbex::FN_MAP_ARG_KEY].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_MAP_ARG_KEY].in.isNull());
+    if (call.function_name == "map_get") {
+      assert(!call.args["key"].expr.isNull());
+      assert(!call.args["key"].in.isNull());
 
-      auto _key_addr = call.args[BDD::symbex::FN_MAP_ARG_KEY].expr;
-      auto _key = call.args[BDD::symbex::FN_MAP_ARG_KEY].in;
+      auto _key_addr = call.args["key"].expr;
+      auto _key = call.args["key"].in;
       auto _key_addr_value = kutil::expr_addr_to_obj_addr(_key_addr);
 
       if (_key_addr_value != addr) {

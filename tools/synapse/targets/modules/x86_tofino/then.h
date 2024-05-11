@@ -11,13 +11,13 @@ public:
   Then()
       : Module(ModuleType::x86_Tofino_Then, TargetType::x86_Tofino, "Then") {}
 
-  Then(BDD::Node_ptr node)
+  Then(bdd::Node_ptr node)
       : Module(ModuleType::x86_Tofino_Then, TargetType::x86_Tofino, "Then",
                node) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
     return result;
   }

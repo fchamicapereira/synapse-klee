@@ -136,11 +136,11 @@ protected:
   TargetType target;
   TargetType next_target;
   const char *name;
-  BDD::Node_ptr node;
+  bdd::Node_ptr node;
 
 protected:
   Module(ModuleType _type, TargetType _target, const char *_name,
-         BDD::Node_ptr _node)
+         bdd::Node_ptr _node)
       : type(_type), target(_target), next_target(_target), name(_name),
         node(_node) {}
 
@@ -156,9 +156,9 @@ public:
   const char *get_name() const { return name; }
   TargetType get_target() const { return target; }
   TargetType get_next_target() const { return next_target; }
-  BDD::Node_ptr get_node() const { return node; }
+  bdd::Node_ptr get_node() const { return node; }
 
-  void replace_node(BDD::Node_ptr _node) {
+  void replace_node(bdd::Node_ptr _node) {
     node = _node;
     assert(node);
   }
@@ -179,7 +179,7 @@ public:
 
   std::string get_target_name() const { return target_to_string(target); }
 
-  processing_result_t process_node(const ExecutionPlan &_ep, BDD::Node_ptr node,
+  processing_result_t process_node(const ExecutionPlan &_ep, bdd::Node_ptr node,
                                    int max_reordered);
 
   virtual void visit(ExecutionPlanVisitor &visitor,
@@ -190,27 +190,27 @@ public:
 protected:
   // Shared module functionality
   virtual processing_result_t process(const ExecutionPlan &ep,
-                                      BDD::Node_ptr node) = 0;
+                                      bdd::Node_ptr node) = 0;
 
 protected:
   // General useful queries
-  bool query_contains_map_has_key(const BDD::Branch *node) const;
+  bool query_contains_map_has_key(const bdd::Branch *node) const;
 
-  std::vector<BDD::Node_ptr> get_prev_fn(const ExecutionPlan &ep,
-                                         BDD::Node_ptr node,
+  std::vector<bdd::Node_ptr> get_prev_fn(const ExecutionPlan &ep,
+                                         bdd::Node_ptr node,
                                          const std::string &function_name,
                                          bool ignore_targets = false) const;
-  std::vector<BDD::Node_ptr>
-  get_prev_fn(const ExecutionPlan &ep, BDD::Node_ptr node,
+  std::vector<bdd::Node_ptr>
+  get_prev_fn(const ExecutionPlan &ep, bdd::Node_ptr node,
               const std::vector<std::string> &functions_names,
               bool ignore_targets = false) const;
 
-  std::vector<BDD::Node_ptr>
-  get_all_functions_after_node(BDD::Node_ptr root,
+  std::vector<bdd::Node_ptr>
+  get_all_functions_after_node(bdd::Node_ptr root,
                                const std::vector<std::string> &functions,
                                bool stop_on_branches = false) const;
 
-  bool is_parser_drop(BDD::Node_ptr root) const;
+  bool is_parser_drop(bdd::Node_ptr root) const;
 
   std::vector<Module_ptr>
   get_prev_modules(const ExecutionPlan &ep,
@@ -227,8 +227,8 @@ protected:
 
   struct counter_data_t {
     bool valid;
-    std::vector<BDD::Node_ptr> reads;
-    std::vector<BDD::Node_ptr> writes;
+    std::vector<bdd::Node_ptr> reads;
+    std::vector<bdd::Node_ptr> writes;
     std::pair<bool, uint64_t> max_value;
 
     counter_data_t() : valid(false) {}
@@ -244,12 +244,12 @@ protected:
   // vector_borrow value counterpart. This is useful to compare changes to the
   // value expression and retrieve the performed modifications (if any).
   klee::ref<klee::Expr> get_original_vector_value(const ExecutionPlan &ep,
-                                                  BDD::Node_ptr node,
+                                                  bdd::Node_ptr node,
                                                   addr_t target_addr) const;
   klee::ref<klee::Expr> get_original_vector_value(const ExecutionPlan &ep,
-                                                  BDD::Node_ptr node,
+                                                  bdd::Node_ptr node,
                                                   addr_t target_addr,
-                                                  BDD::Node_ptr &source) const;
+                                                  bdd::Node_ptr &source) const;
 
   // Get the data associated with this address.
   klee::ref<klee::Expr> get_expr_from_addr(const ExecutionPlan &ep,

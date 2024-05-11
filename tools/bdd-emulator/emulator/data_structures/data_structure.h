@@ -3,7 +3,7 @@
 #include "call-paths-to-bdd.h"
 #include "klee-util.h"
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 enum DataStructureType { MAP, VECTOR, DCHAIN };
@@ -24,4 +24,4 @@ public:
 typedef std::shared_ptr<DataStructure> DataStructureRef;
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

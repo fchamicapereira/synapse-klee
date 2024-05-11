@@ -23,13 +23,13 @@ std::string x86TofinoGenerator::transpile(klee::ref<klee::Expr> expr) {
 }
 
 variable_query_t x86TofinoGenerator::search_variable(std::string symbol) const {
-  if (symbol == BDD::symbex::PORT || symbol == BDD::symbex::PORT2) {
+  if (symbol == "DEVICE" || symbol == "device") {
     auto in_port_var = headers.query_hdr_field(CPU, CPU_IN_PORT);
 
     if (in_port_var.valid) {
       return in_port_var;
     }
-  } else if (symbol == BDD::symbex::CPU_CODE_PATH) {
+  } else if (symbol == "cpu_code_path") {
     auto code_path_var = headers.query_hdr_field(CPU, CPU_CODE_PATH);
 
     if (code_path_var.valid) {
@@ -185,13 +185,12 @@ void x86TofinoGenerator::init_state(ExecutionPlan ep) {
     vars.append(time_var);
   }
 
-  auto packet_len_var =
-      Variable(PACKET_LENGTH_VAR_LABEL, 32, {BDD::symbex::PACKET_LENGTH});
+  auto packet_len_var = Variable(PACKET_LENGTH_VAR_LABEL, 32, {"pkt_len"});
   vars.append(packet_len_var);
 
   // HACK: we don't care about this symbol
-  auto number_of_freed_flows = Variable(BDD::symbex::EXPIRE_MAP_FREED_FLOWS, 32,
-                                        {BDD::symbex::EXPIRE_MAP_FREED_FLOWS});
+  auto number_of_freed_flows =
+      Variable("number_of_freed_flows", 32, {"number_of_freed_flows"});
   vars.append(number_of_freed_flows);
 
   nf_process_builder.indent();
@@ -549,7 +548,7 @@ void x86TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
   assert(l4_hdr_var.valid);
 
   assert(generated_symbols.size() == 1);
-  auto checksum_symbol = get_label(generated_symbols, BDD::symbex::CHECKSUM);
+  auto checksum_symbol = get_label(generated_symbols, "checksum");
   auto checksum_label = "*" + checksum_symbol; // will be a pointer
 
   assert(ip_hdr_var.var->has_expr());
@@ -636,7 +635,7 @@ void x86TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
 
   if (!map_has_this_key.isNull()) {
     auto map_has_this_key_label =
-        get_label(generated_symbols, BDD::symbex::MAP_HAS_THIS_KEY);
+        get_label(generated_symbols, "map_has_this_key");
     auto contains_var =
         Variable(map_has_this_key_label, map_has_this_key->getWidth(),
                  {map_has_this_key_label});
@@ -645,12 +644,10 @@ void x86TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
 
   auto allocated_index_label = std::string();
 
-  if (has_label(generated_symbols, BDD::symbex::MAP_ALLOCATED_INDEX)) {
-    allocated_index_label =
-        get_label(generated_symbols, BDD::symbex::MAP_ALLOCATED_INDEX);
-  } else if (has_label(generated_symbols, BDD::symbex::VECTOR_VALUE_SYMBOL)) {
-    allocated_index_label =
-        get_label(generated_symbols, BDD::symbex::VECTOR_VALUE_SYMBOL);
+  if (has_label(generated_symbols, "allocated_index")) {
+    allocated_index_label = get_label(generated_symbols, "allocated_index");
+  } else if (has_label(generated_symbols, "vector_data_reset")) {
+    allocated_index_label = get_label(generated_symbols, "vector_data_reset");
   } else {
     assert(false && "No valid generated symbol");
   }
@@ -706,7 +703,7 @@ void x86TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
 
   if (!map_has_this_key.isNull()) {
     auto map_has_this_key_label =
-        get_label(generated_symbols, BDD::symbex::MAP_HAS_THIS_KEY);
+        get_label(generated_symbols, "map_has_this_key");
     auto contains_var = vars.get(map_has_this_key_label);
     assert(contains_var.valid);
     assert(contains_var.offset_bits == 0);
@@ -859,15 +856,14 @@ void x86TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
   assert(!success.isNull());
   assert(generated_symbols.size() == 2);
 
-  auto out_of_space =
-      get_symbol(generated_symbols, BDD::symbex::DCHAIN_OUT_OF_SPACE);
+  auto out_of_space = get_symbol(generated_symbols, "out_of_space");
   auto out_of_space_var =
       Variable(out_of_space.label, success->getWidth(), {out_of_space.label});
   auto out_of_space_type = out_of_space_var.get_type();
   out_of_space_var.add_expr(out_of_space.expr);
   vars.append(out_of_space_var);
 
-  auto new_index = get_symbol(generated_symbols, BDD::symbex::DCHAIN_NEW_INDEX);
+  auto new_index = get_symbol(generated_symbols, "new_index");
   auto new_index_var =
       Variable(new_index.label, success->getWidth(), {new_index.label});
   auto new_index_type = new_index_var.get_type();
@@ -916,7 +912,7 @@ void x86TofinoGenerator::visit(const ExecutionPlanNode *ep_node,
 
   assert(generated_symbols.size() == 1);
   auto is_allocated_label =
-      get_label(generated_symbols, BDD::symbex::DCHAIN_IS_INDEX_ALLOCATED);
+      get_label(generated_symbols, "dchain_is_index_allocated");
   auto is_allocated_var = Variable(
       is_allocated_label, is_index_allocated->getWidth(), {is_allocated_label});
   auto is_allocated_type = is_allocated_var.get_type();

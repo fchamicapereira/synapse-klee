@@ -7,7 +7,7 @@ namespace targets {
 namespace tofino {
 
 processing_result_t TofinoModule::postpone(const ExecutionPlan &ep,
-                                           BDD::Node_ptr node,
+                                           bdd::Node_ptr node,
                                            Module_ptr new_module) const {
   auto tmb = ep.get_memory_bank<TofinoMemoryBank>(Tofino);
   tmb->postpone(node->get_id(), new_module);
@@ -15,8 +15,8 @@ processing_result_t TofinoModule::postpone(const ExecutionPlan &ep,
 }
 
 ExecutionPlan TofinoModule::apply_postponed(ExecutionPlan ep,
-                                            BDD::Node_ptr current_node,
-                                            BDD::Node_ptr next_node) const {
+                                            bdd::Node_ptr current_node,
+                                            bdd::Node_ptr next_node) const {
   assert(current_node);
   processing_result_t result;
 
@@ -42,7 +42,7 @@ ExecutionPlan TofinoModule::apply_postponed(ExecutionPlan ep,
 }
 
 processing_result_t TofinoModule::ignore(const ExecutionPlan &ep,
-                                         BDD::Node_ptr node) const {
+                                         bdd::Node_ptr node) const {
   processing_result_t result;
 
   auto new_module = std::make_shared<Ignore>(node);

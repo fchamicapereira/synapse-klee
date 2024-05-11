@@ -10,12 +10,12 @@ class Then : public TofinoModule {
 public:
   Then() : TofinoModule(ModuleType::Tofino_Then, "Then") {}
 
-  Then(BDD::Node_ptr node)
+  Then(bdd::Node_ptr node)
       : TofinoModule(ModuleType::Tofino_Then, "Then", node) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     return processing_result_t();
   }
 

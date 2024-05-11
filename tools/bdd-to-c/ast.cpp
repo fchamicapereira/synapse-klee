@@ -13,7 +13,7 @@ constexpr char AST::CHUNK_UDP_LABEL[];
 constexpr char AST::CHUNK_L5_LABEL[];
 
 std::string get_symbol_label(const std::string &wanted,
-                             const BDD::symbols_t &symbols) {
+                             const bdd::symbols_t &symbols) {
   for (auto symbol : symbols) {
     if (symbol.label_base == wanted) {
       return symbol.label;
@@ -112,7 +112,7 @@ Variable_ptr AST::generate_new_symbol(klee::ref<klee::Expr> expr,
                                       bool is_signed) {
   Type_ptr type = type_from_size(expr->getWidth(), is_signed, false);
 
-  kutil::RetrieveSymbols retriever;
+  kutil::SymbolRetriever retriever;
   retriever.visit(expr);
 
   auto symbols = retriever.get_retrieved_strings();
@@ -415,7 +415,7 @@ Expr_ptr AST::get_from_local(klee::ref<klee::Expr> expr) {
     auto saved_sz = saved->getWidth();
     auto wanted_sz = wanted->getWidth();
 
-    kutil::RetrieveSymbols retriever;
+    kutil::SymbolRetriever retriever;
     retriever.visit(saved);
     if (retriever.get_retrieved_strings().size() == 0) {
       return -1;
@@ -528,10 +528,10 @@ FunctionCall_ptr spread_capacity_among_cores(Expr_ptr capacity) {
   return fcall;
 }
 
-Node_ptr AST::init_state_node_from_call(const BDD::Call *bdd_call,
+Node_ptr AST::init_state_node_from_call(const bdd::Call *bdd_call,
                                         TargetOption target) {
   auto call = bdd_call->get_call();
-  auto symbols = bdd_call->get_local_generated_symbols();
+  auto symbols = bdd_call->get_locally_generated_symbols();
 
   auto fname = call.function_name;
   std::vector<ExpressionType_ptr> args;
@@ -752,17 +752,17 @@ Node_ptr AST::init_state_node_from_call(const BDD::Call *bdd_call,
   return fcall;
 }
 
-const BDD::Call *find_vector_return_with_obj(const BDD::Node *root,
+const bdd::Call *find_vector_return_with_obj(const bdd::Node *root,
                                              klee::ref<klee::Expr> obj) {
   assert(root && "Root is null");
-  std::vector<const BDD::Node *> nodes{root};
+  std::vector<const bdd::Node *> nodes{root};
 
   while (nodes.size()) {
     auto node = nodes[0];
     nodes.erase(nodes.begin());
 
-    if (node->get_type() == BDD::Node::NodeType::BRANCH) {
-      auto node_branch = static_cast<const BDD::Branch *>(node);
+    if (node->get_type() == bdd::Node::NodeType::BRANCH) {
+      auto node_branch = static_cast<const bdd::Branch *>(node);
 
       nodes.push_back(node_branch->get_on_true().get());
       nodes.push_back(node_branch->get_on_false().get());
@@ -770,13 +770,13 @@ const BDD::Call *find_vector_return_with_obj(const BDD::Node *root,
       continue;
     }
 
-    if (node->get_type() != BDD::Node::NodeType::CALL) {
+    if (node->get_type() != bdd::Node::NodeType::CALL) {
       continue;
     }
 
     nodes.push_back(node->get_next().get());
 
-    auto node_call = static_cast<const BDD::Call *>(node);
+    auto node_call = static_cast<const bdd::Call *>(node);
     auto call = node_call->get_call();
 
     if (call.function_name != "vector_return") {
@@ -796,17 +796,17 @@ const BDD::Call *find_vector_return_with_obj(const BDD::Node *root,
   return nullptr;
 }
 
-const BDD::Call *find_vector_return_with_value(const BDD::Node *root,
+const bdd::Call *find_vector_return_with_value(const bdd::Node *root,
                                                klee::ref<klee::Expr> value) {
   assert(root && "Root is null");
-  std::vector<const BDD::Node *> nodes{root};
+  std::vector<const bdd::Node *> nodes{root};
 
   while (nodes.size()) {
     auto node = nodes[0];
     nodes.erase(nodes.begin());
 
-    if (node->get_type() == BDD::Node::NodeType::BRANCH) {
-      auto node_branch = static_cast<const BDD::Branch *>(node);
+    if (node->get_type() == bdd::Node::NodeType::BRANCH) {
+      auto node_branch = static_cast<const bdd::Branch *>(node);
 
       nodes.push_back(node_branch->get_on_true().get());
       nodes.push_back(node_branch->get_on_false().get());
@@ -814,13 +814,13 @@ const BDD::Call *find_vector_return_with_value(const BDD::Node *root,
       continue;
     }
 
-    if (node->get_type() != BDD::Node::NodeType::CALL) {
+    if (node->get_type() != bdd::Node::NodeType::CALL) {
       continue;
     }
 
     nodes.push_back(node->get_next().get());
 
-    auto node_call = static_cast<const BDD::Call *>(node);
+    auto node_call = static_cast<const bdd::Call *>(node);
     auto call = node_call->get_call();
 
     if (call.function_name != "vector_return") {
@@ -870,30 +870,30 @@ void AST::dec_pkt_offset() {
   pkt_buffer_offset.top().pop();
 }
 
-std::vector<BDD::Node_ptr>
-get_prev_functions(BDD::Node_ptr start, std::string function_name,
+std::vector<bdd::Node_ptr>
+get_prev_functions(bdd::Node_ptr start, std::string function_name,
                    std::unordered_set<std::string> stop_nodes) {
-  std::vector<BDD::Node_ptr> return_nodes;
+  std::vector<bdd::Node_ptr> return_nodes;
 
   bool loop = true;
-  BDD::Node_ptr node = start;
+  bdd::Node_ptr node = start;
 
-  auto is_stop_node = [&stop_nodes](BDD::Node_ptr node) {
-    if (node->get_type() != BDD::Node::NodeType::CALL) {
+  auto is_stop_node = [&stop_nodes](bdd::Node_ptr node) {
+    if (node->get_type() != bdd::Node::NodeType::CALL) {
       return false;
     }
 
-    auto call = static_cast<BDD::Call *>(node.get())->get_call();
+    auto call = static_cast<bdd::Call *>(node.get())->get_call();
 
     return stop_nodes.find(call.function_name) != stop_nodes.end();
   };
 
-  auto is_target_node = [&function_name](BDD::Node_ptr node) {
-    if (node->get_type() != BDD::Node::NodeType::CALL) {
+  auto is_target_node = [&function_name](bdd::Node_ptr node) {
+    if (node->get_type() != bdd::Node::NodeType::CALL) {
       return false;
     }
 
-    auto call = static_cast<BDD::Call *>(node.get())->get_call();
+    auto call = static_cast<bdd::Call *>(node.get())->get_call();
     return call.function_name == function_name;
   };
 
@@ -1058,7 +1058,7 @@ static void parse_l5_hdr(Type_ptr &hdr_type, std::string &hdr_symbol,
   hdr_symbol = AST::CHUNK_L5_LABEL;
 }
 
-static void parse_hdr(const BDD::Call *call, klee::ref<klee::Expr> hdr_expr,
+static void parse_hdr(const bdd::Call *call, klee::ref<klee::Expr> hdr_expr,
                       klee::ref<klee::Expr> hdr_len, Type_ptr &hdr_type,
                       std::string &hdr_symbol, uint8_t &current_layer) {
   assert(current_layer >= 2 && "We start from L2 and go from there.");
@@ -1103,10 +1103,10 @@ static void parse_hdr(const BDD::Call *call, klee::ref<klee::Expr> hdr_expr,
   }
 }
 
-Node_ptr AST::process_state_node_from_call(const BDD::Call *bdd_call,
+Node_ptr AST::process_state_node_from_call(const bdd::Call *bdd_call,
                                            TargetOption target) {
   auto call = bdd_call->get_call();
-  auto symbols = bdd_call->get_local_generated_symbols();
+  auto symbols = bdd_call->get_locally_generated_symbols();
 
   auto fname = call.function_name;
 
@@ -1906,7 +1906,7 @@ void AST::pop() {
   pkt_buffer_offset.pop();
 }
 
-Node_ptr AST::node_from_call(const BDD::Call *bdd_call, TargetOption target) {
+Node_ptr AST::node_from_call(const bdd::Call *bdd_call, TargetOption target) {
   switch (context) {
   case INIT:
     return init_state_node_from_call(bdd_call, target);

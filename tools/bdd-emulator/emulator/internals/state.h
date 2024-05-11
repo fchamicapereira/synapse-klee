@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <unordered_map>
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 class DataStructure;
@@ -20,4 +20,4 @@ struct state_t {
 };
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

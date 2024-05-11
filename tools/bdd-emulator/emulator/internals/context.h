@@ -5,7 +5,7 @@
 
 #include <assert.h>
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 typedef klee::ConstraintManager context_t;
@@ -48,4 +48,4 @@ inline void concretize(context_t &ctx, klee::ref<klee::Expr> expr,
 }
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

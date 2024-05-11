@@ -13,7 +13,8 @@
 namespace kutil {
 
 std::string expr_to_string(klee::ref<klee::Expr> expr, bool one_liner = false);
-std::string pretty_print_expr(klee::ref<klee::Expr> expr);
+std::string pretty_print_expr(klee::ref<klee::Expr> expr,
+                              bool use_signed = true);
 
 } // namespace kutil
 

@@ -16,7 +16,7 @@ public:
   DchainRejuvenateIndex()
       : x86Module(ModuleType::x86_DchainRejuvenateIndex, "DchainRejuvenate") {}
 
-  DchainRejuvenateIndex(BDD::Node_ptr node, addr_t _dchain_addr,
+  DchainRejuvenateIndex(bdd::Node_ptr node, addr_t _dchain_addr,
                         klee::ref<klee::Expr> _index,
                         klee::ref<klee::Expr> _time)
       : x86Module(ModuleType::x86_DchainRejuvenateIndex, "DchainRejuvenate",
@@ -25,10 +25,10 @@ public:
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -36,14 +36,14 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == BDD::symbex::FN_DCHAIN_REJUVENATE) {
-      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_TIME].expr.isNull());
+    if (call.function_name == "dchain_rejuvenate_index") {
+      assert(!call.args["chain"].expr.isNull());
+      assert(!call.args["index"].expr.isNull());
+      assert(!call.args["time"].expr.isNull());
 
-      auto _dchain = call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
-      auto _index = call.args[BDD::symbex::FN_DCHAIN_ARG_INDEX].expr;
-      auto _time = call.args[BDD::symbex::FN_DCHAIN_ARG_TIME].expr;
+      auto _dchain = call.args["chain"].expr;
+      auto _index = call.args["index"].expr;
+      auto _time = call.args["time"].expr;
 
       auto _dchain_addr = kutil::expr_addr_to_obj_addr(_dchain);
       save_dchain(ep, _dchain_addr);

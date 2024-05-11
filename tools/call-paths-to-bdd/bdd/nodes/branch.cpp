@@ -1,30 +1,29 @@
 #include "branch.h"
+#include "manager.h"
 #include "../visitor.h"
 
-namespace BDD {
+#include "klee-util.h"
 
-Node_ptr Branch::clone(bool recursive) const {
-  Node_ptr clone_on_true, clone_on_false;
+namespace bdd {
 
-  assert(next);
-  assert(on_false);
+Node *Branch::clone(NodeManager &manager, bool recursive) const {
+  Node *clone;
 
-  if (recursive) {
-    clone_on_true = next->clone(true);
-    clone_on_false = on_false->clone(true);
+  const Node *on_true = get_on_true();
+  const Node *on_false = get_on_false();
+
+  if (recursive && on_true && on_false) {
+    Node *on_true_clone = on_true->clone(manager, true);
+    Node *on_false_clone = on_false->clone(manager, true);
+    clone = new Branch(id, nullptr, constraints, on_true_clone, on_false_clone,
+                       condition);
+    on_true_clone->set_prev(clone);
+    on_false_clone->set_prev(clone);
   } else {
-    clone_on_true = next;
-    clone_on_false = on_false;
+    clone = new Branch(id, constraints, condition);
   }
 
-  auto clone = std::make_shared<Branch>(id, clone_on_true, prev, constraints,
-                                        clone_on_false, condition);
-
-  if (recursive) {
-    clone_on_true->prev = clone;
-    clone_on_false->prev = clone;
-  }
-
+  manager.add_node(clone);
   return clone;
 }
 
@@ -44,13 +43,6 @@ std::vector<node_id_t> Branch::get_terminating_node_ids() const {
                          on_false_ids.end());
 
   return terminating_ids;
-}
-
-void Branch::recursive_update_ids(node_id_t &new_id) {
-  update_id(new_id);
-  new_id++;
-  next->recursive_update_ids(new_id);
-  on_false->recursive_update_ids(new_id);
 }
 
 void Branch::visit(BDDVisitor &visitor) const { visitor.visit(this); }
@@ -73,4 +65,4 @@ std::string Branch::dump_recursive(int lvl) const {
   return result.str();
 }
 
-} // namespace BDD
+} // namespace bdd

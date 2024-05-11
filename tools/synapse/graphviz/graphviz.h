@@ -48,9 +48,9 @@ public:
   Graphviz() : Graphviz(get_rand_fname()) {}
 
 private:
-  void function_call(const ExecutionPlanNode *ep_node, BDD::Node_ptr node,
+  void function_call(const ExecutionPlanNode *ep_node, bdd::Node_ptr node,
                      TargetType target, const std::string &label);
-  void branch(const ExecutionPlanNode *ep_node, BDD::Node_ptr node,
+  void branch(const ExecutionPlanNode *ep_node, bdd::Node_ptr node,
               TargetType target, const std::string &label);
 
   struct rgb_t {
@@ -61,11 +61,11 @@ private:
 
   rgb_t get_color(float f) const;
 
-  void dump_bdd(const BDD::BDD &bdd,
+  void dump_bdd(const bdd::BDD &bdd,
                 const std::unordered_set<uint64_t> &processed,
-                const BDD::Node *next);
+                const bdd::Node *next);
 
-  std::string get_bdd_node_name(const BDD::Node *node) const;
+  std::string get_bdd_node_name(const bdd::Node *node) const;
 
   void dump_search_space() const;
 

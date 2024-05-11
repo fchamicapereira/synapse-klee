@@ -4,7 +4,7 @@
 #include "../data_structures/vector.h"
 #include "../internals/internals.h"
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 inline void __expire_items_single_map_iteratively(
@@ -12,15 +12,15 @@ inline void __expire_items_single_map_iteratively(
     state_t &state, meta_t &meta, context_t &ctx, const cfg_t &cfg) {
   auto call = call_node->get_call();
 
-  assert(!call.args[symbex::FN_EXPIRE_MAP_ARG_MAP].expr.isNull());
-  assert(!call.args[symbex::FN_EXPIRE_MAP_ARG_VECTOR].expr.isNull());
-  assert(!call.args[symbex::EXPIRE_MAP_ITERATIVELY_START].expr.isNull());
-  assert(!call.args[symbex::EXPIRE_MAP_ITERATIVELY_N_ELEMS].expr.isNull());
+  assert(!call.args["map"].expr.isNull());
+  assert(!call.args["vector"].expr.isNull());
+  assert(!call.args["start"].expr.isNull());
+  assert(!call.args["n_elems"].expr.isNull());
 
-  auto map_addr_expr = call.args[symbex::EXPIRE_MAP_ITERATIVELY_MAP].expr;
-  auto vector_addr_expr = call.args[symbex::EXPIRE_MAP_ITERATIVELY_VECTOR].expr;
-  auto start_expr = call.args[symbex::EXPIRE_MAP_ITERATIVELY_START].expr;
-  auto n_elems_expr = call.args[symbex::EXPIRE_MAP_ITERATIVELY_N_ELEMS].expr;
+  auto map_addr_expr = call.args["map"].expr;
+  auto vector_addr_expr = call.args["vector"].expr;
+  auto start_expr = call.args["start"].expr;
+  auto n_elems_expr = call.args["n_elems"].expr;
 
   auto map_addr = kutil::expr_addr_to_obj_addr(map_addr_expr);
   auto vector_addr = kutil::expr_addr_to_obj_addr(vector_addr_expr);
@@ -42,9 +42,9 @@ inline void __expire_items_single_map_iteratively(
 
 inline std::pair<std::string, operation_ptr>
 expire_items_single_map_iteratively() {
-  return {symbex::FN_EXPIRE_MAP_ITERATIVELY,
+  return {"expire_items_single_map_iteratively",
           __expire_items_single_map_iteratively};
 }
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

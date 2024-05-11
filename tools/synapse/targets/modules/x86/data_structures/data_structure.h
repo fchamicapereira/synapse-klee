@@ -24,9 +24,9 @@ enum ds_type_t {
 struct ds_t {
   ds_type_t type;
   addr_t addr;
-  BDD::node_id_t node_id;
+  bdd::node_id_t node_id;
 
-  ds_t(ds_type_t _type, addr_t _addr, BDD::node_id_t _node_id)
+  ds_t(ds_type_t _type, addr_t _addr, bdd::node_id_t _node_id)
       : type(_type), addr(_addr), node_id(_node_id) {}
 
   bool matches(ds_type_t _type, addr_t _addr) const {

@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <unordered_map>
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 struct meta_t {
@@ -72,4 +72,4 @@ inline std::ostream &operator<<(std::ostream &os, const meta_t &meta) {
 }
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

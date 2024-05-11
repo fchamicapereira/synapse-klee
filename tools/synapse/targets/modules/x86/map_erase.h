@@ -15,17 +15,17 @@ private:
 public:
   MapErase() : x86Module(ModuleType::x86_MapErase, "MapErase") {}
 
-  MapErase(BDD::Node_ptr node, addr_t _map_addr, klee::ref<klee::Expr> _key,
+  MapErase(bdd::Node_ptr node, addr_t _map_addr, klee::ref<klee::Expr> _key,
            addr_t _trash)
       : x86Module(ModuleType::x86_MapErase, "MapErase", node),
         map_addr(_map_addr), key(_key), trash(_trash) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -33,14 +33,14 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == BDD::symbex::FN_MAP_ERASE) {
-      assert(!call.args[BDD::symbex::FN_MAP_ARG_MAP].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_MAP_ARG_KEY].in.isNull());
-      assert(!call.args[BDD::symbex::FN_MAP_ARG_TRASH].out.isNull());
+    if (call.function_name == "map_erase") {
+      assert(!call.args["map"].expr.isNull());
+      assert(!call.args["key"].in.isNull());
+      assert(!call.args["trash"].out.isNull());
 
-      auto _map = call.args[BDD::symbex::FN_MAP_ARG_MAP].expr;
-      auto _key = call.args[BDD::symbex::FN_MAP_ARG_KEY].in;
-      auto _trash = call.args[BDD::symbex::FN_MAP_ARG_TRASH].out;
+      auto _map = call.args["map"].expr;
+      auto _key = call.args["key"].in;
+      auto _trash = call.args["trash"].out;
 
       auto _map_addr = kutil::expr_addr_to_obj_addr(_map);
       auto _trash_addr = kutil::expr_addr_to_obj_addr(_trash);

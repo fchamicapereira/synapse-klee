@@ -12,7 +12,7 @@
 #include "operations/operations.h"
 #include "reporter.h"
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 class Emulator {
@@ -30,7 +30,6 @@ public:
   Emulator(const BDD &_bdd, cfg_t _cfg)
       : bdd(_bdd), cfg(_cfg), operations(get_operations()),
         reporter(bdd, meta, cfg.warmup) {
-    kutil::solver_toolbox.build();
     setup();
   }
 
@@ -47,9 +46,9 @@ private:
   bool evaluate_condition(klee::ref<klee::Expr> condition,
                           context_t &ctx) const;
   operation_ptr get_operation(const std::string &name) const;
-  void process(Node_ptr node, pkt_t pkt, time_ns_t time, context_t &ctx);
+  void process(const Node *node, pkt_t pkt, time_ns_t time, context_t &ctx);
   void setup();
 };
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

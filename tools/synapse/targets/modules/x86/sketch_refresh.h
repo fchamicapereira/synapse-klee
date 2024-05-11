@@ -14,17 +14,17 @@ private:
 public:
   SketchRefresh() : x86Module(ModuleType::x86_SketchRefresh, "SketchRefresh") {}
 
-  SketchRefresh(BDD::Node_ptr node, addr_t _sketch_addr,
+  SketchRefresh(bdd::Node_ptr node, addr_t _sketch_addr,
                 klee::ref<klee::Expr> _time)
       : x86Module(ModuleType::x86_SketchRefresh, "SketchRefresh", node),
         sketch_addr(_sketch_addr), time(_time) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -32,15 +32,15 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != BDD::symbex::FN_SKETCH_REFRESH) {
+    if (call.function_name != "sketch_refresh") {
       return result;
     }
 
-    assert(!call.args[BDD::symbex::FN_SKETCH_ARG_SKETCH].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_SKETCH_ARG_TIME].expr.isNull());
+    assert(!call.args["sketch"].expr.isNull());
+    assert(!call.args["time"].expr.isNull());
 
-    auto _sketch = call.args[BDD::symbex::FN_SKETCH_ARG_SKETCH].expr;
-    auto _time = call.args[BDD::symbex::FN_SKETCH_ARG_TIME].expr;
+    auto _sketch = call.args["sketch"].expr;
+    auto _time = call.args["time"].expr;
 
     auto _sketch_addr = kutil::expr_addr_to_obj_addr(_sketch);
 

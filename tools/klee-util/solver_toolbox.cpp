@@ -12,6 +12,9 @@ solver_toolbox_t solver_toolbox;
 klee::ref<klee::Expr>
 solver_toolbox_t::create_new_symbol(const std::string &symbol_name,
                                     klee::Expr::Width width) const {
+  assert(symbol_name.size());
+  assert(width >= 8);
+
   auto domain = klee::Expr::Int32;
   auto range = klee::Expr::Int8;
 
@@ -41,8 +44,9 @@ bool solver_toolbox_t::is_expr_always_true(klee::ref<klee::Expr> expr) const {
   return is_expr_always_true(no_constraints, expr);
 }
 
-bool solver_toolbox_t::is_expr_always_true(klee::ConstraintManager constraints,
-                                           klee::ref<klee::Expr> expr) const {
+bool solver_toolbox_t::is_expr_always_true(
+    const klee::ConstraintManager &constraints,
+    klee::ref<klee::Expr> expr) const {
   klee::Query sat_query(constraints, expr);
 
   bool result;
@@ -52,9 +56,9 @@ bool solver_toolbox_t::is_expr_always_true(klee::ConstraintManager constraints,
   return result;
 }
 
-bool solver_toolbox_t::is_expr_always_true(klee::ConstraintManager constraints,
-                                           klee::ref<klee::Expr> expr,
-                                           bool force_symbol_merge) const {
+bool solver_toolbox_t::is_expr_always_true(
+    const klee::ConstraintManager &constraints, klee::ref<klee::Expr> expr,
+    bool force_symbol_merge) const {
   if (!force_symbol_merge) {
     return is_expr_always_true(constraints, expr);
   }
@@ -70,7 +74,7 @@ solver_toolbox_t::merge_symbols(const klee::ConstraintManager &constraints,
     return constraints;
   }
 
-  RetrieveSymbols retriever;
+  SymbolRetriever retriever;
   retriever.visit(expr);
   auto symbols = retriever.get_retrieved();
 
@@ -93,7 +97,7 @@ solver_toolbox_t::merge_symbols(klee::ref<klee::Expr> expr1,
     return expr2;
   }
 
-  RetrieveSymbols retriever;
+  SymbolRetriever retriever;
   retriever.visit(expr1);
   auto updates = retriever.get_retrieved_roots_updates();
 
@@ -101,8 +105,9 @@ solver_toolbox_t::merge_symbols(klee::ref<klee::Expr> expr1,
   return replacer.visit(expr2);
 }
 
-bool solver_toolbox_t::is_expr_maybe_true(klee::ConstraintManager constraints,
-                                          klee::ref<klee::Expr> expr) const {
+bool solver_toolbox_t::is_expr_maybe_true(
+    const klee::ConstraintManager &constraints,
+    klee::ref<klee::Expr> expr) const {
   klee::Query sat_query(constraints, expr);
 
   bool result;
@@ -112,8 +117,9 @@ bool solver_toolbox_t::is_expr_maybe_true(klee::ConstraintManager constraints,
   return result;
 }
 
-bool solver_toolbox_t::is_expr_maybe_false(klee::ConstraintManager constraints,
-                                           klee::ref<klee::Expr> expr) const {
+bool solver_toolbox_t::is_expr_maybe_false(
+    const klee::ConstraintManager &constraints,
+    klee::ref<klee::Expr> expr) const {
   klee::Query sat_query(constraints, expr);
 
   bool result;
@@ -172,8 +178,9 @@ bool solver_toolbox_t::is_expr_always_false(klee::ref<klee::Expr> expr) const {
   return is_expr_always_false(no_constraints, expr);
 }
 
-bool solver_toolbox_t::is_expr_always_false(klee::ConstraintManager constraints,
-                                            klee::ref<klee::Expr> expr) const {
+bool solver_toolbox_t::is_expr_always_false(
+    const klee::ConstraintManager &constraints,
+    klee::ref<klee::Expr> expr) const {
   klee::Query sat_query(constraints, expr);
 
   bool result;
@@ -183,9 +190,9 @@ bool solver_toolbox_t::is_expr_always_false(klee::ConstraintManager constraints,
   return result;
 }
 
-bool solver_toolbox_t::is_expr_always_false(klee::ConstraintManager constraints,
-                                            klee::ref<klee::Expr> expr,
-                                            bool force_symbol_merge) const {
+bool solver_toolbox_t::is_expr_always_false(
+    const klee::ConstraintManager &constraints, klee::ref<klee::Expr> expr,
+    bool force_symbol_merge) const {
   if (!force_symbol_merge) {
     return is_expr_always_false(constraints, expr);
   }
@@ -262,6 +269,11 @@ bool solver_toolbox_t::are_exprs_values_always_equal(
 }
 
 uint64_t solver_toolbox_t::value_from_expr(klee::ref<klee::Expr> expr) const {
+  if (expr->getKind() == klee::Expr::Kind::Constant) {
+    auto constant_expr = static_cast<klee::ConstantExpr *>(expr.get());
+    return constant_expr->getZExtValue();
+  }
+
   klee::ConstraintManager no_constraints;
   klee::Query sat_query(no_constraints, expr);
 
@@ -272,9 +284,14 @@ uint64_t solver_toolbox_t::value_from_expr(klee::ref<klee::Expr> expr) const {
   return value_expr->getZExtValue();
 }
 
-uint64_t
-solver_toolbox_t::value_from_expr(klee::ref<klee::Expr> expr,
-                                  klee::ConstraintManager constraints) const {
+uint64_t solver_toolbox_t::value_from_expr(
+    klee::ref<klee::Expr> expr,
+    const klee::ConstraintManager &constraints) const {
+  if (expr->getKind() == klee::Expr::Kind::Constant) {
+    auto constant_expr = static_cast<klee::ConstantExpr *>(expr.get());
+    return constant_expr->getZExtValue();
+  }
+
   klee::Query sat_query(constraints, expr);
 
   klee::ref<klee::ConstantExpr> value_expr;
@@ -357,7 +374,8 @@ solver_toolbox_t::contains(klee::ref<klee::Expr> expr1,
 }
 
 int64_t solver_toolbox_t::signed_value_from_expr(
-    klee::ref<klee::Expr> expr, klee::ConstraintManager constraints) const {
+    klee::ref<klee::Expr> expr,
+    const klee::ConstraintManager &constraints) const {
   auto width = expr->getWidth();
   auto value = solver_toolbox.value_from_expr(expr, constraints);
 

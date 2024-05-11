@@ -11,24 +11,24 @@ private:
   klee::ref<klee::Expr> obj;
   klee::ref<klee::Expr> hash;
 
-  BDD::symbols_t generated_symbols;
+  bdd::symbols_t generated_symbols;
 
 public:
   RteEtherAddrHash()
       : x86Module(ModuleType::x86_RteEtherAddrHash, "EtherHash") {}
 
-  RteEtherAddrHash(BDD::Node_ptr node, klee::ref<klee::Expr> _obj,
+  RteEtherAddrHash(bdd::Node_ptr node, klee::ref<klee::Expr> _obj,
                    klee::ref<klee::Expr> _hash,
-                   BDD::symbols_t _generated_symbols)
+                   bdd::symbols_t _generated_symbols)
       : x86Module(ModuleType::x86_RteEtherAddrHash, "EtherHash", node),
         obj(_obj), hash(_hash), generated_symbols(_generated_symbols) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -36,14 +36,14 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == BDD::symbex::FN_ETHER_HASH) {
-      assert(!call.args[BDD::symbex::FN_ETHER_HASH_ARG_OBJ].in.isNull());
+    if (call.function_name == "rte_ether_addr_hash") {
+      assert(!call.args["obj"].in.isNull());
       assert(!call.ret.isNull());
 
-      auto _obj = call.args[BDD::symbex::FN_ETHER_HASH_ARG_OBJ].in;
+      auto _obj = call.args["obj"].in;
       auto _hash = call.ret;
 
-      auto _generated_symbols = casted->get_local_generated_symbols();
+      auto _generated_symbols = casted->get_locally_generated_symbols();
 
       auto new_module = std::make_shared<RteEtherAddrHash>(node, _obj, _hash,
                                                            _generated_symbols);
@@ -94,7 +94,7 @@ public:
   const klee::ref<klee::Expr> &get_obj() const { return obj; }
   const klee::ref<klee::Expr> &get_hash() const { return hash; }
 
-  const BDD::symbols_t &get_generated_symbols() const {
+  const bdd::symbols_t &get_generated_symbols() const {
     return generated_symbols;
   }
 };

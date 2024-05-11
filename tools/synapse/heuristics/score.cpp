@@ -158,16 +158,16 @@ Score::next_op_same_obj_in_switch(const ExecutionPlan &ep) const {
     return 0;
   }
 
-  if (next->get_type() != BDD::Node::CALL ||
-      prev->get_type() != BDD::Node::CALL) {
+  if (next->get_type() != bdd::Node::CALL ||
+      prev->get_type() != bdd::Node::CALL) {
     return 0;
   }
 
-  auto next_call = static_cast<const BDD::Call *>(next.get());
-  auto prev_call = static_cast<const BDD::Call *>(prev.get());
+  auto next_call = static_cast<const bdd::Call *>(next.get());
+  auto prev_call = static_cast<const bdd::Call *>(prev.get());
 
-  auto next_obj = BDD::symbex::get_obj_from_call(next_call);
-  auto prev_obj = BDD::symbex::get_obj_from_call(prev_call);
+  auto next_obj = bdd::get_obj_from_call(next_call);
+  auto prev_obj = bdd::get_obj_from_call(prev_call);
 
   if (!next_obj.first || !prev_obj.first) {
     return 0;
@@ -194,21 +194,21 @@ Score::next_op_is_stateful_in_switch(const ExecutionPlan &ep) const {
     return 0;
   }
 
-  if (next->get_type() != BDD::Node::CALL) {
+  if (next->get_type() != bdd::Node::CALL) {
     return 0;
   }
 
-  auto next_call = static_cast<const BDD::Call *>(next.get());
+  auto next_call = static_cast<const bdd::Call *>(next.get());
   auto call = next_call->get_call();
 
   auto stateful_ops = std::vector<std::string>{
-      BDD::symbex::FN_MAP_GET,
-      BDD::symbex::FN_MAP_PUT,
-      BDD::symbex::FN_VECTOR_BORROW,
-      BDD::symbex::FN_VECTOR_RETURN,
-      BDD::symbex::FN_DCHAIN_ALLOCATE_NEW_INDEX,
-      BDD::symbex::FN_DCHAIN_REJUVENATE,
-      BDD::symbex::DCHAIN_IS_INDEX_ALLOCATED,
+      "map_get",
+      "map_put",
+      "vector_borrow",
+      "vector_return",
+      "dchain_allocate_new_index",
+      "dchain_rejuvenate_index",
+      "dchain_is_index_allocated",
   };
 
   auto found_it =

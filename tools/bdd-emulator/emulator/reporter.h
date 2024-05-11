@@ -20,7 +20,7 @@
 
 using std::chrono::_V2::steady_clock;
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 class Reporter {
@@ -70,4 +70,4 @@ private:
 };
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

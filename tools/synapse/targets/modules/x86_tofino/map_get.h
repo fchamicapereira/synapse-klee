@@ -14,16 +14,16 @@ private:
   klee::ref<klee::Expr> key;
   klee::ref<klee::Expr> map_has_this_key;
   klee::ref<klee::Expr> value_out;
-  BDD::symbols_t generated_symbols;
+  bdd::symbols_t generated_symbols;
 
 public:
   MapGet()
       : Module(ModuleType::x86_Tofino_MapGet, TargetType::x86_Tofino,
                "MapGet") {}
 
-  MapGet(BDD::Node_ptr node, addr_t _map_addr, klee::ref<klee::Expr> _key,
+  MapGet(bdd::Node_ptr node, addr_t _map_addr, klee::ref<klee::Expr> _key,
          klee::ref<klee::Expr> _map_has_this_key,
-         klee::ref<klee::Expr> _value_out, BDD::symbols_t _generated_symbols)
+         klee::ref<klee::Expr> _value_out, bdd::symbols_t _generated_symbols)
       : Module(ModuleType::x86_Tofino_MapGet, TargetType::x86_Tofino, "MapGet",
                node),
         map_addr(_map_addr), key(_key), map_has_this_key(_map_has_this_key),
@@ -46,10 +46,10 @@ private:
   }
 
   processing_result_t process_map_get(const ExecutionPlan &ep,
-                                      BDD::Node_ptr node) {
+                                      bdd::Node_ptr node) {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -57,17 +57,17 @@ private:
 
     auto call = casted->get_call();
 
-    assert(!call.args[BDD::symbex::FN_MAP_ARG_MAP].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_MAP_ARG_KEY].in.isNull());
+    assert(!call.args["map"].expr.isNull());
+    assert(!call.args["key"].in.isNull());
     assert(!call.ret.isNull());
-    assert(!call.args[BDD::symbex::FN_MAP_ARG_OUT].out.isNull());
+    assert(!call.args["value_out"].out.isNull());
 
-    auto _map = call.args[BDD::symbex::FN_MAP_ARG_MAP].expr;
-    auto _key = call.args[BDD::symbex::FN_MAP_ARG_KEY].in;
+    auto _map = call.args["map"].expr;
+    auto _key = call.args["key"].in;
     auto _map_has_this_key = call.ret;
-    auto _value_out = call.args[BDD::symbex::FN_MAP_ARG_OUT].out;
+    auto _value_out = call.args["value_out"].out;
 
-    auto _generated_symbols = casted->get_local_generated_symbols();
+    auto _generated_symbols = casted->get_locally_generated_symbols();
 
     auto _map_addr = kutil::expr_addr_to_obj_addr(_map);
 
@@ -97,10 +97,10 @@ private:
   }
 
   processing_result_t process_vector_borrow(const ExecutionPlan &ep,
-                                            BDD::Node_ptr node) {
+                                            bdd::Node_ptr node) {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -108,16 +108,16 @@ private:
 
     auto call = casted->get_call();
 
-    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_OUT].out.isNull());
-    assert(!call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second.isNull());
+    assert(!call.args["vector"].expr.isNull());
+    assert(!call.args["index"].expr.isNull());
+    assert(!call.args["val_out"].out.isNull());
+    assert(!call.extra_vars["borrowed_cell"].second.isNull());
 
-    auto _vector = call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
-    auto _index = call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr;
-    auto _borrowed_cell = call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second;
+    auto _vector = call.args["vector"].expr;
+    auto _index = call.args["index"].expr;
+    auto _borrowed_cell = call.extra_vars["borrowed_cell"].second;
 
-    auto _generated_symbols = casted->get_local_generated_symbols();
+    auto _generated_symbols = casted->get_locally_generated_symbols();
 
     auto _vector_addr = kutil::expr_addr_to_obj_addr(_vector);
 
@@ -150,10 +150,10 @@ private:
   }
 
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -161,11 +161,11 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == BDD::symbex::FN_MAP_GET) {
+    if (call.function_name == "map_get") {
       return process_map_get(ep, node);
     }
 
-    if (call.function_name == BDD::symbex::FN_VECTOR_BORROW) {
+    if (call.function_name == "vector_borrow") {
       return process_vector_borrow(ep, node);
     }
 
@@ -220,7 +220,7 @@ public:
   }
   const klee::ref<klee::Expr> &get_value_out() const { return value_out; }
 
-  const BDD::symbols_t &get_generated_symbols() const {
+  const bdd::symbols_t &get_generated_symbols() const {
     return generated_symbols;
   }
 };

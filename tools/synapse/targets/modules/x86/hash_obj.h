@@ -15,17 +15,17 @@ private:
 public:
   HashObj() : x86Module(ModuleType::x86_HashObj, "HashObj") {}
 
-  HashObj(BDD::Node_ptr node, addr_t _obj_addr, klee::ref<klee::Expr> _size,
+  HashObj(bdd::Node_ptr node, addr_t _obj_addr, klee::ref<klee::Expr> _size,
           klee::ref<klee::Expr> _hash)
       : x86Module(ModuleType::x86_HashObj, "HashObj", node),
         obj_addr(_obj_addr), size(_size), hash(_hash) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -33,13 +33,13 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == BDD::symbex::FN_HASH_OBJ) {
-      assert(!call.args[BDD::symbex::FN_HASH_OBJ_ARG_OBJ].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_HASH_OBJ_ARG_SIZE].expr.isNull());
+    if (call.function_name == "hash_obj") {
+      assert(!call.args["obj"].expr.isNull());
+      assert(!call.args["size"].expr.isNull());
       assert(!call.ret.isNull());
 
-      auto _obj = call.args[BDD::symbex::FN_HASH_OBJ_ARG_OBJ].expr;
-      auto _size = call.args[BDD::symbex::FN_HASH_OBJ_ARG_SIZE].expr;
+      auto _obj = call.args["obj"].expr;
+      auto _size = call.args["size"].expr;
       auto _hash = call.ret;
 
       auto _obj_addr = kutil::expr_addr_to_obj_addr(_obj);

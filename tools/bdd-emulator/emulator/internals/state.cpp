@@ -1,7 +1,7 @@
 #include "state.h"
 #include "../data_structures/data_structures.h"
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 void state_t::add(const DataStructureRef &ds) {
@@ -16,4 +16,4 @@ DataStructureRef state_t::get(addr_t obj) const {
 }
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

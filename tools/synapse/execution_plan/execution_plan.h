@@ -29,11 +29,11 @@ class ExecutionPlan {
 public:
   struct leaf_t {
     ExecutionPlanNode_ptr leaf;
-    BDD::Node_ptr next;
+    bdd::Node_ptr next;
     std::pair<bool, TargetType> current_platform;
 
-    leaf_t(BDD::Node_ptr _next);
-    leaf_t(Module_ptr _module, BDD::Node_ptr _next);
+    leaf_t(bdd::Node_ptr _next);
+    leaf_t(Module_ptr _module, bdd::Node_ptr _next);
     leaf_t(const leaf_t &_leaf);
 
     leaf_t &operator=(const leaf_t &) = default;
@@ -44,7 +44,7 @@ private:
 
   ExecutionPlanNode_ptr root;
   std::vector<leaf_t> leaves;
-  BDD::BDD bdd;
+  bdd::BDD bdd;
 
   std::unordered_set<TargetType> targets;
   TargetType initial_target;
@@ -55,24 +55,24 @@ private:
   ep_meta_t meta;
 
 public:
-  ExecutionPlan(const BDD::BDD &_bdd);
+  ExecutionPlan(const bdd::BDD &_bdd);
   ExecutionPlan(const ExecutionPlan &ep);
   ExecutionPlan(const ExecutionPlan &ep, ExecutionPlanNode_ptr _root);
 
   ExecutionPlan &operator=(const ExecutionPlan &) = default;
 
   const ep_meta_t &get_meta() const;
-  BDD::Node_ptr get_bdd_root(BDD::Node_ptr node) const;
+  bdd::Node_ptr get_bdd_root(bdd::Node_ptr node) const;
 
   ep_id_t get_id() const;
   const std::vector<leaf_t> &get_leaves() const;
-  const BDD::BDD &get_bdd() const;
-  BDD::BDD &get_bdd();
+  const bdd::BDD &get_bdd() const;
+  bdd::BDD &get_bdd();
 
   std::vector<ExecutionPlanNode_ptr> get_prev_nodes() const;
   std::vector<ExecutionPlanNode_ptr> get_prev_nodes_of_current_target() const;
 
-  std::vector<BDD::Node_ptr> get_incoming_bdd_nodes() const;
+  std::vector<bdd::Node_ptr> get_incoming_bdd_nodes() const;
 
   void inc_reordered_nodes();
   const ExecutionPlanNode_ptr &get_root() const;
@@ -89,17 +89,17 @@ public:
     return static_cast<MB *>(memory_banks.at(type).get());
   }
 
-  BDD::Node_ptr get_next_node() const;
+  bdd::Node_ptr get_next_node() const;
   ExecutionPlanNode_ptr get_active_leaf() const;
   TargetType get_current_platform() const;
 
-  ExecutionPlan replace_leaf(Module_ptr new_module, const BDD::Node_ptr &next,
+  ExecutionPlan replace_leaf(Module_ptr new_module, const bdd::Node_ptr &next,
                              bool process_bdd_node = true) const;
 
-  ExecutionPlan ignore_leaf(const BDD::Node_ptr &next, TargetType next_target,
+  ExecutionPlan ignore_leaf(const bdd::Node_ptr &next, TargetType next_target,
                             bool process_bdd_node = true) const;
 
-  ExecutionPlan add_leaves(Module_ptr new_module, const BDD::Node_ptr &next,
+  ExecutionPlan add_leaves(Module_ptr new_module, const bdd::Node_ptr &next,
                            bool is_terminal = false,
                            bool process_bdd_node = true) const;
 
@@ -109,19 +109,19 @@ public:
                            bool is_terminal = false,
                            bool process_bdd_node = true) const;
 
-  void replace_active_leaf_node(BDD::Node_ptr next,
+  void replace_active_leaf_node(bdd::Node_ptr next,
                                 bool process_bdd_node = true);
 
   void force_termination();
 
   float get_bdd_processing_progress() const;
-  void remove_from_processed_bdd_nodes(BDD::node_id_t id);
-  void add_processed_bdd_node(BDD::node_id_t id);
-  void replace_roots(BDD::node_id_t _old, BDD::node_id_t _new);
+  void remove_from_processed_bdd_nodes(bdd::node_id_t id);
+  void add_processed_bdd_node(bdd::node_id_t id);
+  void replace_roots(bdd::node_id_t _old, bdd::node_id_t _new);
 
   void visit(ExecutionPlanVisitor &visitor) const;
 
-  ExecutionPlan clone(BDD::BDD new_bdd) const;
+  ExecutionPlan clone(bdd::BDD new_bdd) const;
   ExecutionPlan clone(bool deep = false) const;
 
 private:

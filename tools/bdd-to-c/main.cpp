@@ -75,18 +75,18 @@ Node_ptr update_bdd_node_hit_rate(AST &ast, uint64_t node_id) {
   return assignment;
 }
 
-Node_ptr build_ast(AST &ast, const BDD::Node *root, TargetOption target,
+Node_ptr build_ast(AST &ast, const bdd::Node *root, TargetOption target,
                    bool processing_packets) {
   std::vector<Node_ptr> nodes;
   assert(root);
 
   while (root != nullptr) {
-    BDD::PrinterDebug::debug(root);
+    bdd::PrinterDebug::debug(root);
     std::cerr << "\n";
 
     switch (root->get_type()) {
-    case BDD::Node::NodeType::BRANCH: {
-      auto branch_node = static_cast<const BDD::Branch *>(root);
+    case bdd::Node::NodeType::BRANCH: {
+      auto branch_node = static_cast<const bdd::Branch *>(root);
 
       if (processing_packets && processing_packets &&
           target == BDD_NODE_HIT_RATE) {
@@ -126,8 +126,8 @@ Node_ptr build_ast(AST &ast, const BDD::Node *root, TargetOption target,
       break;
     };
 
-    case BDD::Node::NodeType::CALL: {
-      auto bdd_call = static_cast<const BDD::Call *>(root);
+    case bdd::Node::NodeType::CALL: {
+      auto bdd_call = static_cast<const bdd::Call *>(root);
 
       if (processing_packets && target == BDD_NODE_HIT_RATE) {
         auto hit_rate_update =
@@ -145,16 +145,16 @@ Node_ptr build_ast(AST &ast, const BDD::Node *root, TargetOption target,
       break;
     };
 
-    case BDD::Node::NodeType::RETURN_INIT: {
-      auto return_init = static_cast<const BDD::ReturnInit *>(root);
+    case bdd::Node::NodeType::RETURN_INIT: {
+      auto return_init = static_cast<const bdd::ReturnInit *>(root);
       Expr_ptr ret_value;
 
       switch (return_init->get_return_value()) {
-      case BDD::ReturnInit::ReturnType::SUCCESS: {
+      case bdd::ReturnInit::ReturnType::SUCCESS: {
         ret_value = Constant::build(PrimitiveType::PrimitiveKind::INT, 1);
         break;
       };
-      case BDD::ReturnInit::ReturnType::FAILURE: {
+      case bdd::ReturnInit::ReturnType::FAILURE: {
         ret_value = Constant::build(PrimitiveType::PrimitiveKind::INT, 0);
         break;
       };
@@ -174,8 +174,8 @@ Node_ptr build_ast(AST &ast, const BDD::Node *root, TargetOption target,
       break;
     };
 
-    case BDD::Node::NodeType::RETURN_PROCESS: {
-      auto return_process = static_cast<const BDD::ReturnProcess *>(root);
+    case bdd::Node::NodeType::RETURN_PROCESS: {
+      auto return_process = static_cast<const bdd::ReturnProcess *>(root);
       Node_ptr new_node;
 
       Expr_ptr ret_value = Constant::build(PrimitiveType::PrimitiveKind::INT,
@@ -183,16 +183,16 @@ Node_ptr build_ast(AST &ast, const BDD::Node *root, TargetOption target,
       Node_ptr ret = Return::build(ret_value);
 
       switch (return_process->get_return_operation()) {
-      case BDD::ReturnProcess::Operation::FWD: {
+      case bdd::ReturnProcess::Operation::FWD: {
         new_node = ret;
         break;
       }
-      case BDD::ReturnProcess::Operation::BCAST: {
+      case bdd::ReturnProcess::Operation::BCAST: {
         Comment_ptr comm = Comment::build("broadcasting");
         new_node = Block::build(std::vector<Node_ptr>{comm, ret}, false);
         break;
       }
-      case BDD::ReturnProcess::Operation::DROP: {
+      case bdd::ReturnProcess::Operation::DROP: {
         Comment_ptr comm = Comment::build("dropping");
         new_node = Block::build(std::vector<Node_ptr>{comm, ret}, false);
         break;
@@ -226,7 +226,7 @@ Node_ptr build_ast(AST &ast, const BDD::Node *root, TargetOption target,
   return Block::build(nodes);
 }
 
-void build_ast(AST &ast, const BDD::BDD &bdd, TargetOption target) {
+void build_ast(AST &ast, const bdd::BDD &bdd, TargetOption target) {
   auto init = bdd.get_init().get();
   auto process = bdd.get_process().get();
 
@@ -393,12 +393,12 @@ void build_ast(AST &ast, const BDD::BDD &bdd, TargetOption target) {
   ast.commit(process_root);
 }
 
-BDD::BDD build_bdd() {
+bdd::BDD build_bdd() {
   assert((InputBDDFile.size() != 0 || InputCallPathFiles.size() != 0) &&
          "Please provide either at least 1 call path file, or a bdd file");
 
   if (InputBDDFile.size() > 0) {
-    return BDD::BDD(InputBDDFile);
+    return bdd::BDD(InputBDDFile);
   }
 
   std::vector<call_path_t *> call_paths;
@@ -410,7 +410,7 @@ BDD::BDD build_bdd() {
     call_paths.push_back(call_path);
   }
 
-  return BDD::BDD(call_paths);
+  return bdd::BDD(call_paths);
 }
 
 void synthesize(const AST &ast, TargetOption target, std::ostream &out) {

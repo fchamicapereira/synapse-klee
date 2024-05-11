@@ -11,20 +11,20 @@ public:
   TableIsAllocated()
       : TableModule(ModuleType::Tofino_TableRejuvenation, "TableIsAllocated") {}
 
-  TableIsAllocated(BDD::Node_ptr node, TableRef _table)
+  TableIsAllocated(bdd::Node_ptr node, TableRef _table)
       : TableModule(ModuleType::Tofino_TableRejuvenation, "TableIsAllocated",
                     node, _table) {}
 
 protected:
   extracted_data_t extract_data(const ExecutionPlan &ep,
-                                BDD::Node_ptr node) const {
+                                bdd::Node_ptr node) const {
     auto extractors = {
         &TableIsAllocated::extract_from_dchain_is_index_allocated,
     };
 
     extracted_data_t data;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return data;
@@ -48,7 +48,7 @@ protected:
   }
 
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
     auto data = extract_data(ep, node);

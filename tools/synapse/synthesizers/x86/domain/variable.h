@@ -20,7 +20,7 @@ protected:
   addr_t addr;
   bool is_array;
 
-  std::vector<BDD::label_t> symbols;
+  std::vector<bdd::label_t> symbols;
   std::vector<klee::ref<klee::Expr>> exprs;
 
 public:
@@ -39,7 +39,7 @@ public:
       : label(_label), size(_size), addr(0), is_array(false),
         symbols(_symbols) {}
 
-  Variable(std::string _label, const BDD::symbol_t symbol)
+  Variable(std::string _label, const bdd::symbol_t symbol)
       : label(_label), size(symbol.expr->getWidth()), addr(0), is_array(false),
         symbols({symbol.label}) {}
 
@@ -57,7 +57,7 @@ public:
   void add_expr(klee::ref<klee::Expr> expr) {
     exprs.push_back(expr);
 
-    BDD::label_t symbol;
+    bdd::label_t symbol;
     if (!kutil::is_readLSB(expr, symbol)) {
       return;
     }

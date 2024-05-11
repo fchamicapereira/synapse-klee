@@ -428,7 +428,7 @@ KleeExprToASTNodeConverter::visitConcat(const klee::ConcatExpr &e) {
 
   Concat_ptr concat = Concat::build(left, right, type);
 
-  kutil::RetrieveSymbols retriever;
+  kutil::SymbolRetriever retriever;
   retriever.visit(klee::ref<klee::Expr>(const_cast<klee::ConcatExpr *>(&e)));
   auto symbols = retriever.get_retrieved_strings();
 

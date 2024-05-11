@@ -34,13 +34,13 @@ bool only_has_modules_from_target(const ExecutionPlan &execution_plan,
 struct annotated_node_t {
   ExecutionPlanNode_ptr node;
   bool save;
-  BDD::node_id_t path_id;
+  bdd::node_id_t path_id;
 
   annotated_node_t(ExecutionPlanNode_ptr _node)
       : node(_node), save(false), path_id(0) {}
 
   annotated_node_t(ExecutionPlanNode_ptr _node, bool _save,
-                   BDD::node_id_t _path_id)
+                   bdd::node_id_t _path_id)
       : node(_node), save(_save), path_id(_path_id) {}
 
   annotated_node_t clone() const {
@@ -78,7 +78,7 @@ struct annotated_node_t {
 
 struct x86_tofino_root_info_t {
   targets::tofino::cpu_code_path_t cpu_code_path;
-  BDD::symbols_t dataplane_state;
+  bdd::symbols_t dataplane_state;
 };
 
 typedef std::vector<std::pair<ExecutionPlanNode_ptr, x86_tofino_root_info_t>>
@@ -135,7 +135,7 @@ CodeGenerator::x86_tofino_extractor(const ExecutionPlan &execution_plan) const {
   }
 
   auto code_path = kutil::solver_toolbox.create_new_symbol(
-      BDD::symbex::CPU_CODE_PATH, sizeof(targets::tofino::cpu_code_path_t) * 8);
+      "cpu_code_path", sizeof(targets::tofino::cpu_code_path_t) * 8);
 
   ExecutionPlanNode_ptr new_root;
   ExecutionPlanNode_ptr new_leaf;

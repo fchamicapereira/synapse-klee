@@ -43,8 +43,8 @@ llvm::cl::opt<bool>
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv);
 
-  auto bdd = BDD::BDD(InputBDDFile);
-  auto cfg = BDD::emulation::cfg_t();
+  auto bdd = bdd::BDD(InputBDDFile);
+  auto cfg = bdd::emulation::cfg_t();
 
   if (Rate > 0) {
     cfg.rate.first = true;
@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
   cfg.warmup = Warmup;
   cfg.report = true;
 
-  BDD::emulation::Emulator emulator(bdd, cfg);
+  bdd::emulation::Emulator emulator(bdd, cfg);
   emulator.run(InputPcap, InputDevice);
 
   return 0;

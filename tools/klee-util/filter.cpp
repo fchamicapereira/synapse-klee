@@ -25,7 +25,7 @@ public:
   expr_info_t check_symbols(klee::ref<klee::Expr> expr) const {
     expr_info_t info{false, false};
 
-    RetrieveSymbols retriever;
+    SymbolRetriever retriever;
     retriever.visit(expr);
 
     auto symbols = retriever.get_retrieved_strings();

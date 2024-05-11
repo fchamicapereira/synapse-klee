@@ -5,16 +5,12 @@
 #include "../data_structures/vector.h"
 #include "../internals/internals.h"
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 inline time_ns_t get_expiration_time(const BDD &bdd,
                                      klee::ref<klee::Expr> expr) {
-  auto symbol = kutil::get_symbol(expr);
-  assert(symbol.first);
-  auto time_symbol = symbol.second;
-
-  auto time = bdd.get_symbol(time_symbol);
+  auto time = bdd.get_time();
   auto zero = kutil::solver_toolbox.exprBuilder->Constant(0, 64);
   auto time_eq_0 = kutil::solver_toolbox.exprBuilder->Eq(time, zero);
 
@@ -31,16 +27,16 @@ inline void __expire_items_single_map(const BDD &bdd, const Call *call_node,
                                       context_t &ctx, const cfg_t &cfg) {
   auto call = call_node->get_call();
 
-  assert(!call.args[symbex::FN_EXPIRE_MAP_ARG_CHAIN].expr.isNull());
-  assert(!call.args[symbex::FN_EXPIRE_MAP_ARG_VECTOR].expr.isNull());
-  assert(!call.args[symbex::FN_EXPIRE_MAP_ARG_MAP].expr.isNull());
-  assert(!call.args[symbex::FN_EXPIRE_MAP_ARG_TIME].expr.isNull());
+  assert(!call.args["chain"].expr.isNull());
+  assert(!call.args["vector"].expr.isNull());
+  assert(!call.args["map"].expr.isNull());
+  assert(!call.args["time"].expr.isNull());
   assert(!call.ret.isNull());
 
-  auto dchain_expr = call.args[symbex::FN_EXPIRE_MAP_ARG_CHAIN].expr;
-  auto vector_expr = call.args[symbex::FN_EXPIRE_MAP_ARG_VECTOR].expr;
-  auto map_expr = call.args[symbex::FN_EXPIRE_MAP_ARG_MAP].expr;
-  auto time_expr = call.args[symbex::FN_EXPIRE_MAP_ARG_TIME].expr;
+  auto dchain_expr = call.args["chain"].expr;
+  auto vector_expr = call.args["vector"].expr;
+  auto map_expr = call.args["map"].expr;
+  auto time_expr = call.args["time"].expr;
   auto number_of_freed_flows_expr = call.ret;
 
   auto dchain_addr = kutil::expr_addr_to_obj_addr(dchain_expr);
@@ -73,8 +69,8 @@ inline void __expire_items_single_map(const BDD &bdd, const Call *call_node,
 }
 
 inline std::pair<std::string, operation_ptr> expire_items_single_map() {
-  return {symbex::FN_EXPIRE_MAP, __expire_items_single_map};
+  return {"expire_items_single_map", __expire_items_single_map};
 }
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

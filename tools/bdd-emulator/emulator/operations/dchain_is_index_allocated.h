@@ -3,21 +3,21 @@
 #include "../data_structures/dchain.h"
 #include "../internals/internals.h"
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
-inline void __dchain_is_index_allocated(const BDD& bdd, const Call *call_node, pkt_t &pkt,
-                                        time_ns_t time, state_t &state,
-                                        meta_t &meta, context_t &ctx,
-                                        const cfg_t &cfg) {
+inline void __dchain_is_index_allocated(const BDD &bdd, const Call *call_node,
+                                        pkt_t &pkt, time_ns_t time,
+                                        state_t &state, meta_t &meta,
+                                        context_t &ctx, const cfg_t &cfg) {
   auto call = call_node->get_call();
 
-  assert(!call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
-  assert(!call.args[symbex::FN_DCHAIN_ARG_INDEX].expr.isNull());
+  assert(!call.args["chain"].expr.isNull());
+  assert(!call.args["index"].expr.isNull());
   assert(!call.ret.isNull());
 
-  auto addr_expr = call.args[symbex::FN_DCHAIN_ARG_CHAIN].expr;
-  auto index_expr = call.args[symbex::FN_DCHAIN_ARG_INDEX].expr;
+  auto addr_expr = call.args["chain"].expr;
+  auto index_expr = call.args["index"].expr;
   auto is_allocated_expr = call.ret;
 
   auto addr = kutil::expr_addr_to_obj_addr(addr_expr);
@@ -31,8 +31,8 @@ inline void __dchain_is_index_allocated(const BDD& bdd, const Call *call_node, p
 }
 
 inline std::pair<std::string, operation_ptr> dchain_is_index_allocated() {
-  return {symbex::FN_DCHAIN_IS_ALLOCATED, __dchain_is_index_allocated};
+  return {"dchain_is_index_allocated", __dchain_is_index_allocated};
 }
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

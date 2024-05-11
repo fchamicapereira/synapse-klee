@@ -4,8 +4,8 @@
 
 #include <unordered_map>
 
-namespace BDD {
+namespace bdd {
 
 typedef std::unordered_map<node_id_t, emulation::hit_rate_t> bdd_hit_rate_t;
 
-} // namespace BDD
+} // namespace bdd

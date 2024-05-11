@@ -66,7 +66,7 @@ public:
         {
             INGRESS_INTRINSIC_META_INGRESS_PORT,
             INGRESS_INTRINSIC_META_INGRESS_PORT_SIZE_BITS,
-            {BDD::symbex::PORT, BDD::symbex::PORT2},
+            {"DEVICE", "device"},
         },
 
         {
@@ -242,7 +242,7 @@ public:
   }
 
   Variable allocate_local_auxiliary(const std::string &base_label, bits_t size,
-                                    const BDD::symbols_t &symbols) {
+                                    const bdd::symbols_t &symbols) {
     std::vector<klee::ref<klee::Expr>> exprs;
     std::vector<std::string> labels;
 
@@ -289,7 +289,7 @@ public:
     return var;
   }
 
-  void set_cpu_hdr_fields(const BDD::symbols_t &fields) {
+  void set_cpu_hdr_fields(const bdd::symbols_t &fields) {
     for (auto field : fields) {
       auto label = field.label;
       auto size = field.expr->getWidth();
@@ -309,7 +309,7 @@ public:
     }
   }
 
-  variable_query_t get_cpu_hdr_field(const BDD::symbol_t &symbol) {
+  variable_query_t get_cpu_hdr_field(const bdd::symbol_t &symbol) {
     auto varq = cpu_header.query_field(symbol.label);
 
     if (varq.valid) {

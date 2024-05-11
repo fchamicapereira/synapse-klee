@@ -81,7 +81,7 @@ public:
 
   std::string transpile(klee::ref<klee::Expr> expr);
 
-  variable_query_t search_variable(const BDD::symbol_t &symbol) const;
+  variable_query_t search_variable(const bdd::symbol_t &symbol) const;
   variable_query_t search_variable(const std::string &symbol) const;
   variable_query_t search_variable(klee::ref<klee::Expr> expr) const;
 

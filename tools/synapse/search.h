@@ -11,7 +11,7 @@ namespace synapse {
 class SearchEngine {
 private:
   std::vector<Target_ptr> targets;
-  BDD::BDD bdd;
+  bdd::BDD bdd;
 
   // Maximum number of reordered nodes on the BDD
   // -1 => unlimited
@@ -23,7 +23,7 @@ private:
   struct report_t {
     int available_execution_plans;
     const ExecutionPlan &chosen;
-    BDD::Node_ptr current;
+    bdd::Node_ptr current;
 
     std::vector<std::string> target_name;
     std::vector<std::string> name;
@@ -31,13 +31,13 @@ private:
     std::vector<std::vector<unsigned>> generated_exec_plans_ids;
 
     report_t(int _available_execution_plans, const ExecutionPlan &_chosen,
-             BDD::Node_ptr _current)
+             bdd::Node_ptr _current)
         : available_execution_plans(_available_execution_plans),
           chosen(_chosen), current(_current) {}
   };
 
 public:
-  SearchEngine(BDD::BDD _bdd, int _max_reordered)
+  SearchEngine(bdd::BDD _bdd, int _max_reordered)
       : bdd(_bdd), max_reordered(_max_reordered) {}
 
   SearchEngine(const SearchEngine &se)
@@ -59,7 +59,7 @@ public:
     }
   }
 
-  template <class T> ExecutionPlan search(Heuristic<T> h, BDD::node_id_t peek) {
+  template <class T> ExecutionPlan search(Heuristic<T> h, bdd::node_id_t peek) {
     auto first_execution_plan = ExecutionPlan(bdd);
 
     for (auto target : targets) {

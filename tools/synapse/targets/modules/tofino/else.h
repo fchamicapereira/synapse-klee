@@ -10,13 +10,13 @@ class Else : public TofinoModule {
 public:
   Else() : TofinoModule(ModuleType::Tofino_Else, "Else") {}
 
-  Else(BDD::Node_ptr node)
+  Else(bdd::Node_ptr node)
       : TofinoModule(ModuleType::Tofino_Else, "Else", node) {}
 
 public:
   // We expect to generate this module only manually.
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
     return result;
   }

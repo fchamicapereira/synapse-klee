@@ -7,7 +7,7 @@
 #include <ostream>
 #include <utility>
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 typedef uint8_t byte_t;
@@ -112,4 +112,4 @@ inline std::ostream &operator<<(std::ostream &os, const bytes_t &bytes) {
 }
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

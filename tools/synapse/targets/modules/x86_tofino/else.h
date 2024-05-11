@@ -10,13 +10,13 @@ class Else : public Module {
 public:
   Else()
       : Module(ModuleType::x86_Tofino_Else, TargetType::x86_Tofino, "Else") {}
-  Else(BDD::Node_ptr node)
+  Else(bdd::Node_ptr node)
       : Module(ModuleType::x86_Tofino_Else, TargetType::x86_Tofino, "Else",
                node) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     return processing_result_t();
   }
 

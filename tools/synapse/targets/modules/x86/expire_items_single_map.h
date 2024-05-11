@@ -19,7 +19,7 @@ public:
       : x86Module(ModuleType::x86_ExpireItemsSingleMap,
                   "ExpireItemsSingleMap") {}
 
-  ExpireItemsSingleMap(BDD::Node_ptr node, addr_t _dchain_addr,
+  ExpireItemsSingleMap(bdd::Node_ptr node, addr_t _dchain_addr,
                        addr_t _vector_addr, addr_t _map_addr,
                        klee::ref<klee::Expr> _time,
                        klee::ref<klee::Expr> _number_of_freed_flows)
@@ -31,10 +31,10 @@ public:
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -42,17 +42,17 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == BDD::symbex::FN_EXPIRE_MAP) {
-      assert(!call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_CHAIN].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_VECTOR].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_MAP].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_TIME].expr.isNull());
+    if (call.function_name == "expire_items_single_map") {
+      assert(!call.args["chain"].expr.isNull());
+      assert(!call.args["vector"].expr.isNull());
+      assert(!call.args["map"].expr.isNull());
+      assert(!call.args["time"].expr.isNull());
       assert(!call.ret.isNull());
 
-      auto _dchain = call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_CHAIN].expr;
-      auto _vector = call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_VECTOR].expr;
-      auto _map = call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_MAP].expr;
-      auto _time = call.args[BDD::symbex::FN_EXPIRE_MAP_ARG_TIME].expr;
+      auto _dchain = call.args["chain"].expr;
+      auto _vector = call.args["vector"].expr;
+      auto _map = call.args["map"].expr;
+      auto _time = call.args["time"].expr;
       auto _number_of_freed_flows = call.ret;
 
       auto _map_addr = kutil::expr_addr_to_obj_addr(_map);

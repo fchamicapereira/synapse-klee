@@ -19,7 +19,7 @@ public:
       : Module(ModuleType::x86_Tofino_MapPut, TargetType::x86_Tofino,
                "MapPut") {}
 
-  MapPut(BDD::Node_ptr node, addr_t _map_addr, klee::ref<klee::Expr> _key,
+  MapPut(bdd::Node_ptr node, addr_t _map_addr, klee::ref<klee::Expr> _key,
          klee::ref<klee::Expr> _value)
       : Module(ModuleType::x86_Tofino_MapPut, TargetType::x86_Tofino, "MapPut",
                node),
@@ -42,10 +42,10 @@ private:
   }
 
   processing_result_t process_map_put(const ExecutionPlan &ep,
-                                      BDD::Node_ptr node) {
+                                      bdd::Node_ptr node) {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -53,13 +53,13 @@ private:
 
     auto call = casted->get_call();
 
-    assert(!call.args[BDD::symbex::FN_MAP_ARG_MAP].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_MAP_ARG_KEY].in.isNull());
-    assert(!call.args[BDD::symbex::FN_MAP_ARG_VALUE].expr.isNull());
+    assert(!call.args["map"].expr.isNull());
+    assert(!call.args["key"].in.isNull());
+    assert(!call.args["value"].expr.isNull());
 
-    auto _map = call.args[BDD::symbex::FN_MAP_ARG_MAP].expr;
-    auto _key = call.args[BDD::symbex::FN_MAP_ARG_KEY].in;
-    auto _value = call.args[BDD::symbex::FN_MAP_ARG_VALUE].expr;
+    auto _map = call.args["map"].expr;
+    auto _key = call.args["key"].in;
+    auto _value = call.args["value"].expr;
     auto _map_addr = kutil::expr_addr_to_obj_addr(_map);
 
     if (!check_previous_placement_decisions(ep, _map_addr)) {
@@ -86,24 +86,23 @@ private:
   }
 
   klee::ref<klee::Expr> get_original_vector_value(const ExecutionPlan &ep,
-                                                  BDD::Node_ptr node,
+                                                  bdd::Node_ptr node,
                                                   addr_t target_addr) {
     // Ignore targets to allow the control plane to lookup vector_borrow
     // operations performed on the data plane.
-    auto all_prev_vector_borrow =
-        get_prev_fn(ep, node, BDD::symbex::FN_VECTOR_BORROW, true);
+    auto all_prev_vector_borrow = get_prev_fn(ep, node, "vector_borrow", true);
 
     for (auto prev_vector_borrow : all_prev_vector_borrow) {
-      auto call_node = BDD::cast_node<BDD::Call>(prev_vector_borrow);
+      auto call_node = bdd::cast_node<bdd::Call>(prev_vector_borrow);
       assert(call_node);
 
       auto call = call_node->get_call();
 
-      assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-      assert(!call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second.isNull());
+      assert(!call.args["vector"].expr.isNull());
+      assert(!call.extra_vars["borrowed_cell"].second.isNull());
 
-      auto _vector = call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
-      auto _borrowed_cell = call.extra_vars[BDD::symbex::FN_VECTOR_EXTRA].second;
+      auto _vector = call.args["vector"].expr;
+      auto _borrowed_cell = call.extra_vars["borrowed_cell"].second;
 
       auto _vector_addr = kutil::expr_addr_to_obj_addr(_vector);
 
@@ -121,10 +120,10 @@ private:
   }
 
   processing_result_t process_vector_return(const ExecutionPlan &ep,
-                                            BDD::Node_ptr node) {
+                                            bdd::Node_ptr node) {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -132,15 +131,15 @@ private:
 
     auto call = casted->get_call();
 
-    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].in.isNull());
+    assert(!call.args["vector"].expr.isNull());
+    assert(!call.args["index"].expr.isNull());
+    assert(!call.args["value"].expr.isNull());
+    assert(!call.args["value"].in.isNull());
 
-    auto _vector = call.args[BDD::symbex::FN_VECTOR_ARG_VECTOR].expr;
-    auto _index = call.args[BDD::symbex::FN_VECTOR_ARG_INDEX].expr;
-    auto _value_addr = call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].expr;
-    auto _value = call.args[BDD::symbex::FN_VECTOR_ARG_VALUE].in;
+    auto _vector = call.args["vector"].expr;
+    auto _index = call.args["index"].expr;
+    auto _value_addr = call.args["value"].expr;
+    auto _value = call.args["value"].in;
     auto _vector_addr = kutil::expr_addr_to_obj_addr(_vector);
 
     if (!check_previous_placement_decisions(ep, _vector_addr)) {
@@ -181,10 +180,10 @@ private:
   }
 
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -192,11 +191,11 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == BDD::symbex::FN_MAP_PUT) {
+    if (call.function_name == "map_put") {
       return process_map_put(ep, node);
     }
 
-    if (call.function_name == BDD::symbex::FN_VECTOR_RETURN) {
+    if (call.function_name == "vector_return") {
       return process_vector_return(ep, node);
     }
 

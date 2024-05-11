@@ -2,10 +2,11 @@
 
 #include "../internals/internals.h"
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
-inline void __nf_set_rte_ipv4_tcpudp_checksum(const BDD& bdd, const Call *call_node, pkt_t &pkt,
+inline void __nf_set_rte_ipv4_tcpudp_checksum(const BDD &bdd,
+                                              const Call *call_node, pkt_t &pkt,
                                               time_ns_t time, state_t &state,
                                               meta_t &meta, context_t &ctx,
                                               const cfg_t &cfg) {
@@ -13,8 +14,8 @@ inline void __nf_set_rte_ipv4_tcpudp_checksum(const BDD& bdd, const Call *call_n
 }
 
 inline std::pair<std::string, operation_ptr> nf_set_rte_ipv4_tcpudp_checksum() {
-  return {symbex::FN_SET_CHECKSUM, __nf_set_rte_ipv4_tcpudp_checksum};
+  return {"nf_set_rte_ipv4_udptcp_checksum", __nf_set_rte_ipv4_tcpudp_checksum};
 }
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

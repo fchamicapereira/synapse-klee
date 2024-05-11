@@ -14,18 +14,18 @@ private:
   klee::ref<klee::Expr> index_out;
   klee::ref<klee::Expr> success;
 
-  BDD::symbols_t generated_symbols;
+  bdd::symbols_t generated_symbols;
 
 public:
   DchainAllocateNewIndex()
       : Module(ModuleType::x86_Tofino_DchainAllocateNewIndex,
                TargetType::x86_Tofino, "DchainAllocate") {}
 
-  DchainAllocateNewIndex(BDD::Node_ptr node, addr_t _dchain_addr,
+  DchainAllocateNewIndex(bdd::Node_ptr node, addr_t _dchain_addr,
                          klee::ref<klee::Expr> _time,
                          klee::ref<klee::Expr> _index_out,
                          klee::ref<klee::Expr> _success,
-                         BDD::symbols_t _generated_symbols)
+                         bdd::symbols_t _generated_symbols)
       : Module(ModuleType::x86_Tofino_DchainAllocateNewIndex,
                TargetType::x86_Tofino, "DchainAllocate", node),
         dchain_addr(_dchain_addr), time(_time), index_out(_index_out),
@@ -33,10 +33,10 @@ public:
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -44,25 +44,25 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == BDD::symbex::FN_DCHAIN_ALLOCATE_NEW_INDEX) {
-      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_TIME].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_OUT].out.isNull());
+    if (call.function_name == "dchain_allocate_new_index") {
+      assert(!call.args["chain"].expr.isNull());
+      assert(!call.args["time"].expr.isNull());
+      assert(!call.args["index_out"].out.isNull());
       assert(!call.ret.isNull());
 
-      auto _dchain = call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
-      auto _time = call.args[BDD::symbex::FN_DCHAIN_ARG_TIME].expr;
-      auto _index_out = call.args[BDD::symbex::FN_DCHAIN_ARG_OUT].out;
+      auto _dchain = call.args["chain"].expr;
+      auto _time = call.args["time"].expr;
+      auto _index_out = call.args["index_out"].out;
       auto _success = call.ret;
 
-      auto _generated_symbols = casted->get_local_generated_symbols();
+      auto _generated_symbols = casted->get_locally_generated_symbols();
       auto _dchain_addr = kutil::expr_addr_to_obj_addr(_dchain);
 
       auto mb = ep.get_memory_bank<x86TofinoMemoryBank>(x86_Tofino);
       auto saved = mb->has_data_structure(_dchain_addr);
 
       if (!saved) {
-        auto config = BDD::symbex::get_dchain_config(ep.get_bdd(), _dchain_addr);
+        auto config = bdd::get_dchain_config(ep.get_bdd(), _dchain_addr);
         auto dchain_ds = std::shared_ptr<x86TofinoMemoryBank::ds_t>(
             new x86TofinoMemoryBank::dchain_t(_dchain_addr, node->get_id(),
                                               config.index_range));
@@ -130,7 +130,7 @@ public:
   const klee::ref<klee::Expr> &get_index_out() const { return index_out; }
   const klee::ref<klee::Expr> &get_success() const { return success; }
 
-  const BDD::symbols_t &get_generated_symbols() const {
+  const bdd::symbols_t &get_generated_symbols() const {
     return generated_symbols;
   }
 };

@@ -17,7 +17,7 @@ public:
       : Module(ModuleType::x86_Tofino_PacketModifyEthernet,
                TargetType::x86_Tofino, "PacketModifyEthernet") {}
 
-  PacketModifyEthernet(BDD::Node_ptr node,
+  PacketModifyEthernet(bdd::Node_ptr node,
                        const klee::ref<klee::Expr> &_ethernet_chunk,
                        const std::vector<modification_t> &_modifications)
       : Module(ModuleType::x86_Tofino_PacketModifyEthernet,
@@ -25,24 +25,23 @@ public:
         ethernet_chunk(_ethernet_chunk), modifications(_modifications) {}
 
 private:
-  klee::ref<klee::Expr> get_ethernet_chunk(const BDD::Node *node) const {
-    assert(node->get_type() == BDD::Node::NodeType::CALL);
+  klee::ref<klee::Expr> get_ethernet_chunk(const bdd::Node *node) const {
+    assert(node->get_type() == bdd::Node::NodeType::CALL);
 
-    auto call_node = static_cast<const BDD::Call *>(node);
+    auto call_node = static_cast<const bdd::Call *>(node);
     auto call = call_node->get_call();
 
-    assert(call.function_name == BDD::symbex::FN_BORROW_CHUNK);
-    assert(
-        !call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
+    assert(call.function_name == "packet_borrow_next_chunk");
+    assert(!call.extra_vars["the_chunk"].second.isNull());
 
-    return call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
+    return call.extra_vars["the_chunk"].second;
   }
 
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -50,28 +49,28 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != BDD::symbex::FN_RETURN_CHUNK) {
+    if (call.function_name != "packet_return_chunk") {
       return result;
     }
 
     auto all_prev_packet_borrow_next_chunk =
-        get_prev_fn(ep, node, BDD::symbex::FN_BORROW_CHUNK);
+        get_prev_fn(ep, node, "packet_borrow_next_chunk");
 
     assert(all_prev_packet_borrow_next_chunk.size());
 
     auto all_prev_packet_return_chunk =
-        get_prev_fn(ep, node, BDD::symbex::FN_RETURN_CHUNK);
+        get_prev_fn(ep, node, "packet_return_chunk");
 
     if (all_prev_packet_return_chunk.size() !=
         all_prev_packet_borrow_next_chunk.size() - 1) {
       return result;
     }
 
-    assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in.isNull());
+    assert(!call.args["the_chunk"].in.isNull());
 
     auto borrow_ethernet = all_prev_packet_borrow_next_chunk.back();
 
-    auto curr_ether_chunk = call.args[BDD::symbex::FN_BORROW_CHUNK_EXTRA].in;
+    auto curr_ether_chunk = call.args["the_chunk"].in;
     auto prev_ether_chunk = get_ethernet_chunk(borrow_ethernet.get());
 
     assert(curr_ether_chunk->getWidth() == 14 * 8);

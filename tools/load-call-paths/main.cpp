@@ -27,22 +27,22 @@ llvm::cl::list<std::string> InputCallPathFiles(llvm::cl::desc("<call paths>"),
 int main(int argc, char **argv, char **envp) {
   llvm::cl::ParseCommandLineOptions(argc, argv);
 
-  std::vector<call_path_t *> call_paths;
+  call_paths_t call_paths;
 
   for (auto file : InputCallPathFiles) {
     std::cerr << "Loading: " << file << std::endl;
-    call_paths.push_back(load_call_path(file));
+    call_paths.cps.push_back(load_call_path(file));
   }
 
-  for (unsigned i = 0; i < call_paths.size(); i++) {
+  for (unsigned i = 0; i < call_paths.cps.size(); i++) {
     std::cerr << "Call Path " << i << std::endl;
     std::cerr << "  Assuming: ";
-    for (auto constraint : call_paths[i]->constraints) {
+    for (auto constraint : call_paths.cps[i]->constraints) {
       constraint->dump();
       std::cerr << std::endl;
     }
     std::cerr << "  Calls:" << std::endl;
-    for (auto call : call_paths[i]->calls) {
+    for (auto call : call_paths.cps[i]->calls) {
       std::cerr << "    Function: " << call.function_name << std::endl;
       if (!call.args.empty()) {
         std::cerr << "      With Args:" << std::endl;
@@ -69,7 +69,10 @@ int main(int argc, char **argv, char **envp) {
               std::cerr << " (" << meta.size << " bits)\n";
             }
 
-            { char c; std::cin >> c; }
+            {
+              char c;
+              std::cin >> c;
+            }
           }
 
           if (arg.second.fn_ptr_name.first) {
@@ -99,6 +102,8 @@ int main(int argc, char **argv, char **envp) {
       }
     }
   }
+
+  call_paths.free_call_paths();
 
   return 0;
 }

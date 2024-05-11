@@ -11,7 +11,7 @@
 
 #include "call-paths-to-bdd.h"
 
-namespace BDD {
+namespace bdd {
 
 struct color_t {
   uint8_t r;
@@ -53,7 +53,6 @@ struct color_t {
 };
 
 struct bdd_visualizer_opts_t {
-  bool process_only;
   std::unordered_map<node_id_t, std::string> colors_per_node;
   std::pair<bool, std::string> default_color;
   std::unordered_map<node_id_t, std::string> annotations_per_node;
@@ -65,7 +64,7 @@ struct bdd_visualizer_opts_t {
     processed_t() : next(nullptr) {}
   } processed;
 
-  bdd_visualizer_opts_t() : process_only(true) {}
+  bdd_visualizer_opts_t() {}
 };
 
 class GraphvizGenerator : public BDDVisitor {
@@ -98,7 +97,7 @@ public:
 
   std::string get_color(const Node *node) const {
     assert(node);
-    auto id = node->get_id();
+    node_id_t id = node->get_id();
 
     if (has_color(id)) {
       return opts.colors_per_node.at(id);
@@ -116,52 +115,37 @@ public:
       return COLOR_NEXT;
     }
 
+    std::string color;
+
     switch (node->get_type()) {
     case Node::NodeType::CALL:
-      return COLOR_CALL;
+      color = COLOR_CALL;
+      break;
     case Node::NodeType::BRANCH:
-      return COLOR_BRANCH;
-    case Node::NodeType::RETURN_INIT: {
-      auto return_init_node = static_cast<const ReturnInit *>(node);
-      auto ret_value = return_init_node->get_return_value();
-
-      switch (ret_value) {
-      case ReturnInit::ReturnType::SUCCESS:
-        return COLOR_RETURN_INIT_SUCCESS;
-      case ReturnInit::ReturnType::FAILURE:
-        return COLOR_RETURN_INIT_FAILURE;
-      default:
-        assert(false && "Not supposed to be here.");
-        std::cerr << "Error: run in debug mode for more details.\n";
-        exit(1);
+      color = COLOR_BRANCH;
+      break;
+    case Node::NodeType::ROUTE: {
+      const Route *route = static_cast<const Route *>(node);
+      Route::Operation operation = route->get_operation();
+      switch (operation) {
+      case Route::Operation::FWD:
+        color = COLOR_RETURN_PROCESS_FORWARD;
+        break;
+      case Route::Operation::DROP:
+        color = COLOR_RETURN_PROCESS_DROP;
+        break;
+      case Route::Operation::BCAST:
+        color = COLOR_RETURN_PROCESS_BCAST;
+        break;
       }
+      break;
     }
-    case Node::NodeType::RETURN_PROCESS: {
-      auto return_node = static_cast<const ReturnProcess *>(node);
-      auto ret_value = return_node->get_return_operation();
+    }
 
-      switch (ret_value) {
-      case ReturnProcess::Operation::FWD:
-        return COLOR_RETURN_PROCESS_FORWARD;
-      case ReturnProcess::Operation::DROP:
-        return COLOR_RETURN_PROCESS_DROP;
-      case ReturnProcess::Operation::BCAST:
-        return COLOR_RETURN_PROCESS_BCAST;
-      default:
-        assert(false && "Not supposed to be here.");
-        std::cerr << "Error: run in debug mode for more details.\n";
-        exit(1);
-      }
-    }
-    default:
-      assert(false && "Not supposed to be here.");
-      std::cerr << "Error: run in debug mode for more details.\n";
-      exit(1);
-    }
+    return color;
   }
 
-  static void visualize(const BDD &bdd, bool interrupt = true,
-                        bool process_only = true) {
+  static void visualize(const BDD &bdd, bool interrupt = true) {
     bdd_visualizer_opts_t opts;
     visualize(bdd, opts);
   }
@@ -230,49 +214,28 @@ public:
   }
 
   void visit(const BDD &bdd) override {
+    const Node *root = bdd.get_root();
+
     os << "digraph mygraph {\n";
     os << "\tnode [shape=box style=rounded border=0];\n";
-
-    if (!opts.process_only) {
-      assert(bdd.get_init());
-      visitInitRoot(bdd.get_init().get());
-    }
-
-    assert(bdd.get_process());
-    visitProcessRoot(bdd.get_process().get());
-
+    visitRoot(root);
     os << "}";
   }
 
   Action visitBranch(const Branch *node) override {
-    if (node->get_next()) {
-      assert(node->get_on_true()->get_prev());
-      assert(node->get_on_true()->get_prev()->get_id() == node->get_id());
+    const Node *on_true = node->get_on_true();
+    const Node *on_false = node->get_on_false();
 
-      assert(node->get_on_false()->get_prev());
-      assert(node->get_on_false()->get_prev()->get_id() == node->get_id());
-    }
+    klee::ref<klee::Expr> condition = node->get_condition();
 
-    auto condition = node->get_condition();
+    on_true->visit(*this);
+    on_false->visit(*this);
 
-    assert(node->get_on_true());
-    node->get_on_true()->visit(*this);
-
-    assert(node->get_on_false());
-    node->get_on_false()->visit(*this);
-
-    os << "\t\t" << get_gv_name(node);
+    os << "\t" << get_gv_name(node);
     os << " [shape=Mdiamond, label=\"";
 
     os << node->get_id() << ":";
     os << kutil::pretty_print_expr(condition);
-
-    auto constraints = node->get_node_constraints();
-    if (constraints.size()) {
-      for (auto c : constraints) {
-        os << "\\n{" << kutil::pretty_print_expr(c) << "}";
-      }
-    }
 
     if (opts.annotations_per_node.find(node->get_id()) !=
         opts.annotations_per_node.end()) {
@@ -284,68 +247,61 @@ public:
     os << ", fillcolor=\"" << get_color(node) << "\"";
     os << "];\n";
 
-    os << "\t\t" << get_gv_name(node);
+    os << "\t" << get_gv_name(node);
     os << " -> ";
-    os << get_gv_name(node->get_on_true().get());
+    os << get_gv_name(on_true);
     os << " [label=\"True\"];\n";
 
-    os << "\t\t" << get_gv_name(node);
+    os << "\t" << get_gv_name(node);
     os << " -> ";
-    os << get_gv_name(node->get_on_false().get());
+    os << get_gv_name(on_false);
     os << " [label=\"False\"];\n";
 
     return STOP;
   }
 
   Action visitCall(const Call *node) override {
-    if (node->get_next()) {
-      if (!node->get_next()->get_prev()) {
-        std::cerr << "ERROR IN " << node->dump(true) << "\n";
-        std::cerr << " => " << node->get_next()->dump(true) << "\n";
-      }
-      assert(node->get_next()->get_prev());
-      assert(node->get_next()->get_prev()->get_id() == node->get_id());
+    const call_t &call = node->get_call();
+    node_id_t id = node->get_id();
+    const Node *next = node->get_next();
+
+    if (next) {
+      next->visit(*this);
     }
-    auto call = node->get_call();
 
-    assert(node->get_next());
-    node->get_next()->visit(*this);
-
-    os << "\t\t" << get_gv_name(node);
+    os << "\t" << get_gv_name(node);
     os << " [label=\"";
-    auto i = 0u;
-
-    os << node->get_id() << ":";
+    os << id << ":";
     os << call.function_name;
     os << "(";
 
-    i = 0;
-    for (const auto &pair : call.args) {
+    size_t i = 0;
+    for (const std::pair<std::string, arg_t> &pair : call.args) {
       if (call.args.size() > 1) {
         os << "\\l";
         os << std::string(2, ' ');
       }
 
       os << pair.first << ":";
-      arg_t arg = pair.second;
+      const arg_t &arg = pair.second;
 
       if (arg.fn_ptr_name.first) {
         os << arg.fn_ptr_name.second;
       } else {
-        os << kutil::pretty_print_expr(arg.expr);
+        os << kutil::pretty_print_expr(arg.expr, false);
 
         if (!arg.in.isNull() || !arg.out.isNull()) {
           os << "[";
 
           if (!arg.in.isNull()) {
-            os << kutil::pretty_print_expr(arg.in);
+            os << kutil::pretty_print_expr(arg.in, false);
           }
 
           if (!arg.out.isNull() &&
               (arg.in.isNull() || !kutil::solver_toolbox.are_exprs_always_equal(
                                       arg.in, arg.out))) {
             os << " -> ";
-            os << kutil::pretty_print_expr(arg.out);
+            os << kutil::pretty_print_expr(arg.out, false);
           }
 
           os << "]";
@@ -356,8 +312,6 @@ public:
         os << ",";
       }
 
-      // os << kutil::pretty_print_expr(arg.expr);
-
       i++;
     }
 
@@ -367,24 +321,19 @@ public:
       os << " -> " << kutil::pretty_print_expr(call.ret);
     }
 
-    auto symbols = node->get_local_generated_symbols();
+    const symbols_t &symbols = node->get_locally_generated_symbols();
     if (symbols.size()) {
-      for (auto s : symbols) {
-        os << "\\l=>{" << s.label;
-
-        if (!s.expr.isNull()) {
-          os << "[" << kutil::pretty_print_expr(s.expr) << "]";
+      os << "\\l=>{";
+      bool first = true;
+      for (const symbol_t &s : symbols) {
+        if (!first) {
+          os << ",";
+        } else {
+          first = false;
         }
-
-        os << "}";
+        os << s.array->name;
       }
-    }
-
-    auto constraints = node->get_node_constraints();
-    if (constraints.size()) {
-      for (auto c : constraints) {
-        os << "\\l{" << kutil::pretty_print_expr(c) << "}";
-      }
+      os << "}";
     }
 
     if (opts.annotations_per_node.find(node->get_id()) !=
@@ -397,154 +346,71 @@ public:
     os << ", fillcolor=\"" << get_color(node) << "\"";
     os << "];\n";
 
-    os << "\t\t" << get_gv_name(node);
-    os << " -> ";
-    os << get_gv_name(node->get_next().get());
-    os << ";\n";
+    if (next) {
+      os << "\t" << get_gv_name(node);
+      os << " -> ";
+      os << get_gv_name(next);
+      os << ";\n";
+    }
 
     return STOP;
   }
 
-  Action visitReturnInit(const ReturnInit *node) override {
-    auto value = node->get_return_value();
+  Action visitRoute(const Route *node) override {
+    node_id_t id = node->get_id();
+    int dst_device = node->get_dst_device();
+    Route::Operation operation = node->get_operation();
+    const Node *next = node->get_next();
 
-    os << "\t\t" << get_gv_name(node);
+    if (next) {
+      next->visit(*this);
+    }
+
+    os << "\t" << get_gv_name(node);
     os << " [label=\"";
-    os << node->get_id() << ":";
+    os << id << ":";
 
-    switch (value) {
-    case ReturnInit::ReturnType::SUCCESS: {
-      os << "OK";
-
-      auto constraints = node->get_node_constraints();
-      if (constraints.size()) {
-        for (auto c : constraints) {
-          os << "\\l{" << kutil::pretty_print_expr(c) << "}";
-        }
-      }
-
-      break;
-    }
-    case ReturnInit::ReturnType::FAILURE: {
-      os << "ABORT";
-      break;
-    }
-    default: {
-      assert(false);
-    }
-    }
-
-    if (opts.annotations_per_node.find(node->get_id()) !=
-        opts.annotations_per_node.end()) {
-      os << "\\l" << opts.annotations_per_node.at(node->get_id());
-    }
-
-    os << "\"";
-    os << ", fillcolor=\"" << get_color(node) << "\"";
-    os << "];\n";
-
-    return STOP;
-  }
-
-  Action visitReturnProcess(const ReturnProcess *node) override {
-    auto value = node->get_return_value();
-    auto operation = node->get_return_operation();
-
-    os << "\t\t" << get_gv_name(node);
-    os << " [label=\"";
-    os << node->get_id() << ":";
     switch (operation) {
-    case ReturnProcess::Operation::FWD: {
-      os << "fwd(" << value << ")";
-
-      auto constraints = node->get_node_constraints();
-      if (constraints.size()) {
-        for (auto c : constraints) {
-          if (c.isNull()) {
-            std::cerr << "NO C!\n";
-            exit(1);
-          }
-          os << "\\l{" << kutil::pretty_print_expr(c) << "}";
-        }
-      }
+    case Route::Operation::FWD: {
+      os << "fwd(" << dst_device << ")";
       break;
     }
-    case ReturnProcess::Operation::DROP: {
+    case Route::Operation::DROP: {
       os << "drop()";
       break;
     }
-    case ReturnProcess::Operation::BCAST: {
+    case Route::Operation::BCAST: {
       os << "bcast()";
       break;
     }
-    default: {
-      assert(false);
-    }
     }
 
-    if (opts.annotations_per_node.find(node->get_id()) !=
-        opts.annotations_per_node.end()) {
-      os << "\\l" << opts.annotations_per_node.at(node->get_id());
+    if (opts.annotations_per_node.find(id) != opts.annotations_per_node.end()) {
+      os << "\\l" << opts.annotations_per_node.at(id);
     }
 
     os << "\"";
     os << ", fillcolor=\"" << get_color(node) << "\"";
     os << "];\n";
+
+    if (next) {
+      os << "\t" << get_gv_name(node);
+      os << " -> ";
+      os << get_gv_name(next);
+      os << ";\n";
+    }
+
     return STOP;
   }
 
-  void visitInitRoot(const Node *root) override {
-    os << "\tsubgraph clusterinit {\n";
-    os << "\t\tlabel=\"nf_init\";\n";
-    os << "\t\tnode [style=\"rounded,filled,bold\",color=black];\n";
-
+  void visitRoot(const Node *root) override {
+    os << "\tnode [style=\"rounded,filled\",color=black];\n";
     root->visit(*this);
-
-    os << "\t}\n";
-  }
-
-  void visitProcessRoot(const Node *root) override {
-    os << "\tsubgraph clusterprocess {\n";
-    if (!opts.process_only) {
-      os << "\t\tlabel=\"nf_process\"\n";
-    }
-    os << "\t\tnode [style=\"rounded,filled\",color=black];\n";
-
-    root->visit(*this);
-
-    os << "\t}\n";
   }
 
 private:
   std::string get_gv_name(const Node *node) const {
-    assert(node);
-
-    std::stringstream stream;
-
-    if (node->get_type() == Node::NodeType::RETURN_INIT) {
-      const ReturnInit *ret = static_cast<const ReturnInit *>(node);
-
-      stream << "\"return ";
-      switch (ret->get_return_value()) {
-      case ReturnInit::ReturnType::SUCCESS: {
-        stream << "1";
-        break;
-      }
-      case ReturnInit::ReturnType::FAILURE: {
-        stream << "0";
-        break;
-      }
-      default: {
-        assert(false);
-      }
-      }
-      stream << "\"";
-
-      return stream.str();
-    }
-
-    stream << node->get_id();
-    return stream.str();
+    return std::to_string(node->get_id());
   }
 };
-} // namespace BDD
+} // namespace bdd

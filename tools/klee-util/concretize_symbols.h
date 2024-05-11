@@ -28,7 +28,7 @@ public:
   }
 
   klee::ExprVisitor::Action visitRead(const klee::ReadExpr &e) {
-    RetrieveSymbols retriever;
+    SymbolRetriever retriever;
 
     auto expr = e;
     const klee::ref<klee::Expr> ref = &expr;

@@ -12,7 +12,7 @@ public:
       : IntegerAllocatorOperation(ModuleType::Tofino_IntegerAllocatorAllocate,
                                   "IntegerAllocatorAllocate") {}
 
-  IntegerAllocatorAllocate(BDD::Node_ptr node,
+  IntegerAllocatorAllocate(bdd::Node_ptr node,
                            IntegerAllocatorRef _int_allocator)
       : IntegerAllocatorOperation(ModuleType::Tofino_IntegerAllocatorAllocate,
                                   "IntegerAllocatorAllocate", node,
@@ -20,10 +20,10 @@ public:
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -31,25 +31,24 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != BDD::symbex::FN_DCHAIN_ALLOCATE_NEW_INDEX) {
+    if (call.function_name != "dchain_allocate_new_index") {
       return result;
     }
 
-    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_TIME].expr.isNull());
-    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_OUT].out.isNull());
+    assert(!call.args["chain"].expr.isNull());
+    assert(!call.args["time"].expr.isNull());
+    assert(!call.args["index_out"].out.isNull());
     assert(!call.ret.isNull());
 
-    auto _dchain = call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
-    auto _time = call.args[BDD::symbex::FN_DCHAIN_ARG_TIME].expr;
-    auto _index_out = call.args[BDD::symbex::FN_DCHAIN_ARG_OUT].out;
+    auto _dchain = call.args["chain"].expr;
+    auto _time = call.args["time"].expr;
+    auto _index_out = call.args["index_out"].out;
     auto _success = call.ret;
 
-    auto _generated_symbols = casted->get_local_generated_symbols();
+    auto _generated_symbols = casted->get_locally_generated_symbols();
     auto _dchain_addr = kutil::expr_addr_to_obj_addr(_dchain);
 
-    auto _out_of_space =
-        get_symbol(_generated_symbols, BDD::symbex::DCHAIN_OUT_OF_SPACE);
+    auto _out_of_space = get_symbol(_generated_symbols, "out_of_space");
 
     IntegerAllocatorRef _int_allocator;
 
@@ -64,8 +63,7 @@ private:
     }
 
     if (!_int_allocator) {
-      auto dchain_config =
-          BDD::symbex::get_dchain_config(ep.get_bdd(), _dchain_addr);
+      auto dchain_config = bdd::get_dchain_config(ep.get_bdd(), _dchain_addr);
       auto _capacity = dchain_config.index_range;
       _int_allocator = IntegerAllocator::build(
           _index_out, _out_of_space, _capacity, _dchain_addr, {node->get_id()});

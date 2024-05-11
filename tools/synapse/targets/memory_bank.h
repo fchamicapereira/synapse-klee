@@ -42,12 +42,12 @@ enum PlacementDecision {
 struct expiration_data_t {
   bool valid;
   time_ns_t expiration_time;
-  BDD::symbol_t number_of_freed_flows;
+  bdd::symbol_t number_of_freed_flows;
 
   expiration_data_t() : valid(false) {}
 
   expiration_data_t(time_ns_t _expiration_time,
-                    const BDD::symbol_t &_number_of_freed_flows)
+                    const bdd::symbol_t &_number_of_freed_flows)
       : valid(true), expiration_time(_expiration_time),
         number_of_freed_flows(_number_of_freed_flows) {}
 };
@@ -56,7 +56,7 @@ class MemoryBank {
 protected:
   std::vector<reorder_data_t> reorder_data;
   std::unordered_map<addr_t, PlacementDecision> placement_decisions;
-  std::unordered_set<BDD::node_id_t> can_be_ignored_bdd_nodes;
+  std::unordered_set<bdd::node_id_t> can_be_ignored_bdd_nodes;
   expiration_data_t expiration_data;
 
 public:
@@ -115,12 +115,12 @@ public:
            found_it->second == decision;
   }
 
-  bool check_if_can_be_ignored(BDD::Node_ptr node) const {
+  bool check_if_can_be_ignored(bdd::Node_ptr node) const {
     auto id = node->get_id();
     return can_be_ignored_bdd_nodes.find(id) != can_be_ignored_bdd_nodes.end();
   }
 
-  void can_be_ignored(BDD::Node_ptr node) {
+  void can_be_ignored(bdd::Node_ptr node) {
     auto id = node->get_id();
     can_be_ignored_bdd_nodes.insert(id);
   }

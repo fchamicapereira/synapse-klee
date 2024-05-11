@@ -14,7 +14,7 @@
 #include <assert.h>
 #include <unordered_map>
 
-namespace BDD {
+namespace bdd {
 namespace emulation {
 
 typedef void (*operation_ptr)(const BDD &bdd, const Call *call, pkt_t &pkt,
@@ -24,4 +24,4 @@ typedef void (*operation_ptr)(const BDD &bdd, const Call *call, pkt_t &pkt,
 typedef std::map<std::string, operation_ptr> operations_t;
 
 } // namespace emulation
-} // namespace BDD
+} // namespace bdd

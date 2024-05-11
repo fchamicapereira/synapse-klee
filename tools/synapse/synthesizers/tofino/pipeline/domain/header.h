@@ -119,7 +119,7 @@ public:
   variable_query_t query_field(klee::ref<klee::Expr> expr) const {
     auto symbol = kutil::get_symbol(expr);
 
-    if (!symbol.first || symbol.second != BDD::symbex::CHUNK) {
+    if (!symbol.first || symbol.second != "packet_chunks") {
       return variable_query_t();
     }
 
@@ -168,7 +168,7 @@ public:
         auto size_bits = field.get_size_bits();
         auto exprs = field.get_exprs();
 
-        auto field_var = Variable(label, size_bits);        
+        auto field_var = Variable(label, size_bits);
         field_var.add_exprs(exprs);
 
         return variable_query_t(field_var, 0);

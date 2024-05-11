@@ -12,12 +12,12 @@ public:
   RegisterRead()
       : TofinoModule(ModuleType::Tofino_RegisterRead, "RegisterRead") {}
 
-  RegisterRead(BDD::Node_ptr node)
+  RegisterRead(bdd::Node_ptr node)
       : TofinoModule(ModuleType::Tofino_RegisterRead, "RegisterRead", node) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     // TODO: implement
     processing_result_t result;
     return result;

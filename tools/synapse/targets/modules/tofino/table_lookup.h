@@ -10,13 +10,13 @@ class TableLookup : public TableModule {
 public:
   TableLookup() : TableModule(ModuleType::Tofino_TableLookup, "TableLookup") {}
 
-  TableLookup(BDD::Node_ptr node, TableRef _table)
+  TableLookup(bdd::Node_ptr node, TableRef _table)
       : TableModule(ModuleType::Tofino_TableLookup, "TableLookup", node,
                     _table) {}
 
 protected:
   extracted_data_t extract_data(const ExecutionPlan &ep,
-                                BDD::Node_ptr node) const {
+                                bdd::Node_ptr node) const {
     auto extractors = {
         &TableLookup::extract_from_map_get,
         &TableLookup::extract_from_vector_borrow,
@@ -24,7 +24,7 @@ protected:
 
     extracted_data_t data;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return data;
@@ -41,7 +41,7 @@ protected:
     auto coalescing_data = get_map_coalescing_data_t(ep, data.obj);
 
     if (coalescing_data.valid && can_coalesce(ep, coalescing_data)) {
-      assert(casted->get_call().function_name == BDD::symbex::FN_MAP_GET);
+      assert(casted->get_call().function_name == "map_get");
       coalesce_with_incoming_vector_nodes(casted, coalescing_data, data);
     }
 
@@ -55,7 +55,7 @@ protected:
   }
 
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
     if (already_coalesced(ep, DataStructure::Type::TABLE, node)) {

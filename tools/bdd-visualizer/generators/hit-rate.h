@@ -9,7 +9,7 @@
 #include "base-graphviz.h"
 #include "../bdd-analyzer-report.h"
 
-namespace BDD {
+namespace bdd {
 
 typedef float hit_rate_t;
 
@@ -136,4 +136,4 @@ private:
     return color.to_gv_repr();
   }
 };
-} // namespace BDD
+} // namespace bdd

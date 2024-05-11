@@ -31,8 +31,8 @@ public:
     return variable_query_t();
   }
 
-  Variable* get_hdr_field(hdr_id_t hdr_id, hdr_field_id_t field_id) {
-    for (auto& hdr : headers) {
+  Variable *get_hdr_field(hdr_id_t hdr_id, hdr_field_id_t field_id) {
+    for (auto &hdr : headers) {
       if (hdr.get_id() != hdr_id) {
         continue;
       }
@@ -43,7 +43,8 @@ public:
     return nullptr;
   }
 
-  variable_query_t query_hdr_field(hdr_id_t hdr_id, hdr_field_id_t field_id) const {
+  variable_query_t query_hdr_field(hdr_id_t hdr_id,
+                                   hdr_field_id_t field_id) const {
     for (auto hdr : headers) {
       if (hdr.get_id() != hdr_id) {
         continue;
@@ -55,10 +56,11 @@ public:
     return variable_query_t();
   }
 
-  variable_query_t query_hdr_field_from_chunk(klee::ref<klee::Expr> chunk) const {
+  variable_query_t
+  query_hdr_field_from_chunk(klee::ref<klee::Expr> chunk) const {
     auto symbol = kutil::get_symbol(chunk);
 
-    if (!symbol.first || symbol.second != BDD::symbex::CHUNK) {
+    if (!symbol.first || symbol.second != "packet_chunks") {
       return variable_query_t();
     }
 

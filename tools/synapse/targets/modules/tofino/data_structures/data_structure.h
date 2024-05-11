@@ -26,7 +26,7 @@ public:
 protected:
   Type type;
   std::unordered_set<addr_t> objs;
-  std::unordered_set<BDD::node_id_t> nodes;
+  std::unordered_set<bdd::node_id_t> nodes;
 
 public:
   DataStructure(Type _type, const std::unordered_set<addr_t> &_objs,
@@ -35,14 +35,14 @@ public:
 
   Type get_type() const { return type; }
   const std::unordered_set<addr_t> &get_objs() const { return objs; }
-  const std::unordered_set<BDD::node_id_t> &get_nodes() const { return nodes; }
+  const std::unordered_set<bdd::node_id_t> &get_nodes() const { return nodes; }
 
   virtual void add_objs(const std::unordered_set<addr_t> &other_objs) {
     objs.insert(other_objs.begin(), other_objs.end());
   }
 
   virtual void
-  add_nodes(const std::unordered_set<BDD::node_id_t> &other_nodes) {
+  add_nodes(const std::unordered_set<bdd::node_id_t> &other_nodes) {
     nodes.insert(other_nodes.begin(), other_nodes.end());
   }
 

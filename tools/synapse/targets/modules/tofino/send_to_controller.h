@@ -12,7 +12,7 @@ typedef uint16_t cpu_code_path_t;
 class SendToController : public TofinoModule {
 private:
   cpu_code_path_t cpu_code_path;
-  BDD::symbols_t dataplane_state;
+  bdd::symbols_t dataplane_state;
 
 public:
   SendToController()
@@ -20,8 +20,8 @@ public:
     next_target = TargetType::x86_Tofino;
   }
 
-  SendToController(BDD::Node_ptr node, cpu_code_path_t _cpu_code_path,
-                   const BDD::symbols_t &_dataplane_state)
+  SendToController(bdd::Node_ptr node, cpu_code_path_t _cpu_code_path,
+                   const bdd::symbols_t &_dataplane_state)
       : TofinoModule(ModuleType::Tofino_SendToController, "SendToController",
                      node),
         cpu_code_path(_cpu_code_path), dataplane_state(_dataplane_state) {
@@ -29,20 +29,20 @@ public:
   }
 
 private:
-  bool get_dchain_rejuvenate_obj(BDD::Node_ptr node, addr_t &obj) const {
-    if (node->get_type() != BDD::Node::NodeType::CALL) {
+  bool get_dchain_rejuvenate_obj(bdd::Node_ptr node, addr_t &obj) const {
+    if (node->get_type() != bdd::Node::NodeType::CALL) {
       return false;
     }
 
     auto call_node = BDD_CAST_CALL(node);
     auto call = call_node->get_call();
 
-    if (call.function_name != BDD::symbex::FN_DCHAIN_REJUVENATE) {
+    if (call.function_name != "dchain_rejuvenate_index") {
       return false;
     }
 
-    assert(!call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr.isNull());
-    auto _dchain = call.args[BDD::symbex::FN_DCHAIN_ARG_CHAIN].expr;
+    assert(!call.args["chain"].expr.isNull());
+    auto _dchain = call.args["chain"].expr;
     obj = kutil::expr_addr_to_obj_addr(_dchain);
 
     return true;
@@ -81,14 +81,14 @@ private:
     return false;
   }
 
-  void replace_next(BDD::Node_ptr prev, BDD::Node_ptr old_next,
-                    BDD::Node_ptr new_next) const {
+  void replace_next(bdd::Node_ptr prev, bdd::Node_ptr old_next,
+                    bdd::Node_ptr new_next) const {
     assert(prev);
     assert(old_next);
     assert(new_next);
 
-    if (prev->get_type() == BDD::Node::NodeType::BRANCH) {
-      auto branch_node = static_cast<BDD::Branch *>(prev.get());
+    if (prev->get_type() == bdd::Node::NodeType::BRANCH) {
+      auto branch_node = static_cast<bdd::Branch *>(prev.get());
 
       if (branch_node->get_on_true()->get_id() == old_next->get_id()) {
         branch_node->replace_on_true(new_next);
@@ -104,8 +104,8 @@ private:
     new_next->replace_prev(prev);
   }
 
-  BDD::Node_ptr clone_packet_parsing(ExecutionPlan &ep,
-                                     BDD::Node_ptr current) const {
+  bdd::Node_ptr clone_packet_parsing(ExecutionPlan &ep,
+                                     bdd::Node_ptr current) const {
     assert(current);
 
     if (!current->get_prev()) {
@@ -122,13 +122,13 @@ private:
     while (node->get_prev()) {
       node = node->get_prev();
 
-      if (node->get_type() == BDD::Node::NodeType::CALL) {
-        auto call_node = BDD::cast_node<BDD::Call>(node);
+      if (node->get_type() == bdd::Node::NodeType::CALL) {
+        auto call_node = bdd::cast_node<bdd::Call>(node);
         auto call = call_node->get_call();
 
-        if (call.function_name != BDD::symbex::FN_BORROW_CHUNK &&
-            call.function_name != BDD::symbex::FN_RETURN_CHUNK &&
-            call.function_name != BDD::symbex::FN_CURRENT_TIME) {
+        if (call.function_name != "packet_borrow_next_chunk" &&
+            call.function_name != "packet_return_chunk" &&
+            call.function_name != "current_time") {
           continue;
         }
 
@@ -153,7 +153,7 @@ private:
   }
 
   // Preemptive pruning
-  bool should_prune(const ExecutionPlan &ep, BDD::Node_ptr node) {
+  bool should_prune(const ExecutionPlan &ep, bdd::Node_ptr node) {
     auto cases = {
         &SendToController::control_plane_rejuvenation_with_integer_allocator,
     };
@@ -169,19 +169,16 @@ private:
     return false;
   }
 
-  BDD::symbols_t get_dataplane_state(const ExecutionPlan &ep,
-                                     BDD::Node_ptr node) const {
+  bdd::symbols_t get_dataplane_state(const ExecutionPlan &ep,
+                                     bdd::Node_ptr node) const {
     auto symbols_to_ignore = std::vector<std::string>{
-        BDD::symbex::TIME,
-        BDD::symbex::EXPIRE_MAP_FREED_FLOWS,
-        BDD::symbex::RECEIVED_PACKET,
-        BDD::symbex::BUFFER_LENGTH,
-        BDD::symbex::PACKET_LENGTH,
-        BDD::symbex::PORT,
-        BDD::symbex::CHUNK,
+        "next_time",         "number_of_freed_flows",
+        "received_a_packet", "data_len",
+        "pkt_len",           "DEVICE",
+        "packet_chunks",
     };
 
-    auto should_ignore = [&](const BDD::symbol_t &symbol) {
+    auto should_ignore = [&](const bdd::symbol_t &symbol) {
       for (auto s : symbols_to_ignore)
         if (symbol.label_base == s)
           return true;
@@ -191,11 +188,11 @@ private:
     auto prev = node->get_prev();
 
     if (!prev) {
-      return BDD::symbols_t();
+      return bdd::symbols_t();
     }
 
     auto symbols = prev->get_generated_symbols();
-    auto filtered = BDD::symbols_t();
+    auto filtered = bdd::symbols_t();
 
     for (const auto &symbol : symbols) {
       if (should_ignore(symbol)) {
@@ -209,13 +206,13 @@ private:
   }
 
   void remember_dataplane_state(const ExecutionPlan &ep,
-                                const BDD::symbols_t &symbols) const {
+                                const bdd::symbols_t &symbols) const {
     auto tmb = ep.get_memory_bank<TofinoMemoryBank>(Tofino);
     tmb->add_dataplane_state(symbols);
   }
 
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
     if (!ep.has_target(TargetType::x86_Tofino)) {
@@ -277,7 +274,7 @@ public:
   }
 
   cpu_code_path_t get_cpu_code_path() const { return cpu_code_path; }
-  const BDD::symbols_t &get_dataplane_state() const { return dataplane_state; }
+  const bdd::symbols_t &get_dataplane_state() const { return dataplane_state; }
 };
 } // namespace tofino
 } // namespace targets

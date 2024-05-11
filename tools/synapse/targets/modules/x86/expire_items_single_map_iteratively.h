@@ -18,7 +18,7 @@ public:
       : x86Module(ModuleType::x86_ExpireItemsSingleMapIteratively,
                   "ExpireItemsSingleMapIteratively") {}
 
-  ExpireItemsSingleMapIteratively(BDD::Node_ptr node, addr_t _vector_addr,
+  ExpireItemsSingleMapIteratively(bdd::Node_ptr node, addr_t _vector_addr,
                                   addr_t _map_addr,
                                   klee::ref<klee::Expr> _start,
                                   klee::ref<klee::Expr> _n_elems)
@@ -29,10 +29,10 @@ public:
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -40,17 +40,17 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == BDD::symbex::FN_EXPIRE_MAP_ITERATIVELY) {
-      assert(!call.args[BDD::symbex::EXPIRE_MAP_ITERATIVELY_MAP].expr.isNull());
-      assert(!call.args[BDD::symbex::EXPIRE_MAP_ITERATIVELY_VECTOR].expr.isNull());
-      assert(!call.args[BDD::symbex::EXPIRE_MAP_ITERATIVELY_START].expr.isNull());
-      assert(!call.args[BDD::symbex::EXPIRE_MAP_ITERATIVELY_N_ELEMS].expr.isNull());
+    if (call.function_name == "expire_items_single_map_iteratively") {
+      assert(!call.args["map"].expr.isNull());
+      assert(!call.args["vector"].expr.isNull());
+      assert(!call.args["start"].expr.isNull());
+      assert(!call.args["n_elems"].expr.isNull());
       assert(!call.ret.isNull());
 
-      auto _map = call.args[BDD::symbex::EXPIRE_MAP_ITERATIVELY_MAP].expr;
-      auto _vector = call.args[BDD::symbex::EXPIRE_MAP_ITERATIVELY_VECTOR].expr;
-      auto _start = call.args[BDD::symbex::EXPIRE_MAP_ITERATIVELY_START].expr;
-      auto _n_elems = call.args[BDD::symbex::EXPIRE_MAP_ITERATIVELY_N_ELEMS].expr;
+      auto _map = call.args["map"].expr;
+      auto _vector = call.args["vector"].expr;
+      auto _start = call.args["start"].expr;
+      auto _n_elems = call.args["n_elems"].expr;
 
       auto _map_addr = kutil::expr_addr_to_obj_addr(_map);
       auto _vector_addr = kutil::expr_addr_to_obj_addr(_vector);

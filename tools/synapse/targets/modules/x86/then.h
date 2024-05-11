@@ -11,11 +11,11 @@ namespace x86 {
 class Then : public x86Module {
 public:
   Then() : x86Module(ModuleType::x86_Then, "Then") {}
-  Then(BDD::Node_ptr node) : x86Module(ModuleType::x86_Then, "Then", node) {}
+  Then(bdd::Node_ptr node) : x86Module(ModuleType::x86_Then, "Then", node) {}
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     return processing_result_t();
   }
 

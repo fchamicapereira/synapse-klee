@@ -18,8 +18,8 @@ public:
       : x86Module(ModuleType::x86_PacketBorrowNextChunk,
                   "PacketBorrowNextChunk") {}
 
-  PacketBorrowNextChunk(BDD::Node_ptr node, addr_t _p_addr,
-                        addr_t _chunk_addr, klee::ref<klee::Expr> _chunk,
+  PacketBorrowNextChunk(bdd::Node_ptr node, addr_t _p_addr, addr_t _chunk_addr,
+                        klee::ref<klee::Expr> _chunk,
                         klee::ref<klee::Expr> _length)
       : x86Module(ModuleType::x86_PacketBorrowNextChunk,
                   "PacketBorrowNextChunk", node),
@@ -28,10 +28,10 @@ public:
 
 private:
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -39,16 +39,16 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name == BDD::symbex::FN_BORROW_CHUNK) {
-      assert(!call.args[BDD::symbex::FN_BORROW_ARG_PACKET].expr.isNull());
-      assert(!call.args[BDD::symbex::FN_BORROW_ARG_CHUNK].out.isNull());
-      assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
-      assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr.isNull());
+    if (call.function_name == "packet_borrow_next_chunk") {
+      assert(!call.args["p"].expr.isNull());
+      assert(!call.args["chunk"].out.isNull());
+      assert(!call.extra_vars["the_chunk"].second.isNull());
+      assert(!call.args["length"].expr.isNull());
 
-      auto _p = call.args[BDD::symbex::FN_BORROW_ARG_PACKET].expr;
-      auto _chunk = call.args[BDD::symbex::FN_BORROW_ARG_CHUNK].out;
-      auto _out_chunk = call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
-      auto _length = call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr;
+      auto _p = call.args["p"].expr;
+      auto _chunk = call.args["chunk"].out;
+      auto _out_chunk = call.extra_vars["the_chunk"].second;
+      auto _length = call.args["length"].expr;
 
       auto _p_addr = kutil::expr_addr_to_obj_addr(_p);
       auto _chunk_addr = kutil::expr_addr_to_obj_addr(_chunk);

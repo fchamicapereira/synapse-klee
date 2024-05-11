@@ -16,21 +16,21 @@ public:
       : Module(ModuleType::x86_Tofino_PacketParseUDP, TargetType::x86_Tofino,
                "PacketParseUDP") {}
 
-  PacketParseUDP(BDD::Node_ptr node, klee::ref<klee::Expr> _chunk)
+  PacketParseUDP(bdd::Node_ptr node, klee::ref<klee::Expr> _chunk)
       : Module(ModuleType::x86_Tofino_PacketParseUDP, TargetType::x86_Tofino,
                "PacketParseUDP", node),
         chunk(_chunk) {}
 
 private:
-  bool is_valid_ipv4(const BDD::Node *ethernet_node,
+  bool is_valid_ipv4(const bdd::Node *ethernet_node,
                      const klee::ConstraintManager &constraints) {
     assert(ethernet_node);
-    assert(ethernet_node->get_type() == BDD::Node::NodeType::CALL);
+    assert(ethernet_node->get_type() == bdd::Node::NodeType::CALL);
 
-    auto call_node = static_cast<const BDD::Call *>(ethernet_node);
+    auto call_node = static_cast<const bdd::Call *>(ethernet_node);
     auto call = call_node->get_call();
 
-    auto ethernet_chunk = call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
+    auto ethernet_chunk = call.extra_vars["the_chunk"].second;
 
     assert(!ethernet_chunk.isNull());
 
@@ -44,15 +44,15 @@ private:
     return kutil::solver_toolbox.is_expr_always_true(constraints, eq);
   }
 
-  bool is_valid_udp(const BDD::Node *ipv4_node, klee::ref<klee::Expr> len,
+  bool is_valid_udp(const bdd::Node *ipv4_node, klee::ref<klee::Expr> len,
                     const klee::ConstraintManager &constraints) {
     assert(ipv4_node);
-    assert(ipv4_node->get_type() == BDD::Node::NodeType::CALL);
+    assert(ipv4_node->get_type() == bdd::Node::NodeType::CALL);
 
-    auto call_node = static_cast<const BDD::Call *>(ipv4_node);
+    auto call_node = static_cast<const bdd::Call *>(ipv4_node);
     auto call = call_node->get_call();
 
-    auto ipv4_chunk = call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
+    auto ipv4_chunk = call.extra_vars["the_chunk"].second;
 
     assert(!ipv4_chunk.isNull());
     assert(!len.isNull());
@@ -98,10 +98,10 @@ private:
   }
 
   processing_result_t process(const ExecutionPlan &ep,
-                              BDD::Node_ptr node) override {
+                              bdd::Node_ptr node) override {
     processing_result_t result;
 
-    auto casted = BDD::cast_node<BDD::Call>(node);
+    auto casted = bdd::cast_node<bdd::Call>(node);
 
     if (!casted) {
       return result;
@@ -109,23 +109,23 @@ private:
 
     auto call = casted->get_call();
 
-    if (call.function_name != BDD::symbex::FN_BORROW_CHUNK) {
+    if (call.function_name != "packet_borrow_next_chunk") {
       return result;
     }
 
     // TCP/UDP should come after IPv4Consume
     auto all_prev_packet_borrow_next_chunk =
-        get_prev_fn(ep, node, BDD::symbex::FN_BORROW_CHUNK);
+        get_prev_fn(ep, node, "packet_borrow_next_chunk");
 
     if (all_prev_packet_borrow_next_chunk.size() < 2) {
       return result;
     }
 
-    assert(!call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr.isNull());
-    assert(!call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second.isNull());
+    assert(!call.args["length"].expr.isNull());
+    assert(!call.extra_vars["the_chunk"].second.isNull());
 
-    auto _length = call.args[BDD::symbex::FN_BORROW_CHUNK_ARG_LEN].expr;
-    auto _chunk = call.extra_vars[BDD::symbex::FN_BORROW_CHUNK_EXTRA].second;
+    auto _length = call.args["length"].expr;
+    auto _chunk = call.extra_vars["the_chunk"].second;
 
     auto valid = true;
 

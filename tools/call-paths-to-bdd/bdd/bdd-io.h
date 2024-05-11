@@ -3,9 +3,14 @@
 #include <vector>
 #include <string>
 
-namespace BDD {
-constexpr char INIT_CONTEXT_MARKER[] = "start_time";
-constexpr char MAGIC_SIGNATURE[] = "===== BDD =====";
+namespace bdd {
 
-extern std::vector<std::string> skip_conditions_with_symbol;
-} // namespace BDD
+constexpr char MAGIC_SIGNATURE[] = "===== BDD =====";
+constexpr char KQUERY_DELIMITER[] = ";;-- kQuery --";
+constexpr char SYMBOLS_DELIMITER[] = ";;-- Symbols --";
+constexpr char INIT_DELIMITER[] = ";;-- Init --";
+constexpr char NODES_DELIMITER[] = ";; -- Nodes --";
+constexpr char EDGES_DELIMITER[] = ";; -- Edges --";
+constexpr char ROOT_DELIMITER[] = ";; -- Root --";
+
+} // namespace bdd
