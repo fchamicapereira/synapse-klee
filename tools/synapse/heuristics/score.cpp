@@ -158,8 +158,8 @@ Score::next_op_same_obj_in_switch(const ExecutionPlan &ep) const {
     return 0;
   }
 
-  if (next->get_type() != bdd::Node::CALL ||
-      prev->get_type() != bdd::Node::CALL) {
+  if (next->get_type() != bdd::NodeType::CALL ||
+      prev->get_type() != bdd::NodeType::CALL) {
     return 0;
   }
 
@@ -194,7 +194,7 @@ Score::next_op_is_stateful_in_switch(const ExecutionPlan &ep) const {
     return 0;
   }
 
-  if (next->get_type() != bdd::Node::CALL) {
+  if (next->get_type() != bdd::NodeType::CALL) {
     return 0;
   }
 

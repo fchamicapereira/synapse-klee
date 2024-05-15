@@ -29,9 +29,9 @@ public:
     const Node *root = bdd.get_root();
     assert(root);
 
-    klee::ref<klee::Expr> device = bdd.get_device();
-    klee::ref<klee::Expr> packet_len = bdd.get_packet_len();
-    klee::ref<klee::Expr> time = bdd.get_time();
+    klee::ref<klee::Expr> device = bdd.get_device().expr;
+    klee::ref<klee::Expr> packet_len = bdd.get_packet_len().expr;
+    klee::ref<klee::Expr> time = bdd.get_time().expr;
 
     std::cerr << "===========================================\n";
     std::cerr << "Init calls:\n";
@@ -57,8 +57,9 @@ public:
     const Node *on_true = node->get_on_true();
     const Node *on_false = node->get_on_false();
 
-    node_id_t on_true_id = on_true->get_id();
-    node_id_t on_false_id = on_false->get_id();
+    std::string on_true_id = on_true ? std::to_string(on_true->get_id()) : "X";
+    std::string on_false_id =
+        on_false ? std::to_string(on_false->get_id()) : "X";
 
     std::cerr << "===========================================\n";
     std::cerr << "node:      " << id << "\n";
@@ -67,6 +68,7 @@ public:
     condition->dump();
     std::cerr << "on true:   " << on_true_id << "\n";
     std::cerr << "on false:  " << on_false_id << "\n";
+    visitConstraints(node);
     std::cerr << "===========================================\n";
 
     return traverse ? VISIT_CHILDREN : STOP;
@@ -100,6 +102,7 @@ public:
     if (next) {
       std::cerr << "next:      " << next->get_id() << "\n";
     }
+    visitConstraints(node);
     std::cerr << "===========================================\n";
 
     return traverse ? VISIT_CHILDREN : STOP;
@@ -133,12 +136,24 @@ public:
     if (next) {
       std::cerr << "next:      " << next->get_id() << "\n";
     }
+    visitConstraints(node);
     std::cerr << "===========================================\n";
 
     return traverse ? VISIT_CHILDREN : STOP;
   }
 
   void visitRoot(const Node *root) override { root->visit(*this); }
+
+private:
+  void visitConstraints(const Node *node) {
+    const auto &constraints = node->get_constraints();
+    if (constraints.size() > 0) {
+      std::cerr << "constraints:\n";
+      for (const auto &constraint : constraints) {
+        std::cerr << "  " << kutil::expr_to_string(constraint, true) << "\n";
+      }
+    }
+  }
 };
 
 } // namespace bdd

@@ -24,7 +24,7 @@ private:
   bool is_valid_ipv4(const bdd::Node *ethernet_node, klee::ref<klee::Expr> len,
                      const klee::ConstraintManager &constraints) {
     assert(ethernet_node);
-    assert(ethernet_node->get_type() == bdd::Node::NodeType::CALL);
+    assert(ethernet_node->get_type() == bdd::NodeType::CALL);
 
     auto call_node = static_cast<const bdd::Call *>(ethernet_node);
     auto call = call_node->get_call();

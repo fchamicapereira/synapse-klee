@@ -1,128 +1,13 @@
 #include "bdd-reorderer.h"
 
+// FIXME: remove this
+#include "bdd-visualizer.h"
+
 #include <iomanip>
 
 namespace bdd {
 
-// struct candidate_t {
-//   const Node *node;
-//   std::unordered_set<node_id_t> siblings;
-//   klee::ref<klee::Expr> extra_condition;
-//   klee::ref<klee::Expr> condition;
-
-//   candidate_t(const Node *_node) : node(_node) {}
-
-//   candidate_t(const Node *_node, klee::ref<klee::Expr> _condition)
-//       : candidate_t(_node, _condition, false) {}
-
-//   candidate_t(const Node *_node, klee::ref<klee::Expr> _condition, bool
-//   _negate)
-//       : node(_node) {
-//     if (_negate) {
-//       condition = kutil::solver_toolbox.exprBuilder->Not(_condition);
-//     } else {
-//       condition = _condition;
-//     }
-//   }
-
-//   candidate_t(const candidate_t &candidate, const Node *_node)
-//       : node(_node), condition(candidate.condition) {}
-
-//   candidate_t(const candidate_t &candidate, const Node *_node,
-//               klee::ref<klee::Expr> _condition)
-//       : candidate_t(candidate, _node, _condition, false) {}
-
-//   candidate_t(const candidate_t &candidate, const Node *_node,
-//               klee::ref<klee::Expr> _condition, bool _negate)
-//       : node(_node) {
-//     klee::ref<klee::Expr> rhs;
-
-//     if (_negate) {
-//       rhs = kutil::solver_toolbox.exprBuilder->Not(_condition);
-//     } else {
-//       rhs = _condition;
-//     }
-
-//     if (!candidate.condition.isNull()) {
-//       condition =
-//           kutil::solver_toolbox.exprBuilder->And(candidate.condition, rhs);
-//     } else {
-//       condition = rhs;
-//     }
-//   }
-
-//   bool has_sibling(node_id_t id) const {
-//     return siblings.find(id) != siblings.end();
-//   }
-
-//   std::string dump() const {
-//     std::stringstream stream;
-
-//     stream << "\n";
-//     stream << "  candidate : " << node->dump(true) << "\n";
-
-//     if (node->get_type() == Node::NodeType::CALL) {
-//       auto call_node = static_cast<Call *>(node.get());
-//       auto symbols = call_node->get_locally_generated_symbols();
-
-//       if (symbols.size()) {
-//         stream << "  symbols   :";
-//         for (auto symbol : symbols) {
-//           stream << " " << symbol.label;
-//         }
-//         stream << "\n";
-//       }
-//     }
-
-//     if (!condition.isNull()) {
-//       stream << "  condition : " << kutil::expr_to_string(condition, true)
-//              << "\n";
-//     }
-
-//     if (!extra_condition.isNull()) {
-//       stream << "  extra condition : "
-//              << kutil::expr_to_string(extra_condition, true) << "\n";
-//     }
-//     stream << "  siblings :  ";
-//     for (auto s : siblings) {
-//       stream << s << " ";
-//     }
-//     stream << "\n";
-
-//     return stream.str();
-//   }
-// };
-
-// operator<< for candidate_t
-std::ostream &operator<<(std::ostream &stream, const candidate_t &candidate) {
-  stream << "candidate: " << candidate.candidate_id;
-
-  stream << "  siblings=[";
-  bool first = false;
-  for (node_id_t sibling : candidate.siblings) {
-    if (!first) {
-      stream << ", ";
-    }
-    stream << sibling;
-    first = false;
-  }
-  stream << "]";
-
-  if (!candidate.condition.isNull()) {
-    stream << " (cond=" << kutil::expr_to_string(candidate.condition, true);
-    stream << ")";
-  }
-
-  if (!candidate.extra_condition.isNull()) {
-    stream << " (extra cond="
-           << kutil::expr_to_string(candidate.extra_condition, true);
-    stream << ")";
-  }
-  return stream;
-}
-
 static std::map<std::string, bool> fn_has_side_effects_lookup{
-    {"current_time", true},
     {"rte_ether_addr_hash", false},
     {"expire_items_single_map", true},
     {"expire_items_single_map_iteratively", true},
@@ -149,43 +34,77 @@ static std::map<std::string, bool> fn_has_side_effects_lookup{
 };
 
 static std::vector<std::string> fn_cannot_reorder_lookup{
-    "current_time",
     "nf_set_rte_ipv4_udptcp_checksum",
     "packet_borrow_next_chunk",
     "packet_return_chunk",
 };
 
-// bool fn_has_side_effects(std::string fn) {
-//   auto found = fn_has_side_effects_lookup.find(fn);
-//   if (found == fn_has_side_effects_lookup.end()) {
-//     std::cerr << "ERROR: function \"" << fn
-//               << "\" not in fn_has_side_effects_lookup\n";
-//     assert(false && "TODO");
-//   }
-//   return found->second;
-// }
+struct mutable_vector_t {
+  Node *node;
+  bool direction;
+};
 
-// bool node_has_side_effects(const Node *node) {
-//   if (node->get_type() == Node::NodeType::BRANCH) {
-//     return true;
-//   }
+struct vector_t {
+  const Node *node;
+  bool direction;
+};
 
-//   if (node->get_type() == Node::NodeType::CALL) {
-//     auto fn = static_cast<const Call *>(node);
-//     return fn_has_side_effects(fn->get_call().function_name);
-//   }
+static Node *get_vector_next(const mutable_vector_t &vector) {
+  Node *next = nullptr;
 
-//   return false;
-// }
+  switch (vector.node->get_type()) {
+  case NodeType::BRANCH: {
+    Branch *branch = static_cast<Branch *>(vector.node);
+    if (vector.direction) {
+      next = branch->get_mutable_on_true();
+    } else {
+      next = branch->get_mutable_on_false();
+    }
+  } break;
+  case NodeType::CALL:
+  case NodeType::ROUTE:
+    next = vector.node->get_mutable_next();
+    break;
+  }
 
-// bool fn_can_be_reordered(std::string fn) {
-//   return std::find(fn_cannot_reorder_lookup.begin(),
-//                    fn_cannot_reorder_lookup.end(),
-//                    fn) == fn_cannot_reorder_lookup.end();
-// }
+  return next;
+}
 
-bool read_in_chunk(klee::ref<klee::ReadExpr> read,
-                   klee::ref<klee::Expr> chunk) {
+static const Node *get_vector_next(const vector_t &vector) {
+  const Node *next = nullptr;
+
+  switch (vector.node->get_type()) {
+  case NodeType::BRANCH: {
+    const Branch *branch = static_cast<const Branch *>(vector.node);
+    if (vector.direction) {
+      next = branch->get_on_true();
+    } else {
+      next = branch->get_on_false();
+    }
+  } break;
+  case NodeType::CALL:
+  case NodeType::ROUTE:
+    next = vector.node->get_next();
+    break;
+  }
+
+  return next;
+}
+
+static bool fn_has_side_effects(const std::string &fn) {
+  auto found = fn_has_side_effects_lookup.find(fn);
+  assert(found != fn_has_side_effects_lookup.end() && "Function not found");
+  return found->second;
+}
+
+static bool fn_can_be_reordered(const std::string &fn) {
+  auto found_it = std::find(fn_cannot_reorder_lookup.begin(),
+                            fn_cannot_reorder_lookup.end(), fn);
+  return found_it == fn_cannot_reorder_lookup.end();
+}
+
+static bool read_in_chunk(klee::ref<klee::ReadExpr> read,
+                          klee::ref<klee::Expr> chunk) {
   klee::ref<klee::Expr> index_expr = read->index;
   unsigned byte_read = kutil::solver_toolbox.value_from_expr(index_expr);
 
@@ -201,8 +120,8 @@ bool read_in_chunk(klee::ref<klee::ReadExpr> read,
   return found_it != known_chunk_bytes.end();
 }
 
-bool are_all_symbols_known(klee::ref<klee::Expr> expr,
-                           const symbols_t &known_symbols) {
+static bool are_all_symbols_known(klee::ref<klee::Expr> expr,
+                                  const symbols_t &known_symbols) {
   kutil::SymbolRetriever symbol_retriever;
   symbol_retriever.visit(expr);
 
@@ -215,10 +134,6 @@ bool are_all_symbols_known(klee::ref<klee::Expr> expr,
 
   bool has_packet_dependencies = false;
   for (const std::string &dependency : dependencies) {
-    // if (SymbolFactory::should_ignore(symbol)) {
-    //   continue;
-    // }
-
     auto is_dependency = [dependency](const symbol_t &s) {
       return s.array->name == dependency;
     };
@@ -260,21 +175,30 @@ bool are_all_symbols_known(klee::ref<klee::Expr> expr,
   return true;
 }
 
-static bool
-is_called_in_all_future_branches(const Node *anchor, const Node *target,
-                                 std::unordered_set<node_id_t> &siblings) {
-  std::vector<const Node *> nodes = {anchor};
-  Node::NodeType target_type = target->get_type();
+static bool get_siblings(const vector_t &anchor, const Node *target,
+                         bool find_in_all_branches,
+                         std::unordered_set<node_id_t> &siblings) {
+  const Node *anchor_next = get_vector_next(anchor);
+
+  if (!anchor_next && find_in_all_branches) {
+    return false;
+  }
+
+  std::vector<const Node *> nodes{anchor_next};
+  NodeType target_type = target->get_type();
 
   while (nodes.size()) {
     const Node *node = nodes[0];
     nodes.erase(nodes.begin());
 
+    if (node == target)
+      continue;
+
     switch (node->get_type()) {
-    case Node::NodeType::BRANCH: {
+    case NodeType::BRANCH: {
       const Branch *branch_node = static_cast<const Branch *>(node);
 
-      if (target_type == Node::NodeType::BRANCH) {
+      if (target_type == NodeType::BRANCH) {
         const Branch *target_branch = static_cast<const Branch *>(target);
 
         bool matching_conditions = kutil::solver_toolbox.are_exprs_always_equal(
@@ -286,13 +210,18 @@ is_called_in_all_future_branches(const Node *anchor, const Node *target,
         }
       }
 
-      nodes.push_back(branch_node->get_on_true());
-      nodes.push_back(branch_node->get_on_false());
+      const Node *on_true = branch_node->get_on_true();
+      const Node *on_false = branch_node->get_on_false();
+
+      if (on_true)
+        nodes.push_back(on_true);
+      if (on_false)
+        nodes.push_back(on_false);
     } break;
-    case Node::NodeType::CALL: {
+    case NodeType::CALL: {
       const Call *call_node = static_cast<const Call *>(node);
 
-      if (target_type == Node::NodeType::CALL) {
+      if (target_type == NodeType::CALL) {
         const Call *call_target = static_cast<const Call *>(target);
 
         bool matching_calls = kutil::solver_toolbox.are_calls_equal(
@@ -304,16 +233,18 @@ is_called_in_all_future_branches(const Node *anchor, const Node *target,
         }
       }
 
-      if (!call_node->get_next()) {
+      const Node *next = call_node->get_next();
+
+      if (next) {
+        nodes.push_back(next);
+      } else if (find_in_all_branches) {
         return false;
       }
-
-      nodes.push_back(call_node->get_next());
     } break;
-    case Node::NodeType::ROUTE: {
+    case NodeType::ROUTE: {
       const Route *route_node = static_cast<const Route *>(node);
 
-      if (target_type == Node::NodeType::ROUTE) {
+      if (target_type == NodeType::ROUTE) {
         const Route *route_target = static_cast<const Route *>(target);
 
         bool matching_route_decisions =
@@ -327,11 +258,13 @@ is_called_in_all_future_branches(const Node *anchor, const Node *target,
         }
       }
 
-      if (!route_node->get_next()) {
+      const Node *next = route_node->get_next();
+
+      if (next) {
+        nodes.push_back(next);
+      } else if (find_in_all_branches) {
         return false;
       }
-
-      nodes.push_back(route_node->get_next());
     } break;
     }
   }
@@ -339,17 +272,16 @@ is_called_in_all_future_branches(const Node *anchor, const Node *target,
   return true;
 }
 
-static bool are_io_dependencies_met(const Node *node,
-                                    const symbols_t &anchor_symbols) {
+static bool io_check(const Node *node, const symbols_t &anchor_symbols) {
   bool met = true;
 
   switch (node->get_type()) {
-  case Node::NodeType::BRANCH: {
+  case NodeType::BRANCH: {
     const Branch *branch_node = static_cast<const Branch *>(node);
     klee::ref<klee::Expr> condition = branch_node->get_condition();
     met &= are_all_symbols_known(condition, anchor_symbols);
   } break;
-  case Node::NodeType::CALL: {
+  case NodeType::CALL: {
     const Call *call_node = static_cast<const Call *>(node);
     const call_t &call = call_node->get_call();
 
@@ -366,7 +298,7 @@ static bool are_io_dependencies_met(const Node *node,
         met &= are_all_symbols_known(in, anchor_symbols);
     }
   } break;
-  case Node::NodeType::ROUTE:
+  case NodeType::ROUTE:
     // Nothing to do here.
     break;
   }
@@ -374,606 +306,970 @@ static bool are_io_dependencies_met(const Node *node,
   return met;
 }
 
-static bool are_io_dependencies_met(
-    const Node *anchor, const Node *next,
-    const std::unordered_set<node_id_t> &furthest_back_nodes) {
-  symbols_t anchor_symbols = anchor->get_generated_symbols(furthest_back_nodes);
-  return are_io_dependencies_met(next, anchor_symbols);
+static bool io_check(klee::ref<klee::Expr> expr,
+                     const symbols_t &anchor_symbols) {
+  return are_all_symbols_known(expr, anchor_symbols);
 }
 
-static bool are_io_dependencies_met(
-    const Node *root, klee::ref<klee::Expr> expr,
-    const std::unordered_set<node_id_t> &furthest_back_nodes) {
-  symbols_t symbols = root->get_generated_symbols(furthest_back_nodes);
-  return are_all_symbols_known(expr, symbols);
+static bool check_no_side_effects(const Node *node) {
+  NodeType type = node->get_type();
+
+  if (type != NodeType::CALL) {
+    return true;
+  }
+
+  const Call *call_node = static_cast<const Call *>(node);
+  const call_t &call = call_node->get_call();
+
+  return !fn_has_side_effects(call.function_name);
 }
 
-// bool map_can_reorder(const Node *current,
-//                      const std::unordered_set<node_id_t>
-//                      &furthest_back_nodes, const Node *before, const Node
-//                      *after, klee::ref<klee::Expr> &condition) {
-//   if (before->get_type() != after->get_type() ||
-//       before->get_type() != Node::NodeType::CALL) {
-//     return true;
-//   }
+static bool check_obj(const Node *n0, const Node *n1,
+                      const std::string &obj_name) {
+  NodeType n0_type = n0->get_type();
+  NodeType n1_type = n1->get_type();
 
-//   auto before_constraints = before->get_constraints();
-//   auto after_constraints = after->get_constraints();
+  if (n0_type != n1_type || n0_type != NodeType::CALL) {
+    return true;
+  }
 
-//   auto before_call_node = static_cast<const Call *>(before);
-//   auto after_call_node = static_cast<const Call *>(after);
+  const Call *n0_call_node = static_cast<const Call *>(n0);
+  const Call *n1_call_node = static_cast<const Call *>(n1);
 
-//   auto before_call = before_call_node->get_call();
-//   auto after_call = after_call_node->get_call();
+  const call_t &n0_call = n0_call_node->get_call();
+  const call_t &n1_call = n1_call_node->get_call();
 
-//   auto before_map_it = before_call.args.find("map");
-//   auto after_map_it = after_call.args.find("map");
+  auto n0_obj_it = n0_call.args.find(obj_name);
+  auto n1_obj_it = n1_call.args.find(obj_name);
 
-//   if (before_map_it == before_call.args.end() ||
-//       after_map_it == after_call.args.end()) {
-//     return true;
-//   }
+  if (n0_obj_it == n0_call.args.end() || n1_obj_it == n1_call.args.end()) {
+    return false;
+  }
 
-//   auto before_map = before_map_it->second.expr;
-//   auto after_map = after_map_it->second.expr;
+  klee::ref<klee::Expr> n0_obj = n0_obj_it->second.expr;
+  klee::ref<klee::Expr> n1_obj = n1_obj_it->second.expr;
 
-//   assert(!before_map.isNull());
-//   assert(!after_map.isNull());
+  bool same_obj = kutil::solver_toolbox.are_exprs_always_equal(n0_obj, n1_obj);
+  return same_obj;
+}
 
-//   if (!kutil::solver_toolbox.are_exprs_always_equal(before_map, after_map)) {
-//     return true;
-//   }
+static bool map_can_reorder(const BDD &bdd, const Node *anchor,
+                            const Node *between, const Node *candidate,
+                            klee::ref<klee::Expr> &condition) {
+  if (!check_no_side_effects(candidate)) {
+    return true;
+  }
 
-//   if (!fn_has_side_effects(before_call.function_name) &&
-//       !fn_has_side_effects(after_call.function_name)) {
-//     return true;
-//   }
+  if (!check_obj(between, candidate, "map")) {
+    return true;
+  }
 
-//   auto before_key_it = before_call.args.find("key");
-//   auto after_key_it = after_call.args.find("key");
+  const klee::ConstraintManager &between_constraints =
+      between->get_constraints();
+  const klee::ConstraintManager &candidate_constraints =
+      candidate->get_constraints();
 
-//   if (before_key_it == before_call.args.end() ||
-//       after_key_it == after_call.args.end()) {
-//     return false;
-//   }
+  const Call *between_call_node = static_cast<const Call *>(between);
+  const Call *candidate_call_node = static_cast<const Call *>(candidate);
 
-//   auto before_key = before_key_it->second.in;
-//   auto after_key = after_key_it->second.in;
+  const call_t &between_call = between_call_node->get_call();
+  const call_t &candidate_call = candidate_call_node->get_call();
 
-//   assert(!before_key.isNull());
-//   assert(!after_key.isNull());
+  auto between_key_it = between_call.args.find("key");
+  auto candidate_key_it = candidate_call.args.find("key");
 
-//   auto always_eq = kutil::solver_toolbox.are_exprs_always_equal(
-//       before_key, after_key, before_constraints, after_constraints);
+  if (between_key_it == between_call.args.end() ||
+      candidate_key_it == candidate_call.args.end()) {
+    return false;
+  }
 
-//   auto always_diff = kutil::solver_toolbox.are_exprs_always_not_equal(
-//       before_key, after_key, before_constraints, after_constraints);
+  klee::ref<klee::Expr> between_key = between_key_it->second.in;
+  klee::ref<klee::Expr> candidate_key = candidate_key_it->second.in;
 
-//   if (always_eq) {
-//     return false;
-//   }
+  bool always_eq = kutil::solver_toolbox.are_exprs_always_equal(
+      between_key, candidate_key, between_constraints, candidate_constraints);
 
-//   if (always_diff) {
-//     return true;
-//   }
+  bool always_diff = kutil::solver_toolbox.are_exprs_always_not_equal(
+      between_key, candidate_key, between_constraints, candidate_constraints);
 
-//   condition = kutil::solver_toolbox.exprBuilder->Not(
-//       kutil::solver_toolbox.exprBuilder->Eq(before_key, after_key));
+  if (always_eq) {
+    return false;
+  }
 
-//   return are_io_dependencies_met(before, condition, furthest_back_nodes);
-// }
+  if (always_diff) {
+    return true;
+  }
 
-// bool dchain_can_reorder(
-//     const Node *current,
-//     const std::unordered_set<node_id_t> &furthest_back_nodes,
-//     const Node *before, const Node *after, klee::ref<klee::Expr> &condition)
-//     {
-//   if (before->get_type() != after->get_type() ||
-//       before->get_type() != Node::NodeType::CALL) {
-//     return true;
-//   }
+  condition = kutil::solver_toolbox.exprBuilder->Not(
+      kutil::solver_toolbox.exprBuilder->Eq(between_key, candidate_key));
 
-//   auto before_constraints = before->get_constraints();
-//   auto after_constraints = after->get_constraints();
+  symbols_t anchor_symbols = bdd.get_generated_symbols(anchor);
+  return io_check(condition, anchor_symbols);
+}
 
-//   auto before_call_node = static_cast<const Call *>(before);
-//   auto after_call_node = static_cast<const Call *>(after);
+static bool dchain_can_reorder(const Node *anchor, const Node *between,
+                               const Node *candidate,
+                               klee::ref<klee::Expr> &condition) {
+  if (check_no_side_effects(candidate))
+    return true;
+  return !check_obj(between, candidate, "dchain");
+}
 
-//   auto before_call = before_call_node->get_call();
-//   auto after_call = after_call_node->get_call();
+static bool vector_can_reorder(const BDD &bdd, const Node *anchor,
+                               const Node *between, const Node *candidate,
+                               klee::ref<klee::Expr> &condition) {
+  if (!check_no_side_effects(candidate)) {
+    return true;
+  }
 
-//   if (!fn_has_side_effects(before_call.function_name) &&
-//       !fn_has_side_effects(after_call.function_name)) {
-//     return true;
-//   }
+  if (!check_obj(between, candidate, "vector")) {
+    return true;
+  }
 
-//   auto before_dchain_it = before_call.args.find("dchain");
-//   auto after_dchain_it = after_call.args.find("dchain");
+  const klee::ConstraintManager &between_constraints =
+      between->get_constraints();
+  const klee::ConstraintManager &candidate_constraints =
+      candidate->get_constraints();
 
-//   if (before_dchain_it == before_call.args.end() ||
-//       after_dchain_it == after_call.args.end()) {
-//     return true;
-//   }
+  const Call *between_call_node = static_cast<const Call *>(between);
+  const Call *candidate_call_node = static_cast<const Call *>(candidate);
 
-//   auto before_dchain = before_dchain_it->second.expr;
-//   auto after_dchain = after_dchain_it->second.expr;
+  const call_t &between_call = between_call_node->get_call();
+  const call_t &candidate_call = candidate_call_node->get_call();
 
-//   assert(!before_dchain.isNull());
-//   assert(!after_dchain.isNull());
+  klee::ref<klee::Expr> between_index = between_call.args.at("index").expr;
+  klee::ref<klee::Expr> candidate_index = candidate_call.args.at("index").expr;
 
-//   if (!kutil::solver_toolbox.are_exprs_always_equal(before_dchain,
-//                                                     after_dchain)) {
-//     return true;
-//   }
+  bool always_eq = kutil::solver_toolbox.are_exprs_always_equal(
+      between_index, candidate_index, between_constraints,
+      candidate_constraints);
 
-//   return false;
-// }
+  bool always_diff = kutil::solver_toolbox.are_exprs_always_not_equal(
+      between_index, candidate_index, between_constraints,
+      candidate_constraints);
 
-// bool vector_can_reorder(
-//     const Node *current,
-//     const std::unordered_set<node_id_t> &furthest_back_nodes,
-//     const Node *before, const Node *after, klee::ref<klee::Expr> &condition)
-//     {
-//   if (before->get_type() != after->get_type() ||
-//       before->get_type() != Node::NodeType::CALL) {
-//     return true;
-//   }
+  if (always_eq) {
+    return false;
+  }
 
-//   auto before_constraints = before->get_constraints();
-//   auto after_constraints = after->get_constraints();
+  if (always_diff) {
+    return true;
+  }
 
-//   auto before_call_node = static_cast<const Call *>(before);
-//   auto after_call_node = static_cast<const Call *>(after);
+  condition = kutil::solver_toolbox.exprBuilder->Not(
+      kutil::solver_toolbox.exprBuilder->Eq(between_index, candidate_index));
 
-//   auto before_call = before_call_node->get_call();
-//   auto after_call = after_call_node->get_call();
+  symbols_t anchor_symbols = bdd.get_generated_symbols(anchor);
+  return io_check(condition, anchor_symbols);
+}
 
-//   if (!fn_has_side_effects(before_call.function_name) &&
-//       !fn_has_side_effects(after_call.function_name)) {
-//     return true;
-//   }
+static bool cht_can_reorder(const Node *anchor, const Node *between,
+                            const Node *candidate,
+                            klee::ref<klee::Expr> &condition) {
+  return check_no_side_effects(candidate);
+}
 
-//   auto before_vector_it = before_call.args.find("vector");
-//   auto after_vector_it = after_call.args.find("vector");
+static bool sketch_can_reorder(const Node *anchor, const Node *between,
+                               const Node *candidate,
+                               klee::ref<klee::Expr> &condition) {
+  bool can_reorder = true;
+  can_reorder &= check_no_side_effects(candidate);
+  can_reorder &= !check_obj(between, candidate, "sketch");
+  return can_reorder;
+}
 
-//   if (before_vector_it == before_call.args.end() ||
-//       after_vector_it == after_call.args.end()) {
-//     return true;
-//   }
+static klee::ref<klee::Expr>
+build_condition(const std::vector<klee::ref<klee::Expr>> &sub_conditions) {
+  klee::ref<klee::Expr> condition;
 
-//   auto before_vector = before_vector_it->second.expr;
-//   auto after_vector = after_vector_it->second.expr;
+  for (size_t i = 0; i < sub_conditions.size(); i++) {
+    if (i == 0) {
+      condition = sub_conditions[i];
+    } else {
+      condition =
+          kutil::solver_toolbox.exprBuilder->And(condition, sub_conditions[i]);
+    }
+  }
 
-//   assert(!before_vector.isNull());
-//   assert(!after_vector.isNull());
+  return condition;
+}
 
-//   if (!kutil::solver_toolbox.are_exprs_always_equal(before_vector,
-//                                                     after_vector)) {
-//     return true;
-//   }
+static bool both_call_nodes(const Node *n0, const Node *n1) {
+  return n0->get_type() == NodeType::CALL && n1->get_type() == NodeType::CALL;
+}
 
-//   auto before_index_it = before_call.args.find("index");
-//   auto after_index_it = after_call.args.find("index");
+static void
+add_unique_condition(klee::ref<klee::Expr> new_condition,
+                     std::vector<klee::ref<klee::Expr>> &conditions) {
+  if (new_condition.isNull())
+    return;
 
-//   auto before_index = before_index_it->second.expr;
-//   auto after_index = after_index_it->second.expr;
+  for (const klee::ref<klee::Expr> &condition : conditions)
+    if (kutil::solver_toolbox.are_exprs_always_equal(new_condition, condition))
+      return;
 
-//   assert(!before_index.isNull());
-//   assert(!after_index.isNull());
+  conditions.push_back(new_condition);
+}
 
-//   auto always_eq = kutil::solver_toolbox.are_exprs_always_equal(
-//       before_index, after_index, before_constraints, after_constraints);
+bool rw_check(const BDD &bdd, const Node *anchor, const Node *candidate,
+              klee::ref<klee::Expr> &condition) {
+  const Node *between = candidate->get_prev();
 
-//   auto always_diff = kutil::solver_toolbox.are_exprs_always_not_equal(
-//       before_index, after_index, before_constraints, after_constraints);
+  std::vector<klee::ref<klee::Expr>> all_conditions;
 
-//   if (always_eq) {
-//     return false;
-//   }
+  while (between != anchor) {
 
-//   if (always_diff) {
-//     return true;
-//   }
+    if (!both_call_nodes(between, candidate)) {
+      between = between->get_prev();
+      continue;
+    }
 
-//   condition = kutil::solver_toolbox.exprBuilder->Not(
-//       kutil::solver_toolbox.exprBuilder->Eq(before_index, after_index));
+    klee::ref<klee::Expr> cond;
+    bool can_reorder = true;
+    can_reorder &= map_can_reorder(bdd, anchor, between, candidate, cond);
+    can_reorder &= dchain_can_reorder(anchor, between, candidate, cond);
+    can_reorder &= vector_can_reorder(bdd, anchor, between, candidate, cond);
+    can_reorder &= cht_can_reorder(anchor, between, candidate, cond);
+    can_reorder &= sketch_can_reorder(anchor, between, candidate, cond);
 
-//   return are_io_dependencies_met(current, condition, furthest_back_nodes);
-// }
+    if (!can_reorder) {
+      return false;
+    }
 
-// bool are_rw_dependencies_met(
-//     const Node *root, const Node *next_node,
-//     const std::unordered_set<node_id_t> &furthest_back_nodes,
-//     klee::ref<klee::Expr> &condition) {
-//   assert(root);
-//   auto node = next_node->get_prev();
-//   assert(node);
+    add_unique_condition(cond, all_conditions);
+    between = between->get_prev();
+  }
 
-//   std::vector<klee::ref<klee::Expr>> all_conditions;
+  condition = build_condition(all_conditions);
+  return true;
+}
 
-//   while (node->get_id() != root->get_id()) {
-//     klee::ref<klee::Expr> local_condition;
+static bool anchor_reaches_candidate(const vector_t &anchor,
+                                     const Node *candidate) {
+  if (!candidate)
+    return false;
 
-//     if (!map_can_reorder(root, furthest_back_nodes, node.get(), next_node,
-//                          local_condition)) {
-//       return false;
-//     }
+  const Node *anchor_next = get_vector_next(anchor);
 
-//     if (!dchain_can_reorder(root, furthest_back_nodes, node.get(), next_node,
-//                             local_condition)) {
-//       return false;
-//     }
+  if (!anchor_next)
+    return false;
 
-//     if (!vector_can_reorder(root, furthest_back_nodes, node.get(), next_node,
-//                             local_condition)) {
-//       return false;
-//     }
+  node_id_t anchor_next_id = anchor_next->get_id();
+  return candidate->is_reachable_by_node(anchor_next_id);
+}
 
-//     // TODO: missing cht and sketch
-
-//     if (!local_condition.isNull()) {
-//       all_conditions.push_back(local_condition);
-//     }
-
-//     node = node->get_prev();
-//     assert(node);
-//   }
-
-//   if (all_conditions.size() == 0) {
-//     return true;
-//   }
-
-//   condition = all_conditions[0];
-
-//   all_conditions.pop_back();
-//   while (all_conditions.size()) {
-//     condition =
-//         kutil::solver_toolbox.exprBuilder->And(condition, all_conditions[0]);
-//     all_conditions.pop_back();
-//   }
-
-//   return true;
-// }
-
-bool concretize_reordering_candidate(const BDD &bdd, node_id_t anchor_id,
+bool concretize_reordering_candidate(const BDD &bdd,
+                                     const anchor_info_t &anchor_info,
                                      node_id_t proposed_candidate_id,
-                                     candidate_t &candidate) {
-  const Node *anchor = bdd.get_node_by_id(anchor_id);
+                                     candidate_info_t &candidate_info) {
+  vector_t anchor;
+  anchor.node = bdd.get_node_by_id(anchor_info.id);
+  anchor.direction = anchor_info.direction;
+
   const Node *proposed_candidate = bdd.get_node_by_id(proposed_candidate_id);
 
-  assert(anchor && "Anchor node not found");
+  if (!anchor_reaches_candidate(anchor, proposed_candidate)) {
+    return false;
+  }
+
+  symbols_t anchor_symbols = bdd.get_generated_symbols(anchor.node);
+
+  assert(anchor.node && "Anchor node not found");
   assert(proposed_candidate && "Proposed candidate node not found");
 
-  symbols_t anchor_symbols = anchor->get_generated_symbols();
+  // No reordering if the proposed candidate is already following the anchor.
+  if (get_vector_next(anchor) == proposed_candidate) {
+    return false;
+  }
 
-  if (!are_io_dependencies_met(proposed_candidate, anchor_symbols)) {
-    std::cerr << "IO dependencies not met\n";
+  if (!io_check(proposed_candidate, anchor_symbols)) {
     return false;
   }
 
   switch (proposed_candidate->get_type()) {
-  case Node::NodeType::BRANCH: {
-    assert(false && "TODO");
+  case NodeType::BRANCH: {
+    // We can always reorder branches as long as the IO dependencies are met.
+    bool find_in_all_branches = false;
+    get_siblings(anchor, proposed_candidate, find_in_all_branches,
+                 candidate_info.siblings);
   } break;
-  case Node::NodeType::CALL: {
-    assert(false && "TODO");
+  case NodeType::CALL: {
+    const Call *call_node = static_cast<const Call *>(proposed_candidate);
+    const call_t &call = call_node->get_call();
+
+    bool allow = true;
+    allow &= fn_can_be_reordered(call.function_name);
+    allow &= rw_check(bdd, anchor.node, call_node, candidate_info.condition);
+
+    if (!allow) {
+      return false;
+    }
+
+    bool find_in_all_branches = false;
+    get_siblings(anchor, proposed_candidate, find_in_all_branches,
+                 candidate_info.siblings);
   } break;
-  case Node::NodeType::ROUTE: {
-    if (!is_called_in_all_future_branches(anchor, proposed_candidate,
-                                          candidate.siblings)) {
-      std::cerr << "Not called in all future branches\n";
+  case NodeType::ROUTE: {
+    bool find_in_all_branches = true;
+    if (!get_siblings(anchor, proposed_candidate, find_in_all_branches,
+                      candidate_info.siblings)) {
       return false;
     }
   } break;
   }
 
-  candidate.candidate_id = proposed_candidate_id;
+  candidate_info.id = proposed_candidate_id;
 
   return true;
 }
 
-// static std::vector<candidate_t>
-// get_candidates(const Node *anchor,
-//                const std::unordered_set<node_id_t> &furthest_back_nodes) {
-//   std::vector<candidate_t> viable_candidates;
-//   std::vector<candidate_t> candidates;
-
-//   if (!anchor->get_next() || !anchor->get_next()->get_next() ||
-//       anchor->get_type() == Node::BRANCH) {
-//     return candidates;
-//   }
-
-//   auto check_future_branches = false;
-//   auto next = anchor->get_next();
-
-//   if (next->get_type() == Node::BRANCH) {
-//     auto branch = static_cast<const Branch *>(next);
-//     candidates.emplace_back(branch->get_on_true(), branch->get_condition());
-//     candidates.emplace_back(branch->get_on_false(), branch->get_condition(),
-//                             true);
-//     check_future_branches = true;
-//   } else {
-//     candidates.emplace_back(next->get_next());
-//   }
-
-//   while (candidates.size()) {
-//     candidate_t candidate(candidates[0]);
-//     candidates.erase(candidates.begin());
-
-//     if (candidate.node->get_type() == Node::BRANCH) {
-//       auto branch = static_cast<const Branch *>(candidate.node);
-//       check_future_branches = true;
-
-//       candidates.emplace_back(candidate, branch->get_on_true(),
-//                               branch->get_condition());
-//       candidates.emplace_back(candidate, branch->get_on_false(),
-//                               branch->get_condition(), true);
-//     } else if (candidate.node->get_next()) {
-//       candidates.emplace_back(candidate, candidate.node->get_next());
-//     }
-
-//     auto found_it =
-//         std::find_if(viable_candidates.begin(), viable_candidates.end(),
-//                      [&](candidate_t c) -> bool {
-//                        auto found_it =
-//                            std::find(c.siblings.begin(), c.siblings.end(),
-//                                      candidate.node->get_id());
-//                        return found_it != c.siblings.end();
-//                      });
-
-//     if (found_it != viable_candidates.end()) {
-//       continue;
-//     }
-
-//     if (!are_io_dependencies_met(anchor, candidate.node,
-//     furthest_back_nodes)) {
-//       continue;
-//     }
-
-//     if (candidate.node->get_type() == Node::NodeType::CALL) {
-//       auto candidate_call = static_cast<const Call *>(candidate.node);
-
-//       if (!fn_can_be_reordered(candidate_call->get_call().function_name)) {
-//         continue;
-//       }
-
-//       if (!are_rw_dependencies_met(anchor, candidate.node,
-//       furthest_back_nodes,
-//                                    candidate.extra_condition)) {
-//         continue;
-//       }
-//     }
-
-//     auto viable = !check_future_branches ||
-//                   !node_has_side_effects(candidate.node) ||
-//                   is_called_in_all_future_branches(anchor, candidate.node,
-//                                                    candidate.siblings);
-
-//     if (!viable) {
-//       continue;
-//     }
-
-//     candidate.siblings.insert(candidate.node->get_id());
-//     viable_candidates.push_back(candidate);
-//   }
-
-//   return viable_candidates;
-// }
-
-// BDD reorder(const BDD &original_bdd, node_id_t anchor_id,
-//             const candidate_t &candidate) {
-//   struct aux_t {
-//     const Node *node;
-//     bool branch_decision;
-//     bool branch_decision_set;
-
-//     aux_t(const Node *_node) : node(_node), branch_decision_set(false) {}
-//     aux_t(const Node *_node, bool _direction)
-//         : node(_node), branch_decision(_direction), branch_decision_set(true)
-//         {}
-//   };
-
-//   BDD bdd = original_bdd;
-
-//   node_id_t candidate_id = candidate.node->get_id();
-
-//   const Node *anchor = bdd.get_node_by_id(anchor_id);
-//   const Node *clone_candidate = bdd.get_node_by_id(candidate_id);
-
-//   assert(clone_anchor);
-//   assert(clone_candidate);
-
-//   candidate.node = clone_candidate;
-
-//   auto id = bdd.get_id();
-//   std::vector<aux_t> leaves;
-//   auto candidate_clone = candidate.node->clone();
-
-//   auto old_next = anchor->get_next();
-//   assert(anchor->get_type() != Node::BRANCH);
-//   assert(old_next);
-
-//   if (!candidate.extra_condition.isNull()) {
-//     klee::ConstraintManager no_constraints;
-
-//     auto old_next_cloned = old_next->clone(true);
-
-//     old_next_cloned->recursive_update_ids(++id);
-//     bdd.set_id(id);
-
-//     auto branch =
-//         std::make_shared<Branch>(id, no_constraints,
-//         candidate.extra_condition);
-
-//     bdd.set_id(++id);
-
-//     branch->replace_on_true(candidate_clone);
-//     branch->replace_on_false(old_next_cloned);
-
-//     candidate_clone->replace_prev(branch);
-//     old_next_cloned->replace_prev(branch);
-
-//     root->replace_next(branch);
-//     branch->replace_prev(root);
-//   } else {
-//     root->replace_next(candidate_clone);
-//     candidate_clone->replace_prev(root);
-//   }
-
-//   if (candidate_clone->get_type() == Node::NodeType::BRANCH) {
-//     auto branch = static_cast<Branch *>(candidate_clone.get());
-
-//     auto old_next_on_true = old_next;
-//     auto old_next_on_false = old_next->clone(true);
-
-//     branch->replace_on_true(old_next_on_true);
-//     branch->replace_on_false(old_next_on_false);
-
-//     old_next_on_true->replace_prev(candidate_clone);
-//     old_next_on_false->replace_prev(candidate_clone);
-
-//     leaves.emplace_back(old_next_on_true, true);
-//     leaves.emplace_back(old_next_on_false, false);
-//   } else {
-//     candidate_clone->replace_next(old_next);
-//     old_next->replace_prev(candidate_clone);
-
-//     leaves.emplace_back(old_next);
-//   }
-
-//   auto node = anchor;
-//   while (leaves.size()) {
-//     node = leaves[0].node;
-
-//     if (!node || !node->get_next()) {
-//       leaves.erase(leaves.begin());
-//       continue;
-//     }
-
-//     if (node->get_type() == Node::NodeType::BRANCH) {
-//       auto branch = static_cast<Branch *>(node.get());
-
-//       auto on_true = branch->get_on_true();
-//       auto on_false = branch->get_on_false();
-
-//       auto found_on_true = candidate.has_sibling(on_true->get_id());
-//       auto found_on_false = candidate.has_sibling(on_false->get_id());
-
-//       if (found_on_true) {
-//         const Node *next;
-
-//         if (on_true->get_type() == Node::NodeType::BRANCH) {
-//           auto on_true_branch = static_cast<Branch *>(on_true.get());
-//           assert(leaves[0].branch_decision_set);
-//           next = leaves[0].branch_decision ? on_true_branch->get_on_true()
-//                                            : on_true_branch->get_on_false();
-//         } else {
-//           next = on_true->get_next();
-//         }
-
-//         branch->replace_on_true(next);
-//         next->replace_prev(node);
-//       }
-
-//       if (found_on_false) {
-//         const Node *next;
-
-//         if (on_false->get_type() == Node::NodeType::BRANCH) {
-//           auto on_false_branch = static_cast<Branch *>(on_false.get());
-//           assert(leaves[0].branch_decision_set);
-//           next = leaves[0].branch_decision ? on_false_branch->get_on_true()
-//                                            : on_false_branch->get_on_false();
-//         } else {
-//           next = on_false->get_next();
-//         }
-
-//         branch->replace_on_false(next);
-//         next->replace_prev(node);
-//       }
-
-//       auto branch_decision = leaves[0].branch_decision;
-//       leaves.erase(leaves.begin());
-
-//       leaves.emplace_back(branch->get_on_true(), branch_decision);
-//       leaves.emplace_back(branch->get_on_false(), branch_decision);
-//     } else {
-//       auto next = node->get_next();
-//       auto found_sibling = candidate.has_sibling(next->get_id());
-
-//       if (found_sibling) {
-//         const Node *next_next;
-
-//         if (next->get_type() == Node::NodeType::BRANCH) {
-//           auto next_branch = static_cast<Branch *>(next.get());
-//           assert(leaves[0].branch_decision_set);
-//           next_next = leaves[0].branch_decision ? next_branch->get_on_true()
-//                                                 :
-//                                                 next_branch->get_on_false();
-//         } else {
-//           next_next = next->get_next();
-//         }
-
-//         node->replace_next(next_next);
-//         next_next->replace_prev(node);
-
-//         next = next_next;
-//       }
-
-//       leaves[0].node = next;
-//     }
-//   }
-
-//   if (candidate_clone->get_type() == Node::NodeType::BRANCH) {
-//     auto branch = static_cast<Branch *>(candidate_clone.get());
-//     auto on_false = branch->get_on_false();
-
-//     auto id = bdd.get_id();
-//     on_false->recursive_update_ids(++id);
-//     bdd.set_id(id);
-//   }
-// }
-
-// std::vector<reordered_bdd_t> reorder(const BDD &bdd, node_id_t anchor_id) {
-//   const Node *root = bdd.get_root();
-//   node_id_t root_id = root->get_id();
-//   std::unordered_set<node_id_t> furthest_back_nodes{root_id};
-//   return reorder(bdd, anchor_id, furthest_back_nodes);
-// }
-
-// std::vector<reordered_bdd_t>
-// reorder(const BDD &bdd, node_id_t anchor_id,
-//         const std::unordered_set<node_id_t> &furthest_back_nodes) {
-//   std::vector<reordered_bdd_t> reordered;
-
-//   std::vector<candidate_t> candidates =
-//       get_candidates(anchor, furthest_back_nodes);
-
-//   // #ifndef NDEBUG
-//   //   std::cerr << "\n";
-//   //   std::cerr <<
-//   "*********************************************************"
-//   //                "********************\n";
-//   //   std::cerr << "  current   : " << root->dump(true) << "\n";
-//   //   for (auto candidate : candidates) {
-//   //     std::cerr << candidate.dump() << "\n";
-//   //   }
-//   //   std::cerr <<
-//   "*********************************************************"
-//   //                "********************\n";
-//   // #endif
-
-//   for (const candidate_t &candidate : candidates) {
-//     BDD bdd_clone = reorder(bdd, anchor_id, candidate);
-
-//     node_id_t candidate_id = candidate.node->get_id();
-//     const Node *clone_candidate = bdd_clone.get_node_by_id(candidate_id);
-//     assert(clone_candidate);
-
-//     reordered.emplace_back(bdd_clone, clone_candidate, candidate.condition);
-//   }
-
-//   return reordered;
-// }
+std::vector<candidate_info_t>
+get_reordering_candidates(const BDD &bdd, const anchor_info_t &anchor_info) {
+  std::vector<candidate_info_t> candidates;
+
+  const Node *anchor = bdd.get_node_by_id(anchor_info.id);
+  assert(anchor && "Anchor node not found");
+
+  const Node *next = get_vector_next({anchor, anchor_info.direction});
+
+  if (!next) {
+    return candidates;
+  }
+
+  std::vector<const Node *> nodes{next};
+  while (nodes.size()) {
+    const Node *node = nodes[0];
+    nodes.erase(nodes.begin());
+
+    candidate_info_t proposed_candidate;
+    bool success = concretize_reordering_candidate(
+        bdd, anchor_info, node->get_id(), proposed_candidate);
+
+    if (success) {
+      candidates.push_back(proposed_candidate);
+    }
+
+    switch (node->get_type()) {
+    case NodeType::BRANCH: {
+      const Branch *branch_node = static_cast<const Branch *>(node);
+
+      const Node *on_true = branch_node->get_on_true();
+      const Node *on_false = branch_node->get_on_false();
+
+      if (on_true)
+        nodes.push_back(on_true);
+      if (on_false)
+        nodes.push_back(on_false);
+    } break;
+    case NodeType::CALL:
+    case NodeType::ROUTE: {
+      const Node *next = node->get_next();
+      if (next)
+        nodes.push_back(next);
+    } break;
+    }
+  }
+
+  return candidates;
+}
+
+// Returns the old next node.
+static Node *link(const mutable_vector_t &anchor, Node *next) {
+  Node *old_next = nullptr;
+
+  switch (anchor.node->get_type()) {
+  case NodeType::BRANCH: {
+    Branch *branch = static_cast<Branch *>(anchor.node);
+    if (anchor.direction) {
+      old_next = branch->get_mutable_on_true();
+      branch->set_on_true(next);
+    } else {
+      old_next = branch->get_mutable_on_false();
+      branch->set_on_false(next);
+    }
+  } break;
+  case NodeType::CALL:
+  case NodeType::ROUTE:
+    old_next = anchor.node->get_mutable_next();
+    anchor.node->set_next(next);
+    break;
+  }
+
+  if (next)
+    next->set_prev(anchor.node);
+
+  if (old_next)
+    old_next->set_prev(nullptr);
+
+  return old_next;
+}
+
+static void disconnect(Node *node) {
+  Node *prev = node->get_mutable_prev();
+  assert(prev && "Node has no previous node");
+
+  bool direction = true;
+  if (prev->get_type()) {
+    Branch *prev_branch = static_cast<Branch *>(prev);
+    if (prev_branch->get_on_true() == node) {
+      direction = true;
+    } else if (prev_branch->get_on_false() == node) {
+      direction = false;
+    } else {
+      assert(false && "Node not found in previous branch node");
+    }
+  }
+
+  switch (node->get_type()) {
+  case NodeType::BRANCH: {
+    Branch *branch = static_cast<Branch *>(node);
+    branch->set_on_true(nullptr);
+    branch->set_on_false(nullptr);
+  } break;
+  case NodeType::CALL:
+  case NodeType::ROUTE:
+    node->set_next(nullptr);
+    break;
+  }
+
+  link({prev, direction}, nullptr);
+}
+
+static void disconnect_and_link_non_branch(Node *node) {
+  assert(node->get_type() != NodeType::BRANCH);
+
+  Node *next = node->get_mutable_next();
+  Node *prev = node->get_mutable_prev();
+  assert(prev && "Node has no previous node");
+
+  bool direction = true;
+  switch (prev->get_type()) {
+  case NodeType::BRANCH: {
+    Branch *prev_branch = static_cast<Branch *>(prev);
+    if (prev_branch->get_on_true() == node) {
+      direction = true;
+    } else if (prev_branch->get_on_false() == node) {
+      direction = false;
+    } else {
+      assert(false && "Node not found in previous branch node");
+    }
+  } break;
+  case NodeType::CALL:
+  case NodeType::ROUTE:
+    direction = true;
+    break;
+  }
+
+  link({prev, direction}, next);
+
+  node->set_next(nullptr);
+  node->set_prev(nullptr);
+}
+
+typedef std::unordered_map<Branch *, bool> directions_t;
+
+static directions_t get_directions(const Node *anchor, Node *candidate) {
+  directions_t directions;
+
+  while (candidate != anchor) {
+    Node *prev = candidate->get_mutable_prev();
+
+    if (prev == anchor) {
+      break;
+    }
+
+    if (prev->get_type() == NodeType::BRANCH) {
+      Branch *prev_branch = static_cast<Branch *>(prev);
+
+      Node *prev_on_true = prev_branch->get_mutable_on_true();
+      Node *prev_on_false = prev_branch->get_mutable_on_false();
+
+      if (prev_on_true == candidate) {
+        directions[prev_branch] = true;
+      } else if (prev_on_false == candidate) {
+        directions[prev_branch] = false;
+      }
+    }
+
+    candidate = prev;
+  }
+
+  return directions;
+}
+
+static std::unordered_map<Branch *, directions_t>
+get_branch_candidates(const mutable_vector_t &anchor, Branch *candidate,
+                      const std::unordered_set<Node *> &siblings) {
+  std::unordered_map<Branch *, directions_t> branch_candidates;
+
+  // Contrary to the non-branch case, here we need to consider all siblings
+  // equally.
+  std::unordered_set<Branch *> candidates{candidate};
+  for (Node *sibling : siblings) {
+    assert(sibling->get_type() == NodeType::BRANCH);
+    candidates.insert(static_cast<Branch *>(sibling));
+  }
+
+  for (Branch *candidate : candidates) {
+    branch_candidates[candidate] = get_directions(anchor.node, candidate);
+  }
+
+  return branch_candidates;
+}
+
+struct dangling_node_t {
+  Node *node;
+  directions_t directions;
+  bool candidate_direction;
+};
+
+typedef std::vector<dangling_node_t> dangling_t;
+
+static dangling_t
+disconnect(const std::unordered_map<Branch *, directions_t> &candidates) {
+  dangling_t dangling_nodes;
+
+  for (const std::pair<Branch *, directions_t> &pair : candidates) {
+    Branch *candidate = pair.first;
+    directions_t directions = pair.second;
+
+    Node *on_true = candidate->get_mutable_on_true();
+    Node *on_false = candidate->get_mutable_on_false();
+
+    if (on_true) {
+      directions[candidate] = true;
+      dangling_nodes.push_back({on_true, directions, true});
+      on_true->set_prev(nullptr);
+    }
+
+    if (on_false) {
+      directions[candidate] = false;
+      dangling_nodes.push_back({on_false, directions, false});
+      on_false->set_prev(nullptr);
+    }
+
+    disconnect(candidate);
+  }
+
+  return dangling_nodes;
+}
+
+typedef std::vector<mutable_vector_t> leaves_t;
+
+static leaves_t get_leaves_from_candidates(
+    const std::unordered_map<Branch *, directions_t> &candidates) {
+  std::vector<mutable_vector_t> leaves;
+
+  for (const std::pair<Branch *, directions_t> &pair : candidates) {
+    Branch *candidate = pair.first;
+
+    Node *prev = candidate->get_mutable_prev();
+    assert(prev && "Candidate has no previous node");
+
+    if (prev->get_type() == NodeType::BRANCH) {
+      Branch *prev_branch = static_cast<Branch *>(prev);
+      Node *prev_on_true = prev_branch->get_mutable_on_true();
+      Node *prev_on_false = prev_branch->get_mutable_on_false();
+
+      if (prev_on_true == candidate) {
+        leaves.push_back({prev_branch, true});
+      } else if (prev_on_false == candidate) {
+        leaves.push_back({prev_branch, false});
+      }
+    } else {
+      leaves.push_back({prev, true});
+    }
+  }
+
+  return leaves;
+}
+
+static Node *clone_and_update_nodes(BDD &bdd, Node *candidate,
+                                    Node *anchor_old_next, dangling_t &dangling,
+                                    leaves_t &leaves) {
+  NodeManager &manager = bdd.get_mutable_manager();
+  node_id_t &id = bdd.get_mutable_id();
+
+  Node *clone = anchor_old_next->clone(manager, true);
+
+  for (mutable_vector_t &leaf : leaves) {
+    node_id_t leaf_id = leaf.node->get_id();
+    Node *leaf_clone = clone->get_mutable_node_by_id(leaf_id);
+    leaves.push_back({leaf_clone, leaf.direction});
+  }
+
+  for (dangling_node_t &dangling_node : dangling) {
+    // Only update nodes from the right side of the branch (that is the chosen
+    // one to be the clone).
+    if (dangling_node.candidate_direction)
+      continue;
+
+    // We are only interested in updating the directions.
+    directions_t new_directions;
+
+    for (const std::pair<Branch *, bool> &direction :
+         dangling_node.directions) {
+      // We don't clone the candidate.
+      if (direction.first == candidate) {
+        new_directions[direction.first] = direction.second;
+        continue;
+      }
+
+      node_id_t branch_id = direction.first->get_id();
+      Node *node_clone = clone->get_mutable_node_by_id(branch_id);
+
+      std::cerr << "Branch node: " << direction.first->dump(true) << "\n";
+      assert(node_clone && "Branch node not found in clone");
+
+      Branch *branch_clone = static_cast<Branch *>(node_clone);
+      new_directions[branch_clone] = direction.second;
+    }
+
+    dangling_node.directions = new_directions;
+  }
+
+  clone->recursive_update_ids(id);
+  return clone;
+}
+
+static void filter_dangling(dangling_t &dangling, Branch *intersection,
+                            bool decision) {
+  auto wrong_decision = [intersection,
+                         decision](const dangling_node_t &dangling_node) {
+    auto found_it = dangling_node.directions.find(intersection);
+    return found_it == dangling_node.directions.end() ||
+           found_it->second != decision;
+  };
+
+  dangling.erase(
+      std::remove_if(dangling.begin(), dangling.end(), wrong_decision),
+      dangling.end());
+}
+
+static dangling_node_t dangling_from_leaf(Node *candidate, dangling_t dangling,
+                                          const mutable_vector_t &leaf) {
+  std::cerr << "\n====================\n";
+  std::cerr << "Leaf node: " << leaf.node->dump(true) << " -> "
+            << leaf.direction << "\n";
+  std::cerr << "Dangling nodes:\n";
+  for (const dangling_node_t &dangling_node : dangling) {
+    std::cerr << "  " << dangling_node.node->dump(true) << "\n";
+    std::cerr << "    directions:\n";
+    for (const std::pair<Branch *, bool> &direction :
+         dangling_node.directions) {
+      std::cerr << "      " << direction.first->dump(true) << " -> "
+                << direction.second << "\n";
+    }
+  }
+  std::cerr << "====================\n";
+
+  Node *node = leaf.node;
+
+  if (leaf.node->get_type() == NodeType::BRANCH) {
+    Branch *branch = static_cast<Branch *>(leaf.node);
+    filter_dangling(dangling, branch, leaf.direction);
+  }
+
+  std::cerr << "\n====================\n";
+  std::cerr << "**FILTERED**\n";
+  std::cerr << "Leaf node: " << leaf.node->dump(true) << " -> "
+            << leaf.direction << "\n";
+  std::cerr << "Dangling nodes:\n";
+  for (const dangling_node_t &dangling_node : dangling) {
+    std::cerr << "  " << dangling_node.node->dump(true) << "\n";
+    std::cerr << "    directions:\n";
+    for (const std::pair<Branch *, bool> &direction :
+         dangling_node.directions) {
+      std::cerr << "      " << direction.first->dump(true) << " -> "
+                << direction.second << "\n";
+    }
+  }
+  std::cerr << "====================\n";
+
+  while (node != candidate) {
+    Node *prev = node->get_mutable_prev();
+    assert(prev && "Node has no previous node");
+
+    if (prev->get_type() == NodeType::BRANCH) {
+      Branch *prev_branch = static_cast<Branch *>(prev);
+
+      Node *prev_on_true = prev_branch->get_mutable_on_true();
+      Node *prev_on_false = prev_branch->get_mutable_on_false();
+
+      if (prev_on_true == node) {
+        std::cerr << "Filter: " << prev_branch->dump(true) << " -> 1\n";
+        filter_dangling(dangling, prev_branch, true);
+      } else if (prev_on_false == node) {
+        std::cerr << "Filter: " << prev_branch->dump(true) << " -> 0\n";
+        filter_dangling(dangling, prev_branch, false);
+      } else {
+        assert(false && "Node not found in previous branch node");
+      }
+
+      std::cerr << "\n====================\n";
+      std::cerr << "**FILTERED**\n";
+      std::cerr << "Leaf node: " << leaf.node->dump(true) << " -> "
+                << leaf.direction << "\n";
+      std::cerr << "Dangling nodes:\n";
+      for (const dangling_node_t &dangling_node : dangling) {
+        std::cerr << "  " << dangling_node.node->dump(true) << "\n";
+        std::cerr << "    directions:\n";
+        for (const std::pair<Branch *, bool> &direction :
+             dangling_node.directions) {
+          std::cerr << "      " << direction.first->dump(true) << " -> "
+                    << direction.second << "\n";
+        }
+      }
+      std::cerr << "====================\n";
+    }
+
+    node = prev;
+  }
+
+  assert(dangling.size() == 1);
+  return dangling[0];
+}
+
+static void stitch_dangling(BDD &bdd, Node *node, dangling_t dangling,
+                            const leaves_t &leaves) {
+  for (const mutable_vector_t &leaf : leaves) {
+    dangling_node_t dangling_node = dangling_from_leaf(node, dangling, leaf);
+    link(leaf, dangling_node.node);
+  }
+}
+
+static void pull_branch(BDD &bdd, const mutable_vector_t &anchor,
+                        Branch *candidate,
+                        const std::unordered_set<Node *> &siblings) {
+  assert(siblings.size() == 0 &&
+         "TODO: implement branch reordering with siblings");
+
+  std::cerr << "Reordering:\n";
+  std::cerr << "  anchor: " << anchor.node->dump(true) << "\n";
+  std::cerr << "  candidate: " << candidate->dump(true) << "\n";
+  std::cerr << "  siblings: ";
+  for (Node *sibling : siblings) {
+    std::cerr << sibling->get_id() << " ";
+  }
+  std::cerr << "\n";
+  std::cerr << "\n";
+
+  std::unordered_map<Branch *, directions_t> branch_candidates =
+      get_branch_candidates(anchor, candidate, siblings);
+
+  std::cerr << "Branch candidates:\n";
+  for (auto bc : branch_candidates) {
+    std::cerr << "\t" << bc.first->dump(true) << "\n";
+    for (auto d : bc.second) {
+      std::cerr << "\t\t" << d.first->dump(true) << " -> " << d.second << "\n";
+    }
+  }
+  std::cerr << "\n";
+
+  leaves_t leaves = get_leaves_from_candidates(branch_candidates);
+  dangling_t dangling = disconnect(branch_candidates);
+
+  std::cerr << "Anchor: " << anchor.node->dump(true) << " -> "
+            << anchor.direction << "\n";
+
+  Node *anchor_old_next = link(anchor, candidate);
+
+  std::cerr << "Old next: " << anchor_old_next->dump(true) << "\n";
+
+  Node *anchor_next_clone =
+      clone_and_update_nodes(bdd, candidate, anchor_old_next, dangling, leaves);
+
+  std::cerr << "\n";
+  std::cerr << "Dangling:\n";
+  for (auto nd : dangling) {
+    std::cerr << "\t" << nd.node->dump(true) << "\n";
+    std::cerr << "\t\tcandidate direction: " << nd.candidate_direction << "\n";
+    for (auto d : nd.directions) {
+      std::cerr << "\t\t" << d.first->dump(true) << " -> " << d.second << "\n";
+    }
+  }
+  std::cerr << "\n";
+
+  std::cerr << "\n";
+  std::cerr << "Leaves:\n";
+  for (auto l : leaves) {
+    std::cerr << "\t" << l.node->dump(true) << " -> " << l.direction << "\n";
+  }
+  std::cerr << "\n";
+
+  assert(leaves.size() == dangling.size());
+
+  link({candidate, true}, anchor_old_next);
+  link({candidate, false}, anchor_next_clone);
+
+  stitch_dangling(bdd, candidate, dangling, leaves);
+}
+
+static symbol_t get_collision_free_symbol(const symbols_t &symbols,
+                                          const symbol_t &symbol) {
+  const klee::Array *new_array;
+
+  int suffix = 1;
+  while (true) {
+    std::string new_name = symbol.base + "_" + std::to_string(suffix);
+    auto found_it = std::find_if(
+        symbols.begin(), symbols.end(),
+        [new_name](const symbol_t &s) { return s.array->name == new_name; });
+
+    if (found_it == symbols.end()) {
+      new_array = kutil::solver_toolbox.arr_cache.CreateArray(
+          new_name, symbol.array->size,
+          symbol.array->constantValues.begin().base(),
+          symbol.array->constantValues.end().base(), symbol.array->domain,
+          symbol.array->range);
+      break;
+    }
+
+    suffix++;
+  }
+
+  symbol_t new_symbol;
+  new_symbol.base = symbol.base;
+  new_symbol.array = new_array;
+  new_symbol.expr = kutil::solver_toolbox.create_new_symbol(new_symbol.array);
+
+  return new_symbol;
+}
+
+static bool check_collision(const symbols_t &symbols, const symbol_t &symbol) {
+  auto same_symbol = [symbol](const symbol_t &s) {
+    return s.array->name == symbol.array->name;
+  };
+  auto found_it = std::find_if(symbols.begin(), symbols.end(), same_symbol);
+  return found_it != symbols.end();
+}
+
+static void translate_symbols(BDD &bdd, const mutable_vector_t &anchor,
+                              Node *candidate) {
+  if (candidate->get_type() != NodeType::CALL)
+    return;
+
+  Call *candidate_call = static_cast<Call *>(candidate);
+  symbols_t candidate_symbols = candidate_call->get_locally_generated_symbols();
+  symbols_t anchor_symbols = bdd.get_generated_symbols(anchor.node);
+
+  for (const symbol_t &candidate_symbol : candidate_symbols) {
+    if (!check_collision(anchor_symbols, candidate_symbol))
+      continue;
+    symbol_t new_symbol =
+        get_collision_free_symbol(anchor_symbols, candidate_symbol);
+    candidate->recursive_translate_symbol(candidate_symbol, new_symbol);
+  }
+}
+
+static void pull_non_branch(BDD &bdd, const mutable_vector_t &anchor,
+                            Node *candidate,
+                            const std::unordered_set<Node *> &siblings) {
+  // Symbols generated by the candidate might collide with the symbols generated
+  // until the anchor. In that case, we need to translate the candidate symbols
+  // to avoid collisions.
+  translate_symbols(bdd, anchor, candidate);
+
+  // Remove candidate from the BDD, linking its parent with its child.
+  disconnect_and_link_non_branch(candidate);
+
+  // Link the anchor with the candidate.
+  Node *anchor_old_next = link(anchor, candidate);
+  link({candidate, true}, anchor_old_next);
+
+  // Disconnect all siblings from the BDD.
+  for (Node *sibling : siblings) {
+    if (sibling == candidate)
+      continue;
+    disconnect_and_link_non_branch(sibling);
+  }
+}
+
+static void pull_candidate(BDD &bdd, const mutable_vector_t &anchor,
+                           Node *candidate,
+                           const std::unordered_set<Node *> &siblings) {
+  switch (candidate->get_type()) {
+  case NodeType::BRANCH:
+    pull_branch(bdd, anchor, static_cast<Branch *>(candidate), siblings);
+    break;
+  case NodeType::CALL:
+  case NodeType::ROUTE:
+    pull_non_branch(bdd, anchor, candidate, siblings);
+    break;
+  }
+}
+
+BDD reorder(const BDD &original_bdd, const anchor_info_t &anchor_info,
+            const candidate_info_t &candidate_info) {
+  BDD bdd = original_bdd;
+  node_id_t &id = bdd.get_mutable_id();
+
+  NodeManager &manager = bdd.get_mutable_manager();
+  Node *candidate = bdd.get_mutable_node_by_id(candidate_info.id);
+
+  mutable_vector_t anchor;
+  anchor.node = bdd.get_mutable_node_by_id(anchor_info.id);
+  anchor.direction = anchor_info.direction;
+
+  std::unordered_set<Node *> siblings;
+  for (node_id_t sibling_id : candidate_info.siblings) {
+    Node *sibling = bdd.get_mutable_node_by_id(sibling_id);
+    assert(sibling && "Sibling not found in BDD");
+    siblings.insert(sibling);
+  }
+
+  assert(candidate && "Candidate not found in BDD");
+  assert(anchor.node && "Anchor not found in BDD");
+
+  // Reordering can only be done if a given extra condition is met.
+  // Therefore, we must introduce a new branch condition evaluating this extra
+  // condition.
+  // Reordering will happen on the true side of this branch node, while the
+  // false side will contain the original remaining nodes.
+  if (!candidate_info.condition.isNull()) {
+    klee::ConstraintManager anchor_constraints = anchor.node->get_constraints();
+
+    Node *after_anchor = get_vector_next(anchor);
+    assert(after_anchor && "Anchor has no next node");
+
+    Node *after_anchor_clone = after_anchor->clone(manager, true);
+
+    Branch *extra_branch =
+        new Branch(id, anchor_constraints, candidate_info.condition);
+    manager.add_node(extra_branch);
+    id++;
+
+    link(anchor, extra_branch);
+    link({extra_branch, true}, after_anchor_clone);
+    link({extra_branch, false}, after_anchor);
+
+    // The candidate will be on the true side of the extra branch node.
+    // We just cloned it, so we need to find it again.
+    candidate = after_anchor_clone->get_mutable_node_by_id(candidate_info.id);
+    assert(candidate && "Candidate not found in cloned after_anchor");
+
+    // Same logic for all the siblings.
+    siblings.clear();
+    for (node_id_t sibling_id : candidate_info.siblings) {
+      Node *sibling = bdd.get_mutable_node_by_id(sibling_id);
+      assert(sibling && "Sibling not found in BDD");
+      siblings.insert(sibling);
+    }
+
+    // Update the IDs of all cloned nodes (on true side of the extra branch).
+    // WARNING: Now the information on the candidate info provided in
+    // the arguments is not valid anymore (has the wrong candidate ID).
+    after_anchor_clone->recursive_update_ids(id);
+
+    // Finally update to the new anchor.
+    anchor.node = extra_branch;
+    anchor.direction = true;
+  }
+
+  pull_candidate(bdd, anchor, candidate, siblings);
+
+  return bdd;
+}
 
 struct reordered_t {
   BDD bdd;
@@ -1007,7 +1303,7 @@ struct reordered_t {
     const Node *next = next_nodes[0];
     next_nodes.erase(next_nodes.begin());
 
-    if (next->get_type() == Node::NodeType::BRANCH) {
+    if (next->get_type() == NodeType::BRANCH) {
       const Branch *branch_node = static_cast<const Branch *>(next);
       next_nodes.push_back(branch_node->get_on_true());
       next_nodes.push_back(branch_node->get_on_false());
@@ -1016,53 +1312,6 @@ struct reordered_t {
     }
   }
 };
-
-// std::vector<BDD> get_all_reordered_bdds(const BDD &original_bdd,
-//                                         int max_reordering) {
-//   std::vector<BDD> result;
-
-//   const Node *root = original_bdd.get_root();
-//   std::vector<reordered_t> bdds{{original_bdd, root}};
-
-//   while (bdds.size()) {
-//     reordered_t bdd = bdds[0];
-//     bdds.erase(bdds.begin());
-
-//     if (!bdd.has_next() ||
-//         (max_reordering >= 0 && bdd.times >= max_reordering)) {
-//       result.emplace_back(bdd.bdd);
-
-// #ifndef NDEBUG
-//       std::cerr << "\r"
-//                 << "completed: " << result.size() << std::flush;
-// #endif
-
-//       continue;
-//     }
-
-//     std::vector<reordered_bdd_t> reordered_bdds =
-//         reorder(bdd.bdd, bdd.get_next());
-
-//     for (const reordered_bdd_t &reordered_bdd : reordered_bdds) {
-//       std::vector<const Node *> new_nexts;
-//       for (const Node *next : bdd.next_nodes) {
-//         node_id_t next_id = next->get_id();
-//         const Node *next_in_reordered =
-//             reordered_bdd.bdd.get_node_by_id(next_id);
-//         new_nexts.push_back(next_in_reordered);
-//       }
-
-//       reordered_t new_reordered(reordered_bdd.bdd, new_nexts, bdd.times + 1);
-//       new_reordered.advance_next();
-//       bdds.push_back(new_reordered);
-//     }
-
-//     bdd.advance_next();
-//     bdds.push_back(bdd);
-//   }
-
-//   return result;
-// }
 
 // double approximate_total_reordered_bdds(const BDD &bdd, const Node *root) {
 //   static std::unordered_map<std::string, double> cache;
@@ -1083,9 +1332,9 @@ struct reordered_t {
 //     return cache[hash];
 //   }
 
-//   Node::NodeType type = root->get_type();
+//   NodeType type = root->get_type();
 
-//   if (type == Node::NodeType::BRANCH) {
+//   if (type == NodeType::BRANCH) {
 //     const Branch *branch = static_cast<const Branch *>(root);
 
 //     const Node *on_true = branch->get_on_true();

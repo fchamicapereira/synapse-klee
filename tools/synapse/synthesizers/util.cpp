@@ -34,7 +34,7 @@ bool pending_packet_borrow_next_chunk(const ExecutionPlanNode *ep_node,
     auto bdd_node = module->get_node();
     assert(bdd_node);
 
-    if (bdd_node->get_type() == bdd::Node::NodeType::CALL) {
+    if (bdd_node->get_type() == bdd::NodeType::CALL) {
       auto call_node = static_cast<const bdd::Call *>(bdd_node.get());
       if (call_node->get_call().function_name == "packet_borrow_next_chunk") {
         return true;

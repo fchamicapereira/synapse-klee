@@ -144,26 +144,11 @@ static std::unordered_map<std::string, SymbolsExtractor>
 void BDD::visit(BDDVisitor &visitor) const { visitor.visit(*this); }
 
 const Node *BDD::get_node_by_id(node_id_t _id) const {
-  std::vector<const Node *> nodes{root};
-  const Node *node;
+  return root->get_node_by_id(_id);
+}
 
-  while (nodes.size()) {
-    node = nodes[0];
-    nodes.erase(nodes.begin());
-
-    if (node->get_id() == _id)
-      return node;
-
-    if (node->get_type() == Node::NodeType::BRANCH) {
-      const Branch *branch_node = static_cast<const Branch *>(node);
-      nodes.push_back(branch_node->get_on_true());
-      nodes.push_back(branch_node->get_on_false());
-    } else if (node->get_next()) {
-      nodes.push_back(node->get_next());
-    }
-  }
-
-  return node;
+Node *BDD::get_mutable_node_by_id(node_id_t _id) {
+  return root->get_mutable_node_by_id(_id);
 }
 
 static bool is_bdd_symbol(const std::string &symbol) {
@@ -574,17 +559,33 @@ static Node *bdd_from_call_paths(
   return root;
 }
 
+symbols_t BDD::get_generated_symbols(const Node *node) const {
+  symbols_t symbols{device, packet_len, time};
+
+  while (node) {
+    if (node->get_type() == NodeType::CALL) {
+      const Call *call_node = static_cast<const Call *>(node);
+      symbols_t more_symbols = call_node->get_locally_generated_symbols();
+      symbols.insert(more_symbols.begin(), more_symbols.end());
+    }
+
+    node = node->get_prev();
+  }
+
+  return symbols;
+}
+
 BDD::BDD(const call_paths_t &call_paths) : id(0) {
   symbols_t bdd_symbols;
   root = bdd_from_call_paths(call_paths, manager, init, id, bdd_symbols);
 
   for (const symbol_t &symbol : bdd_symbols) {
     if (symbol.base == "DEVICE") {
-      device = symbol.expr;
+      device = symbol;
     } else if (symbol.base == "pkt_len") {
-      packet_len = symbol.expr;
+      packet_len = symbol;
     } else if (symbol.base == "next_time") {
-      time = symbol.expr;
+      time = symbol;
     } else {
       assert(false && "Unknown BDD symbol");
     }
@@ -592,8 +593,8 @@ BDD::BDD(const call_paths_t &call_paths) : id(0) {
 
   // Some NFs don't care about the device, so it doesn't show up on the call
   // paths.
-  if (device.isNull()) {
-    device = kutil::solver_toolbox.create_new_symbol("DEVICE", 32);
+  if (device.expr.isNull()) {
+    device.expr = kutil::solver_toolbox.create_new_symbol("DEVICE", 32);
   }
 }
 

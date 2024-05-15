@@ -40,7 +40,7 @@ private:
     auto prev_vector_borrows = get_prev_fn(ep, node, "vector_borrow");
 
     for (auto prev_node : prev_vector_borrows) {
-      assert(prev_node->get_type() == bdd::Node::NodeType::CALL);
+      assert(prev_node->get_type() == bdd::NodeType::CALL);
 
       auto call_node = static_cast<const bdd::Call *>(prev_node.get());
       auto call = call_node->get_call();

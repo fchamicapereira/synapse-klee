@@ -12,7 +12,7 @@ inline time_ns_t get_expiration_time(const BDD &bdd,
                                      klee::ref<klee::Expr> expr) {
   auto time = bdd.get_time();
   auto zero = kutil::solver_toolbox.exprBuilder->Constant(0, 64);
-  auto time_eq_0 = kutil::solver_toolbox.exprBuilder->Eq(time, zero);
+  auto time_eq_0 = kutil::solver_toolbox.exprBuilder->Eq(time.expr, zero);
 
   klee::ConstraintManager constraints;
   constraints.addConstraint(time_eq_0);

@@ -761,7 +761,7 @@ const bdd::Call *find_vector_return_with_obj(const bdd::Node *root,
     auto node = nodes[0];
     nodes.erase(nodes.begin());
 
-    if (node->get_type() == bdd::Node::NodeType::BRANCH) {
+    if (node->get_type() == bdd::NodeType::BRANCH) {
       auto node_branch = static_cast<const bdd::Branch *>(node);
 
       nodes.push_back(node_branch->get_on_true().get());
@@ -770,7 +770,7 @@ const bdd::Call *find_vector_return_with_obj(const bdd::Node *root,
       continue;
     }
 
-    if (node->get_type() != bdd::Node::NodeType::CALL) {
+    if (node->get_type() != bdd::NodeType::CALL) {
       continue;
     }
 
@@ -805,7 +805,7 @@ const bdd::Call *find_vector_return_with_value(const bdd::Node *root,
     auto node = nodes[0];
     nodes.erase(nodes.begin());
 
-    if (node->get_type() == bdd::Node::NodeType::BRANCH) {
+    if (node->get_type() == bdd::NodeType::BRANCH) {
       auto node_branch = static_cast<const bdd::Branch *>(node);
 
       nodes.push_back(node_branch->get_on_true().get());
@@ -814,7 +814,7 @@ const bdd::Call *find_vector_return_with_value(const bdd::Node *root,
       continue;
     }
 
-    if (node->get_type() != bdd::Node::NodeType::CALL) {
+    if (node->get_type() != bdd::NodeType::CALL) {
       continue;
     }
 
@@ -879,7 +879,7 @@ get_prev_functions(bdd::Node_ptr start, std::string function_name,
   bdd::Node_ptr node = start;
 
   auto is_stop_node = [&stop_nodes](bdd::Node_ptr node) {
-    if (node->get_type() != bdd::Node::NodeType::CALL) {
+    if (node->get_type() != bdd::NodeType::CALL) {
       return false;
     }
 
@@ -889,7 +889,7 @@ get_prev_functions(bdd::Node_ptr start, std::string function_name,
   };
 
   auto is_target_node = [&function_name](bdd::Node_ptr node) {
-    if (node->get_type() != bdd::Node::NodeType::CALL) {
+    if (node->get_type() != bdd::NodeType::CALL) {
       return false;
     }
 

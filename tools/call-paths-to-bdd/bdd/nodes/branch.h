@@ -14,13 +14,13 @@ private:
 public:
   Branch(node_id_t _id, const klee::ConstraintManager &_constraints,
          klee::ref<klee::Expr> _condition)
-      : Node(_id, Node::NodeType::BRANCH, _constraints), on_false(nullptr),
+      : Node(_id, NodeType::BRANCH, _constraints), on_false(nullptr),
         condition(_condition) {}
 
   Branch(node_id_t _id, Node *_prev,
          const klee::ConstraintManager &_constraints, Node *_on_true,
          Node *_on_false, klee::ref<klee::Expr> _condition)
-      : Node(_id, Node::NodeType::BRANCH, _on_true, _prev, _constraints),
+      : Node(_id, NodeType::BRANCH, _on_true, _prev, _constraints),
         on_false(_on_false), condition(_condition) {}
 
   klee::ref<klee::Expr> get_condition() const { return condition; }
@@ -32,17 +32,18 @@ public:
   const Node *get_on_true() const { return next; }
   const Node *get_on_false() const { return on_false; }
 
-  virtual std::vector<node_id_t> get_terminating_node_ids() const override;
-
   void set_on_true(Node *_on_true) { next = _on_true; }
   void set_on_false(Node *_on_false) { on_false = _on_false; }
 
+  Node *get_mutable_on_true() { return next; }
+  Node *get_mutable_on_false() { return on_false; }
+
+  virtual std::vector<node_id_t> get_terminating_node_ids() const override;
   virtual Node *clone(NodeManager &manager,
                       bool recursive = false) const override;
 
   void visit(BDDVisitor &visitor) const override;
   std::string dump(bool one_liner = false) const override;
-  std::string dump_recursive(int lvl = 0) const override;
 };
 
 } // namespace bdd

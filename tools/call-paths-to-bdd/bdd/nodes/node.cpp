@@ -3,40 +3,13 @@
 #include "call.h"
 #include "manager.h"
 
+#include "klee-util.h"
+
 #include "llvm/Support/MD5.h"
 
 #include <iomanip>
 
 namespace bdd {
-
-// Get generated symbols, but no further than this node
-symbols_t Node::get_generated_symbols(
-    const std::unordered_set<node_id_t> &furthest_back_nodes) const {
-  symbols_t symbols;
-  const Node *node = this;
-
-  while (node) {
-    auto found_it = std::find(furthest_back_nodes.begin(),
-                              furthest_back_nodes.end(), node->get_id());
-    if (found_it != furthest_back_nodes.end())
-      break;
-
-    if (node->get_type() == Node::NodeType::CALL) {
-      auto call_node = static_cast<const Call *>(node);
-      symbols_t more_symbols = call_node->get_locally_generated_symbols();
-      symbols.insert(more_symbols.begin(), more_symbols.end());
-    }
-
-    node = node->get_prev();
-  }
-
-  return symbols;
-}
-
-symbols_t Node::get_generated_symbols() const {
-  std::unordered_set<node_id_t> furthest_back_nodes;
-  return get_generated_symbols(furthest_back_nodes);
-}
 
 std::vector<node_id_t> Node::get_terminating_node_ids() const {
   if (!next)
@@ -54,11 +27,11 @@ bool Node::is_reachable_by_node(node_id_t id) const {
   return false;
 }
 
-unsigned Node::count_children(bool recursive) const {
+size_t Node::count_children(bool recursive) const {
   std::vector<const Node *> children;
   const Node *node = this;
 
-  if (node->get_type() == Node::NodeType::BRANCH) {
+  if (node->get_type() == NodeType::BRANCH) {
     auto branch_node = static_cast<const Branch *>(node);
 
     children.push_back(branch_node->get_on_true());
@@ -67,58 +40,83 @@ unsigned Node::count_children(bool recursive) const {
     children.push_back(node->get_next());
   }
 
-  unsigned n = children.size();
+  size_t n = children.size();
 
   while (recursive && children.size()) {
     node = children[0];
     children.erase(children.begin());
 
-    if (node->get_type() == Node::NodeType::BRANCH) {
-      auto branch_node = static_cast<const Branch *>(node);
+    switch (node->get_type()) {
+    case NodeType::BRANCH: {
+      const Branch *branch_node = static_cast<const Branch *>(node);
+      const Node *on_true = branch_node->get_on_true();
+      const Node *on_false = branch_node->get_on_false();
 
-      children.push_back(branch_node->get_on_true());
-      children.push_back(branch_node->get_on_false());
-
-      n += 2;
-    } else if (node->get_next()) {
-      children.push_back(node->get_next());
-      n++;
+      if (on_true) {
+        children.push_back(on_true);
+        n++;
+      }
+      if (on_false) {
+        children.push_back(on_false);
+        n++;
+      }
+    } break;
+    case NodeType::ROUTE:
+    case NodeType::CALL: {
+      const Node *next = node->get_next();
+      if (next) {
+        children.push_back(next);
+        n++;
+      }
+    } break;
     }
   }
 
   return n;
 }
 
-unsigned Node::count_code_paths() const {
+size_t Node::count_code_paths() const {
   std::vector<const Node *> nodes{this};
-  const Node *node;
-  unsigned paths = 0;
+  size_t paths = 0;
 
   while (nodes.size()) {
-    node = nodes[0];
+    const Node *node = nodes[0];
     nodes.erase(nodes.begin());
 
     switch (node->get_type()) {
-    case Node::NodeType::BRANCH: {
-      auto branch_node = static_cast<const Branch *>(node);
-      nodes.push_back(branch_node->get_on_true());
-      nodes.push_back(branch_node->get_on_false());
-      break;
-    }
-    case Node::NodeType::CALL: {
-      nodes.push_back(node->get_next());
-      break;
-    }
-    case Node::NodeType::ROUTE:
-      paths++;
-      break;
+    case NodeType::BRANCH: {
+      const Branch *branch_node = static_cast<const Branch *>(node);
+      const Node *on_true = branch_node->get_on_true();
+      const Node *on_false = branch_node->get_on_false();
+
+      if (on_true) {
+        nodes.push_back(on_true);
+      } else {
+        paths++;
+      }
+
+      if (on_false) {
+        nodes.push_back(on_false);
+      } else {
+        paths++;
+      }
+    } break;
+    case NodeType::ROUTE:
+    case NodeType::CALL: {
+      const Node *next = node->get_next();
+      if (next) {
+        nodes.push_back(next);
+      } else {
+        paths++;
+      }
+    } break;
     }
   }
 
   return paths;
 }
 
-std::string Node::dump_recursive(int lvl) const {
+std::string Node::recursive_dump(int lvl) const {
   std::stringstream result;
   std::string pad(lvl * 2, ' ');
 
@@ -127,14 +125,18 @@ std::string Node::dump_recursive(int lvl) const {
   switch (type) {
   case NodeType::BRANCH: {
     const Branch *branch_node = static_cast<const Branch *>(this);
-    result << branch_node->get_on_true()->dump_recursive(lvl + 1);
-    result << branch_node->get_on_false()->dump_recursive(lvl + 1);
+    const Node *on_true = branch_node->get_on_true();
+    const Node *on_false = branch_node->get_on_false();
+    if (on_true)
+      result << on_true->recursive_dump(lvl + 1);
+    if (on_false)
+      result << on_false->recursive_dump(lvl + 1);
   } break;
   case NodeType::CALL:
-  case NodeType::ROUTE:
+  case NodeType::ROUTE: {
     if (next)
-      result << next->dump_recursive(lvl + 1);
-    break;
+      result << next->recursive_dump(lvl + 1);
+  } break;
   }
 
   return result.str();
@@ -158,13 +160,17 @@ std::string Node::hash(bool recursive) const {
     input << node->get_id() << ":";
 
     switch (node->get_type()) {
-    case Node::NodeType::BRANCH: {
+    case NodeType::BRANCH: {
       const Branch *branch_node = static_cast<const Branch *>(node);
-      nodes.push_back(branch_node->get_on_true());
-      nodes.push_back(branch_node->get_on_false());
+      const Node *on_true = branch_node->get_on_true();
+      const Node *on_false = branch_node->get_on_false();
+      if (on_true)
+        nodes.push_back(on_true);
+      if (on_false)
+        nodes.push_back(on_false);
     } break;
-    case Node::NodeType::ROUTE:
-    case Node::NodeType::CALL: {
+    case NodeType::ROUTE:
+    case NodeType::CALL: {
       const Node *next = node->get_next();
       if (next)
         nodes.push_back(next);
@@ -185,6 +191,145 @@ std::string Node::hash(bool recursive) const {
   }
 
   return output.str();
+}
+
+void Node::recursive_update_ids(node_id_t &new_id) {
+  id = new_id++;
+  switch (type) {
+  case NodeType::BRANCH: {
+    Branch *branch_node = static_cast<Branch *>(this);
+    Node *on_true = branch_node->get_mutable_on_true();
+    Node *on_false = branch_node->get_mutable_on_false();
+    if (on_true)
+      on_true->recursive_update_ids(new_id);
+    if (on_false)
+      on_false->recursive_update_ids(new_id);
+  } break;
+  case NodeType::CALL:
+  case NodeType::ROUTE: {
+    if (next)
+      next->recursive_update_ids(new_id);
+  } break;
+  }
+}
+
+const Node *Node::get_node_by_id(node_id_t _id) const {
+  std::vector<const Node *> nodes{this};
+
+  while (nodes.size()) {
+    const Node *node = nodes[0];
+    nodes.erase(nodes.begin());
+
+    if (node->get_id() == _id)
+      return node;
+
+    switch (node->get_type()) {
+    case NodeType::BRANCH: {
+      const Branch *branch_node = static_cast<const Branch *>(node);
+      const Node *on_true = branch_node->get_on_true();
+      const Node *on_false = branch_node->get_on_false();
+      if (on_true)
+        nodes.push_back(on_true);
+      if (on_false)
+        nodes.push_back(on_false);
+    } break;
+    case NodeType::CALL:
+    case NodeType::ROUTE: {
+      const Node *next = node->get_next();
+      if (next)
+        nodes.push_back(next);
+    } break;
+    }
+  }
+
+  return nullptr;
+}
+
+Node *Node::get_mutable_node_by_id(node_id_t _id) {
+  std::vector<Node *> nodes{this};
+
+  while (nodes.size()) {
+    Node *node = nodes[0];
+    nodes.erase(nodes.begin());
+
+    if (node->get_id() == _id)
+      return node;
+
+    switch (node->get_type()) {
+    case NodeType::BRANCH: {
+      Branch *branch_node = static_cast<Branch *>(node);
+      Node *on_true = branch_node->get_mutable_on_true();
+      Node *on_false = branch_node->get_mutable_on_false();
+      if (on_true)
+        nodes.push_back(on_true);
+      if (on_false)
+        nodes.push_back(on_false);
+    } break;
+    case NodeType::CALL:
+    case NodeType::ROUTE: {
+      Node *next = node->get_mutable_next();
+      if (next)
+        nodes.push_back(next);
+    } break;
+    }
+  }
+
+  return nullptr;
+}
+
+void Node::recursive_translate_symbol(const symbol_t &old_symbol,
+                                      const symbol_t &new_symbol) {
+  kutil::RenameSymbols renamer;
+  renamer.add_translation(old_symbol.array->name, new_symbol.array->name);
+
+  std::vector<Node *> nodes{this};
+  while (nodes.size()) {
+    Node *node = nodes[0];
+    nodes.erase(nodes.begin());
+
+    switch (node->get_type()) {
+    case NodeType::BRANCH: {
+      Branch *branch_node = static_cast<Branch *>(node);
+
+      klee::ref<klee::Expr> condition = branch_node->get_condition();
+      klee::ref<klee::Expr> new_condition = renamer.rename(condition);
+      branch_node->set_condition(new_condition);
+
+      Node *on_true = branch_node->get_mutable_on_true();
+      Node *on_false = branch_node->get_mutable_on_false();
+      if (on_true)
+        nodes.push_back(on_true);
+      if (on_false)
+        nodes.push_back(on_false);
+    } break;
+    case NodeType::CALL: {
+      Call *call_node = static_cast<Call *>(node);
+
+      const call_t &call = call_node->get_call();
+      call_t new_call = renamer.rename(call);
+      call_node->set_call(new_call);
+
+      symbols_t generated_symbols = call_node->get_locally_generated_symbols();
+
+      auto same_symbol = [&old_symbol](const symbol_t &s) {
+        return s.base == old_symbol.base;
+      };
+
+      std::erase_if(generated_symbols, same_symbol);
+      generated_symbols.insert(new_symbol);
+      call_node->set_locally_generated_symbols(generated_symbols);
+
+      Node *next = node->get_mutable_next();
+      if (next)
+        nodes.push_back(next);
+    } break;
+    case NodeType::ROUTE: {
+      Node *next = node->get_mutable_next();
+      if (next)
+        nodes.push_back(next);
+    } break;
+    }
+  }
 }
 
 } // namespace bdd

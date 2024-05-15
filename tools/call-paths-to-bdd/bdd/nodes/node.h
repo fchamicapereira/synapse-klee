@@ -12,11 +12,9 @@ class BDDVisitor;
 class NodeManager;
 
 typedef uint64_t node_id_t;
+enum NodeType { BRANCH, CALL, ROUTE };
 
 class Node {
-public:
-  enum NodeType { BRANCH, CALL, ROUTE };
-
 protected:
   node_id_t id;
   NodeType type;
@@ -47,21 +45,26 @@ public:
 
   const klee::ConstraintManager &get_constraints() const { return constraints; }
 
-  // Get generated symbols, but no further than any of these node IDs
-  symbols_t get_generated_symbols(
-      const std::unordered_set<node_id_t> &furthest_back_nodes) const;
+  Node *get_mutable_next() { return next; }
+  Node *get_mutable_prev() { return prev; }
 
-  symbols_t get_generated_symbols() const;
+  const Node *get_node_by_id(node_id_t _id) const;
+  Node *get_mutable_node_by_id(node_id_t _id);
+
+  void recursive_update_ids(node_id_t &new_id);
+  void recursive_translate_symbol(const symbol_t &old_symbol,
+                                  const symbol_t &new_symbol);
+  std::string recursive_dump(int lvl = 0) const;
+
   bool is_reachable_by_node(node_id_t id) const;
   std::string hash(bool recursive = false) const;
-  unsigned count_children(bool recursive = true) const;
-  unsigned count_code_paths() const;
+  size_t count_children(bool recursive = true) const;
+  size_t count_code_paths() const;
 
   virtual std::vector<node_id_t> get_terminating_node_ids() const;
   virtual Node *clone(NodeManager &manager, bool recursive = false) const = 0;
   virtual void visit(BDDVisitor &visitor) const = 0;
   virtual std::string dump(bool one_liner = false) const = 0;
-  virtual std::string dump_recursive(int lvl = 0) const;
 
   virtual ~Node() = default;
 };

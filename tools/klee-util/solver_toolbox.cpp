@@ -10,6 +10,23 @@ namespace kutil {
 solver_toolbox_t solver_toolbox;
 
 klee::ref<klee::Expr>
+solver_toolbox_t::create_new_symbol(const klee::Array *array) const {
+  klee::Expr::Width size = array->size;
+
+  // For some bizarre reason, the array size sometimes is in bits, and sometimes
+  // in bytes. It has no relation whatsoever with the domain and range values in
+  // the array.
+  // A good rule of thumb is to check if the value is greater than 8. If it is,
+  // it's probably in bits.
+
+  if (size <= 8) {
+    size *= 8;
+  }
+
+  return kutil::solver_toolbox.create_new_symbol(array->name, size);
+}
+
+klee::ref<klee::Expr>
 solver_toolbox_t::create_new_symbol(const std::string &symbol_name,
                                     klee::Expr::Width width) const {
   assert(symbol_name.size());

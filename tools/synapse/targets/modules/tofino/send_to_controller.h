@@ -30,7 +30,7 @@ public:
 
 private:
   bool get_dchain_rejuvenate_obj(bdd::Node_ptr node, addr_t &obj) const {
-    if (node->get_type() != bdd::Node::NodeType::CALL) {
+    if (node->get_type() != bdd::NodeType::CALL) {
       return false;
     }
 
@@ -87,7 +87,7 @@ private:
     assert(old_next);
     assert(new_next);
 
-    if (prev->get_type() == bdd::Node::NodeType::BRANCH) {
+    if (prev->get_type() == bdd::NodeType::BRANCH) {
       auto branch_node = static_cast<bdd::Branch *>(prev.get());
 
       if (branch_node->get_on_true()->get_id() == old_next->get_id()) {
@@ -122,7 +122,7 @@ private:
     while (node->get_prev()) {
       node = node->get_prev();
 
-      if (node->get_type() == bdd::Node::NodeType::CALL) {
+      if (node->get_type() == bdd::NodeType::CALL) {
         auto call_node = bdd::cast_node<bdd::Call>(node);
         auto call = call_node->get_call();
 

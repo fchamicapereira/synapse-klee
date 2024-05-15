@@ -12,13 +12,15 @@ Node *Branch::clone(NodeManager &manager, bool recursive) const {
   const Node *on_true = get_on_true();
   const Node *on_false = get_on_false();
 
-  if (recursive && on_true && on_false) {
-    Node *on_true_clone = on_true->clone(manager, true);
-    Node *on_false_clone = on_false->clone(manager, true);
+  if (recursive) {
+    Node *on_true_clone = on_true ? on_true->clone(manager, true) : nullptr;
+    Node *on_false_clone = on_false ? on_false->clone(manager, true) : nullptr;
     clone = new Branch(id, nullptr, constraints, on_true_clone, on_false_clone,
                        condition);
-    on_true_clone->set_prev(clone);
-    on_false_clone->set_prev(clone);
+    if (on_true_clone)
+      on_true_clone->set_prev(clone);
+    if (on_false_clone)
+      on_false_clone->set_prev(clone);
   } else {
     clone = new Branch(id, constraints, condition);
   }
@@ -54,15 +56,6 @@ std::string Branch::dump(bool one_liner) const {
   ss << kutil::expr_to_string(condition, one_liner);
   ss << ")";
   return ss.str();
-}
-
-std::string Branch::dump_recursive(int lvl) const {
-  std::stringstream result;
-
-  result << Node::dump_recursive(lvl);
-  result << on_false->dump_recursive(lvl + 1);
-
-  return result.str();
 }
 
 } // namespace bdd

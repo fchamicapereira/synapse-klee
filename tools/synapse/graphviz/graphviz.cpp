@@ -209,14 +209,14 @@ std::string Graphviz::get_bdd_node_name(const bdd::Node *node) const {
   std::stringstream ss;
 
   switch (node->get_type()) {
-  case bdd::Node::NodeType::BRANCH: {
+  case bdd::NodeType::BRANCH: {
     auto branch = static_cast<const bdd::Branch *>(node);
     ss << "if(";
     ss << kutil::pretty_print_expr(branch->get_condition());
     ss << ")";
     break;
   }
-  case bdd::Node::NodeType::CALL: {
+  case bdd::NodeType::CALL: {
     auto call = static_cast<const bdd::Call *>(node);
     ss << call->get_call().function_name;
     int i = 0;
@@ -229,7 +229,7 @@ std::string Graphviz::get_bdd_node_name(const bdd::Node *node) const {
     }
     break;
   }
-  case bdd::Node::NodeType::RETURN_PROCESS: {
+  case bdd::NodeType::RETURN_PROCESS: {
     auto return_process = static_cast<const bdd::ReturnProcess *>(node);
 
     switch (return_process->get_return_operation()) {
@@ -253,10 +253,10 @@ std::string Graphviz::get_bdd_node_name(const bdd::Node *node) const {
 
     break;
   }
-  case bdd::Node::NodeType::RETURN_INIT:
+  case bdd::NodeType::RETURN_INIT:
     Log::err() << "return init\n";
     [[fallthrough]];
-  case bdd::Node::NodeType::RETURN_RAW:
+  case bdd::NodeType::RETURN_RAW:
     Log::err() << "return raw\n";
     assert(false);
   }
@@ -308,18 +308,18 @@ std::string stringify_bdd_node(bdd::Node_ptr node) {
   node_builder << ": ";
 
   switch (node->get_type()) {
-  case bdd::Node::NodeType::CALL: {
+  case bdd::NodeType::CALL: {
     auto call_node = BDD_CAST_CALL(node);
     node_builder << call_node->get_call().function_name;
   } break;
-  case bdd::Node::NodeType::BRANCH: {
+  case bdd::NodeType::BRANCH: {
     auto branch_node = BDD_CAST_BRANCH(node);
     auto condition = branch_node->get_condition();
     node_builder << "if (";
     node_builder << kutil::pretty_print_expr(condition);
     node_builder << ")";
   } break;
-  case bdd::Node::NodeType::RETURN_PROCESS: {
+  case bdd::NodeType::RETURN_PROCESS: {
     auto return_process = BDD_CAST_RETURN_PROCESS(node);
 
     switch (return_process->get_return_operation()) {

@@ -11,6 +11,7 @@
 #include "klee/util/ExprVisitor.h"
 
 #include "solver_toolbox.h"
+#include "retrieve_symbols.h"
 
 namespace kutil {
 
@@ -27,6 +28,17 @@ public:
 
   ReplaceSymbols(const std::vector<klee::ref<klee::ReadExpr>> &_reads)
       : ExprVisitor(true), reads(_reads) {}
+
+  ReplaceSymbols(klee::ref<klee::Expr> expr) {
+    SymbolRetriever symbol_retriever;
+    symbol_retriever.visit(expr);
+
+    const std::vector<klee::ref<klee::ReadExpr>> &reads =
+        symbol_retriever.get_retrieved();
+    for (klee::ref<klee::ReadExpr> read : reads) {
+      add_read(read);
+    }
+  }
 
   ReplaceSymbols() : ExprVisitor(true) {}
 

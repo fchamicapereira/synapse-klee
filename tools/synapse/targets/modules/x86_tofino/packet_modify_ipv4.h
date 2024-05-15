@@ -24,7 +24,7 @@ public:
 
 private:
   klee::ref<klee::Expr> get_ipv4_chunk(const bdd::Node *node) const {
-    assert(node->get_type() == bdd::Node::NodeType::CALL);
+    assert(node->get_type() == bdd::NodeType::CALL);
 
     auto call_node = static_cast<const bdd::Call *>(node);
     auto call = call_node->get_call();

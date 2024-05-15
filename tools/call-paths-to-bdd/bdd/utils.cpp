@@ -11,14 +11,14 @@ get_call_nodes(const Node *root, const std::vector<std::string> &fnames) {
     const Node *node = *nodes.begin();
     nodes.erase(nodes.begin());
 
-    if (node->get_type() == Node::NodeType::BRANCH) {
+    if (node->get_type() == NodeType::BRANCH) {
       const Branch *branch_node = static_cast<const Branch *>(node);
       nodes.push_back(branch_node->get_on_true());
       nodes.push_back(branch_node->get_on_false());
       continue;
     }
 
-    if (node->get_type() != Node::NodeType::CALL) {
+    if (node->get_type() != NodeType::CALL) {
       continue;
     }
 

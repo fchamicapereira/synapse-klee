@@ -118,13 +118,13 @@ public:
     std::string color;
 
     switch (node->get_type()) {
-    case Node::NodeType::CALL:
+    case NodeType::CALL:
       color = COLOR_CALL;
       break;
-    case Node::NodeType::BRANCH:
+    case NodeType::BRANCH:
       color = COLOR_BRANCH;
       break;
-    case Node::NodeType::ROUTE: {
+    case NodeType::ROUTE: {
       const Route *route = static_cast<const Route *>(node);
       Route::Operation operation = route->get_operation();
       switch (operation) {
@@ -147,7 +147,7 @@ public:
 
   static void visualize(const BDD &bdd, bool interrupt = true) {
     bdd_visualizer_opts_t opts;
-    visualize(bdd, opts);
+    visualize(bdd, opts, interrupt);
   }
 
   static void visualize(const BDD &bdd, const bdd_visualizer_opts_t &opts,
@@ -217,7 +217,7 @@ public:
     const Node *root = bdd.get_root();
 
     os << "digraph mygraph {\n";
-    os << "\tnode [shape=box style=rounded border=0];\n";
+    os << "\tnode [shape=box, style=\"rounded,filled\", border=0];\n";
     visitRoot(root);
     os << "}";
   }
@@ -228,8 +228,10 @@ public:
 
     klee::ref<klee::Expr> condition = node->get_condition();
 
-    on_true->visit(*this);
-    on_false->visit(*this);
+    if (on_true)
+      on_true->visit(*this);
+    if (on_false)
+      on_false->visit(*this);
 
     os << "\t" << get_gv_name(node);
     os << " [shape=Mdiamond, label=\"";
@@ -247,15 +249,19 @@ public:
     os << ", fillcolor=\"" << get_color(node) << "\"";
     os << "];\n";
 
-    os << "\t" << get_gv_name(node);
-    os << " -> ";
-    os << get_gv_name(on_true);
-    os << " [label=\"True\"];\n";
+    if (on_true) {
+      os << "\t" << get_gv_name(node);
+      os << " -> ";
+      os << get_gv_name(on_true);
+      os << " [label=\"True\"];\n";
+    }
 
-    os << "\t" << get_gv_name(node);
-    os << " -> ";
-    os << get_gv_name(on_false);
-    os << " [label=\"False\"];\n";
+    if (on_false) {
+      os << "\t" << get_gv_name(node);
+      os << " -> ";
+      os << get_gv_name(on_false);
+      os << " [label=\"False\"];\n";
+    }
 
     return STOP;
   }
@@ -403,10 +409,7 @@ public:
     return STOP;
   }
 
-  void visitRoot(const Node *root) override {
-    os << "\tnode [style=\"rounded,filled\",color=black];\n";
-    root->visit(*this);
-  }
+  void visitRoot(const Node *root) override { root->visit(*this); }
 
 private:
   std::string get_gv_name(const Node *node) const {

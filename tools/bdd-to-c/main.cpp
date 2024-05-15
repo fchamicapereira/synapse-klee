@@ -85,7 +85,7 @@ Node_ptr build_ast(AST &ast, const bdd::Node *root, TargetOption target,
     std::cerr << "\n";
 
     switch (root->get_type()) {
-    case bdd::Node::NodeType::BRANCH: {
+    case bdd::NodeType::BRANCH: {
       auto branch_node = static_cast<const bdd::Branch *>(root);
 
       if (processing_packets && processing_packets &&
@@ -126,7 +126,7 @@ Node_ptr build_ast(AST &ast, const bdd::Node *root, TargetOption target,
       break;
     };
 
-    case bdd::Node::NodeType::CALL: {
+    case bdd::NodeType::CALL: {
       auto bdd_call = static_cast<const bdd::Call *>(root);
 
       if (processing_packets && target == BDD_NODE_HIT_RATE) {
@@ -145,7 +145,7 @@ Node_ptr build_ast(AST &ast, const bdd::Node *root, TargetOption target,
       break;
     };
 
-    case bdd::Node::NodeType::RETURN_INIT: {
+    case bdd::NodeType::RETURN_INIT: {
       auto return_init = static_cast<const bdd::ReturnInit *>(root);
       Expr_ptr ret_value;
 
@@ -174,7 +174,7 @@ Node_ptr build_ast(AST &ast, const bdd::Node *root, TargetOption target,
       break;
     };
 
-    case bdd::Node::NodeType::RETURN_PROCESS: {
+    case bdd::NodeType::RETURN_PROCESS: {
       auto return_process = static_cast<const bdd::ReturnProcess *>(root);
       Node_ptr new_node;
 

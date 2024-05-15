@@ -140,7 +140,7 @@ Module::get_prev_fn(const ExecutionPlan &ep, bdd::Node_ptr node,
   assert(node);
 
   while (node && (node = node->get_prev()) && !is_starting_point(node)) {
-    if (node->get_type() != bdd::Node::NodeType::CALL) {
+    if (node->get_type() != bdd::NodeType::CALL) {
       continue;
     }
 
@@ -324,14 +324,14 @@ next_t get_next_maps_and_vectors(bdd::Node_ptr root,
     auto node = nodes[0];
     nodes.erase(nodes.begin());
 
-    if (node->get_type() == bdd::Node::BRANCH) {
+    if (node->get_type() == bdd::NodeType::BRANCH) {
       auto branch_node = static_cast<const bdd::Branch *>(node.get());
       nodes.push_back(branch_node->get_on_true());
       nodes.push_back(branch_node->get_on_false());
       continue;
     }
 
-    if (node->get_type() != bdd::Node::CALL) {
+    if (node->get_type() != bdd::NodeType::CALL) {
       continue;
     }
 
@@ -404,13 +404,13 @@ Module::get_all_functions_after_node(bdd::Node_ptr root,
     auto node = nodes[0];
     nodes.erase(nodes.begin());
 
-    if (node->get_type() == bdd::Node::BRANCH && !stop_on_branches) {
+    if (node->get_type() == bdd::NodeType::BRANCH && !stop_on_branches) {
       auto branch_node = static_cast<const bdd::Branch *>(node.get());
       nodes.push_back(branch_node->get_on_true());
       nodes.push_back(branch_node->get_on_false());
     }
 
-    else if (node->get_type() == bdd::Node::CALL) {
+    else if (node->get_type() == bdd::NodeType::CALL) {
       auto call_node = static_cast<const bdd::Call *>(node.get());
       auto call = call_node->get_call();
 
@@ -439,7 +439,7 @@ bool Module::is_parser_drop(bdd::Node_ptr root) const {
     nodes.erase(nodes.begin());
 
     switch (node->get_type()) {
-    case bdd::Node::CALL: {
+    case bdd::NodeType::CALL: {
       auto call_node = bdd::cast_node<bdd::Call>(node);
 
       if (call_node->get_call().function_name != "packet_return_chunk") {

@@ -145,12 +145,12 @@ std::vector<bdd::Node_ptr> ExecutionPlan::get_incoming_bdd_nodes() const {
 
     incoming_nodes.push_back(node);
 
-    if (node->get_type() == bdd::Node::NodeType::CALL) {
+    if (node->get_type() == bdd::NodeType::CALL) {
       auto call_node = BDD_CAST_CALL(node);
       nodes.push_back(call_node->get_next());
     }
 
-    else if (node->get_type() == bdd::Node::NodeType::BRANCH) {
+    else if (node->get_type() == bdd::NodeType::BRANCH) {
       auto branch_node = BDD_CAST_BRANCH(node);
       nodes.push_back(branch_node->get_on_true());
       nodes.push_back(branch_node->get_on_false());
@@ -474,7 +474,7 @@ void ExecutionPlan::add_processed_bdd_node(bdd::node_id_t id) {
     assert(leaf.next);
     if (leaf.next->get_id() == id) {
       assert(leaf.next->get_next());
-      assert(leaf.next->get_type() != bdd::Node::NodeType::BRANCH);
+      assert(leaf.next->get_type() != bdd::NodeType::BRANCH);
       leaf.next = leaf.next->get_next();
     }
   }
@@ -650,7 +650,7 @@ bool operator==(const ExecutionPlan &lhs, const ExecutionPlan &rhs) {
       return false;
     }
 
-    if (lhs_bdd_node->get_type() == bdd::Node::NodeType::BRANCH) {
+    if (lhs_bdd_node->get_type() == bdd::NodeType::BRANCH) {
       auto lhs_branch = static_cast<bdd::Branch *>(lhs_bdd_node.get());
       auto rhs_branch = static_cast<bdd::Branch *>(rhs_bdd_node.get());
 
@@ -659,7 +659,7 @@ bool operator==(const ExecutionPlan &lhs, const ExecutionPlan &rhs) {
 
       lhs_bdd_nodes.push_back(lhs_branch->get_on_false());
       rhs_bdd_nodes.push_back(rhs_branch->get_on_false());
-    } else if (lhs_bdd_node->get_type() == bdd::Node::NodeType::CALL) {
+    } else if (lhs_bdd_node->get_type() == bdd::NodeType::CALL) {
       lhs_bdd_nodes.push_back(lhs_bdd_node->get_next());
       rhs_bdd_nodes.push_back(rhs_bdd_node->get_next());
     }

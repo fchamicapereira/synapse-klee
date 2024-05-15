@@ -72,22 +72,8 @@ static std::string base_from_name(const std::string &name) {
 }
 
 static symbol_t build_symbol(const klee::Array *array) {
-  klee::Expr::Width size = array->size;
   std::string base = base_from_name(array->name);
-
-  // For some bizarre reason, the array size sometimes is in bits, and sometimes
-  // in bytes. It has no relation whatsoever with the domain and range values in
-  // the array.
-  // A good rule of thumb is to check if the value is greater than 8. If it is,
-  // it's probably in bits.
-
-  if (size <= 8) {
-    size *= 8;
-  }
-
-  klee::ref<klee::Expr> expr =
-      kutil::solver_toolbox.create_new_symbol(array->name, size);
-
+  klee::ref<klee::Expr> expr = kutil::solver_toolbox.create_new_symbol(array);
   return symbol_t({base, array, expr});
 }
 

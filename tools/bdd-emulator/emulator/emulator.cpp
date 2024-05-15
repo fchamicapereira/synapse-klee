@@ -22,12 +22,12 @@ void Emulator::dump_context(const context_t &ctx) const {
 
 static void remember_device(const BDD &bdd, uint16_t device, context_t &ctx) {
   auto device_symbol = bdd.get_device();
-  concretize(ctx, device_symbol, device);
+  concretize(ctx, device_symbol.expr, device);
 }
 
 static void remember_pkt_len(const BDD &bdd, uint32_t len, context_t &ctx) {
   auto length_symbol = bdd.get_packet_len();
-  concretize(ctx, length_symbol, len);
+  concretize(ctx, length_symbol.expr, len);
 }
 
 bool Emulator::evaluate_condition(klee::ref<klee::Expr> condition,
@@ -74,7 +74,7 @@ void Emulator::run(pkt_t pkt, time_ns_t time, uint16_t device) {
     meta.hit_counter[id]++;
 
     switch (node->get_type()) {
-    case Node::CALL: {
+    case NodeType::CALL: {
       const Call *call_node = static_cast<const Call *>(node);
       const call_t &call = call_node->get_call();
       operation_ptr operation = get_operation(call.function_name);
@@ -85,7 +85,7 @@ void Emulator::run(pkt_t pkt, time_ns_t time, uint16_t device) {
         next_node = next;
       }
     } break;
-    case Node::BRANCH: {
+    case NodeType::BRANCH: {
       const Branch *branch_node = static_cast<const Branch *>(node);
       klee::ref<klee::Expr> condition = branch_node->get_condition();
       bool result = evaluate_condition(condition, ctx);
@@ -96,7 +96,7 @@ void Emulator::run(pkt_t pkt, time_ns_t time, uint16_t device) {
         next_node = branch_node->get_on_false();
       }
     } break;
-    case Node::ROUTE: {
+    case NodeType::ROUTE: {
       const Route *route_node = static_cast<const Route *>(node);
       Route::Operation op = route_node->get_operation();
 

@@ -34,7 +34,7 @@ void assert_bdd(const BDD &bdd) {
     const Node *node = nodes[0];
     nodes.erase(nodes.begin());
 
-    if (node->get_type() == bdd::Node::NodeType::BRANCH) {
+    if (node->get_type() == bdd::NodeType::BRANCH) {
       const Branch *branch = static_cast<const bdd::Branch *>(node);
 
       const Node *on_true = branch->get_on_true();

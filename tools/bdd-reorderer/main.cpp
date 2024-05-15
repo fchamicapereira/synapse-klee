@@ -52,50 +52,86 @@ llvm::cl::opt<std::string> ReportFile("report",
 
 using namespace bdd;
 
-void test(const BDD &bdd) {
-  node_id_t anchor_id = 4;
-  node_id_t proposed_candidate_id = 58;
+void test_getting_all_candidates(const BDD &bdd,
+                                 const anchor_info_t &anchor_info) {
+  const Node *anchor = bdd.get_node_by_id(anchor_info.id);
+  std::vector<candidate_info_t> candidates =
+      get_reordering_candidates(bdd, anchor_info);
 
-  const Node *anchor = bdd.get_node_by_id(anchor_id);
-  const Node *proposed_candidate = bdd.get_node_by_id(proposed_candidate_id);
-
-  assert(anchor != nullptr && "Anchor node not found");
-  assert(proposed_candidate != nullptr && "Proposed candidate not found");
-
-  std::cerr << "Anchor: " << anchor->dump() << "\n";
-  std::cerr << "Proposed candidate: " << proposed_candidate->dump() << "\n";
-
-  candidate_t candidate;
-  bool success = concretize_reordering_candidate(
-      bdd, anchor_id, proposed_candidate_id, candidate);
-
-  if (!success) {
-    std::cerr << "Failed to concretize reordering candidate "
-              << proposed_candidate_id << "\n";
-    return;
-  }
-
-  std::cerr << "Concretized candidate: " << candidate.candidate_id << "\n";
-  if (candidate.siblings.size() > 0) {
-    std::cerr << "Siblings: ";
-    for (node_id_t sibling : candidate.siblings) {
-      std::cerr << sibling << " ";
-    }
-  }
+  std::cerr << "Anchor:\n";
+  std::cerr << "\t" << anchor->dump(true) << "\n";
   std::cerr << "\n";
-  if (!candidate.condition.isNull())
-    std::cerr << "Condition: "
-              << kutil::expr_to_string(candidate.condition, true) << "\n";
-  if (!candidate.extra_condition.isNull())
-    std::cerr << "Extra condition: "
-              << kutil::expr_to_string(candidate.extra_condition, true) << "\n";
 
-  // std::vector<BDD> reordered_bdds = reorder(bdd, anchor_id);
-  // std::cerr << "Reordered BDDs: " << reordered_bdds.size() << "\n";
+  for (const candidate_info_t &candidate_info : candidates) {
+    std::cerr << "Concretized candidate: " << candidate_info.id << "\n";
+    if (candidate_info.siblings.size() > 0) {
+      std::cerr << "Siblings: ";
+      for (node_id_t sibling : candidate_info.siblings) {
+        std::cerr << sibling << " ";
+      }
+      std::cerr << "\n";
+    }
 
-  // for (const BDD &reordered_bdd : reordered_bdds) {
-  //   GraphvizGenerator::visualize(reordered_bdd);
-  // }
+    if (!candidate_info.condition.isNull())
+      std::cerr << "Condition: "
+                << kutil::expr_to_string(candidate_info.condition, true)
+                << "\n";
+    std::cerr << "\n";
+  }
+}
+
+void test_reorder(const BDD &original_bdd,
+                  const std::vector<std::pair<anchor_info_t, node_id_t>>
+                      &anchor_candidate_pairs) {
+  BDD bdd = original_bdd;
+
+  for (const std::pair<anchor_info_t, node_id_t> &anchor_candidate_pair :
+       anchor_candidate_pairs) {
+    const anchor_info_t &anchor_info = anchor_candidate_pair.first;
+    node_id_t candidate_id = anchor_candidate_pair.second;
+
+    const Node *anchor = bdd.get_node_by_id(anchor_info.id);
+    const Node *proposed_candidate = bdd.get_node_by_id(candidate_id);
+
+    assert(anchor && "Anchor node not found");
+    assert(proposed_candidate && "Proposed candidate not found");
+
+    std::cerr << "Anchor:\n";
+    std::cerr << "\t" << anchor->dump(true) << "\n";
+    std::cerr << "Candidate:\n";
+    std::cerr << "\t" << proposed_candidate->dump(true) << "\n";
+    std::cerr << "\n";
+
+    candidate_info_t candidate_info;
+    bool success = concretize_reordering_candidate(
+        bdd, anchor_info, candidate_id, candidate_info);
+
+    if (!success) {
+      std::cerr << "Failed to concretize reordering candidate " << candidate_id
+                << "\n";
+      return;
+    }
+
+    std::cerr << "Concretized candidate: " << candidate_info.id << "\n";
+    if (candidate_info.siblings.size() > 0) {
+      std::cerr << "Siblings: ";
+      for (node_id_t sibling : candidate_info.siblings) {
+        std::cerr << sibling << " ";
+      }
+      std::cerr << "\n";
+    }
+
+    if (!candidate_info.condition.isNull()) {
+      std::cerr << "Condition: "
+                << kutil::expr_to_string(candidate_info.condition, true)
+                << "\n";
+    }
+    std::cerr << "\n";
+
+    bdd = reorder(bdd, anchor_info, candidate_info);
+  }
+
+  GraphvizGenerator::visualize(bdd, false);
 }
 
 int main(int argc, char **argv) {
@@ -104,7 +140,13 @@ int main(int argc, char **argv) {
   auto start = std::chrono::steady_clock::now();
   BDD original_bdd(InputBDDFile);
 
-  test(original_bdd);
+  // test_getting_all_candidates(original_bdd, {25, true});
+  test_reorder(original_bdd, {
+                                 {{0, false}, 3},
+                                 {{3, false}, 14},
+                                 {{14, false}, 25},
+                                 {{25, true}, 9},
+                             });
 
   // if (Approximate) {
   //   auto approximation = approximate_total_reordered_bdds(original_bdd);

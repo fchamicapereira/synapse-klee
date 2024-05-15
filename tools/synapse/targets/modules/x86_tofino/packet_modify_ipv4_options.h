@@ -24,7 +24,7 @@ public:
 
 private:
   klee::ref<klee::Expr> get_ip_options_chunk(const bdd::Node *node) const {
-    assert(node->get_type() == bdd::Node::NodeType::CALL);
+    assert(node->get_type() == bdd::NodeType::CALL);
 
     auto call_node = static_cast<const bdd::Call *>(node);
     auto call = call_node->get_call();
@@ -36,7 +36,7 @@ private:
   }
 
   bool is_ip_options(const bdd::Node *node) const {
-    assert(node->get_type() == bdd::Node::NodeType::CALL);
+    assert(node->get_type() == bdd::NodeType::CALL);
 
     auto call_node = static_cast<const bdd::Call *>(node);
     auto call = call_node->get_call();

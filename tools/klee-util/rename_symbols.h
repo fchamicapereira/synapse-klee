@@ -79,7 +79,7 @@ public:
   klee::ExprVisitor::Action visitRead(const klee::ReadExpr &e) {
     klee::UpdateList ul = e.updates;
     const klee::Array *root = ul.root;
-    std::string symbol = root->getName();
+    const std::string &symbol = root->getName();
     auto found_it = translations.find(symbol);
 
     if (found_it != translations.end()) {
