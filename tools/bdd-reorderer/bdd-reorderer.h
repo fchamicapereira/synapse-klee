@@ -4,10 +4,22 @@
 
 namespace bdd {
 
+enum class ReorderingCandidateStatus {
+  VALID,
+  UNREACHABLE_CANDIDATE,
+  CANDIDATE_FOLLOWS_ANCHOR,
+  IO_CHECK_FAILED,
+  RW_CHECK_FAILED,
+  NOT_ALLOWED,
+  CONFLICTING_ROUTING,
+  IMPOSSIBLE_CONDITION,
+};
+
 struct candidate_info_t {
   node_id_t id;
   std::unordered_set<node_id_t> siblings;
   klee::ref<klee::Expr> condition;
+  ReorderingCandidateStatus status;
 };
 
 struct anchor_info_t {
@@ -16,25 +28,27 @@ struct anchor_info_t {
                   // direction of the branch (true or false). The reordering
                   // operation will respect this direction.
 };
+struct reordered_bdd_t {
+  BDD bdd;
+  anchor_info_t anchor_info;
+  candidate_info_t candidate_info;
+};
 
 // Get conditions required for reordering the BDD using the proposed anchor.
-bool concretize_reordering_candidate(const BDD &bdd,
-                                     const anchor_info_t &anchor_info,
-                                     node_id_t proposed_candidate_id,
-                                     candidate_info_t &candidate_info);
+candidate_info_t
+concretize_reordering_candidate(const BDD &bdd,
+                                const anchor_info_t &anchor_info,
+                                node_id_t proposed_candidate_id);
 
 std::vector<candidate_info_t>
 get_reordering_candidates(const BDD &bdd, const anchor_info_t &anchor_info);
 
-std::vector<BDD> reorder(const BDD &bdd, const anchor_info_t &anchor_info);
+std::vector<reordered_bdd_t> reorder(const BDD &bdd);
+std::vector<reordered_bdd_t> reorder(const BDD &bdd,
+                                     const anchor_info_t &anchor_info);
 BDD reorder(const BDD &bdd, const anchor_info_t &anchor_info,
             const candidate_info_t &candidate_info);
 
-std::vector<BDD>
-reorder(const BDD &bdd, const anchor_info_t &anchor_info,
-        const std::unordered_set<node_id_t> &furthest_back_nodes);
-
-std::vector<BDD> get_all_reordered_bdds(const BDD &bdd, int max_reordering);
-double approximate_total_reordered_bdds(const BDD &bdd);
+double estimate_reorder(const BDD &bdd);
 
 } // namespace bdd

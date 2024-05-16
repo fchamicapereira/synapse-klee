@@ -240,42 +240,6 @@ get_successful_call(const std::vector<call_path_t *> &call_paths) {
   return call_paths[0]->calls[0];
 }
 
-static klee::ConstraintManager
-get_common_constraints(const std::vector<call_path_t *> &call_paths,
-                       const klee::ConstraintManager &exclusion_list) {
-  klee::ConstraintManager common;
-
-  if (call_paths.size() == 0 || call_paths[0]->constraints.size() == 0)
-    return common;
-
-  call_path_t *call_path = call_paths[0];
-
-  for (klee::ref<klee::Expr> constraint : call_path->constraints) {
-    bool is_common = true;
-    bool is_excluded = kutil::manager_contains(exclusion_list, constraint);
-
-    if (is_excluded)
-      continue;
-
-    for (call_path_t *cp : call_paths) {
-      klee::ConstraintManager constraints =
-          kutil::join_managers(cp->constraints, exclusion_list);
-      bool is_true =
-          kutil::solver_toolbox.is_expr_always_true(constraints, constraint);
-
-      if (!is_true) {
-        is_common = false;
-        break;
-      }
-    }
-
-    if (is_common)
-      common.addConstraint(constraint);
-  }
-
-  return common;
-}
-
 static klee::ref<klee::Expr>
 simplify_constraint(klee::ref<klee::Expr> constraint) {
   assert(!constraint.isNull());
@@ -445,11 +409,6 @@ static Node *bdd_from_call_paths(
 
       build_bdd_symbols(generated_symbols, bdd_symbols);
 
-      klee::ConstraintManager common_constraints =
-          get_common_constraints(call_paths.cps, constraints);
-
-      constraints = kutil::join_managers(constraints, common_constraints);
-
       std::cerr << "\n";
       std::cerr << "==================================\n";
       std::cerr << "Call: " << call << "\n";
@@ -533,10 +492,10 @@ static Node *bdd_from_call_paths(
 
       Node *on_true_root =
           bdd_from_call_paths(on_true, manager, init, id, bdd_symbols,
-                              constraints, base_symbols_generated);
+                              on_true_constraints, base_symbols_generated);
       Node *on_false_root =
           bdd_from_call_paths(on_false, manager, init, id, bdd_symbols,
-                              constraints, base_symbols_generated);
+                              on_false_constraints, base_symbols_generated);
 
       assert(on_true_root && on_false_root);
 

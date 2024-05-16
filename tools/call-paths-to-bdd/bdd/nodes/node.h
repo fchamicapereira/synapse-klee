@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <iostream>
 #include <unordered_set>
 #include <vector>
@@ -12,7 +13,9 @@ class BDDVisitor;
 class NodeManager;
 
 typedef uint64_t node_id_t;
-enum NodeType { BRANCH, CALL, ROUTE };
+
+enum class NodeType { BRANCH, CALL, ROUTE };
+enum class NodeVisitAction { VISIT_CHILDREN, SKIP_CHILDREN, STOP };
 
 class Node {
 protected:
@@ -51,10 +54,15 @@ public:
   const Node *get_node_by_id(node_id_t _id) const;
   Node *get_mutable_node_by_id(node_id_t _id);
 
+  void
+  recursive_visit_nodes(std::function<NodeVisitAction(const Node *)> fn) const;
+  void recursive_update_nodes(std::function<NodeVisitAction(Node *)> fn);
+
   void recursive_update_ids(node_id_t &new_id);
   void recursive_translate_symbol(const symbol_t &old_symbol,
                                   const symbol_t &new_symbol);
   std::string recursive_dump(int lvl = 0) const;
+  void recursive_add_constraint(klee::ref<klee::Expr> constraint);
 
   bool is_reachable_by_node(node_id_t id) const;
   std::string hash(bool recursive = false) const;

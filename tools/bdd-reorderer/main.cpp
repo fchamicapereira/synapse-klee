@@ -44,39 +44,93 @@ llvm::cl::opt<bool>
 llvm::cl::opt<bool> Show("show", llvm::cl::desc("Show reordered BDDs."),
                          llvm::cl::ValueDisallowed, llvm::cl::init(false),
                          llvm::cl::cat(BDDReorderer));
-
-llvm::cl::opt<std::string> ReportFile("report",
-                                      llvm::cl::desc("Output report file"),
-                                      llvm::cl::cat(BDDReorderer));
 } // namespace
 
 using namespace bdd;
 
-void test_getting_all_candidates(const BDD &bdd,
-                                 const anchor_info_t &anchor_info) {
+std::string status_to_string(ReorderingCandidateStatus status) {
+  std::string str;
+  switch (status) {
+  case ReorderingCandidateStatus::VALID:
+    str = "VALID";
+    break;
+  case ReorderingCandidateStatus::UNREACHABLE_CANDIDATE:
+    str = "UNREACHABLE_CANDIDATE";
+    break;
+  case ReorderingCandidateStatus::CANDIDATE_FOLLOWS_ANCHOR:
+    str = "CANDIDATE_FOLLOWS_ANCHOR";
+    break;
+  case ReorderingCandidateStatus::IO_CHECK_FAILED:
+    str = "IO_CHECK_FAILED";
+    break;
+  case ReorderingCandidateStatus::RW_CHECK_FAILED:
+    str = "RW_CHECK_FAILED";
+    break;
+  case ReorderingCandidateStatus::NOT_ALLOWED:
+    str = "NOT_ALLOWED";
+    break;
+  case ReorderingCandidateStatus::CONFLICTING_ROUTING:
+    str = "CONFLICTING_ROUTING";
+    break;
+  case ReorderingCandidateStatus::IMPOSSIBLE_CONDITION:
+    str = "IMPOSSIBLE_CONDITION";
+    break;
+  }
+  return str;
+}
+
+void print(const BDD &bdd, const anchor_info_t &anchor_info,
+           const candidate_info_t &candidate_info) {
   const Node *anchor = bdd.get_node_by_id(anchor_info.id);
-  std::vector<candidate_info_t> candidates =
-      get_reordering_candidates(bdd, anchor_info);
+  const Node *candidate = bdd.get_node_by_id(candidate_info.id);
+
+  assert(anchor && "Anchor node not found");
+  assert(candidate && "Proposed candidate not found");
+
+  std::cerr << "\n==================================\n";
 
   std::cerr << "Anchor:\n";
   std::cerr << "\t" << anchor->dump(true) << "\n";
-  std::cerr << "\n";
+  std::cerr << "Candidate:\n";
+  std::cerr << "\t" << candidate->dump(true) << "\n";
+
+  if (candidate_info.siblings.size() > 0) {
+    std::cerr << "Siblings: ";
+    for (node_id_t sibling : candidate_info.siblings) {
+      std::cerr << sibling << " ";
+    }
+    std::cerr << "\n";
+  }
+
+  if (!candidate_info.condition.isNull()) {
+    std::cerr << "Condition: "
+              << kutil::expr_to_string(candidate_info.condition, true) << "\n";
+  }
+
+  std::cerr << "==================================\n";
+}
+
+void test_candidate(const BDD &bdd, const anchor_info_t &anchor_info,
+                    node_id_t candidate_id) {
+  candidate_info_t candidate_info =
+      concretize_reordering_candidate(bdd, anchor_info, candidate_id);
+
+  if (candidate_info.status != ReorderingCandidateStatus::VALID) {
+    std::cerr << "Failed to concretize reordering candidate " << candidate_id
+              << ": " << status_to_string(candidate_info.status) << "\n";
+    return;
+  }
+
+  print(bdd, anchor_info, candidate_info);
+}
+
+void test_getting_all_candidates(const BDD &bdd,
+                                 const anchor_info_t &anchor_info) {
+  std::vector<candidate_info_t> candidates =
+      get_reordering_candidates(bdd, anchor_info);
 
   for (const candidate_info_t &candidate_info : candidates) {
-    std::cerr << "Concretized candidate: " << candidate_info.id << "\n";
-    if (candidate_info.siblings.size() > 0) {
-      std::cerr << "Siblings: ";
-      for (node_id_t sibling : candidate_info.siblings) {
-        std::cerr << sibling << " ";
-      }
-      std::cerr << "\n";
-    }
-
-    if (!candidate_info.condition.isNull())
-      std::cerr << "Condition: "
-                << kutil::expr_to_string(candidate_info.condition, true)
-                << "\n";
-    std::cerr << "\n";
+    print(bdd, anchor_info, candidate_info);
   }
 }
 
@@ -90,103 +144,77 @@ void test_reorder(const BDD &original_bdd,
     const anchor_info_t &anchor_info = anchor_candidate_pair.first;
     node_id_t candidate_id = anchor_candidate_pair.second;
 
-    const Node *anchor = bdd.get_node_by_id(anchor_info.id);
-    const Node *proposed_candidate = bdd.get_node_by_id(candidate_id);
+    candidate_info_t candidate_info =
+        concretize_reordering_candidate(bdd, anchor_info, candidate_id);
 
-    assert(anchor && "Anchor node not found");
-    assert(proposed_candidate && "Proposed candidate not found");
-
-    std::cerr << "Anchor:\n";
-    std::cerr << "\t" << anchor->dump(true) << "\n";
-    std::cerr << "Candidate:\n";
-    std::cerr << "\t" << proposed_candidate->dump(true) << "\n";
-    std::cerr << "\n";
-
-    candidate_info_t candidate_info;
-    bool success = concretize_reordering_candidate(
-        bdd, anchor_info, candidate_id, candidate_info);
-
-    if (!success) {
+    if (candidate_info.status != ReorderingCandidateStatus::VALID) {
       std::cerr << "Failed to concretize reordering candidate " << candidate_id
-                << "\n";
+                << ": " << status_to_string(candidate_info.status) << "\n";
       return;
     }
 
-    std::cerr << "Concretized candidate: " << candidate_info.id << "\n";
-    if (candidate_info.siblings.size() > 0) {
-      std::cerr << "Siblings: ";
-      for (node_id_t sibling : candidate_info.siblings) {
-        std::cerr << sibling << " ";
-      }
-      std::cerr << "\n";
-    }
-
-    if (!candidate_info.condition.isNull()) {
-      std::cerr << "Condition: "
-                << kutil::expr_to_string(candidate_info.condition, true)
-                << "\n";
-    }
-    std::cerr << "\n";
-
+    print(bdd, anchor_info, candidate_info);
     bdd = reorder(bdd, anchor_info, candidate_info);
   }
 
   GraphvizGenerator::visualize(bdd, false);
 }
 
+void test_get_all_reordered_bdds(const BDD &original_bdd,
+                                 int max_reordering_operations) {
+  auto start = std::chrono::steady_clock::now();
+
+  std::vector<reordered_bdd_t> bdds = reorder(original_bdd);
+
+  auto end = std::chrono::steady_clock::now();
+  auto elapsed = end - start;
+  auto elapsed_seconds =
+      std::chrono::duration_cast<std::chrono::seconds>(elapsed).count();
+
+  std::cerr << "Total: " << bdds.size() << "\n";
+  std::cerr << "Elapsed: " << elapsed_seconds << " seconds\n";
+
+  // if (Show) {
+  //   for (const BDD &bdd : bdds)
+  //     GraphvizGenerator::visualize(bdd, true);
+  // }
+}
+
+void test_reorder(const BDD &bdd, const anchor_info_t &anchor_info) {
+  auto start = std::chrono::steady_clock::now();
+
+  std::vector<reordered_bdd_t> bdds = reorder(bdd, anchor_info);
+
+  auto end = std::chrono::steady_clock::now();
+  auto elapsed = end - start;
+  auto elapsed_seconds =
+      std::chrono::duration_cast<std::chrono::seconds>(elapsed).count();
+
+  std::cerr << "Total: " << bdds.size() << "\n";
+  std::cerr << "Elapsed: " << elapsed_seconds << " seconds\n";
+
+  for (const reordered_bdd_t &reordered_bdd : bdds) {
+    std::cerr << "Candidate: " << reordered_bdd.candidate_info.id << "\n";
+    GraphvizGenerator::visualize(reordered_bdd.bdd, true);
+  }
+}
+
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv);
 
-  auto start = std::chrono::steady_clock::now();
-  BDD original_bdd(InputBDDFile);
+  BDD bdd(InputBDDFile);
 
-  // test_getting_all_candidates(original_bdd, {25, true});
-  test_reorder(original_bdd, {
-                                 {{0, false}, 3},
-                                 {{3, false}, 14},
-                                 {{14, false}, 25},
-                                 {{25, true}, 9},
-                             });
+  // test_candidate(bdd, {3, true}, 5);
+  // test_getting_all_candidates(bdd, {0, true});
+  // test_reorder(bdd, {
+  //                       {{1, true}, 10},
+  //                       {{1, true}, 12},
+  //                       {{1, true}, 122},
+  //                   });
+  // test_reorder(bdd, {0, true});
 
-  // if (Approximate) {
-  //   auto approximation = approximate_total_reordered_bdds(original_bdd);
-  //   auto end = std::chrono::steady_clock::now();
-  //   auto elapsed = end - start;
-  //   auto elapsed_seconds =
-  //       std::chrono::duration_cast<std::chrono::seconds>(elapsed).count();
-
-  //   std::cerr << "\n";
-  //   std::cerr << "Approximately " << approximation << " BDDs generated\n";
-  //   std::cerr << "Elapsed: " << elapsed_seconds << " seconds\n";
-
-  //   return 0;
-  // }
-
-  // auto reordered_bdds =
-  //     get_all_reordered_bdds(original_bdd, MaxReorderingOperations);
-
-  // std::cerr << "\n";
-  // std::cerr << "Final: " << reordered_bdds.size() << "\n";
-
-  // if (Show) {
-  //   for (const BDD &bdd : reordered_bdds)
-  //     GraphvizGenerator::visualize(bdd, true);
-  // }
-
-  // if (ReportFile.size() == 0) {
-  //   return 0;
-  // }
-
-  // auto end = std::chrono::steady_clock::now();
-  // auto elapsed = end - start;
-  // auto elapsed_seconds =
-  //     std::chrono::duration_cast<std::chrono::seconds>(elapsed).count();
-  // auto report = std::ofstream(ReportFile, std::ios::out);
-  // assert(report.is_open() && "Unable to open report file");
-
-  // report << "# time (s)\ttotal\n";
-  // report << elapsed_seconds << "\t" << reordered_bdds.size() << "\n";
-  // report.close();
+  auto approximation = estimate_reorder(bdd);
+  std::cerr << "Approximately " << approximation << " BDDs generated\n";
 
   return 0;
 }

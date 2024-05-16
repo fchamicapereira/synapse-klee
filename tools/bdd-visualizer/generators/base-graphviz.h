@@ -145,13 +145,14 @@ public:
     return color;
   }
 
-  static void visualize(const BDD &bdd, bool interrupt = true) {
+  static void visualize(const BDD &bdd, bool interrupt = true,
+                        std::string file_path = "") {
     bdd_visualizer_opts_t opts;
-    visualize(bdd, opts, interrupt);
+    visualize(bdd, opts, interrupt, file_path);
   }
 
   static void visualize(const BDD &bdd, const bdd_visualizer_opts_t &opts,
-                        bool interrupt = true) {
+                        bool interrupt = true, std::string file_path = "") {
     auto random_fname_generator = []() {
       constexpr int fname_len = 15;
       constexpr const char *prefix = "/tmp/";
@@ -190,8 +191,10 @@ public:
       }
     };
 
-    auto random_fname = random_fname_generator();
-    auto file = std::ofstream(random_fname);
+    if (file_path.empty())
+      file_path = random_fname_generator();
+
+    std::ofstream file(file_path);
     assert(file.is_open());
 
     GraphvizGenerator gv(file, opts);
@@ -202,10 +205,10 @@ public:
     std::cerr << "Visualizing BDD";
     std::cerr << " id=" << bdd.get_id();
     std::cerr << " hash=" << bdd.hash();
-    std::cerr << " file=" << random_fname;
+    std::cerr << " file=" << file_path;
     std::cerr << "\n";
 
-    open_graph(random_fname);
+    open_graph(file_path);
 
     if (interrupt) {
       std::cout << "Press Enter to continue ";
