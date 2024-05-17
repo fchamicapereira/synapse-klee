@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "call-paths-to-bdd.h"
 
 namespace bdd {
@@ -28,26 +30,25 @@ struct anchor_info_t {
                   // direction of the branch (true or false). The reordering
                   // operation will respect this direction.
 };
-struct reordered_bdd_t {
-  BDD bdd;
+
+struct reorder_op_t {
   anchor_info_t anchor_info;
   candidate_info_t candidate_info;
 };
 
-// Get conditions required for reordering the BDD using the proposed anchor.
-candidate_info_t
-concretize_reordering_candidate(const BDD &bdd,
-                                const anchor_info_t &anchor_info,
-                                node_id_t proposed_candidate_id);
+struct reordered_bdd_t {
+  BDD bdd;
+  reorder_op_t op;
 
-std::vector<candidate_info_t>
-get_reordering_candidates(const BDD &bdd, const anchor_info_t &anchor_info);
+  // When the anchor is a branch, this field may contain the second reordering
+  // operation that was applied to the branch.
+  std::optional<reorder_op_t> op2;
+};
 
-std::vector<reordered_bdd_t> reorder(const BDD &bdd);
-std::vector<reordered_bdd_t> reorder(const BDD &bdd,
-                                     const anchor_info_t &anchor_info);
-BDD reorder(const BDD &bdd, const anchor_info_t &anchor_info,
-            const candidate_info_t &candidate_info);
+std::vector<reordered_bdd_t> reorder(const BDD &bdd, node_id_t anchor_id);
+std::vector<reorder_op_t> get_reorder_ops(const BDD &bdd,
+                                          const anchor_info_t &anchor_info);
+BDD reorder(const BDD &bdd, const reorder_op_t &op);
 
 double estimate_reorder(const BDD &bdd);
 

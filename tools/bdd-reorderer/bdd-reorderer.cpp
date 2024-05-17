@@ -70,6 +70,9 @@ static Node *get_vector_next(const mutable_vector_t &vector) {
 static const Node *get_vector_next(const vector_t &vector) {
   const Node *next = nullptr;
 
+  if (!vector.node)
+    return next;
+
   switch (vector.node->get_type()) {
   case NodeType::BRANCH: {
     const Branch *branch = static_cast<const Branch *>(vector.node);
@@ -597,15 +600,10 @@ static bool anchor_reaches_candidate(const vector_t &anchor,
 }
 
 candidate_info_t
-concretize_reordering_candidate(const BDD &bdd,
-                                const anchor_info_t &anchor_info,
+concretize_reordering_candidate(const BDD &bdd, const vector_t &anchor,
                                 node_id_t proposed_candidate_id) {
   candidate_info_t candidate_info;
   candidate_info.id = proposed_candidate_id;
-
-  vector_t anchor;
-  anchor.node = bdd.get_node_by_id(anchor_info.id);
-  anchor.direction = anchor_info.direction;
 
   const Node *proposed_candidate = bdd.get_node_by_id(proposed_candidate_id);
 
@@ -670,53 +668,31 @@ concretize_reordering_candidate(const BDD &bdd,
   return candidate_info;
 }
 
-std::vector<candidate_info_t>
-get_reordering_candidates(const BDD &bdd, const anchor_info_t &anchor_info) {
-  std::vector<candidate_info_t> candidates;
+std::vector<reorder_op_t> get_reorder_ops(const BDD &bdd,
+                                          const anchor_info_t &anchor_info) {
+  std::vector<reorder_op_t> ops;
 
-  const Node *anchor = bdd.get_node_by_id(anchor_info.id);
-  assert(anchor && "Anchor node not found");
-
-  const Node *next = get_vector_next({anchor, anchor_info.direction});
+  const Node *anchor_node = bdd.get_node_by_id(anchor_info.id);
+  const vector_t anchor = {anchor_node, anchor_info.direction};
+  const Node *next = get_vector_next(anchor);
 
   if (!next) {
-    return candidates;
+    return ops;
   }
 
-  std::vector<const Node *> nodes{next};
-  while (nodes.size()) {
-    const Node *node = nodes[0];
-    nodes.erase(nodes.begin());
+  next->recursive_visit_nodes(
+      [&ops, &bdd, anchor, anchor_info](const Node *node) -> NodeVisitAction {
+        candidate_info_t proposed_candidate =
+            concretize_reordering_candidate(bdd, anchor, node->get_id());
 
-    candidate_info_t proposed_candidate =
-        concretize_reordering_candidate(bdd, anchor_info, node->get_id());
+        if (proposed_candidate.status == ReorderingCandidateStatus::VALID) {
+          ops.push_back({anchor_info, proposed_candidate});
+        }
 
-    if (proposed_candidate.status == ReorderingCandidateStatus::VALID) {
-      candidates.push_back(proposed_candidate);
-    }
+        return NodeVisitAction::VISIT_CHILDREN;
+      });
 
-    switch (node->get_type()) {
-    case NodeType::BRANCH: {
-      const Branch *branch_node = static_cast<const Branch *>(node);
-
-      const Node *on_true = branch_node->get_on_true();
-      const Node *on_false = branch_node->get_on_false();
-
-      if (on_true)
-        nodes.push_back(on_true);
-      if (on_false)
-        nodes.push_back(on_false);
-    } break;
-    case NodeType::CALL:
-    case NodeType::ROUTE: {
-      const Node *next = node->get_next();
-      if (next)
-        nodes.push_back(next);
-    } break;
-    }
-  }
-
-  return candidates;
+  return ops;
 }
 
 // Returns the old next node.
@@ -1143,16 +1119,18 @@ static void pull_candidate(BDD &bdd, const mutable_vector_t &anchor,
   }
 }
 
-BDD reorder(const BDD &original_bdd, const anchor_info_t &anchor_info,
-            const candidate_info_t &candidate_info) {
+BDD reorder(const BDD &original_bdd, const reorder_op_t &op) {
   BDD bdd = original_bdd;
   node_id_t &id = bdd.get_mutable_id();
 
+  const anchor_info_t &anchor_info = op.anchor_info;
+  const candidate_info_t &candidate_info = op.candidate_info;
+
   NodeManager &manager = bdd.get_mutable_manager();
-  Node *candidate = bdd.get_mutable_node_by_id(candidate_info.id);
+  Node *candidate = bdd.get_mutable_node_by_id(op.candidate_info.id);
 
   mutable_vector_t anchor;
-  anchor.node = bdd.get_mutable_node_by_id(anchor_info.id);
+  anchor.node = bdd.get_mutable_node_by_id(op.anchor_info.id);
   anchor.direction = anchor_info.direction;
 
   std::unordered_set<Node *> siblings;
@@ -1221,91 +1199,85 @@ BDD reorder(const BDD &original_bdd, const anchor_info_t &anchor_info,
   return bdd;
 }
 
-std::vector<reordered_bdd_t> reorder(const BDD &original_bdd,
-                                     const anchor_info_t &anchor_info) {
+std::vector<reordered_bdd_t> reorder(const BDD &bdd, node_id_t anchor_id) {
   std::vector<reordered_bdd_t> bdds;
 
-  std::vector<candidate_info_t> candidates =
-      get_reordering_candidates(original_bdd, anchor_info);
+  std::vector<reorder_op_t> ops = get_reorder_ops(bdd, {anchor_id, true});
 
-  for (const candidate_info_t &candidate_info : candidates) {
-    BDD bdd = reorder(original_bdd, anchor_info, candidate_info);
-    bdds.push_back({bdd, anchor_info, candidate_info});
+  for (const reorder_op_t &op : ops) {
+    BDD new_bdd = reorder(bdd, op);
+    bdds.push_back({new_bdd, op, {}});
   }
 
-  return bdds;
-}
-
-std::vector<reordered_bdd_t> reorder(const BDD &bdd) {
-  std::vector<reordered_bdd_t> bdds;
-
-  const Node *root = bdd.get_root();
-  node_id_t root_id = root->get_id();
-
-  if (root->get_type() == NodeType::BRANCH) {
-    candidate_info_t mock_candidate_info;
-    bdds.push_back({bdd, {root_id, true}, mock_candidate_info});
-    bdds.push_back({bdd, {root_id, false}, mock_candidate_info});
-  } else {
-    candidate_info_t mock_candidate_info;
-    bdds.push_back({bdd, {root_id, true}, mock_candidate_info});
+  const Node *anchor = bdd.get_node_by_id(anchor_id);
+  if (anchor->get_type() != NodeType::BRANCH) {
+    return bdds;
   }
 
-  bool successful_reordering = false;
-  while (successful_reordering) {
-    std::vector<reordered_bdd_t> new_bdds;
+  const std::vector<reorder_op_t> &lhs_ops = ops;
+  std::vector<reorder_op_t> rhs_ops = get_reorder_ops(bdd, {anchor_id, false});
 
-    for (const reordered_bdd_t &reordered_bdd : bdds) {
-      const BDD &b = reordered_bdd.bdd;
-      const anchor_info_t &anchor_info = reordered_bdd.anchor_info;
+  // Now let's combine all the possible reordering operations!
+  for (size_t rhs_idx = 0; rhs_idx < rhs_ops.size(); rhs_idx++) {
+    const reorder_op_t &rhs = rhs_ops[rhs_idx];
 
-      std::vector<candidate_info_t> candidates =
-          get_reordering_candidates(b, anchor_info);
+    // Now only reordering the ride side.
+    BDD rhs_bdd = reorder(bdd, rhs);
+    bdds.push_back({rhs_bdd, rhs, {}});
 
-      for (const candidate_info_t &candidate_info : candidates) {
-        BDD new_bdd = reorder(b, anchor_info, candidate_info);
-        new_bdds.push_back({new_bdd, anchor_info, candidate_info});
-      }
+    for (size_t lhs_idx = 0; lhs_idx < lhs_ops.size(); lhs_idx++) {
+      const reorder_op_t &lhs = lhs_ops[lhs_idx];
+
+      // And now applying both
+      BDD rhs_lhs_bdd = reorder(rhs_bdd, lhs);
+      bdds.push_back({rhs_lhs_bdd, rhs, lhs});
     }
-
-    bdds = new_bdds;
   }
 
   return bdds;
 }
 
-double estimate_reorder(const BDD &bdd, const vector_t &anchor) {
+static double estimate_reorder(const BDD &bdd, const Node *anchor) {
   static std::unordered_map<std::string, double> cache;
   static double total_max = 0;
 
-  if (!anchor.node) {
+  if (!anchor) {
     return 0;
   }
 
-  fprintf(stderr, "Total ~ %.2e\r", total_max);
-
   double total = 0;
-  std::string hash = anchor.node->hash(true);
+  std::string hash = anchor->hash(true);
 
   if (cache.find(hash) != cache.end()) {
     return cache[hash];
   }
 
-  const Node *anchor_next = get_vector_next(anchor);
-  if (anchor_next) {
-    total += estimate_reorder(bdd, {anchor_next, true});
-    if (anchor_next->get_type() == NodeType::BRANCH) {
-      total += estimate_reorder(bdd, {anchor_next, false});
+  if (anchor->get_type() == NodeType::BRANCH) {
+    const Branch *branch = static_cast<const Branch *>(anchor);
+
+    double lhs = estimate_reorder(bdd, branch->get_on_true());
+    double rhs = estimate_reorder(bdd, branch->get_on_false());
+
+    if (lhs == 0 || rhs == 0) {
+      total += lhs + rhs;
+    } else {
+      total += lhs * rhs;
     }
+
+  } else {
+    total += estimate_reorder(bdd, anchor->get_next());
   }
 
-  anchor_info_t anchor_info = {anchor.node->get_id(), anchor.direction};
-  std::vector<reordered_bdd_t> bdds = reorder(bdd, anchor_info);
+  fprintf(stderr, "Total ~ %.2e\r", total_max);
+
+  std::vector<reordered_bdd_t> bdds = reorder(bdd, anchor->get_id());
   total += bdds.size();
 
+  fprintf(stderr, "Total ~ %.2e\r", total_max);
+
   for (const reordered_bdd_t &reordered_bdd : bdds) {
-    node_id_t anchor_id = reordered_bdd.anchor_info.id;
-    bool anchor_direction = reordered_bdd.anchor_info.direction;
+    node_id_t anchor_id = reordered_bdd.op.anchor_info.id;
+    bool anchor_direction = reordered_bdd.op.anchor_info.direction;
 
     const Node *anchor_node = reordered_bdd.bdd.get_node_by_id(anchor_id);
     const Node *anchor_next = get_vector_next({anchor_node, anchor_direction});
@@ -1313,11 +1285,10 @@ double estimate_reorder(const BDD &bdd, const vector_t &anchor) {
     if (!anchor_next)
       continue;
 
-    total += estimate_reorder(reordered_bdd.bdd, {anchor_next, true});
-    if (anchor_next->get_type() == NodeType::BRANCH) {
-      total += estimate_reorder(reordered_bdd.bdd, {anchor_next, false});
-    }
+    total += estimate_reorder(reordered_bdd.bdd, anchor_next);
   }
+
+  fprintf(stderr, "Total ~ %.2e\r", total_max);
 
   cache[hash] = total;
   total_max = std::max(total_max, total);
@@ -1326,15 +1297,9 @@ double estimate_reorder(const BDD &bdd, const vector_t &anchor) {
 }
 
 double estimate_reorder(const BDD &bdd) {
-  double estimate = 1;
-
   const Node *root = bdd.get_root();
-
-  estimate += estimate_reorder(bdd, {root, true});
-  if (root->get_type() == NodeType::BRANCH) {
-    estimate += estimate_reorder(bdd, {root, false});
-  }
-
+  double estimate = 1 + estimate_reorder(bdd, root);
+  std::cerr << "\n";
   return estimate;
 }
 
