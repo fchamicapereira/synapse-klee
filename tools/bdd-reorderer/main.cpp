@@ -139,7 +139,7 @@ void test_reorder(const BDD &original_bdd,
   //   bdd = reorder(bdd, anchor_info, candidate_info);
   // }
 
-  // GraphvizGenerator::visualize(bdd, false);
+  // BDDVisualizer::visualize(bdd, false);
 }
 
 void test_reorder(const BDD &bdd, node_id_t anchor_id) {
@@ -164,7 +164,7 @@ void test_reorder(const BDD &bdd, node_id_t anchor_id) {
     }
     std::cerr << "==================================\n";
 
-    // GraphvizGenerator::visualize(reordered_bdd.bdd, true);
+    // BDDVisualizer::visualize(reordered_bdd.bdd, true);
   }
 }
 

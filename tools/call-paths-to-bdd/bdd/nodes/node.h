@@ -13,6 +13,7 @@ class BDDVisitor;
 class NodeManager;
 
 typedef uint64_t node_id_t;
+typedef std::unordered_set<node_id_t> nodes_t;
 
 enum class NodeType { BRANCH, CALL, ROUTE };
 enum class NodeVisitAction { VISIT_CHILDREN, SKIP_CHILDREN, STOP };
@@ -54,9 +55,8 @@ public:
   const Node *get_node_by_id(node_id_t _id) const;
   Node *get_mutable_node_by_id(node_id_t _id);
 
-  void
-  recursive_visit_nodes(std::function<NodeVisitAction(const Node *)> fn) const;
-  void recursive_update_nodes(std::function<NodeVisitAction(Node *)> fn);
+  void visit_nodes(std::function<NodeVisitAction(const Node *)> fn) const;
+  void visit_mutable_nodes(std::function<NodeVisitAction(Node *)> fn);
 
   void recursive_update_ids(node_id_t &new_id);
   void recursive_translate_symbol(const symbol_t &old_symbol,
@@ -65,8 +65,8 @@ public:
   void recursive_add_constraint(klee::ref<klee::Expr> constraint);
 
   bool is_reachable_by_node(node_id_t id) const;
-  std::string hash(bool recursive = false) const;
-  size_t count_children(bool recursive = true) const;
+  std::string hash(bool recursive) const;
+  size_t count_children(bool recursive) const;
   size_t count_code_paths() const;
 
   virtual std::vector<node_id_t> get_terminating_node_ids() const;

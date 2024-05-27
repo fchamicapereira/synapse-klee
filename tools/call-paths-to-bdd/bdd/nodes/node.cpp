@@ -28,57 +28,27 @@ bool Node::is_reachable_by_node(node_id_t id) const {
 }
 
 size_t Node::count_children(bool recursive) const {
-  std::vector<const Node *> children;
-  const Node *node = this;
+  NodeVisitAction action = recursive ? NodeVisitAction::VISIT_CHILDREN
+                                     : NodeVisitAction::SKIP_CHILDREN;
+  const Node *self = this;
 
-  if (node->get_type() == NodeType::BRANCH) {
-    auto branch_node = static_cast<const Branch *>(node);
-
-    children.push_back(branch_node->get_on_true());
-    children.push_back(branch_node->get_on_false());
-  } else if (node->get_next()) {
-    children.push_back(node->get_next());
-  }
-
-  size_t n = children.size();
-
-  while (recursive && children.size()) {
-    node = children[0];
-    children.erase(children.begin());
-
-    switch (node->get_type()) {
-    case NodeType::BRANCH: {
-      const Branch *branch_node = static_cast<const Branch *>(node);
-      const Node *on_true = branch_node->get_on_true();
-      const Node *on_false = branch_node->get_on_false();
-
-      if (on_true) {
-        children.push_back(on_true);
-        n++;
-      }
-      if (on_false) {
-        children.push_back(on_false);
-        n++;
-      }
-    } break;
-    case NodeType::ROUTE:
-    case NodeType::CALL: {
-      const Node *next = node->get_next();
-      if (next) {
-        children.push_back(next);
-        n++;
-      }
-    } break;
+  size_t total = 0;
+  visit_nodes([&total, action, self](const Node *node) -> NodeVisitAction {
+    if (node == self) {
+      return NodeVisitAction::VISIT_CHILDREN;
     }
-  }
 
-  return n;
+    total++;
+    return action;
+  });
+
+  return total;
 }
 
 size_t Node::count_code_paths() const {
   size_t paths = 0;
 
-  recursive_visit_nodes([&paths](const Node *node) -> NodeVisitAction {
+  visit_nodes([&paths](const Node *node) -> NodeVisitAction {
     switch (node->get_type()) {
     case NodeType::BRANCH: {
       const Branch *branch_node = static_cast<const Branch *>(node);
@@ -139,7 +109,7 @@ std::string Node::hash(bool recursive) const {
     input << id;
   }
 
-  recursive_visit_nodes([&input](const Node *node) -> NodeVisitAction {
+  visit_nodes([&input](const Node *node) -> NodeVisitAction {
     input << ":" << node->get_id();
     return NodeVisitAction::VISIT_CHILDREN;
   });
@@ -182,7 +152,7 @@ void Node::recursive_update_ids(node_id_t &new_id) {
 const Node *Node::get_node_by_id(node_id_t _id) const {
   const Node *target = nullptr;
 
-  recursive_visit_nodes([_id, &target](const Node *node) -> NodeVisitAction {
+  visit_nodes([_id, &target](const Node *node) -> NodeVisitAction {
     if (node->get_id() == _id) {
       target = node;
       return NodeVisitAction::STOP;
@@ -195,7 +165,7 @@ const Node *Node::get_node_by_id(node_id_t _id) const {
 
 Node *Node::get_mutable_node_by_id(node_id_t _id) {
   Node *target = nullptr;
-  recursive_update_nodes([_id, &target](Node *node) -> NodeVisitAction {
+  visit_mutable_nodes([_id, &target](Node *node) -> NodeVisitAction {
     if (node->get_id() == _id) {
       target = node;
       return NodeVisitAction::STOP;
@@ -210,8 +180,8 @@ void Node::recursive_translate_symbol(const symbol_t &old_symbol,
   kutil::RenameSymbols renamer;
   renamer.add_translation(old_symbol.array->name, new_symbol.array->name);
 
-  recursive_update_nodes([&renamer, old_symbol,
-                          new_symbol](Node *node) -> NodeVisitAction {
+  visit_mutable_nodes([&renamer, old_symbol,
+                       new_symbol](Node *node) -> NodeVisitAction {
     if (node->get_type() != NodeType::CALL)
       return NodeVisitAction::VISIT_CHILDREN;
 
@@ -238,14 +208,13 @@ void Node::recursive_translate_symbol(const symbol_t &old_symbol,
 }
 
 void Node::recursive_add_constraint(klee::ref<klee::Expr> constraint) {
-  recursive_update_nodes([constraint](Node *node) -> NodeVisitAction {
+  visit_mutable_nodes([constraint](Node *node) -> NodeVisitAction {
     node->constraints.addConstraint(constraint);
     return NodeVisitAction::VISIT_CHILDREN;
   });
 }
 
-void Node::recursive_visit_nodes(
-    std::function<NodeVisitAction(const Node *)> fn) const {
+void Node::visit_nodes(std::function<NodeVisitAction(const Node *)> fn) const {
   std::vector<const Node *> nodes{this};
   while (nodes.size()) {
     const Node *node = nodes[0];
@@ -276,7 +245,7 @@ void Node::recursive_visit_nodes(
   }
 }
 
-void Node::recursive_update_nodes(std::function<NodeVisitAction(Node *)> fn) {
+void Node::visit_mutable_nodes(std::function<NodeVisitAction(Node *)> fn) {
   std::vector<Node *> nodes{this};
   while (nodes.size()) {
     Node *node = nodes[0];

@@ -62,6 +62,7 @@ public:
   const Node *get_root() const { return root; }
 
   std::string hash() const { return root->hash(true); }
+  size_t size() const { return root->count_children(true) + 1; }
 
   symbols_t get_generated_symbols(const Node *node) const;
   void visit(BDDVisitor &visitor) const;

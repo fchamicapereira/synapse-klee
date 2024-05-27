@@ -8,6 +8,9 @@
 #===------------------------------------------------------------------------===#
 file(GLOB_RECURSE synapse-sources "*.cpp")
 list(FILTER synapse-sources EXCLUDE REGEX ".*boilerplate.*$")
+list(FILTER synapse-sources EXCLUDE REGEX ".*transpiler.*")
+list(REMOVE_ITEM synapse-sources "/home/fcp/Documents/synapse/deps/klee/tools/synapse/code_generator.cpp")
+list(REMOVE_ITEM synapse-sources "/home/fcp/Documents/synapse/deps/klee/tools/synapse/synthesizers/tofino/util.cpp")
 
 file(GLOB_RECURSE load-call-paths-sources "../load-call-paths*.cpp")
 list(FILTER load-call-paths-sources EXCLUDE REGEX ".*main\\.cpp$")
@@ -27,9 +30,9 @@ list(FILTER klee-util-sources EXCLUDE REGEX ".*main\\.cpp$")
 add_executable(synapse
   ${synapse-sources}
   ${load-call-paths-sources}
-  ${bdd-visualizer}
-  ${bdd-reorderer-sources}
   ${call-paths-to-bdd-sources}
+  ${bdd-visualizer-sources}
+  ${bdd-reorderer-sources}
   ${klee-util-sources}
 )
 
@@ -38,7 +41,7 @@ set(KLEE_LIBS
   kleeCore
 )
 
-target_include_directories(synapse PRIVATE ../load-call-paths ../call-paths-to-bdd ../klee-util ../bdd-visualizer)
+target_include_directories(synapse PRIVATE ../load-call-paths ../call-paths-to-bdd ../klee-util ../bdd-visualizer ../bdd-reorderer)
 target_link_libraries(synapse ${KLEE_LIBS} nlohmann_json::nlohmann_json)
 
 install(TARGETS synapse RUNTIME DESTINATION bin)

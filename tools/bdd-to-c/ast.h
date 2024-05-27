@@ -24,7 +24,6 @@ private:
   typedef std::pair<Variable_ptr, klee::ref<klee::Expr>> local_variable_t;
   typedef std::vector<std::vector<local_variable_t>> stack_t;
 
-private:
   std::string output_path;
   std::map<std::string, std::string> callpath_var_translation;
   std::map<std::pair<std::string, TargetOption>, std::string> fname_translation;
@@ -37,7 +36,6 @@ private:
   Context context;
   std::map<Context, std::string> context_markers;
 
-private:
   std::vector<Variable_ptr> state;
   stack_t local_variables;
 
@@ -88,11 +86,6 @@ private:
                                    unsigned int counter_begins);
   Variable_ptr generate_new_symbol(const std::string &symbol, Type_ptr type);
 
-  Node_ptr init_state_node_from_call(const bdd::Call *bdd_call,
-                                     TargetOption target);
-  Node_ptr process_state_node_from_call(const bdd::Call *bdd_call,
-                                        TargetOption target);
-
   std::string translate_fname(std::string fname, TargetOption target) {
     if (fname_translation.count(std::make_pair(fname, target))) {
       return fname_translation[std::make_pair(fname, target)];
@@ -122,117 +115,6 @@ public:
         {"unmber_of_freed_flows", "number_of_freed_flows"},
         {"value_out", "map_value_out"},
         {"val_out", "vector_value_out"},
-    };
-
-    fname_translation = {
-
-        /****************************************************************************
-         *                                double chain
-         ****************************************************************************/
-        {{"dchain_allocate", TargetOption::LOCKS}, "dchain_locks_allocate"},
-        {{"dchain_allocate", TargetOption::TM}, "dchain_tm_allocate"},
-        {{"dchain_allocate_new_index", TargetOption::LOCKS},
-         "dchain_locks_allocate_new_index"},
-        {{"dchain_allocate_new_index", TargetOption::TM},
-         "dchain_tm_allocate_new_index"},
-        {{"dchain_rejuvenate_index", TargetOption::LOCKS},
-         "dchain_locks_rejuvenate_index"},
-        {{"dchain_rejuvenate_index", TargetOption::TM},
-         "dchain_tm_rejuvenate_index"},
-        {{"dchain_expire_one_index", TargetOption::LOCKS},
-         "dchain_locks_expire_one_index"},
-        {{"dchain_expire_one_index", TargetOption::TM},
-         "dchain_tm_expire_one_index"},
-        {{"dchain_is_index_allocated", TargetOption::LOCKS},
-         "dchain_locks_is_index_allocated"},
-        {{"dchain_is_index_allocated", TargetOption::TM},
-         "dchain_tm_is_index_allocated"},
-        {{"dchain_free_index", TargetOption::LOCKS}, "dchain_locks_free_index"},
-        {{"dchain_free_index", TargetOption::TM}, "dchain_tm_free_index"},
-
-        /****************************************************************************
-         *                                map
-         ****************************************************************************/
-        {{"map_allocate", TargetOption::LOCKS}, "map_locks_allocate"},
-        {{"map_get", TargetOption::LOCKS}, "map_locks_get"},
-        {{"map_put", TargetOption::LOCKS}, "map_locks_put"},
-        {{"map_erase", TargetOption::LOCKS}, "map_locks_erase"},
-        {{"map_size", TargetOption::LOCKS}, "map_locks_size"},
-
-        /****************************************************************************
-         *                                vector
-         ****************************************************************************/
-        {{"vector_allocate", TargetOption::LOCKS}, "vector_locks_allocate"},
-        {{"vector_borrow", TargetOption::LOCKS}, "vector_locks_borrow"},
-        {{"vector_return", TargetOption::LOCKS}, "vector_locks_return"},
-
-        /****************************************************************************
-         *                                sketch
-         ****************************************************************************/
-        {{"sketch_allocate", TargetOption::LOCKS}, "sketch_locks_allocate"},
-        {{"sketch_compute_hashes", TargetOption::LOCKS},
-         "sketch_locks_compute_hashes"},
-        {{"sketch_refresh", TargetOption::LOCKS}, "sketch_locks_refresh"},
-        {{"sketch_fetch", TargetOption::LOCKS}, "sketch_locks_fetch"},
-        {{"sketch_touch_buckets", TargetOption::LOCKS},
-         "sketch_locks_touch_buckets"},
-        {{"sketch_expire", TargetOption::LOCKS}, "sketch_locks_expire"},
-        {{"sketch_allocate", TargetOption::TM}, "sketch_tm_allocate"},
-        {{"sketch_compute_hashes", TargetOption::TM},
-         "sketch_tm_compute_hashes"},
-        {{"sketch_refresh", TargetOption::TM}, "sketch_tm_refresh"},
-        {{"sketch_fetch", TargetOption::TM}, "sketch_tm_fetch"},
-        {{"sketch_touch_buckets", TargetOption::TM}, "sketch_tm_touch_buckets"},
-        {{"sketch_expire", TargetOption::TM}, "sketch_tm_expire"},
-
-        /****************************************************************************
-         *                                expirator
-         ****************************************************************************/
-        {{"expire_items", TargetOption::LOCKS}, "expire_items_locks"},
-        {{"expire_items_single_map", TargetOption::LOCKS},
-         "expire_items_single_map_locks"},
-        {{"expire_items_single_map_offseted", TargetOption::LOCKS},
-         "expire_items_single_map_offseted_locks"},
-        {{"expire_items_single_map_iteratively", TargetOption::LOCKS},
-         "expire_items_single_map_iteratively_locks"},
-        {{"expire_items", TargetOption::TM}, "expire_items_tm"},
-        {{"expire_items_single_map", TargetOption::TM},
-         "expire_items_single_map_tm"},
-        {{"expire_items_single_map_offseted", TargetOption::TM},
-         "expire_items_single_map_offseted_tm"},
-        {{"expire_items_single_map_iteratively", TargetOption::TM},
-         "expire_items_single_map_iteratively_tm"},
-
-        /****************************************************************************
-         *                                double map
-         ****************************************************************************/
-        {{"dmap_allocate", TargetOption::LOCKS}, "dmap_locks_allocate"},
-        {{"dmap_get_a", TargetOption::LOCKS}, "dmap_locks_get_a"},
-        {{"dmap_get_b", TargetOption::LOCKS}, "dmap_locks_get_b"},
-        {{"dmap_put", TargetOption::LOCKS}, "dmap_locks_put"},
-        {{"dmap_get_value", TargetOption::LOCKS}, "dmap_locks_get_value"},
-        {{"dmap_erase", TargetOption::LOCKS}, "dmap_locks_erase"},
-        {{"dmap_size", TargetOption::LOCKS}, "dmap_locks_size"},
-
-        /****************************************************************************
-         *                                cht
-         ****************************************************************************/
-        {{"cht_fill_cht", TargetOption::LOCKS}, "cht_locks_fill_cht"},
-        {{"cht_find_preferred_available_backend", TargetOption::LOCKS},
-         "cht_locks_find_preferred_available_backend"},
-        {{"cht_fill_cht", TargetOption::TM}, "cht_tm_fill_cht"},
-        {{"cht_find_preferred_available_backend", TargetOption::TM},
-         "cht_tm_find_preferred_available_backend"},
-    };
-
-    struct_translation = {
-        {{"DoubleChain", TargetOption::LOCKS}, "DoubleChainLocks"},
-        {{"DoubleChain", TargetOption::TM}, "DoubleChainTM"},
-        {{"Map", TargetOption::LOCKS}, "MapLocks"},
-        {{"Vector", TargetOption::LOCKS}, "VectorLocks"},
-        {{"DoubleMap", TargetOption::LOCKS}, "DoubleMapLocks"},
-        {{"Sketch", TargetOption::LOCKS}, "SketchLocks"},
-        {{"Sketch", TargetOption::TM}, "SketchTM"},
     };
   }
 
@@ -271,6 +153,7 @@ public:
   void push_to_local(Variable_ptr var, klee::ref<klee::Expr> expr);
 
   Node_ptr node_from_call(const bdd::Call *bdd_call, TargetOption target);
+  FunctionCall_ptr init_node_from_call(const call_t &call, TargetOption target);
 
   bool is_done() { return context == DONE; }
 

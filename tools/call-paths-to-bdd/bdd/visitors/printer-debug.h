@@ -50,7 +50,7 @@ public:
     std::cerr << "===========================================\n";
   }
 
-  Action visitBranch(const Branch *node) override {
+  BDDVisitorAction visitBranch(const Branch *node) override {
     node_id_t id = node->get_id();
     klee::ref<klee::Expr> condition = node->get_condition();
 
@@ -71,10 +71,10 @@ public:
     visitConstraints(node);
     std::cerr << "===========================================\n";
 
-    return traverse ? VISIT_CHILDREN : STOP;
+    return traverse ? BDDVisitorAction::VISIT_CHILDREN : BDDVisitorAction::STOP;
   }
 
-  Action visitCall(const Call *node) override {
+  BDDVisitorAction visitCall(const Call *node) override {
     node_id_t id = node->get_id();
     const call_t &call = node->get_call();
     const Node *next = node->get_next();
@@ -105,13 +105,13 @@ public:
     visitConstraints(node);
     std::cerr << "===========================================\n";
 
-    return traverse ? VISIT_CHILDREN : STOP;
+    return traverse ? BDDVisitorAction::VISIT_CHILDREN : BDDVisitorAction::STOP;
   }
 
-  Action visitRoute(const Route *node) override {
+  BDDVisitorAction visitRoute(const Route *node) override {
     node_id_t id = node->get_id();
     uint64_t dst_device = node->get_dst_device();
-    Route::Operation operation = node->get_operation();
+    RouteOperation operation = node->get_operation();
     const Node *next = node->get_next();
 
     std::cerr << "===========================================\n";
@@ -119,15 +119,15 @@ public:
     std::cerr << "type:      route\n";
     std::cerr << "operation: ";
     switch (operation) {
-    case Route::Operation::FWD: {
+    case RouteOperation::FWD: {
       std::cerr << "fwd(" << dst_device << ")";
       break;
     }
-    case Route::Operation::DROP: {
+    case RouteOperation::DROP: {
       std::cerr << "drop()";
       break;
     }
-    case Route::Operation::BCAST: {
+    case RouteOperation::BCAST: {
       std::cerr << "bcast()";
       break;
     }
@@ -139,7 +139,7 @@ public:
     visitConstraints(node);
     std::cerr << "===========================================\n";
 
-    return traverse ? VISIT_CHILDREN : STOP;
+    return traverse ? BDDVisitorAction::VISIT_CHILDREN : BDDVisitorAction::STOP;
   }
 
   void visitRoot(const Node *root) override { root->visit(*this); }

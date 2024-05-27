@@ -7,41 +7,41 @@
 
 namespace synapse {
 
-struct HeuristicConfiguration {
-  virtual Score get_score(const ExecutionPlan &e) const = 0;
+struct HeuristicCfg {
+  virtual Score get_score(const EP &e) const = 0;
 
-  virtual bool operator()(const ExecutionPlan &e1,
-                          const ExecutionPlan &e2) const {
+  virtual bool operator()(const EP &e1, const EP &e2) const {
     return get_score(e1) > get_score(e2);
   }
+
   virtual bool terminate_on_first_solution() const = 0;
 };
 
-template <class T> class Heuristic {
-  static_assert(std::is_base_of<HeuristicConfiguration, T>::value,
-                "T must inherit from HeuristicConfiguration");
+template <class HCfg> class Heuristic {
+  static_assert(std::is_base_of<HeuristicCfg, HCfg>::value,
+                "HCfg must inherit from HeuristicCfg");
 
 protected:
-  std::multiset<ExecutionPlan, T> execution_plans;
-  T configuration;
+  std::multiset<EP, HCfg> execution_plans;
+  HCfg configuration;
 
 private:
-  typename std::set<ExecutionPlan, T>::iterator get_best_it() const {
+  typename std::set<EP, HCfg>::iterator get_best_it() const {
     assert(execution_plans.size());
     return execution_plans.begin();
   }
 
-  typename std::set<ExecutionPlan, T>::iterator get_next_it() const {
+  typename std::set<EP, HCfg>::iterator get_next_it() const {
     if (execution_plans.size() == 0) {
       Log::err() << "No more execution plans to pick!\n";
       exit(1);
     }
 
-    auto conf = static_cast<const HeuristicConfiguration *>(&configuration);
-    auto it = execution_plans.begin();
+    const HeuristicCfg *cfg = static_cast<const HeuristicCfg *>(&configuration);
 
-    while (!conf->terminate_on_first_solution() &&
-           it != execution_plans.end() && !it->get_next_node()) {
+    auto it = execution_plans.begin();
+    while (!cfg->terminate_on_first_solution() && it != execution_plans.end() &&
+           !it->get_next_node()) {
       ++it;
     }
 
@@ -55,31 +55,29 @@ private:
 public:
   bool finished() const { return get_next_it() == execution_plans.end(); }
 
-  ExecutionPlan get() { return *get_best_it(); }
+  EP get() { return *get_best_it(); }
 
-  std::vector<ExecutionPlan> get_all() const {
-    std::vector<ExecutionPlan> eps;
+  std::vector<EP> get_all() const {
+    std::vector<EP> eps;
     eps.assign(execution_plans.begin(), execution_plans.end());
     return eps;
   }
 
-  ExecutionPlan pop() {
+  EP pop() {
     auto it = get_next_it();
     assert(it != execution_plans.end());
 
-    auto copy = *it;
+    EP copy = *it;
     execution_plans.erase(it);
 
     return copy;
   }
 
-  void add(const std::vector<ExecutionPlan> &next_eps) {
-    assert(next_eps.size());
+  void add(const std::vector<EP> &next_eps) {
+    for (const EP &ep : next_eps) {
+      bool found = false;
 
-    for (auto ep : next_eps) {
-      auto found = false;
-
-      for (auto saved_ep : execution_plans) {
+      for (const EP &saved_ep : execution_plans) {
         if (saved_ep == ep) {
           found = true;
           break;
@@ -94,12 +92,12 @@ public:
     }
   }
 
-  int size() const { return execution_plans.size(); }
+  size_t size() const { return execution_plans.size(); }
 
-  const T *get_cfg() const { return &configuration; }
+  const HCfg *get_cfg() const { return &configuration; }
 
-  Score get_score(const ExecutionPlan &e) const {
-    auto conf = static_cast<const HeuristicConfiguration *>(&configuration);
+  Score get_score(const EP &e) const {
+    auto conf = static_cast<const HeuristicCfg *>(&configuration);
     return conf->get_score(e);
   }
 };

@@ -199,11 +199,11 @@ static Route *route_node_from_call(const call_t &call,
   assert(is_routing_function(call));
 
   if (call.function_name == "packet_free") {
-    return new Route(id, constraints, bdd::Route::Operation::DROP);
+    return new Route(id, constraints, bdd::RouteOperation::DROP);
   }
 
   if (call.function_name == "packet_broadcast") {
-    return new Route(id, constraints, bdd::Route::Operation::BCAST);
+    return new Route(id, constraints, bdd::RouteOperation::BCAST);
   }
 
   assert(call.function_name == "packet_send");
@@ -212,7 +212,7 @@ static Route *route_node_from_call(const call_t &call,
   assert(!dst_device.isNull());
 
   int value = kutil::solver_toolbox.value_from_expr(dst_device);
-  return new Route(id, constraints, bdd::Route::Operation::FWD, value);
+  return new Route(id, constraints, bdd::RouteOperation::FWD, value);
 }
 
 static call_t

@@ -98,9 +98,9 @@ void Emulator::run(pkt_t pkt, time_ns_t time, uint16_t device) {
     } break;
     case NodeType::ROUTE: {
       const Route *route_node = static_cast<const Route *>(node);
-      Route::Operation op = route_node->get_operation();
+      RouteOperation op = route_node->get_operation();
 
-      if (op == Route::Operation::DROP) {
+      if (op == RouteOperation::DROP) {
         meta.rejected++;
       } else {
         meta.accepted++;

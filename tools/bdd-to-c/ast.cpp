@@ -13,14 +13,14 @@ constexpr char AST::CHUNK_UDP_LABEL[];
 constexpr char AST::CHUNK_L5_LABEL[];
 
 std::string get_symbol_label(const std::string &wanted,
-                             const bdd::symbols_t &symbols) {
-  for (auto symbol : symbols) {
-    if (symbol.label_base == wanted) {
-      return symbol.label;
-    }
+                             const symbols_t &symbols) {
+  std::string target;
+  for (const symbol_t &symbol : symbols) {
+    if (symbol.base == wanted)
+      target = symbol.array->name;
   }
-
-  return "";
+  assert(target.size() && "Symbol not found");
+  return target;
 }
 
 Expr_ptr fix_time_32_bits(Expr_ptr now) {
@@ -521,44 +521,23 @@ void AST::push_to_local(Variable_ptr var, klee::ref<klee::Expr> expr) {
   local_variables.back().push_back(std::make_pair(var, expr));
 }
 
-FunctionCall_ptr spread_capacity_among_cores(Expr_ptr capacity) {
-  auto args = std::vector<ExpressionType_ptr>{capacity};
-  auto ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT32_T);
-  auto fcall = FunctionCall::build("spread_data_among_cores", args, ret_type);
-  return fcall;
-}
-
-Node_ptr AST::init_state_node_from_call(const bdd::Call *bdd_call,
-                                        TargetOption target) {
-  auto call = bdd_call->get_call();
-  auto symbols = bdd_call->get_locally_generated_symbols();
-
+FunctionCall_ptr AST::init_node_from_call(const call_t &call,
+                                          TargetOption target) {
   auto fname = call.function_name;
   std::vector<ExpressionType_ptr> args;
 
-  PrimitiveType_ptr ret_type;
-  klee::ref<klee::Expr> ret_expr;
-  std::string ret_symbol;
-
-  if (fname == "rte_lcore_count") {
-    ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT32_T);
-    ret_symbol = get_symbol_label("lcores", symbols);
-    ret_expr = call.ret;
-  } else if (fname == "map_allocate") {
-    Expr_ptr map_out_expr = transpile(this, call.args["map_out"].out);
+  if (fname == "map_allocate") {
+    Expr_ptr map_out_expr = transpile(this, call.args.at("map_out").out);
     assert(map_out_expr->get_kind() == Node::NodeKind::CONSTANT);
+
     uint64_t map_addr =
         (static_cast<Constant *>(map_out_expr.get()))->get_value();
 
-    Expr_ptr capacity = transpile(this, call.args["capacity"].expr);
+    Expr_ptr capacity = transpile(this, call.args.at("capacity").expr);
     assert(capacity);
 
-    Expr_ptr key_size = transpile(this, call.args["key_size"].expr);
+    Expr_ptr key_size = transpile(this, call.args.at("key_size").expr);
     assert(key_size);
-
-    if (target == TargetOption::SHARED_NOTHING) {
-      capacity = spread_capacity_among_cores(capacity);
-    }
 
     Type_ptr map_type = Struct::build(translate_struct("Map", target));
     Variable_ptr new_map = generate_new_symbol("map", map_type, 1, 0);
@@ -567,27 +546,18 @@ Node_ptr AST::init_state_node_from_call(const bdd::Call *bdd_call,
     push_to_state(new_map);
     push_to_local(new_map);
 
-    // hack
-    if (target == TargetOption::SHARED_NOTHING) {
-      new_map = generate_new_symbol("(*" + new_map->get_symbol() + "_ptr)",
-                                    map_type, 1, 0);
-    }
-
     args = std::vector<ExpressionType_ptr>{capacity, key_size,
                                            AddressOf::build(new_map)};
-
-    ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::INT);
-    ret_symbol = get_symbol_label("map_allocation_succeeded", symbols);
   } else if (fname == "vector_allocate") {
-    Expr_ptr vector_out_expr = transpile(this, call.args["vector_out"].out);
+    Expr_ptr vector_out_expr = transpile(this, call.args.at("vector_out").out);
     assert(vector_out_expr->get_kind() == Node::NodeKind::CONSTANT);
     uint64_t vector_addr =
         (static_cast<Constant *>(vector_out_expr.get()))->get_value();
 
-    Expr_ptr elem_size = transpile(this, call.args["elem_size"].expr);
+    Expr_ptr elem_size = transpile(this, call.args.at("elem_size").expr);
     assert(elem_size);
 
-    Expr_ptr capacity = transpile(this, call.args["capacity"].expr);
+    Expr_ptr capacity = transpile(this, call.args.at("capacity").expr);
     assert(capacity);
 
     Type_ptr vector_type = Struct::build(translate_struct("Vector", target));
@@ -597,28 +567,15 @@ Node_ptr AST::init_state_node_from_call(const bdd::Call *bdd_call,
     push_to_state(new_vector);
     push_to_local(new_vector);
 
-    // hack
-    if (target == TargetOption::SHARED_NOTHING) {
-      new_vector = generate_new_symbol(
-          "(*" + new_vector->get_symbol() + "_ptr)", vector_type, 1, 0);
-    }
-
-    if (target == TargetOption::SHARED_NOTHING) {
-      capacity = spread_capacity_among_cores(capacity);
-    }
-
     args = std::vector<ExpressionType_ptr>{elem_size, capacity,
                                            AddressOf::build(new_vector)};
-
-    ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::INT);
-    ret_symbol = get_symbol_label("vector_alloc_success", symbols);
   } else if (fname == "dchain_allocate") {
-    Expr_ptr chain_out_expr = transpile(this, call.args["chain_out"].out);
+    Expr_ptr chain_out_expr = transpile(this, call.args.at("chain_out").out);
     assert(chain_out_expr->get_kind() == Node::NodeKind::CONSTANT);
     uint64_t dchain_addr =
         (static_cast<Constant *>(chain_out_expr.get()))->get_value();
 
-    Expr_ptr index_range = transpile(this, call.args["index_range"].expr);
+    Expr_ptr index_range = transpile(this, call.args.at("index_range").expr);
     assert(index_range);
 
     Type_ptr dchain_type =
@@ -629,32 +586,19 @@ Node_ptr AST::init_state_node_from_call(const bdd::Call *bdd_call,
     push_to_state(new_dchain);
     push_to_local(new_dchain);
 
-    // hack
-    if (target == TargetOption::SHARED_NOTHING) {
-      new_dchain = generate_new_symbol(
-          "(*" + new_dchain->get_symbol() + "_ptr)", dchain_type, 1, 0);
-    }
-
-    if (target == TargetOption::SHARED_NOTHING) {
-      index_range = spread_capacity_among_cores(index_range);
-    }
-
     args = std::vector<ExpressionType_ptr>{index_range,
                                            AddressOf::build(new_dchain)};
-
-    ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::INT);
-    ret_symbol = get_symbol_label("is_dchain_allocated", symbols);
   } else if (fname == "sketch_allocate") {
-    Expr_ptr capacity = transpile(this, call.args["capacity"].expr);
+    Expr_ptr capacity = transpile(this, call.args.at("capacity").expr);
     assert(capacity);
 
-    Expr_ptr threshold = transpile(this, call.args["threshold"].expr);
+    Expr_ptr threshold = transpile(this, call.args.at("threshold").expr);
     assert(threshold);
 
-    Expr_ptr key_size = transpile(this, call.args["key_size"].expr);
+    Expr_ptr key_size = transpile(this, call.args.at("key_size").expr);
     assert(key_size);
 
-    Expr_ptr sketch_out_expr = transpile(this, call.args["sketch_out"].out);
+    Expr_ptr sketch_out_expr = transpile(this, call.args.at("sketch_out").out);
     assert(sketch_out_expr->get_kind() == Node::NodeKind::CONSTANT);
     uint64_t sketch_addr =
         (static_cast<Constant *>(sketch_out_expr.get()))->get_value();
@@ -666,39 +610,23 @@ Node_ptr AST::init_state_node_from_call(const bdd::Call *bdd_call,
     push_to_state(new_sketch);
     push_to_local(new_sketch);
 
-    // hack
-    if (target == TargetOption::SHARED_NOTHING) {
-      new_sketch = generate_new_symbol(
-          "(*" + new_sketch->get_symbol() + "_ptr)", sketch_type, 1, 0);
-    }
-
-    if (target == TargetOption::SHARED_NOTHING) {
-      capacity = spread_capacity_among_cores(capacity);
-    }
-
     args = std::vector<ExpressionType_ptr>{capacity, threshold, key_size,
                                            AddressOf::build(new_sketch)};
-
-    ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::INT);
-    ret_symbol = get_symbol_label("sketch_allocation_succeeded", symbols);
   } else if (fname == "cht_fill_cht") {
-    Expr_ptr vector_expr = transpile(this, call.args["cht"].expr);
+    Expr_ptr vector_expr = transpile(this, call.args.at("cht").expr);
     assert(vector_expr->get_kind() == Node::NodeKind::CONSTANT);
     uint64_t vector_addr =
         (static_cast<Constant *>(vector_expr.get()))->get_value();
 
     Expr_ptr vector = get_from_state(vector_addr);
-    Expr_ptr cht_height = transpile(this, call.args["cht_height"].expr);
+    Expr_ptr cht_height = transpile(this, call.args.at("cht_height").expr);
     assert(cht_height);
     Expr_ptr backend_capacity =
-        transpile(this, call.args["backend_capacity"].expr);
+        transpile(this, call.args.at("backend_capacity").expr);
     assert(backend_capacity);
 
     args =
         std::vector<ExpressionType_ptr>{vector, cht_height, backend_capacity};
-
-    ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::INT);
-    ret_symbol = get_symbol_label("cht_fill_cht_successful", symbols);
   } else {
     std::cerr << call.function_name << "\n";
 
@@ -718,131 +646,89 @@ Node_ptr AST::init_state_node_from_call(const bdd::Call *bdd_call,
                 << " | " << kutil::expr_to_string(ev.second.second) << "\n";
     }
 
-    std::cerr << "Not implemented:\n";
-    std::cerr << kutil::expr_to_string(call.ret) << "\n";
-
     assert(false && "Not implemented");
-    exit(1);
   }
 
   fname = translate_fname(fname, target);
   assert(args.size() == call.args.size());
 
-  FunctionCall_ptr fcall = FunctionCall::build(fname, args, ret_type);
-
-  if (ret_type->get_primitive_kind() != PrimitiveType::PrimitiveKind::VOID) {
-    assert(ret_symbol.size());
-
-    Variable_ptr ret_var = generate_new_symbol(ret_symbol, ret_type);
-    ret_var->set_wrap(false);
-
-    if (!ret_expr.isNull()) {
-      push_to_local(ret_var, ret_expr);
-    } else {
-      push_to_local(ret_var);
-    }
-
-    VariableDecl_ptr ret = VariableDecl::build(ret_var);
-    Assignment_ptr assignment = Assignment::build(ret, fcall);
-    assignment->set_terminate_line(true);
-
-    return assignment;
-  }
+  FunctionCall_ptr fcall = FunctionCall::build(
+      fname, args, PrimitiveType::build(PrimitiveType::PrimitiveKind::VOID));
 
   return fcall;
 }
 
 const bdd::Call *find_vector_return_with_obj(const bdd::Node *root,
                                              klee::ref<klee::Expr> obj) {
-  assert(root && "Root is null");
-  std::vector<const bdd::Node *> nodes{root};
+  const bdd::Call *target = nullptr;
 
-  while (nodes.size()) {
-    auto node = nodes[0];
-    nodes.erase(nodes.begin());
+  root->visit_nodes(
+      [obj, &target](const bdd::Node *node) -> bdd::NodeVisitAction {
+        if (node->get_type() != bdd::NodeType::CALL) {
+          return bdd::NodeVisitAction::VISIT_CHILDREN;
+        }
 
-    if (node->get_type() == bdd::NodeType::BRANCH) {
-      auto node_branch = static_cast<const bdd::Branch *>(node);
+        const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
+        const call_t &call = call_node->get_call();
 
-      nodes.push_back(node_branch->get_on_true().get());
-      nodes.push_back(node_branch->get_on_false().get());
+        if (call.function_name != "vector_return") {
+          return bdd::NodeVisitAction::VISIT_CHILDREN;
+        }
 
-      continue;
-    }
+        klee::ref<klee::Expr> this_obj = call.args.at("vector").expr;
+        klee::ref<klee::Expr> extracted =
+            kutil::solver_toolbox.exprBuilder->Extract(this_obj, 0,
+                                                       obj->getWidth());
+        bool eq = kutil::solver_toolbox.are_exprs_always_equal(obj, extracted);
 
-    if (node->get_type() != bdd::NodeType::CALL) {
-      continue;
-    }
+        if (eq) {
+          target = call_node;
+          return bdd::NodeVisitAction::STOP;
+        }
 
-    nodes.push_back(node->get_next().get());
+        return bdd::NodeVisitAction::VISIT_CHILDREN;
+      });
 
-    auto node_call = static_cast<const bdd::Call *>(node);
-    auto call = node_call->get_call();
-
-    if (call.function_name != "vector_return") {
-      continue;
-    }
-
-    auto this_obj = call.args["vector"].expr;
-    auto extracted = kutil::solver_toolbox.exprBuilder->Extract(
-        this_obj, 0, obj->getWidth());
-    auto eq = kutil::solver_toolbox.are_exprs_always_equal(obj, extracted);
-
-    if (eq) {
-      return node_call;
-    }
-  }
-
-  return nullptr;
+  return target;
 }
 
 const bdd::Call *find_vector_return_with_value(const bdd::Node *root,
                                                klee::ref<klee::Expr> value) {
-  assert(root && "Root is null");
-  std::vector<const bdd::Node *> nodes{root};
+  const bdd::Call *target = nullptr;
 
-  while (nodes.size()) {
-    auto node = nodes[0];
-    nodes.erase(nodes.begin());
-
-    if (node->get_type() == bdd::NodeType::BRANCH) {
-      auto node_branch = static_cast<const bdd::Branch *>(node);
-
-      nodes.push_back(node_branch->get_on_true().get());
-      nodes.push_back(node_branch->get_on_false().get());
-
-      continue;
-    }
-
+  root->visit_nodes([value,
+                     &target](const bdd::Node *node) -> bdd::NodeVisitAction {
     if (node->get_type() != bdd::NodeType::CALL) {
-      continue;
+      return bdd::NodeVisitAction::VISIT_CHILDREN;
     }
 
-    nodes.push_back(node->get_next().get());
-
-    auto node_call = static_cast<const bdd::Call *>(node);
-    auto call = node_call->get_call();
+    const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
+    const call_t &call = call_node->get_call();
 
     if (call.function_name != "vector_return") {
-      continue;
+      return bdd::NodeVisitAction::VISIT_CHILDREN;
     }
 
-    auto this_vector_value = call.args["value"].in;
+    klee::ref<klee::Expr> this_vector_value = call.args.at("value").in;
 
     if (this_vector_value->getWidth() < value->getWidth()) {
-      continue;
+      return bdd::NodeVisitAction::VISIT_CHILDREN;
     }
 
-    auto extracted = kutil::solver_toolbox.exprBuilder->Extract(
-        this_vector_value, 0, value->getWidth());
-    auto eq = kutil::solver_toolbox.are_exprs_always_equal(value, extracted);
+    klee::ref<klee::Expr> extracted =
+        kutil::solver_toolbox.exprBuilder->Extract(this_vector_value, 0,
+                                                   value->getWidth());
+    bool eq = kutil::solver_toolbox.are_exprs_always_equal(value, extracted);
 
     if (eq) {
-      return node_call;
+      target = call_node;
+      return bdd::NodeVisitAction::STOP;
     }
-  }
 
-  return nullptr;
+    return bdd::NodeVisitAction::VISIT_CHILDREN;
+  });
+
+  return target;
 }
 
 std::pair<bool, Expr_ptr> AST::inc_pkt_offset(Expr_ptr offset) {
@@ -861,39 +747,34 @@ std::pair<bool, Expr_ptr> AST::inc_pkt_offset(Expr_ptr offset) {
 }
 
 void AST::dec_pkt_offset() {
-  if (pkt_buffer_offset.size() == 0 || pkt_buffer_offset.top().size() == 0) {
-    std::cerr << "Error: decrementing empty pkt_buffer_offset\n";
-    assert(false);
-    exit(1);
-  }
-
+  assert((pkt_buffer_offset.size() && pkt_buffer_offset.top().size()) &&
+         "Decrementing empty pkt_buffer_offset");
   pkt_buffer_offset.top().pop();
 }
 
-std::vector<bdd::Node_ptr>
-get_prev_functions(bdd::Node_ptr start, std::string function_name,
+std::vector<const bdd::Node *>
+get_prev_functions(const bdd::Node *start, std::string function_name,
                    std::unordered_set<std::string> stop_nodes) {
-  std::vector<bdd::Node_ptr> return_nodes;
+  std::vector<const bdd::Node *> return_nodes;
 
   bool loop = true;
-  bdd::Node_ptr node = start;
+  const bdd::Node *node = start;
 
-  auto is_stop_node = [&stop_nodes](bdd::Node_ptr node) {
+  auto is_stop_node = [&stop_nodes](const bdd::Node *node) {
     if (node->get_type() != bdd::NodeType::CALL) {
       return false;
     }
-
-    auto call = static_cast<bdd::Call *>(node.get())->get_call();
-
+    const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
+    const call_t &call = call_node->get_call();
     return stop_nodes.find(call.function_name) != stop_nodes.end();
   };
 
-  auto is_target_node = [&function_name](bdd::Node_ptr node) {
+  auto is_target_node = [&function_name](const bdd::Node *node) {
     if (node->get_type() != bdd::NodeType::CALL) {
       return false;
     }
-
-    auto call = static_cast<bdd::Call *>(node.get())->get_call();
+    const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
+    const call_t &call = call_node->get_call();
     return call.function_name == function_name;
   };
 
@@ -1103,8 +984,7 @@ static void parse_hdr(const bdd::Call *call, klee::ref<klee::Expr> hdr_expr,
   }
 }
 
-Node_ptr AST::process_state_node_from_call(const bdd::Call *bdd_call,
-                                           TargetOption target) {
+Node_ptr AST::node_from_call(const bdd::Call *bdd_call, TargetOption target) {
   auto call = bdd_call->get_call();
   auto symbols = bdd_call->get_locally_generated_symbols();
 
@@ -1121,9 +1001,6 @@ Node_ptr AST::process_state_node_from_call(const bdd::Call *bdd_call,
 
   int counter_begins = 0;
   bool ignore = false;
-
-  bool check_write_attempt = false;
-  bool write_attempt = false;
 
   if (fname == "current_time") {
     associate_expr_to_local("now", call.ret);
@@ -1179,8 +1056,6 @@ Node_ptr AST::process_state_node_from_call(const bdd::Call *bdd_call,
     ret_symbol = get_symbol_label("unread_len", symbols);
     ret_expr = call.ret;
   } else if (fname == "expire_items_single_map") {
-    check_write_attempt = true;
-
     Expr_ptr chain_expr = transpile(this, call.args["chain"].expr);
     assert(chain_expr->get_kind() == Node::NodeKind::CONSTANT);
     uint64_t chain_addr =
@@ -1208,8 +1083,6 @@ Node_ptr AST::process_state_node_from_call(const bdd::Call *bdd_call,
     ret_symbol = get_symbol_label("number_of_freed_flows", symbols);
     ret_expr = call.ret;
   } else if (fname == "expire_items_single_map_offseted") {
-    check_write_attempt = true;
-
     Expr_ptr chain_expr = transpile(this, call.args["chain"].expr);
     assert(chain_expr->get_kind() == Node::NodeKind::CONSTANT);
     uint64_t chain_addr =
@@ -1239,8 +1112,6 @@ Node_ptr AST::process_state_node_from_call(const bdd::Call *bdd_call,
     ret_symbol = get_symbol_label("number_of_freed_flows", symbols);
     ret_expr = call.ret;
   } else if (fname == "expire_items_single_map_iteratively") {
-    check_write_attempt = true;
-
     Expr_ptr vector_expr = transpile(this, call.args["vector"].expr);
     assert(vector_expr->get_kind() == Node::NodeKind::CONSTANT);
     uint64_t vector_addr =
@@ -1313,8 +1184,6 @@ Node_ptr AST::process_state_node_from_call(const bdd::Call *bdd_call,
     ret_symbol = get_symbol_label("overflow", symbols);
     ret_expr = call.ret;
   } else if (fname == "sketch_touch_buckets") {
-    check_write_attempt = true;
-
     Expr_ptr sketch_expr = transpile(this, call.args["sketch"].expr);
     assert(sketch_expr->get_kind() == Node::NodeKind::CONSTANT);
     uint64_t sketch_addr =
@@ -1331,8 +1200,6 @@ Node_ptr AST::process_state_node_from_call(const bdd::Call *bdd_call,
     ret_symbol = get_symbol_label("success", symbols);
     ret_expr = call.ret;
   } else if (fname == "sketch_expire") {
-    check_write_attempt = true;
-
     Expr_ptr sketch_expr = transpile(this, call.args["sketch"].expr);
     assert(sketch_expr->get_kind() == Node::NodeKind::CONSTANT);
     uint64_t sketch_addr =
@@ -1394,8 +1261,6 @@ Node_ptr AST::process_state_node_from_call(const bdd::Call *bdd_call,
     ret_symbol = get_symbol_label("map_has_this_key", symbols);
     ret_expr = call.ret;
   } else if (fname == "dchain_allocate_new_index") {
-    check_write_attempt = true;
-
     Expr_ptr chain_expr = transpile(this, call.args["chain"].expr);
     assert(chain_expr->get_kind() == Node::NodeKind::CONSTANT);
     uint64_t chain_addr =
@@ -1486,7 +1351,6 @@ Node_ptr AST::process_state_node_from_call(const bdd::Call *bdd_call,
 
     auto changes = apply_changes(this, before_value, after_value);
 
-    write_attempt = changes.size();
     after_call_exprs.insert(after_call_exprs.end(), changes.begin(),
                             changes.end());
   } else if (fname == "map_put") {
@@ -1502,7 +1366,6 @@ Node_ptr AST::process_state_node_from_call(const bdd::Call *bdd_call,
            "couldn't find vector_return with a key to this map_put");
 
     auto vector_return_call = vector_return->get_call();
-    check_write_attempt = true;
     Expr_ptr vector_return_value_expr =
         transpile(this, vector_return_call.args["value"].expr);
     assert(vector_return_value_expr->get_kind() == Node::NodeKind::CONSTANT);
@@ -1722,8 +1585,6 @@ Node_ptr AST::process_state_node_from_call(const bdd::Call *bdd_call,
     ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::INT);
     ret_symbol = get_symbol_label("checksum", symbols);
   } else if (fname == "map_erase") {
-    check_write_attempt = true;
-
     Expr_ptr map_expr = transpile(this, call.args["map"].expr);
     assert(map_expr->get_kind() == Node::NodeKind::CONSTANT);
     uint64_t map_addr = (static_cast<Constant *>(map_expr.get()))->get_value();
@@ -1756,8 +1617,6 @@ Node_ptr AST::process_state_node_from_call(const bdd::Call *bdd_call,
         std::vector<ExpressionType_ptr>{map, AddressOf::build(key), trash_cast};
     ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::VOID);
   } else if (fname == "dchain_free_index") {
-    check_write_attempt = true;
-
     Expr_ptr chain_expr = transpile(this, call.args["chain"].expr);
     assert(chain_expr->get_kind() == Node::NodeKind::CONSTANT);
     uint64_t chain_addr =
@@ -1869,19 +1728,7 @@ Node_ptr AST::process_state_node_from_call(const bdd::Call *bdd_call,
     return nullptr;
   }
 
-  std::vector<Node_ptr> nodes;
-
-  if (target == LOCKS && write_attempt) {
-    nodes.push_back(AST::write_attempt());
-  }
-
-  nodes.insert(nodes.end(), exprs.begin(), exprs.end());
-
-  if (target == LOCKS && check_write_attempt) {
-    nodes.push_back(AST::check_write_attempt());
-  }
-
-  return Block::build(nodes, false);
+  return Block::build(exprs, false);
 }
 
 void AST::push() {
@@ -1904,19 +1751,6 @@ void AST::pop() {
 
   assert(pkt_buffer_offset.size() > 0);
   pkt_buffer_offset.pop();
-}
-
-Node_ptr AST::node_from_call(const bdd::Call *bdd_call, TargetOption target) {
-  switch (context) {
-  case INIT:
-    return init_state_node_from_call(bdd_call, target);
-  case PROCESS:
-    return process_state_node_from_call(bdd_call, target);
-  case DONE:
-    assert(false);
-  }
-
-  return nullptr;
 }
 
 void AST::context_switch(Context ctx) {
@@ -1943,7 +1777,8 @@ void AST::context_switch(Context ctx) {
             PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT16_T)),
         VariableDecl::build(
             from_cp_symbol("now"),
-            PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT64_T))};
+            PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT64_T)),
+    };
 
     for (const auto &arg : args) {
       push_to_local(Variable::build(arg->get_symbol(), arg->get_type()));

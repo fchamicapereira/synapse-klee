@@ -5,10 +5,10 @@
 
 namespace synapse {
 
-struct DFSComparator : public HeuristicConfiguration {
-  virtual Score get_score(const ExecutionPlan &ep) const override {
+struct DFSComparator : public HeuristicCfg {
+  virtual Score get_score(const EP &ep) const override {
     Score score(ep, {
-                        {Score::Category::Depth, Score::MAX},
+                        {ScoreCategory::Depth, ScoreObjective::MAX},
                     });
     return score;
   }

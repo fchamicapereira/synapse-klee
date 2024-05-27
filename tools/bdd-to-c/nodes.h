@@ -8,7 +8,7 @@
 #include "klee-util.h"
 #include "load-call-paths.h"
 
-enum TargetOption { SEQUENTIAL, SHARED_NOTHING, LOCKS, TM, BDD_NODE_HIT_RATE };
+enum TargetOption { SEQUENTIAL, BDD_PATH_PROFILER };
 
 class AST;
 

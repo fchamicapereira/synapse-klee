@@ -1,14 +1,14 @@
 #include "visitor.h"
 #include "execution_plan.h"
 #include "execution_plan_node.h"
-#include "../targets/modules/module.h"
+#include "../targets/module.h"
 #include "../log.h"
 
 #include <vector>
 
 namespace synapse {
 
-void ExecutionPlanVisitor::visit(ExecutionPlan ep) {
+void EPVisitor::visit(EP ep) {
   auto root = ep.get_root();
 
   if (root) {
@@ -16,24 +16,24 @@ void ExecutionPlanVisitor::visit(ExecutionPlan ep) {
   }
 }
 
-void ExecutionPlanVisitor::visit(const ExecutionPlanNode *ep_node) {
-  auto mod = ep_node->get_module();
-  auto next = ep_node->get_next();
+void EPVisitor::visit(const EPNode *node) {
+  const Module *module = node->get_module();
+  const std::vector<EPNode *> &children = node->get_children();
 
-  log(ep_node);
+  log(node);
 
-  mod->visit(*this, ep_node);
+  module->visit(*this, node);
 
-  for (auto branch : next) {
-    branch->visit(*this);
+  for (EPNode *child : children) {
+    child->visit(*this);
   }
 }
 
-void ExecutionPlanVisitor::log(const ExecutionPlanNode *ep_node) const {
-  auto mod = ep_node->get_module();
-
-  Log::dbg() << "[" << mod->get_target_name() << "] " << mod->get_name()
-             << "\n";
+void EPVisitor::log(const EPNode *node) const {
+  const Module *module = node->get_module();
+  const std::string &name = module->get_name();
+  TargetType target = module->get_target();
+  Log::dbg() << "[" << target << "] " << name << "\n";
 }
 
 } // namespace synapse

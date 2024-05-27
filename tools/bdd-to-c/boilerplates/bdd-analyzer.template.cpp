@@ -54,6 +54,9 @@ using json = nlohmann::json;
 #define NF_DEBUG(...)
 #endif // ENABLE_LOG
 
+#define DROP ((uint16_t)-1)
+#define FLOOD ((uint16_t)-2)
+
 #define MIN_PKT_SIZE 64   // With CRC
 #define MAX_PKT_SIZE 1518 // With CRC
 
@@ -482,8 +485,8 @@ void nf_config_init(int argc, char **argv) {
   nf_config_print();
 }
 
-uint64_t *bdd_node_hit_counter_ptr;
-uint64_t bdd_node_hit_counter_sz;
+uint64_t *path_profiler_counter_ptr;
+uint64_t path_profiler_counter_sz;
 time_ns_t elapsed_time;
 
 void generate_report() {
@@ -507,8 +510,8 @@ void generate_report() {
   report["elapsed"] = elapsed_time;
 
   report["counters"] = json();
-  for (unsigned i = 0; i < bdd_node_hit_counter_sz; i++) {
-    report["counters"][std::to_string(i)] = bdd_node_hit_counter_ptr[i];
+  for (unsigned i = 0; i < path_profiler_counter_sz; i++) {
+    report["counters"][std::to_string(i)] = path_profiler_counter_ptr[i];
   }
 
   std::stringstream report_fname_ss;

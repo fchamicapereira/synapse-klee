@@ -556,9 +556,8 @@ static bool condition_check(const vector_t &anchor, const Node *candidate,
       kutil::solver_toolbox.exprBuilder->Not(condition);
 
   const Node *anchor_next = get_vector_next(anchor);
-  anchor_next->recursive_visit_nodes([&compatible, condition, not_condition,
-                                      candidate, siblings](
-                                         const Node *node) -> NodeVisitAction {
+  anchor_next->visit_nodes([&compatible, condition, not_condition, candidate,
+                            siblings](const Node *node) -> NodeVisitAction {
     klee::ConstraintManager constraints = node->get_constraints();
 
     bool pos_always_false =
@@ -606,6 +605,12 @@ concretize_reordering_candidate(const BDD &bdd, const vector_t &anchor,
   candidate_info.id = proposed_candidate_id;
 
   const Node *proposed_candidate = bdd.get_node_by_id(proposed_candidate_id);
+
+  if (proposed_candidate->get_type() == NodeType::BRANCH) {
+    // FIXME: allow branch reordering.
+    candidate_info.status = ReorderingCandidateStatus::NOT_ALLOWED;
+    return candidate_info;
+  }
 
   if (!anchor_reaches_candidate(anchor, proposed_candidate)) {
     candidate_info.status = ReorderingCandidateStatus::UNREACHABLE_CANDIDATE;
@@ -680,7 +685,7 @@ std::vector<reorder_op_t> get_reorder_ops(const BDD &bdd,
     return ops;
   }
 
-  next->recursive_visit_nodes(
+  next->visit_nodes(
       [&ops, &bdd, anchor, anchor_info](const Node *node) -> NodeVisitAction {
         candidate_info_t proposed_candidate =
             concretize_reordering_candidate(bdd, anchor, node->get_id());

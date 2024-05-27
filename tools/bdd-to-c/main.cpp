@@ -25,14 +25,11 @@
 #include "nodes.h"
 
 namespace {
-llvm::cl::list<std::string> InputCallPathFiles(llvm::cl::desc("<call paths>"),
-                                               llvm::cl::Positional);
-
 llvm::cl::OptionCategory SynthesizerCat("Synthesizer specific options");
 
 llvm::cl::opt<std::string>
     InputBDDFile("in", llvm::cl::desc("Input file for BDD deserialization."),
-                 llvm::cl::cat(SynthesizerCat));
+                 llvm::cl::Required, llvm::cl::cat(SynthesizerCat));
 
 llvm::cl::opt<std::string>
     Out("out",
@@ -50,50 +47,55 @@ llvm::cl::opt<TargetOption>
     Target("target", llvm::cl::desc("Output file's target."),
            llvm::cl::cat(SynthesizerCat),
            llvm::cl::values(clEnumValN(SEQUENTIAL, "seq", "Sequential"),
-                            clEnumValN(SHARED_NOTHING, "sn", "Shared-nothing"),
-                            clEnumValN(LOCKS, "locks", "Lock based"),
-                            clEnumValN(TM, "tm", "Transactional memory"),
-                            clEnumValN(BDD_NODE_HIT_RATE, "bdd-analyzer",
-                                       "BDD node hit rate"),
+                            clEnumValN(BDD_PATH_PROFILER, "bdd-profiler",
+                                       "BDD path profiler"),
                             clEnumValEnd),
            llvm::cl::Required);
 } // namespace
 
-Node_ptr update_bdd_node_hit_rate(AST &ast, uint64_t node_id) {
-  auto bdd_node_hit_counter = ast.get_from_state("bdd_node_hit_counter");
-  assert(bdd_node_hit_counter);
+Node_ptr update_path_profiler_rate(AST &ast, uint64_t node_id) {
+  auto path_profiler_counter = ast.get_from_state("path_profiler_counter");
+  assert(path_profiler_counter);
 
   auto byte = PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT8_T);
   auto idx = Constant::build(PrimitiveType::PrimitiveKind::INT, node_id);
-  auto bdd_node_hit_counter_byte = Read::build(bdd_node_hit_counter, byte, idx);
+  auto path_profiler_counter_byte =
+      Read::build(path_profiler_counter, byte, idx);
   auto assignment = Assignment::build(
-      bdd_node_hit_counter_byte,
-      Add::build(bdd_node_hit_counter_byte,
+      path_profiler_counter_byte,
+      Add::build(path_profiler_counter_byte,
                  Constant::build(PrimitiveType::PrimitiveKind::INT, 1)));
   assignment->set_terminate_line(true);
 
   return assignment;
 }
 
-Node_ptr build_ast(AST &ast, const bdd::Node *root, TargetOption target,
-                   bool processing_packets) {
+Node_ptr build_ast(AST &ast, const bdd::Node *root, TargetOption target) {
   std::vector<Node_ptr> nodes;
-  assert(root);
 
-  while (root != nullptr) {
+  Variable_ptr dst_device_var = ast.get_from_local("dst_device");
+  if (!dst_device_var) {
+    dst_device_var = Variable::build(
+        "dst_device",
+        PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT16_T));
+    VariableDecl_ptr dst_device_var_decl = VariableDecl::build(dst_device_var);
+    dst_device_var_decl->set_terminate_line(true);
+    ast.push_to_local(dst_device_var);
+    nodes.push_back(dst_device_var_decl);
+  }
+
+  while (root) {
     bdd::PrinterDebug::debug(root);
     std::cerr << "\n";
+
+    if (target == BDD_PATH_PROFILER) {
+      auto hit_rate_update = update_path_profiler_rate(ast, root->get_id());
+      nodes.push_back(hit_rate_update);
+    }
 
     switch (root->get_type()) {
     case bdd::NodeType::BRANCH: {
       auto branch_node = static_cast<const bdd::Branch *>(root);
-
-      if (processing_packets && processing_packets &&
-          target == BDD_NODE_HIT_RATE) {
-        auto hit_rate_update =
-            update_bdd_node_hit_rate(ast, branch_node->get_id());
-        nodes.push_back(hit_rate_update);
-      }
 
       auto on_true_bdd = branch_node->get_on_true();
       auto on_false_bdd = branch_node->get_on_false();
@@ -101,16 +103,14 @@ Node_ptr build_ast(AST &ast, const bdd::Node *root, TargetOption target,
       auto cond = branch_node->get_condition();
 
       ast.push();
-      auto then_node =
-          build_ast(ast, on_true_bdd.get(), target, processing_packets);
+      auto then_node = build_ast(ast, on_true_bdd, target);
       ast.pop();
 
       ast.push();
-      auto else_node =
-          build_ast(ast, on_false_bdd.get(), target, processing_packets);
+      auto else_node = build_ast(ast, on_false_bdd, target);
       ast.pop();
 
-      auto cond_node = transpile(&ast, cond, true);
+      auto condition = transpile(&ast, cond, true);
 
       auto on_true_term = on_true_bdd ? on_true_bdd->get_terminating_node_ids()
                                       : std::vector<uint64_t>();
@@ -118,299 +118,148 @@ Node_ptr build_ast(AST &ast, const bdd::Node *root, TargetOption target,
                                ? on_false_bdd->get_terminating_node_ids()
                                : std::vector<uint64_t>();
 
-      Branch_ptr branch = Branch::build(cond_node, then_node, else_node,
+      Branch_ptr branch = Branch::build(condition, then_node, else_node,
                                         on_true_term, on_false_term);
       nodes.push_back(branch);
-
-      root = nullptr;
-      break;
-    };
-
+      return Block::build(nodes);
+    } break;
     case bdd::NodeType::CALL: {
       auto bdd_call = static_cast<const bdd::Call *>(root);
-
-      if (processing_packets && target == BDD_NODE_HIT_RATE) {
-        auto hit_rate_update =
-            update_bdd_node_hit_rate(ast, bdd_call->get_id());
-        nodes.push_back(hit_rate_update);
-      }
-
       auto call_node = ast.node_from_call(bdd_call, target);
 
       if (call_node) {
         nodes.push_back(call_node);
       }
 
-      root = root->get_next().get();
-      break;
-    };
+      root = root->get_next();
+    } break;
+    case bdd::NodeType::ROUTE: {
+      const bdd::Route *route = static_cast<const bdd::Route *>(root);
 
-    case bdd::NodeType::RETURN_INIT: {
-      auto return_init = static_cast<const bdd::ReturnInit *>(root);
-      Expr_ptr ret_value;
+      Expr_ptr dst_device;
+      bdd::RouteOperation op = route->get_operation();
 
-      switch (return_init->get_return_value()) {
-      case bdd::ReturnInit::ReturnType::SUCCESS: {
-        ret_value = Constant::build(PrimitiveType::PrimitiveKind::INT, 1);
-        break;
-      };
-      case bdd::ReturnInit::ReturnType::FAILURE: {
-        ret_value = Constant::build(PrimitiveType::PrimitiveKind::INT, 0);
-        break;
-      };
+      switch (op) {
+      case bdd::RouteOperation::FWD: {
+        Comment_ptr comm = Comment::build("forward");
+        dst_device = Constant::build(PrimitiveType::PrimitiveKind::INT,
+                                     route->get_dst_device());
+      } break;
+      case bdd::RouteOperation::BCAST: {
+        Comment_ptr comm = Comment::build("broadcast");
+        dst_device = Variable::build(
+            "FLOOD",
+            PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT16_T));
+      } break;
+      case bdd::RouteOperation::DROP: {
+        Comment_ptr comm = Comment::build("drop");
+        dst_device = Variable::build(
+            "DROP",
+            PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT16_T));
+      } break;
       }
 
-      Node_ptr ret_node = Return::build(ret_value);
-
-      if (processing_packets && target == BDD_NODE_HIT_RATE) {
-        auto hit_rate_update =
-            update_bdd_node_hit_rate(ast, return_init->get_id());
-        nodes.push_back(hit_rate_update);
-      }
-
-      nodes.push_back(ret_node);
-
-      root = nullptr;
-      break;
-    };
-
-    case bdd::NodeType::RETURN_PROCESS: {
-      auto return_process = static_cast<const bdd::ReturnProcess *>(root);
-      Node_ptr new_node;
-
-      Expr_ptr ret_value = Constant::build(PrimitiveType::PrimitiveKind::INT,
-                                           return_process->get_return_value());
-      Node_ptr ret = Return::build(ret_value);
-
-      switch (return_process->get_return_operation()) {
-      case bdd::ReturnProcess::Operation::FWD: {
-        new_node = ret;
-        break;
-      }
-      case bdd::ReturnProcess::Operation::BCAST: {
-        Comment_ptr comm = Comment::build("broadcasting");
-        new_node = Block::build(std::vector<Node_ptr>{comm, ret}, false);
-        break;
-      }
-      case bdd::ReturnProcess::Operation::DROP: {
-        Comment_ptr comm = Comment::build("dropping");
-        new_node = Block::build(std::vector<Node_ptr>{comm, ret}, false);
-        break;
-      }
-      default: {
-        assert(false && "Unknown return operation");
-        std::cerr << "ERROR: unknown return operation\n";
-        exit(1);
-      }
-      }
-
-      if (processing_packets && target == BDD_NODE_HIT_RATE) {
-        auto hit_rate_update =
-            update_bdd_node_hit_rate(ast, return_process->get_id());
-        nodes.push_back(hit_rate_update);
-      }
-
+      Expr_ptr new_node = Assignment::build(dst_device_var, dst_device);
+      new_node->set_terminate_line(true);
       nodes.push_back(new_node);
 
-      root = nullptr;
-      break;
-    };
-
-    default: {
-      assert(false);
-    }
+      root = root->get_next();
+    } break;
     }
   }
+
+  Return_ptr ret = Return::build(dst_device_var);
+  nodes.push_back(ret);
 
   assert(nodes.size());
   return Block::build(nodes);
 }
 
-void build_ast(AST &ast, const bdd::BDD &bdd, TargetOption target) {
-  auto init = bdd.get_init().get();
-  auto process = bdd.get_process().get();
+Block_ptr build_init_block(AST &ast, const bdd::BDD &bdd, TargetOption target) {
+  std::vector<Node_ptr> nodes;
 
-  assert(init);
-  assert(process);
+  Constant_ptr zero = Constant::build(PrimitiveType::PrimitiveKind::INT, 0);
+  Constant_ptr one = Constant::build(PrimitiveType::PrimitiveKind::INT, 1);
 
-  // The node IDs start from 0
-  auto total_processing_nodes = bdd.get_max_node_id() + 1;
+  Return_ptr ret_fail = Return::build(zero);
+  Return_ptr ret_success = Return::build(one);
 
-  auto init_root = build_ast(ast, bdd.get_init().get(), target, false);
-  std::vector<Node_ptr> intro_nodes;
-
-  switch (target) {
-  case BDD_NODE_HIT_RATE: {
-    auto u64 = PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT64_T);
-    auto bdd_node_hit_counter_type = Array::build(u64, total_processing_nodes);
-    auto bdd_node_hit_counter =
-        Variable::build("bdd_node_hit_counter", bdd_node_hit_counter_type);
-    ast.push_to_state(bdd_node_hit_counter);
-    [[fallthrough]];
-  }
-  case LOCKS:
-  case TM:
-  case SEQUENTIAL: {
-    auto state = ast.get_state();
-    for (auto gv : state) {
-      VariableDecl_ptr decl = VariableDecl::build(gv);
-      decl->set_terminate_line(true);
-      ast.push_global_code(decl);
-    }
-
-    break;
-  }
-  case SHARED_NOTHING: {
-    auto state = ast.get_state();
-    for (auto &var : state) {
-      // global
-      std::string name = var->get_symbol();
-
-      auto type = var->get_type();
-      auto renamed = Variable::build("_" + name, type);
-      auto ret = PrimitiveType::build(PrimitiveType::PrimitiveKind::VOID);
-
-      std::vector<ExpressionType_ptr> define_args = {type, renamed};
-      std::vector<ExpressionType_ptr> args = {renamed};
-
-      auto def = FunctionCall::build("RTE_DEFINE_PER_LCORE", define_args, ret);
-      def->set_terminate_line(true);
-      ast.push_global_code(def);
-
-      // intro
-      auto grab = FunctionCall::build("RTE_PER_LCORE", args, ret);
-      grab->set_terminate_line(true);
-
-      auto var_ptr = Variable::build(name + "_ptr", Pointer::build(type));
-      auto decl = VariableDecl::build(var_ptr);
-      auto assignment = Assignment::build(decl, AddressOf::build(grab));
-      assignment->set_terminate_line(true);
-
-      // hack
-      var->change_symbol("(*" + name + "_ptr)");
-
-      intro_nodes.push_back(assignment);
-    }
-
-    break;
-  }
+  const calls_t &calls = bdd.get_init();
+  for (const call_t &call : calls) {
+    FunctionCall_ptr init_call_node = ast.init_node_from_call(call, target);
+    Equals_ptr call_failed = Equals::build(init_call_node, zero);
+    Branch_ptr branch = Branch::build(call_failed, ret_fail, nullptr);
+    nodes.push_back(branch);
   }
 
-  assert(init_root->get_kind() == Node::NodeKind::BLOCK);
-  std::vector<Node_ptr> intro_nodes_init;
-
-  if (target == TM) {
-    auto void_ret = PrimitiveType::build(PrimitiveType::PrimitiveKind::VOID);
-    std::vector<ExpressionType_ptr> no_args;
-
-    auto rte_lcore_id = FunctionCall::build("rte_lcore_id", no_args, void_ret);
-
-    std::vector<ExpressionType_ptr> args = {rte_lcore_id};
-    auto HTM_thr_init = FunctionCall::build("HTM_thr_init", args, void_ret);
-    HTM_thr_init->set_terminate_line(true);
-
-    intro_nodes_init.push_back(HTM_thr_init);
-  }
-
-  if (target == BDD_NODE_HIT_RATE) {
-    auto void_ret = PrimitiveType::build(PrimitiveType::PrimitiveKind::VOID);
-    auto void_ptr_ret = Pointer::build(void_ret);
+  if (target == BDD_PATH_PROFILER) {
+    size_t total_code_paths = bdd.size();
 
     auto u64 = PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT64_T);
-    auto bdd_node_hit_counter_type = Array::build(u64, total_processing_nodes);
-    auto u32 = PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT32_T);
+    auto path_profiler_counter_type = Array::build(u64, total_code_paths);
+    auto path_profiler_counter =
+        Variable::build("path_profiler_counter", path_profiler_counter_type);
+    ast.push_to_state(path_profiler_counter);
 
-    for (unsigned i = 0; i < total_processing_nodes; i++) {
-      auto bdd_node_hit_counter = ast.get_from_state("bdd_node_hit_counter");
+    for (size_t i = 0; i < total_code_paths; i++) {
       auto byte = PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT8_T);
       auto idx = Constant::build(PrimitiveType::PrimitiveKind::INT, i);
-      auto bdd_node_hit_counter_byte =
-          Read::build(bdd_node_hit_counter, byte, idx);
+      auto path_profiler_counter_byte =
+          Read::build(path_profiler_counter, byte, idx);
       auto assignment = Assignment::build(
-          bdd_node_hit_counter_byte,
+          path_profiler_counter_byte,
           Constant::build(PrimitiveType::PrimitiveKind::INT, 0));
       assignment->set_terminate_line(true);
-      intro_nodes_init.push_back(assignment);
+      nodes.push_back(assignment);
     }
 
     auto u64_ptr = Pointer::build(u64);
+    auto u32 = PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT32_T);
 
-    auto bdd_node_hit_counter = ast.get_from_state("bdd_node_hit_counter");
-    auto bdd_node_hit_counter_ptr =
-        Variable::build("bdd_node_hit_counter_ptr", u64_ptr);
-    auto bdd_node_hit_counter_sz =
-        Variable::build("bdd_node_hit_counter_sz", u32);
+    auto path_profiler_counter_ptr =
+        Variable::build("path_profiler_counter_ptr", u64_ptr);
+    auto path_profiler_counter_sz =
+        Variable::build("path_profiler_counter_sz", u32);
     auto call_paths_sz = Constant::build(PrimitiveType::PrimitiveKind::UINT32_T,
-                                         total_processing_nodes);
+                                         total_code_paths);
 
-    auto bdd_node_hit_counter_ptr_val =
-        Assignment::build(bdd_node_hit_counter_ptr, bdd_node_hit_counter);
-    auto bdd_node_hit_counter_sz_val =
-        Assignment::build(bdd_node_hit_counter_sz, call_paths_sz);
+    auto path_profiler_counter_ptr_val =
+        Assignment::build(path_profiler_counter_ptr, path_profiler_counter);
+    auto path_profiler_counter_sz_val =
+        Assignment::build(path_profiler_counter_sz, call_paths_sz);
 
-    bdd_node_hit_counter_ptr_val->set_terminate_line(true);
-    bdd_node_hit_counter_sz_val->set_terminate_line(true);
+    path_profiler_counter_ptr_val->set_terminate_line(true);
+    path_profiler_counter_sz_val->set_terminate_line(true);
 
-    intro_nodes_init.push_back(bdd_node_hit_counter_ptr_val);
-    intro_nodes_init.push_back(bdd_node_hit_counter_sz_val);
+    nodes.push_back(path_profiler_counter_ptr_val);
+    nodes.push_back(path_profiler_counter_sz_val);
   }
 
-  if (target == LOCKS || target == TM) {
-    auto ret = PrimitiveType::build(PrimitiveType::PrimitiveKind::INT);
-    std::vector<ExpressionType_ptr> args;
+  nodes.push_back(ret_success);
 
-    auto rte_get_master_lcore =
-        FunctionCall::build("rte_get_master_lcore", args, ret);
-    auto rte_lcore_id = FunctionCall::build("rte_lcore_id", args, ret);
-
-    auto cond = Not::build(Equals::build(rte_get_master_lcore, rte_lcore_id));
-
-    auto one = Constant::build(PrimitiveType::PrimitiveKind::INT, 1);
-    auto on_true = Return::build(one);
-
-    intro_nodes_init.push_back(Branch::build(cond, on_true));
-  }
-
-  intro_nodes_init.insert(intro_nodes_init.end(), intro_nodes.begin(),
-                          intro_nodes.end());
-  intro_nodes_init.push_back(Block::build(init_root, false));
-
-  init_root = Block::build(intro_nodes_init);
-  ast.commit(init_root);
-
-  auto process_root = build_ast(ast, bdd.get_process().get(), target, true);
-
-  assert(process_root->get_kind() == Node::NodeKind::BLOCK);
-  std::vector<Node_ptr> intro_nodes_process = intro_nodes;
-
-  if (target == LOCKS) {
-    intro_nodes_process.push_back(AST::grab_locks());
-  }
-
-  intro_nodes_process.push_back(Block::build(process_root, false));
-  process_root = Block::build(intro_nodes_process);
-
-  ast.commit(process_root);
+  return Block::build(nodes, false);
 }
 
-bdd::BDD build_bdd() {
-  assert((InputBDDFile.size() != 0 || InputCallPathFiles.size() != 0) &&
-         "Please provide either at least 1 call path file, or a bdd file");
+Block_ptr build_process_block(AST &ast, const bdd::BDD &bdd,
+                              TargetOption target) {
+  const bdd::Node *root = bdd.get_root();
+  Node_ptr process_root = build_ast(ast, root, target);
+  return Block::build(process_root, false);
+}
 
-  if (InputBDDFile.size() > 0) {
-    return bdd::BDD(InputBDDFile);
+void build_ast(AST &ast, const bdd::BDD &bdd, TargetOption target) {
+  Block_ptr init_block = build_init_block(ast, bdd, target);
+  ast.commit(init_block);
+
+  Block_ptr process_block = build_process_block(ast, bdd, target);
+  ast.commit(process_block);
+
+  const std::vector<Variable_ptr> &state = ast.get_state();
+  for (Variable_ptr gv : state) {
+    VariableDecl_ptr decl = VariableDecl::build(gv);
+    decl->set_terminate_line(true);
+    ast.push_global_code(decl);
   }
-
-  std::vector<call_path_t *> call_paths;
-
-  for (auto file : InputCallPathFiles) {
-    std::cerr << "Loading: " << file << std::endl;
-
-    call_path_t *call_path = load_call_path(file);
-    call_paths.push_back(call_path);
-  }
-
-  return bdd::BDD(call_paths);
 }
 
 void synthesize(const AST &ast, TargetOption target, std::ostream &out) {
@@ -424,7 +273,7 @@ void synthesize(const AST &ast, TargetOption target, std::ostream &out) {
     boilerplate_path += "sequential.template.cpp";
     break;
   }
-  case BDD_NODE_HIT_RATE: {
+  case BDD_PATH_PROFILER: {
     boilerplate_path += "bdd-analyzer.template.cpp";
     break;
   }
@@ -433,7 +282,7 @@ void synthesize(const AST &ast, TargetOption target, std::ostream &out) {
   }
   }
 
-  auto boilerplate = std::ifstream(boilerplate_path, std::ios::in);
+  std::ifstream boilerplate(boilerplate_path, std::ios::in);
   assert(!boilerplate.fail() && "Boilerplate file not found");
 
   out << boilerplate.rdbuf();
@@ -443,7 +292,7 @@ void synthesize(const AST &ast, TargetOption target, std::ostream &out) {
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv);
 
-  auto bdd = build_bdd();
+  bdd::BDD bdd(InputBDDFile);
 
   AST ast;
   build_ast(ast, bdd, Target);

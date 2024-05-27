@@ -39,7 +39,7 @@ autom4te.cache/
 bdds/
 input/
 *.bdd
-*.gv
+*.dot
 .cache/
 CMakePresets.json
 .clangd

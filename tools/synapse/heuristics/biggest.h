@@ -5,10 +5,10 @@
 
 namespace synapse {
 
-struct BiggestComparator : public HeuristicConfiguration {
-  Score get_score(const ExecutionPlan &ep) const override {
+struct BiggestComparator : public HeuristicCfg {
+  Score get_score(const EP &ep) const override {
     Score score(ep, {
-                        {Score::Category::NumberOfNodes, Score::MAX},
+                        {ScoreCategory::NumberOfNodes, ScoreObjective::MAX},
                     });
     return score;
   }

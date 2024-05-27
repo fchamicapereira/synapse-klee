@@ -32,8 +32,7 @@ int main(int argc, char **argv) {
     auto report = parse_bdd_analyzer_report_t(BDDAnalyzerReport);
 
     if (OutputDot.size()) {
-      std::ofstream ofs(OutputDot);
-      bdd::HitRateGraphvizGenerator generator(ofs, report.counters);
+      bdd::HitRateGraphvizGenerator generator(OutputDot, report.counters);
       generator.visit(bdd);
     }
 
@@ -42,13 +41,15 @@ int main(int argc, char **argv) {
     }
   } else {
     if (OutputDot.size()) {
-      std::ofstream ofs(OutputDot);
-      bdd::GraphvizGenerator generator(ofs);
+      bdd::bdd_visualizer_opts_t opts;
+      opts.fname = OutputDot;
+
+      bdd::BDDVisualizer generator(opts);
       generator.visit(bdd);
     }
 
     if (Show) {
-      bdd::GraphvizGenerator::visualize(bdd, false);
+      bdd::BDDVisualizer::visualize(bdd, false);
     }
   }
 

@@ -5,29 +5,30 @@
 
 namespace synapse {
 
-class Module;
-typedef std::shared_ptr<Module> Module_ptr;
+class ModuleGenerator;
+class TargetContext;
 
-class TargetMemoryBank;
-typedef std::shared_ptr<TargetMemoryBank> TargetMemoryBank_ptr;
-
-enum TargetType {
+enum class TargetType {
   x86,
-  x86_Tofino,
+  TofinoCPU,
   Tofino,
 };
 
-std::ostream &operator<<(std::ostream &os, TargetType type);
+std::ostream &operator<<(std::ostream &os, TargetType target);
 
 struct Target {
   const TargetType type;
-  const std::vector<Module_ptr> modules;
-  const TargetMemoryBank_ptr memory_bank;
+  const std::vector<ModuleGenerator *> module_generators;
+  const TargetContext *ctx;
 
-  Target(TargetType _type, const std::vector<Module_ptr> &_modules,
-         const TargetMemoryBank_ptr &_memory_bank);
+  Target(TargetType _type,
+         const std::vector<ModuleGenerator *> &_module_generators,
+         const TargetContext *_ctx);
+
+  Target(const Target &other) = delete;
+  Target(Target &&other) = delete;
+
+  virtual ~Target();
 };
-
-typedef std::shared_ptr<Target> Target_ptr;
 
 } // namespace synapse

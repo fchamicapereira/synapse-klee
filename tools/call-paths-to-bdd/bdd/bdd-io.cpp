@@ -403,13 +403,13 @@ void BDD::serialize(const std::string &out_file) const {
       nodes_stream << " ";
 
       switch (route_node->get_operation()) {
-      case Route::Operation::FWD:
+      case RouteOperation::FWD:
         nodes_stream << "FWD";
         break;
-      case Route::Operation::DROP:
+      case RouteOperation::DROP:
         nodes_stream << "DROP";
         break;
-      case Route::Operation::BCAST:
+      case RouteOperation::BCAST:
         nodes_stream << "BCAST";
         break;
       }
@@ -816,11 +816,11 @@ static Node *parse_node_route(node_id_t id,
 
   if (route_operation_str == "FWD") {
     int dst_device = std::stoi(dst_device_str);
-    route_node = new Route(id, constraints, Route::Operation::FWD, dst_device);
+    route_node = new Route(id, constraints, RouteOperation::FWD, dst_device);
   } else if (route_operation_str == "DROP") {
-    route_node = new Route(id, constraints, Route::Operation::DROP);
+    route_node = new Route(id, constraints, RouteOperation::DROP);
   } else if (route_operation_str == "BCAST") {
-    route_node = new Route(id, constraints, Route::Operation::BCAST);
+    route_node = new Route(id, constraints, RouteOperation::BCAST);
   } else {
     assert(false && "Unknown route operation");
   }

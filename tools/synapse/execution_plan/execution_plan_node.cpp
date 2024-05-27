@@ -1,91 +1,131 @@
 #include "execution_plan_node.h"
 #include "visitor.h"
 #include "../targets/targets.h"
+#include "../targets/module.h"
 #include "../log.h"
 
 namespace synapse {
 
-ep_node_id_t ExecutionPlanNode::counter = 0;
+static ep_node_id_t counter = 0;
 
-ExecutionPlanNode::ExecutionPlanNode(Module_ptr _module)
-    : id(counter++), module(_module) {}
+EPNode::EPNode(std::unique_ptr<const Module> &&_module)
+    : id(counter++), module(std::move(_module)) {}
 
-ExecutionPlanNode::ExecutionPlanNode(const ExecutionPlanNode *ep_node)
-    : id(counter++), module(ep_node->module) {}
-
-void ExecutionPlanNode::set_next(Branches _next) { next = _next; }
-void ExecutionPlanNode::set_next(ExecutionPlanNode_ptr _next) {
-  next.push_back(_next);
-}
-void ExecutionPlanNode::set_prev(ExecutionPlanNode_ptr _prev) { prev = _prev; }
-
-const Module_ptr &ExecutionPlanNode::get_module() const { return module; }
-void ExecutionPlanNode::replace_module(Module_ptr _module) { module = _module; }
-
-const Branches &ExecutionPlanNode::get_next() const { return next; }
-ExecutionPlanNode_ptr ExecutionPlanNode::get_prev() const { return prev; }
-
-ep_node_id_t ExecutionPlanNode::get_id() const { return id; }
-void ExecutionPlanNode::set_id(ep_node_id_t _id) { id = _id; }
-
-bool ExecutionPlanNode::is_terminal_node() const { return next.size() == 0; }
-
-void ExecutionPlanNode::replace_next(ExecutionPlanNode_ptr before,
-                                     ExecutionPlanNode_ptr after) {
-  for (auto &branch : next) {
-    if (branch->get_id() == before->get_id()) {
-      branch = after;
-      return;
+EPNode::~EPNode() {
+  for (EPNode *child : children) {
+    if (child) {
+      delete child;
+      child = nullptr;
     }
   }
-
-  assert(false && "Before ExecutionPlanNode not found");
 }
 
-void ExecutionPlanNode::replace_prev(ExecutionPlanNode_ptr _prev) {
-  prev = _prev;
+void EPNode::set_children(const std::vector<EPNode *> &_children) {
+  children = _children;
 }
 
-void ExecutionPlanNode::replace_node(bdd::Node_ptr node) {
-  module->replace_node(node);
+void EPNode::set_prev(EPNode *_prev) { prev = _prev; }
+
+const Module *EPNode::get_module() const { return module.get(); }
+
+const std::vector<EPNode *> &EPNode::get_children() const { return children; }
+EPNode *EPNode::get_prev() const { return prev; }
+
+ep_node_id_t EPNode::get_id() const { return id; }
+void EPNode::set_id(ep_node_id_t _id) { id = _id; }
+
+const EPNode *EPNode::get_node_by_id(ep_node_id_t target_id) const {
+  const EPNode *target = nullptr;
+
+  visit_nodes([target_id, &target](const EPNode *node) {
+    if (node->get_id() == target_id) {
+      target = node;
+      return EPNodeVisitAction::STOP;
+    }
+    return EPNodeVisitAction::VISIT_CHILDREN;
+  });
+
+  return target;
 }
 
-ExecutionPlanNode_ptr ExecutionPlanNode::clone(bool recursive) const {
-  // TODO: we are losing BDD traversal information.
-  // That should also be cloned.
+EPNode *EPNode::get_mutable_node_by_id(ep_node_id_t target_id) {
+  EPNode *target = nullptr;
 
-  auto cloned_node = ExecutionPlanNode::build(this);
+  visit_mutable_nodes([target_id, &target](EPNode *node) {
+    if (node->get_id() == target_id) {
+      target = node;
+      return EPNodeVisitAction::STOP;
+    }
+    return EPNodeVisitAction::VISIT_CHILDREN;
+  });
+
+  return target;
+}
+
+bool EPNode::is_terminal_node() const { return children.size() == 0; }
+
+EPNode *EPNode::clone(bool recursive) const {
+  Module *cloned_module = module->clone();
+  EPNode *cloned_node =
+      new EPNode(std::unique_ptr<const Module>(cloned_module));
 
   // The constructor increments the ID, let's fix that
   cloned_node->set_id(id);
 
   if (recursive) {
-    auto next_clones = Branches();
+    std::vector<EPNode *> children_clones;
 
-    for (auto n : next) {
-      auto cloned_next = n->clone(true);
-      next_clones.push_back(cloned_next);
+    for (EPNode *child : children) {
+      EPNode *cloned_children = child->clone(true);
+      children_clones.push_back(cloned_children);
     }
 
-    cloned_node->set_next(next_clones);
+    cloned_node->set_children(children_clones);
   }
 
   return cloned_node;
 }
 
-void ExecutionPlanNode::visit(ExecutionPlanVisitor &visitor) const {
-  visitor.visit(this);
+void EPNode::visit_nodes(
+    std::function<EPNodeVisitAction(const EPNode *)> fn) const {
+  std::vector<const EPNode *> nodes{this};
+  while (nodes.size()) {
+    const EPNode *node = nodes[0];
+    nodes.erase(nodes.begin());
+
+    EPNodeVisitAction action = fn(node);
+
+    if (action == EPNodeVisitAction::STOP)
+      return;
+
+    if (action == EPNodeVisitAction::SKIP_CHILDREN)
+      continue;
+
+    const std::vector<EPNode *> &children = node->get_children();
+    nodes.insert(nodes.end(), children.begin(), children.end());
+  }
 }
 
-ExecutionPlanNode_ptr ExecutionPlanNode::build(Module_ptr _module) {
-  ExecutionPlanNode *epn = new ExecutionPlanNode(_module);
-  return std::shared_ptr<ExecutionPlanNode>(epn);
+void EPNode::visit_mutable_nodes(
+    std::function<EPNodeVisitAction(EPNode *)> fn) {
+  std::vector<EPNode *> nodes{this};
+  while (nodes.size()) {
+    EPNode *node = nodes[0];
+    nodes.erase(nodes.begin());
+
+    EPNodeVisitAction action = fn(node);
+
+    if (action == EPNodeVisitAction::STOP)
+      return;
+
+    if (action == EPNodeVisitAction::SKIP_CHILDREN)
+      continue;
+
+    const std::vector<EPNode *> &children = node->get_children();
+    nodes.insert(nodes.end(), children.begin(), children.end());
+  }
 }
 
-ExecutionPlanNode_ptr
-ExecutionPlanNode::build(const ExecutionPlanNode *ep_node) {
-  ExecutionPlanNode *epn = new ExecutionPlanNode(ep_node);
-  return std::shared_ptr<ExecutionPlanNode>(epn);
-}
+void EPNode::visit(EPVisitor &visitor) const { visitor.visit(this); }
 
 } // namespace synapse

@@ -3,17 +3,15 @@
 #include <assert.h>
 #include <memory>
 
-#define VISIT(MODULE)                                                          \
-  virtual void visit(const ExecutionPlanNode *ep_node, const MODULE *m) {      \
+#define VISIT(M)                                                               \
+  virtual void visit(const EPNode *ep_node, const M *m) {                      \
     assert(false && "Unexpected module.");                                     \
   }
 
 namespace synapse {
 
-class ExecutionPlan;
-class ExecutionPlanNode;
-
-namespace targets {
+class EP;
+class EPNode;
 
 namespace tofino {
 class Ignore;
@@ -40,7 +38,7 @@ class CounterIncrement;
 class HashObj;
 } // namespace tofino
 
-namespace x86_tofino {
+namespace tofino_cpu {
 class Ignore;
 class CurrentTime;
 class PacketParseCPU;
@@ -65,13 +63,12 @@ class Drop;
 class MapGet;
 class MapPut;
 class MapErase;
-class EtherAddrHash;
 class DchainAllocateNewIndex;
 class DchainIsIndexAllocated;
 class DchainRejuvenateIndex;
 class DchainFreeIndex;
 class HashObj;
-} // namespace x86_tofino
+} // namespace tofino_cpu
 
 namespace x86 {
 class MapGet;
@@ -86,13 +83,11 @@ class Broadcast;
 class Drop;
 class ExpireItemsSingleMap;
 class ExpireItemsSingleMapIteratively;
-class RteEtherAddrHash;
 class DchainRejuvenateIndex;
 class VectorBorrow;
 class VectorReturn;
 class DchainAllocateNewIndex;
 class MapPut;
-class PacketGetUnreadLength;
 class SetIpv4UdpTcpChecksum;
 class DchainIsIndexAllocated;
 class SketchComputeHashes;
@@ -107,12 +102,10 @@ class ChtFindBackend;
 class HashObj;
 } // namespace x86
 
-} // namespace targets
-
-class ExecutionPlanVisitor {
+class EPVisitor {
 public:
-  virtual void visit(ExecutionPlan ep);
-  virtual void visit(const ExecutionPlanNode *ep_node);
+  virtual void visit(EP ep);
+  virtual void visit(const EPNode *ep_node);
 
   /*************************************
    *
@@ -120,28 +113,28 @@ public:
    *
    * **********************************/
 
-  VISIT(targets::tofino::Ignore)
-  VISIT(targets::tofino::If)
-  VISIT(targets::tofino::Then)
-  VISIT(targets::tofino::Else)
-  VISIT(targets::tofino::Forward)
-  VISIT(targets::tofino::ParseCustomHeader)
-  VISIT(targets::tofino::ModifyCustomHeader)
-  VISIT(targets::tofino::ParserCondition)
-  VISIT(targets::tofino::Drop)
-  VISIT(targets::tofino::SendToController)
-  VISIT(targets::tofino::SetupExpirationNotifications)
-  VISIT(targets::tofino::IPv4TCPUDPChecksumsUpdate)
-  VISIT(targets::tofino::TableModule)
-  VISIT(targets::tofino::TableLookup)
-  VISIT(targets::tofino::TableRejuvenation)
-  VISIT(targets::tofino::TableIsAllocated)
-  VISIT(targets::tofino::IntegerAllocatorAllocate)
-  VISIT(targets::tofino::IntegerAllocatorRejuvenate)
-  VISIT(targets::tofino::IntegerAllocatorQuery)
-  VISIT(targets::tofino::CounterRead)
-  VISIT(targets::tofino::CounterIncrement)
-  VISIT(targets::tofino::HashObj)
+  VISIT(tofino::Ignore)
+  VISIT(tofino::If)
+  VISIT(tofino::Then)
+  VISIT(tofino::Else)
+  VISIT(tofino::Forward)
+  VISIT(tofino::ParseCustomHeader)
+  VISIT(tofino::ModifyCustomHeader)
+  VISIT(tofino::ParserCondition)
+  VISIT(tofino::Drop)
+  VISIT(tofino::SendToController)
+  VISIT(tofino::SetupExpirationNotifications)
+  VISIT(tofino::IPv4TCPUDPChecksumsUpdate)
+  VISIT(tofino::TableModule)
+  VISIT(tofino::TableLookup)
+  VISIT(tofino::TableRejuvenation)
+  VISIT(tofino::TableIsAllocated)
+  VISIT(tofino::IntegerAllocatorAllocate)
+  VISIT(tofino::IntegerAllocatorRejuvenate)
+  VISIT(tofino::IntegerAllocatorQuery)
+  VISIT(tofino::CounterRead)
+  VISIT(tofino::CounterIncrement)
+  VISIT(tofino::HashObj)
 
   /*************************************
    *
@@ -149,36 +142,35 @@ public:
    *
    * **********************************/
 
-  VISIT(targets::x86_tofino::Ignore)
-  VISIT(targets::x86_tofino::CurrentTime)
-  VISIT(targets::x86_tofino::PacketParseCPU)
-  VISIT(targets::x86_tofino::PacketParseEthernet)
-  VISIT(targets::x86_tofino::PacketModifyEthernet)
-  VISIT(targets::x86_tofino::PacketParseIPv4)
-  VISIT(targets::x86_tofino::PacketModifyIPv4)
-  VISIT(targets::x86_tofino::PacketParseIPv4Options)
-  VISIT(targets::x86_tofino::PacketModifyIPv4Options)
-  VISIT(targets::x86_tofino::PacketParseTCPUDP)
-  VISIT(targets::x86_tofino::PacketModifyTCPUDP)
-  VISIT(targets::x86_tofino::PacketParseTCP)
-  VISIT(targets::x86_tofino::PacketModifyTCP)
-  VISIT(targets::x86_tofino::PacketParseUDP)
-  VISIT(targets::x86_tofino::PacketModifyUDP)
-  VISIT(targets::x86_tofino::PacketModifyChecksums)
-  VISIT(targets::x86_tofino::ForwardThroughTofino)
-  VISIT(targets::x86_tofino::If)
-  VISIT(targets::x86_tofino::Then)
-  VISIT(targets::x86_tofino::Else)
-  VISIT(targets::x86_tofino::Drop)
-  VISIT(targets::x86_tofino::MapGet)
-  VISIT(targets::x86_tofino::MapPut)
-  VISIT(targets::x86_tofino::EtherAddrHash)
-  VISIT(targets::x86_tofino::DchainAllocateNewIndex)
-  VISIT(targets::x86_tofino::DchainIsIndexAllocated)
-  VISIT(targets::x86_tofino::DchainRejuvenateIndex)
-  VISIT(targets::x86_tofino::DchainFreeIndex)
-  VISIT(targets::x86_tofino::HashObj)
-  VISIT(targets::x86_tofino::MapErase)
+  VISIT(tofino_cpu::Ignore)
+  VISIT(tofino_cpu::CurrentTime)
+  VISIT(tofino_cpu::PacketParseCPU)
+  VISIT(tofino_cpu::PacketParseEthernet)
+  VISIT(tofino_cpu::PacketModifyEthernet)
+  VISIT(tofino_cpu::PacketParseIPv4)
+  VISIT(tofino_cpu::PacketModifyIPv4)
+  VISIT(tofino_cpu::PacketParseIPv4Options)
+  VISIT(tofino_cpu::PacketModifyIPv4Options)
+  VISIT(tofino_cpu::PacketParseTCPUDP)
+  VISIT(tofino_cpu::PacketModifyTCPUDP)
+  VISIT(tofino_cpu::PacketParseTCP)
+  VISIT(tofino_cpu::PacketModifyTCP)
+  VISIT(tofino_cpu::PacketParseUDP)
+  VISIT(tofino_cpu::PacketModifyUDP)
+  VISIT(tofino_cpu::PacketModifyChecksums)
+  VISIT(tofino_cpu::ForwardThroughTofino)
+  VISIT(tofino_cpu::If)
+  VISIT(tofino_cpu::Then)
+  VISIT(tofino_cpu::Else)
+  VISIT(tofino_cpu::Drop)
+  VISIT(tofino_cpu::MapGet)
+  VISIT(tofino_cpu::MapPut)
+  VISIT(tofino_cpu::DchainAllocateNewIndex)
+  VISIT(tofino_cpu::DchainIsIndexAllocated)
+  VISIT(tofino_cpu::DchainRejuvenateIndex)
+  VISIT(tofino_cpu::DchainFreeIndex)
+  VISIT(tofino_cpu::HashObj)
+  VISIT(tofino_cpu::MapErase)
 
   /*************************************
    *
@@ -186,40 +178,38 @@ public:
    *
    * **********************************/
 
-  VISIT(targets::x86::MapGet)
-  VISIT(targets::x86::CurrentTime)
-  VISIT(targets::x86::PacketBorrowNextChunk)
-  VISIT(targets::x86::PacketReturnChunk)
-  VISIT(targets::x86::If)
-  VISIT(targets::x86::Then)
-  VISIT(targets::x86::Else)
-  VISIT(targets::x86::Forward)
-  VISIT(targets::x86::Broadcast)
-  VISIT(targets::x86::Drop)
-  VISIT(targets::x86::ExpireItemsSingleMap)
-  VISIT(targets::x86::ExpireItemsSingleMapIteratively)
-  VISIT(targets::x86::RteEtherAddrHash)
-  VISIT(targets::x86::DchainRejuvenateIndex)
-  VISIT(targets::x86::VectorBorrow)
-  VISIT(targets::x86::VectorReturn)
-  VISIT(targets::x86::DchainAllocateNewIndex)
-  VISIT(targets::x86::MapPut)
-  VISIT(targets::x86::PacketGetUnreadLength)
-  VISIT(targets::x86::SetIpv4UdpTcpChecksum)
-  VISIT(targets::x86::DchainIsIndexAllocated)
-  VISIT(targets::x86::SketchComputeHashes)
-  VISIT(targets::x86::SketchExpire)
-  VISIT(targets::x86::SketchFetch)
-  VISIT(targets::x86::SketchRefresh)
-  VISIT(targets::x86::SketchTouchBuckets)
-  VISIT(targets::x86::MapErase)
-  VISIT(targets::x86::DchainFreeIndex)
-  VISIT(targets::x86::LoadBalancedFlowHash)
-  VISIT(targets::x86::ChtFindBackend)
-  VISIT(targets::x86::HashObj)
+  VISIT(x86::MapGet)
+  VISIT(x86::CurrentTime)
+  VISIT(x86::PacketBorrowNextChunk)
+  VISIT(x86::PacketReturnChunk)
+  VISIT(x86::If)
+  VISIT(x86::Then)
+  VISIT(x86::Else)
+  VISIT(x86::Forward)
+  VISIT(x86::Broadcast)
+  VISIT(x86::Drop)
+  VISIT(x86::ExpireItemsSingleMap)
+  VISIT(x86::ExpireItemsSingleMapIteratively)
+  VISIT(x86::DchainRejuvenateIndex)
+  VISIT(x86::VectorBorrow)
+  VISIT(x86::VectorReturn)
+  VISIT(x86::DchainAllocateNewIndex)
+  VISIT(x86::MapPut)
+  VISIT(x86::SetIpv4UdpTcpChecksum)
+  VISIT(x86::DchainIsIndexAllocated)
+  VISIT(x86::SketchComputeHashes)
+  VISIT(x86::SketchExpire)
+  VISIT(x86::SketchFetch)
+  VISIT(x86::SketchRefresh)
+  VISIT(x86::SketchTouchBuckets)
+  VISIT(x86::MapErase)
+  VISIT(x86::DchainFreeIndex)
+  VISIT(x86::LoadBalancedFlowHash)
+  VISIT(x86::ChtFindBackend)
+  VISIT(x86::HashObj)
 
 protected:
-  virtual void log(const ExecutionPlanNode *ep_node) const;
+  virtual void log(const EPNode *ep_node) const;
 };
 
 } // namespace synapse

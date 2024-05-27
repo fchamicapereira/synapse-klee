@@ -24,72 +24,47 @@
 #include "call-paths-to-bdd.h"
 #include "load-call-paths.h"
 
-#include "code_generator.h"
-#include "execution_plan/execution_plan.h"
-#include "graphviz/graphviz.h"
+#include "log.h"
+#include "visualizers/ep_visualizer.h"
+#include "visualizers/ss_visualizer.h"
 #include "heuristics/heuristics.h"
 #include "search.h"
-#include "log.h"
-
-using llvm::cl::cat;
-using llvm::cl::desc;
-using llvm::cl::OneOrMore;
-using llvm::cl::Positional;
-using llvm::cl::Required;
-using llvm::cl::values;
 
 using namespace synapse;
 
 namespace {
 llvm::cl::OptionCategory SyNAPSE("SyNAPSE specific options");
 
-llvm::cl::list<TargetType> TargetList(
-    desc("Available targets:"), Required, OneOrMore,
-    values(clEnumValN(TargetType::Tofino, "tofino", "Tofino (P4)"),
-           clEnumValN(TargetType::x86_Tofino, "x86-tofino",
-                      "Tofino ctrl (C++)"),
-           clEnumValN(TargetType::x86, "x86", "x86 (DPDK C)"), clEnumValEnd),
-    cat(SyNAPSE));
+llvm::cl::opt<std::string> InputBDDFile("in", llvm::cl::desc("Input BDD."),
+                                        llvm::cl::cat(SyNAPSE));
 
 llvm::cl::opt<std::string>
-    InputBDDFile("in", desc("Input file for BDD deserialization."),
-                 cat(SyNAPSE));
+    Out("out", llvm::cl::desc("Output directory for every generated file."),
+        llvm::cl::cat(SyNAPSE));
 
-llvm::cl::opt<std::string>
-    Out("out", desc("Output directory for every generated file."),
-        cat(SyNAPSE));
+llvm::cl::opt<bool> BDDReorder("r", llvm::cl::desc("Activate BDD reordering."),
+                               llvm::cl::ValueDisallowed, llvm::cl::init(false),
+                               llvm::cl::cat(SyNAPSE));
 
-llvm::cl::opt<int> MaxReordered(
-    "max-reordered",
-    desc("Maximum number of reordenations on the BDD (-1 for unlimited)."),
-    llvm::cl::Optional, llvm::cl::init(-1), cat(SyNAPSE));
-
-llvm::cl::opt<bool> ShowEP("s", desc("Show winner Execution Plan."),
+llvm::cl::opt<bool> ShowEP("s", llvm::cl::desc("Show winner Execution Plan."),
                            llvm::cl::ValueDisallowed, llvm::cl::init(false),
-                           cat(SyNAPSE));
+                           llvm::cl::cat(SyNAPSE));
 
-llvm::cl::opt<bool> ShowSS("ss", desc("Show the entire search space."),
+llvm::cl::opt<bool> ShowSS("ss",
+                           llvm::cl::desc("Show the entire search space."),
                            llvm::cl::ValueDisallowed, llvm::cl::init(false),
-                           cat(SyNAPSE));
+                           llvm::cl::cat(SyNAPSE));
 
-llvm::cl::opt<int> Peek("peek",
-                        desc("Peek search space at the given BDD node."),
-                        llvm::cl::Optional, llvm::cl::init(-1), cat(SyNAPSE));
+llvm::cl::list<int>
+    Peek("peek", llvm::cl::desc("Peek search space at the given BDD node."),
+         llvm::cl::Optional, llvm::cl::cat(SyNAPSE));
 
-llvm::cl::opt<bool> Verbose("v", desc("Verbose mode."),
+llvm::cl::opt<bool> Verbose("v", llvm::cl::desc("Verbose mode."),
                             llvm::cl::ValueDisallowed, llvm::cl::init(false),
-                            cat(SyNAPSE));
+                            llvm::cl::cat(SyNAPSE));
 } // namespace
 
-std::pair<ExecutionPlan, SearchSpace> search(const bdd::BDD &bdd,
-                                             bdd::node_id_t peek) {
-  SearchEngine search_engine(bdd, MaxReordered);
-
-  for (unsigned i = 0; i != TargetList.size(); ++i) {
-    auto target = TargetList[i];
-    search_engine.add_target(target);
-  }
-
+std::pair<EP, SearchSpace> search(const bdd::BDD &bdd) {
   Biggest biggest;
   DFS dfs;
   MostCompact most_compact;
@@ -97,27 +72,22 @@ std::pair<ExecutionPlan, SearchSpace> search(const bdd::BDD &bdd,
   MaximizeSwitchNodes maximize_switch_nodes;
   Gallium gallium;
 
-  // auto winner = search_engine.search(biggest, peek);
-  // auto winner = search_engine.search(least_reordered, peek);
-  // auto winner = search_engine.search(dfs, peek);
-  // auto winner = search_engine.search(most_compact, peek);
-  // auto winner = search_engine.search(maximize_switch_nodes, peek);
-  auto winner = search_engine.search(gallium, peek);
-  const auto &ss = search_engine.get_search_space();
+  bdd::nodes_t peek;
+  for (int node_id : Peek) {
+    peek.insert(node_id);
+  }
+
+  SearchEngine engine(bdd, gallium, BDDReorder, peek);
+  EP winner = engine.search();
+  const SearchSpace &ss = engine.get_search_space();
 
   return {winner, ss};
 }
 
-void synthesize(const std::string &fname, const ExecutionPlan &ep) {
-  CodeGenerator code_generator(Out, fname);
-
-  for (unsigned i = 0; i != TargetList.size(); ++i) {
-    auto target = TargetList[i];
-    code_generator.add_target(target);
-  }
-
-  code_generator.generate(ep);
-}
+// void synthesize(const std::string &fname, const EP &ep) {
+//   CodeGenerator code_generator(Out, fname);
+//   code_generator.generate(ep);
+// }
 
 std::string nf_name_from_bdd(const std::string &bdd_fname) {
   std::string nf_name = bdd_fname;
@@ -135,12 +105,11 @@ int main(int argc, char **argv) {
     Log::MINIMUM_LOG_LEVEL = Log::Level::LOG;
   }
 
-  assert(InputBDDFile.size() && "Missing BDD file");
-  auto bdd = bdd::BDD(InputBDDFile);
-  auto nf_name = nf_name_from_bdd(InputBDDFile);
+  bdd::BDD bdd(InputBDDFile);
+  std::string nf_name = nf_name_from_bdd(InputBDDFile);
 
   auto start_search = std::chrono::steady_clock::now();
-  auto search_results = search(bdd, Peek);
+  auto search_results = search(bdd);
   auto end_search = std::chrono::steady_clock::now();
 
   auto search_dt = std::chrono::duration_cast<std::chrono::seconds>(
@@ -148,24 +117,24 @@ int main(int argc, char **argv) {
                        .count();
 
   if (ShowEP) {
-    Graphviz::visualize(search_results.first);
+    EPVisualizer::visualize(search_results.first, false);
   }
 
   if (ShowSS) {
-    Graphviz::visualize(search_results.second);
+    SSVisualizer::visualize(search_results.second, false);
   }
 
   int64_t synthesis_dt = -1;
 
-  if (Out.size()) {
-    auto start_synthesis = std::chrono::steady_clock::now();
-    synthesize(nf_name, search_results.first);
-    auto end_synthesis = std::chrono::steady_clock::now();
+  // if (Out.size()) {
+  //   auto start_synthesis = std::chrono::steady_clock::now();
+  //   synthesize(nf_name, search_results.first);
+  //   auto end_synthesis = std::chrono::steady_clock::now();
 
-    synthesis_dt = std::chrono::duration_cast<std::chrono::seconds>(
-                       end_synthesis - start_synthesis)
-                       .count();
-  }
+  //   synthesis_dt = std::chrono::duration_cast<std::chrono::seconds>(
+  //                      end_synthesis - start_synthesis)
+  //                      .count();
+  // }
 
   Log::log() << "Search time:     " << search_dt << " sec\n";
 

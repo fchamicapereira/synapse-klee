@@ -5,24 +5,26 @@
 
 namespace synapse {
 
-struct MaximizeSwitchNodesComparator : public HeuristicConfiguration {
-  Score get_score(const ExecutionPlan &ep) const override {
+struct MaximizeSwitchNodesComparator : public HeuristicCfg {
+  Score get_score(const EP &ep) const override {
     Score score(
         ep,
         {
-            // {Score::Category::NumberOfIntAllocatorOps, Score::MAX},
-            // {Score::Category::NumberOfSimpleTables, Score::MAX},
-            {Score::Category::NumberOfCounters, Score::MAX},
-            {Score::Category::NumberOfSwitchNodes, Score::MAX},
-            {Score::Category::NumberOfSwitchLeaves, Score::MAX},
-            // {Score::Category::HasNextStatefulOperationInSwitch, Score::MAX},
-            {Score::Category::ConsecutiveObjectOperationsInSwitch, Score::MAX},
+            // {ScoreCategory::NumberOfIntAllocatorOps, ScoreObjective::MAX},
+            // {ScoreCategory::NumberOfSimpleTables, ScoreObjective::MAX},
+            {ScoreCategory::NumberOfCounters, ScoreObjective::MAX},
+            {ScoreCategory::NumberOfSwitchNodes, ScoreObjective::MAX},
+            {ScoreCategory::NumberOfSwitchLeaves, ScoreObjective::MAX},
+            // {ScoreCategory::HasNextStatefulOperationInSwitch,
+            // ScoreObjective::MAX},
+            {ScoreCategory::ConsecutiveObjectOperationsInSwitch,
+             ScoreObjective::MAX},
 
-            // Let's add this one to just speed up the process when we are
-            // generating controller nodes. After all, we only get to this point
-            // if all the metrics behind this one are the same, and by that
-            // point who cares.
-            {Score::Category::ProcessedBDDPercentage, Score::MAX},
+            // Let's add this one to just speed up the process when
+            // we are generating controller nodes. After all, we
+            // only get to this point if all the metrics behind this
+            // one are the same, and by that point who cares.
+            {ScoreCategory::ProcessedBDDPercentage, ScoreObjective::MAX},
         });
 
     return score;

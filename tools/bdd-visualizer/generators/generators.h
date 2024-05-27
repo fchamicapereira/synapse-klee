@@ -1,4 +1,4 @@
 #pragma once
 
-#include "base-graphviz.h"
+#include "bdd_visualizer.h"
 #include "hit-rate.h"
