@@ -27,7 +27,7 @@ public:
         n_elems(_n_elems) {}
 
 private:
-  generated_data_t process(const EP &ep, const bdd::Node *node) override {
+  generated_data_t process(const EP *ep, const bdd::Node *node) override {
     generated_data_t result;
 
     auto casted = static_cast<const bdd::Call *>(node);

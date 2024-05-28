@@ -76,24 +76,18 @@ static std::string stringify_bdd_node(const bdd::Node *node) {
 static void visit_definitions(std::stringstream &ss,
                               const SearchSpace &search_space,
                               const SSNode *ssnode) {
-  ss_node_id_t ss_node_id = ssnode->node_id;
-  const std::vector<SSNode *> &next_nodes = ssnode->children;
-  const Module *module = ssnode->module;
-  const bdd::Node *node = ssnode->node;
-  const Score &score = ssnode->score;
-  TargetType target = module->get_target();
-  std::string target_color = node_colors.at(target);
+  const std::string &target_color = node_colors.at(ssnode->target);
 
   auto indent = [&ss](int lvl) { ss << std::string(lvl, '\t'); };
 
   indent(1);
-  ss << ss_node_id;
+  ss << ssnode->node_id;
   ss << " [label=<\n";
 
   indent(2);
   ss << "<table";
 
-  if (search_space.was_explored(ss_node_id)) {
+  if (search_space.was_explored(ssnode->node_id)) {
     ss << " border=\"4\"";
     ss << " bgcolor=\"blue\"";
     ss << " color=\"green\"";
@@ -117,7 +111,7 @@ static void visit_definitions(std::stringstream &ss,
   ss << "bgcolor=\"" << target_color << "\"";
   ss << ">";
 
-  ss << stringify_score(score);
+  ss << stringify_score(ssnode->score);
   ss << "</td>\n";
 
   indent(3);
@@ -133,8 +127,8 @@ static void visit_definitions(std::stringstream &ss,
   ss << " bgcolor=\"" << target_color << "\"";
   ss << " colspan=\"2\"";
   ss << ">";
-  if (module) {
-    ss << module->get_name();
+  if (ssnode->module) {
+    ss << ssnode->module->get_name();
   } else {
     ss << "ROOT";
   }
@@ -153,8 +147,8 @@ static void visit_definitions(std::stringstream &ss,
   ss << " bgcolor=\"" << target_color << "\"";
   ss << " colspan=\"2\"";
   ss << ">";
-  if (node) {
-    ss << stringify_bdd_node(node);
+  if (ssnode->node) {
+    ss << stringify_bdd_node(ssnode->node);
   }
   ss << "</td>\n";
 
@@ -167,7 +161,7 @@ static void visit_definitions(std::stringstream &ss,
   indent(1);
   ss << ">]\n\n";
 
-  for (const SSNode *next : next_nodes) {
+  for (const SSNode *next : ssnode->children) {
     visit_definitions(ss, search_space, next);
   }
 }
@@ -196,8 +190,10 @@ void SSVisualizer::visit(const SearchSpace &search_space) {
 
   const SSNode *root = search_space.get_root();
 
-  visit_definitions(ss, search_space, root);
-  visit_links(ss, root);
+  if (root) {
+    visit_definitions(ss, search_space, root);
+    visit_links(ss, root);
+  }
 
   ss << "}";
   ss.flush();

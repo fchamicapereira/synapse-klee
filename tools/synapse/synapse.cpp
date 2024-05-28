@@ -64,7 +64,7 @@ llvm::cl::opt<bool> Verbose("v", llvm::cl::desc("Verbose mode."),
                             llvm::cl::cat(SyNAPSE));
 } // namespace
 
-std::pair<EP, SearchSpace> search(const bdd::BDD &bdd) {
+std::pair<EP *, SearchSpace> search(const bdd::BDD &bdd) {
   Biggest biggest;
   DFS dfs;
   MostCompact most_compact;
@@ -78,13 +78,13 @@ std::pair<EP, SearchSpace> search(const bdd::BDD &bdd) {
   }
 
   SearchEngine engine(bdd, gallium, BDDReorder, peek);
-  EP winner = engine.search();
+  EP *winner = engine.search();
   const SearchSpace &ss = engine.get_search_space();
 
   return {winner, ss};
 }
 
-// void synthesize(const std::string &fname, const EP &ep) {
+// void synthesize(const std::string &fname, const EP*ep) {
 //   CodeGenerator code_generator(Out, fname);
 //   code_generator.generate(ep);
 // }
@@ -141,6 +141,8 @@ int main(int argc, char **argv) {
   if (synthesis_dt >= 0) {
     Log::log() << "Generation time: " << synthesis_dt << " sec\n";
   }
+
+  delete search_results.first;
 
   return 0;
 }

@@ -17,9 +17,9 @@ class EPVisualizer : public EPVisitor, public Graphviz {
 public:
   EPVisualizer();
 
-  static void visualize(const EP &ep, bool interrupt);
+  static void visualize(const EP *ep, bool interrupt);
 
-  void visit(EP ep) override;
+  void visit(const EP *ep) override;
   void visit(const EPNode *ep_node) override;
 
   /********************************************
@@ -92,13 +92,14 @@ public:
    *
    ********************************************/
 
+  DECLARE_VISIT(x86::If)
+  DECLARE_VISIT(x86::Then)
+  DECLARE_VISIT(x86::Else)
+
   // DECLARE_VISIT(x86::MapGet)
   // DECLARE_VISIT(x86::CurrentTime)
   // DECLARE_VISIT(x86::PacketBorrowNextChunk)
   // DECLARE_VISIT(x86::PacketReturnChunk)
-  // DECLARE_VISIT(x86::If)
-  // DECLARE_VISIT(x86::Then)
-  // DECLARE_VISIT(x86::Else)
   // DECLARE_VISIT(x86::Forward)
   // DECLARE_VISIT(x86::Broadcast)
   // DECLARE_VISIT(x86::Drop)

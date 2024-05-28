@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "../execution_plan/execution_plan.h"
-#include "../execution_plan/execution_plan_node.h"
+#include "../execution_plan/node.h"
 #include "../targets/modules.h"
 #include "../log.h"
 
@@ -30,7 +30,7 @@ enum class ScoreObjective { MIN, MAX };
 
 class Score {
 private:
-  typedef int (Score::*ComputerPtr)(const EP &ep) const;
+  typedef int (Score::*ComputerPtr)(const EP *ep) const;
 
   // Responsible for calculating the score value for a given ScoreCategory.
   std::map<ScoreCategory, ComputerPtr> computers;
@@ -47,7 +47,7 @@ public:
       : computers(score.computers), categories(score.categories),
         values(score.values) {}
 
-  Score(const EP &ep,
+  Score(const EP *ep,
         const std::vector<std::pair<ScoreCategory, ScoreObjective>>
             &categories_objectives) {
     computers = {
@@ -159,7 +159,7 @@ public:
   friend std::ostream &operator<<(std::ostream &os, const Score &dt);
 
 private:
-  int compute(const EP &ep, ScoreCategory ScoreCategory,
+  int compute(const EP *ep, ScoreCategory ScoreCategory,
               ScoreObjective ScoreObjective) const {
     auto found_it = computers.find(ScoreCategory);
 
@@ -193,20 +193,20 @@ private:
   }
 
   std::vector<const EPNode *>
-  get_nodes_with_type(const EP &ep, const std::vector<ModuleType> &types) const;
+  get_nodes_with_type(const EP *ep, const std::vector<ModuleType> &types) const;
 
-  int get_nr_nodes(const EP &ep) const;
-  int get_nr_counters(const EP &ep) const;
-  int get_nr_int_allocator_ops(const EP &ep) const;
-  int get_nr_simple_tables(const EP &ep) const;
-  int get_depth(const EP &ep) const;
-  int get_nr_switch_nodes(const EP &ep) const;
-  int get_nr_controller_nodes(const EP &ep) const;
-  int get_nr_reordered_nodes(const EP &ep) const;
-  int get_nr_switch_leaves(const EP &ep) const;
-  int next_op_same_obj_in_switch(const EP &ep) const;
-  int next_op_is_stateful_in_switch(const EP &ep) const;
-  int get_percentage_of_processed_bdd(const EP &ep) const;
+  int get_nr_nodes(const EP *ep) const;
+  int get_nr_counters(const EP *ep) const;
+  int get_nr_int_allocator_ops(const EP *ep) const;
+  int get_nr_simple_tables(const EP *ep) const;
+  int get_depth(const EP *ep) const;
+  int get_nr_switch_nodes(const EP *ep) const;
+  int get_nr_controller_nodes(const EP *ep) const;
+  int get_nr_reordered_nodes(const EP *ep) const;
+  int get_nr_switch_leaves(const EP *ep) const;
+  int next_op_same_obj_in_switch(const EP *ep) const;
+  int next_op_is_stateful_in_switch(const EP *ep) const;
+  int get_percentage_of_processed_bdd(const EP *ep) const;
 };
 
 std::ostream &operator<<(std::ostream &os, const Score &score);

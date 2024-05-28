@@ -23,7 +23,7 @@ public:
         modifications(_modifications) {}
 
 private:
-  klee::ref<klee::Expr> get_original_chunk(const EP &ep,
+  klee::ref<klee::Expr> get_original_chunk(const EP *ep,
                                            const bdd::Node *node) const {
     auto prev_borrows = get_prev_fn(ep, node, "packet_borrow_next_chunk");
     auto prev_returns = get_prev_fn(ep, node, "packet_return_chunk");
@@ -44,7 +44,7 @@ private:
     return call.extra_vars["the_chunk"].second;
   }
 
-  generated_data_t process(const EP &ep, const bdd::Node *node) override {
+  generated_data_t process(const EP *ep, const bdd::Node *node) override {
     generated_data_t result;
 
     auto casted = static_cast<const bdd::Call *>(node);

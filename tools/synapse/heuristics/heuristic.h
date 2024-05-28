@@ -8,9 +8,9 @@
 namespace synapse {
 
 struct HeuristicCfg {
-  virtual Score get_score(const EP &e) const = 0;
+  virtual Score get_score(const EP *e) const = 0;
 
-  virtual bool operator()(const EP &e1, const EP &e2) const {
+  virtual bool operator()(const EP *e1, const EP *e2) const {
     return get_score(e1) > get_score(e2);
   }
 
@@ -22,16 +22,26 @@ template <class HCfg> class Heuristic {
                 "HCfg must inherit from HeuristicCfg");
 
 protected:
-  std::multiset<EP, HCfg> execution_plans;
+  std::multiset<const EP *, HCfg> execution_plans;
   HCfg configuration;
 
+public:
+  ~Heuristic() {
+    for (const EP *ep : execution_plans) {
+      if (ep) {
+        delete ep;
+        ep = nullptr;
+      }
+    }
+  }
+
 private:
-  typename std::set<EP, HCfg>::iterator get_best_it() const {
+  typename std::set<const EP *, HCfg>::iterator get_best_it() const {
     assert(execution_plans.size());
     return execution_plans.begin();
   }
 
-  typename std::set<EP, HCfg>::iterator get_next_it() const {
+  typename std::set<const EP *, HCfg>::iterator get_next_it() const {
     if (execution_plans.size() == 0) {
       Log::err() << "No more execution plans to pick!\n";
       exit(1);
@@ -41,11 +51,11 @@ private:
 
     auto it = execution_plans.begin();
     while (!cfg->terminate_on_first_solution() && it != execution_plans.end() &&
-           !it->get_next_node()) {
+           !(*it)->get_next_node()) {
       ++it;
     }
 
-    if (it != execution_plans.end() && !it->get_next_node()) {
+    if (it != execution_plans.end() && !(*it)->get_next_node()) {
       it = execution_plans.end();
     }
 
@@ -55,29 +65,29 @@ private:
 public:
   bool finished() const { return get_next_it() == execution_plans.end(); }
 
-  EP get() { return *get_best_it(); }
+  const EP *get() { return *get_best_it(); }
 
-  std::vector<EP> get_all() const {
-    std::vector<EP> eps;
+  std::vector<const EP *> get_all() const {
+    std::vector<const EP *> eps;
     eps.assign(execution_plans.begin(), execution_plans.end());
     return eps;
   }
 
-  EP pop() {
+  const EP *pop() {
     auto it = get_next_it();
     assert(it != execution_plans.end());
 
-    EP copy = *it;
+    const EP *ep = *it;
     execution_plans.erase(it);
 
-    return copy;
+    return ep;
   }
 
-  void add(const std::vector<EP> &next_eps) {
-    for (const EP &ep : next_eps) {
+  void add(const std::vector<const EP *> &next_eps) {
+    for (const EP *ep : next_eps) {
       bool found = false;
 
-      for (const EP &saved_ep : execution_plans) {
+      for (const EP *saved_ep : execution_plans) {
         if (saved_ep == ep) {
           found = true;
           break;
@@ -96,7 +106,7 @@ public:
 
   const HCfg *get_cfg() const { return &configuration; }
 
-  Score get_score(const EP &e) const {
+  Score get_score(const EP *e) const {
     auto conf = static_cast<const HeuristicCfg *>(&configuration);
     return conf->get_score(e);
   }

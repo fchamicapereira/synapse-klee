@@ -16,7 +16,7 @@ public:
       : x86Module(ModuleType::x86_Forward, "Forward", node), port(_port) {}
 
 private:
-  generated_data_t process(const EP &ep, const bdd::Node *node) override {
+  generated_data_t process(const EP *ep, const bdd::Node *node) override {
     generated_data_t result;
 
     auto casted = static_cast<const bdd::Route *>(node);

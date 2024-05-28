@@ -29,7 +29,7 @@ public:
   BroadcastGenerator() : x86ModuleGenerator(ModuleType::x86_Broadcast) {}
 
 protected:
-  generated_data_t process_node(const EP &ep, const bdd::Node *node) override {
+  generated_data_t process_node(const EP *ep, const bdd::Node *node) override {
     generated_data_t result;
 
     if (node->get_type() != bdd::NodeType::ROUTE) {

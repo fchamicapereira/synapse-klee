@@ -1,4 +1,4 @@
-#include "execution_plan_node.h"
+#include "node.h"
 #include "visitor.h"
 #include "../targets/targets.h"
 #include "../targets/module.h"
@@ -8,10 +8,14 @@ namespace synapse {
 
 static ep_node_id_t counter = 0;
 
-EPNode::EPNode(std::unique_ptr<const Module> &&_module)
-    : id(counter++), module(std::move(_module)) {}
+EPNode::EPNode(const Module *_module) : id(counter++), module(_module) {}
 
 EPNode::~EPNode() {
+  if (module) {
+    delete module;
+    module = nullptr;
+  }
+
   for (EPNode *child : children) {
     if (child) {
       delete child;
@@ -26,7 +30,7 @@ void EPNode::set_children(const std::vector<EPNode *> &_children) {
 
 void EPNode::set_prev(EPNode *_prev) { prev = _prev; }
 
-const Module *EPNode::get_module() const { return module.get(); }
+const Module *EPNode::get_module() const { return module; }
 
 const std::vector<EPNode *> &EPNode::get_children() const { return children; }
 EPNode *EPNode::get_prev() const { return prev; }
@@ -66,8 +70,7 @@ bool EPNode::is_terminal_node() const { return children.size() == 0; }
 
 EPNode *EPNode::clone(bool recursive) const {
   Module *cloned_module = module->clone();
-  EPNode *cloned_node =
-      new EPNode(std::unique_ptr<const Module>(cloned_module));
+  EPNode *cloned_node = new EPNode(cloned_module);
 
   // The constructor increments the ID, let's fix that
   cloned_node->set_id(id);

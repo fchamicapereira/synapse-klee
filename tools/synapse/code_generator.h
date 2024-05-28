@@ -15,7 +15,7 @@ namespace synapse {
 
 class CodeGenerator {
 private:
-  typedef EP (CodeGenerator::*ExecutionPlanTargetExtractor)(const EP &) const;
+  typedef EP (CodeGenerator::*ExecutionPlanTargetExtractor)(const EP *) const;
   typedef std::shared_ptr<Synthesizer> Synthesizer_ptr;
 
   struct target_helper_t {
@@ -33,9 +33,9 @@ private:
   std::vector<target_helper_t> target_helpers_loaded;
   std::map<TargetType, target_helper_t> target_helpers_bank;
 
-  EP x86_extractor(const EP &execution_plan) const;
-  EP tofino_cpu_extractor(const EP &execution_plan) const;
-  EP tofino_extractor(const EP &execution_plan) const;
+  EP x86_extractor(const EP *execution_plan) const;
+  EP tofino_cpu_extractor(const EP *execution_plan) const;
+  EP tofino_extractor(const EP *execution_plan) const;
 
   std::string directory;
   std::string fname;
@@ -86,7 +86,7 @@ public:
     target_helpers_loaded.push_back(found_it->second);
   }
 
-  void generate(const EP &execution_plan) {
+  void generate(const EP *execution_plan) {
     for (auto helper : target_helpers_loaded) {
       auto &extractor = helper.extractor;
       auto &generator = helper.generator;

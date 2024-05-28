@@ -32,13 +32,13 @@ bool Module::query_contains_map_has_key(const bdd::Branch *node) const {
 }
 
 std::vector<const bdd::Node *>
-Module::get_prev_fn(const EP &ep, const bdd::Node *node,
+Module::get_prev_fn(const EP *ep, const bdd::Node *node,
                     const std::vector<std::string> &fnames,
                     bool ignore_targets) const {
   std::vector<const bdd::Node *> prev_functions;
 
-  TargetType target = ep.get_current_platform();
-  const bdd::nodes_t &roots = ep.get_target_roots(target);
+  TargetType target = ep->get_current_platform();
+  const bdd::nodes_t &roots = ep->get_target_roots(target);
 
   while (node && roots.find(node->get_id()) == roots.end()) {
     if (node->get_type() == bdd::NodeType::CALL) {
@@ -58,18 +58,18 @@ Module::get_prev_fn(const EP &ep, const bdd::Node *node,
 }
 
 std::vector<const bdd::Node *>
-Module::get_prev_fn(const EP &ep, const bdd::Node *node,
+Module::get_prev_fn(const EP *ep, const bdd::Node *node,
                     const std::string &function_name,
                     bool ignore_targets) const {
   return get_prev_fn(ep, node, {function_name}, ignore_targets);
 }
 
 std::vector<const Module *>
-Module::get_prev_modules(const EP &ep,
+Module::get_prev_modules(const EP *ep,
                          const std::vector<ModuleType> &targets) const {
   std::vector<const Module *> modules;
 
-  const EPLeaf *leaf = ep.get_active_leaf();
+  const EPLeaf *leaf = ep->get_active_leaf();
   const EPNode *ep_node = leaf->node;
 
   while (ep_node) {
@@ -352,7 +352,7 @@ get_allowed_coalescing_objs(std::vector<const bdd::Node *> index_allocators,
 }
 
 Module::map_coalescing_data_t
-Module::get_map_coalescing_data_t(const EP &ep, addr_t obj) const {
+Module::get_map_coalescing_data_t(const EP *ep, addr_t obj) const {
   // We can cache results previously made, as BDD reordering will not change the
   // result.
   std::unordered_map<addr_t, Module::map_coalescing_data_t> cache;
@@ -363,7 +363,7 @@ Module::get_map_coalescing_data_t(const EP &ep, addr_t obj) const {
 
   Module::map_coalescing_data_t data;
 
-  const bdd::BDD *bdd = ep.get_bdd();
+  const bdd::BDD *bdd = ep->get_bdd();
   auto root = bdd->get_root();
 
   auto index_allocators =
@@ -396,14 +396,14 @@ Module::get_map_coalescing_data_t(const EP &ep, addr_t obj) const {
 }
 
 klee::ref<klee::Expr>
-Module::get_original_vector_value(const EP &ep, const bdd::Node *node,
+Module::get_original_vector_value(const EP *ep, const bdd::Node *node,
                                   addr_t target_addr) const {
   const bdd::Node *source;
   return get_original_vector_value(ep, node, target_addr, source);
 }
 
 klee::ref<klee::Expr>
-Module::get_original_vector_value(const EP &ep, const bdd::Node *node,
+Module::get_original_vector_value(const EP *ep, const bdd::Node *node,
                                   addr_t target_addr,
                                   const bdd::Node *&source) const {
   auto all_prev_vector_borrow = get_prev_fn(ep, node, "vector_borrow");
@@ -656,10 +656,10 @@ bool is_counter_read_op(const bdd::Node *vector_borrow) {
   return equal_values;
 }
 
-Module::counter_data_t Module::is_counter(const EP &ep, addr_t obj) const {
+Module::counter_data_t Module::is_counter(const EP *ep, addr_t obj) const {
   Module::counter_data_t data;
 
-  const bdd::BDD *bdd = ep.get_bdd();
+  const bdd::BDD *bdd = ep->get_bdd();
   auto cfg = bdd::get_vector_config(*bdd, obj);
 
   if (cfg.elem_size > 64 || cfg.capacity != 1) {
@@ -698,9 +698,9 @@ Module::counter_data_t Module::is_counter(const EP &ep, addr_t obj) const {
   return data;
 }
 
-klee::ref<klee::Expr> Module::get_expr_from_addr(const EP &ep,
+klee::ref<klee::Expr> Module::get_expr_from_addr(const EP *ep,
                                                  addr_t addr) const {
-  const bdd::BDD *bdd = ep.get_bdd();
+  const bdd::BDD *bdd = ep->get_bdd();
   auto root = bdd->get_root();
   auto nodes = get_all_functions_after_node(root, {
                                                       "map_get",

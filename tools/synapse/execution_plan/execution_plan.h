@@ -2,7 +2,7 @@
 
 #include "call-paths-to-bdd.h"
 
-#include "execution_plan_node.h"
+#include "node.h"
 #include "meta.h"
 #include "../targets/target.h"
 #include "../targets/context.h"
@@ -44,11 +44,11 @@ public:
      const std::vector<const Target *> &targets);
 
   EP(const EP &other);
-  EP(EP &&other);
 
   ~EP();
 
-  EP &operator=(const EP &other);
+  EP(EP &&other) = delete;
+  EP &operator=(const EP *other) = delete;
 
   ep_id_t get_id() const;
   const bdd::BDD *get_bdd() const;
@@ -62,13 +62,14 @@ public:
   std::vector<const EPNode *> get_prev_nodes_of_current_target() const;
 
   EPNode *get_mutable_root();
+  Context &get_mutable_context();
 
   bool has_target(TargetType type) const;
   const bdd::Node *get_next_node() const;
   const EPLeaf *get_active_leaf() const;
   TargetType get_current_platform() const;
 
-  void process_leaf(const std::vector<EPLeaf> &new_leaves);
+  void process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves);
 
   void replace_bdd(
       std::unique_ptr<bdd::BDD> &&new_bdd,
@@ -85,7 +86,5 @@ public:
 private:
   EPLeaf *get_mutable_active_leaf();
 };
-
-bool operator==(const EP &lhs, const EP &rhs);
 
 } // namespace synapse

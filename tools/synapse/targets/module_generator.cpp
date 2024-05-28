@@ -4,16 +4,16 @@
 
 namespace synapse {
 
-static bool can_process_platform(const EP &ep, TargetType target) {
-  auto current_target = ep.get_current_platform();
+static bool can_process_platform(const EP *ep, TargetType target) {
+  auto current_target = ep->get_current_platform();
   return current_target == target;
 }
 
-static std::vector<EP> get_reordered(const EP &ep) {
-  std::vector<EP> reordered;
+static std::vector<const EP *> get_reordered(const EP *ep) {
+  std::vector<const EP *> reordered;
 
   assert(false && "TODO");
-  // auto next_node = ep.get_next_node();
+  // auto next_node = ep->get_next_node();
 
   // if (!next_node) {
   //   return reordered;
@@ -25,17 +25,17 @@ static std::vector<EP> get_reordered(const EP &ep) {
   //   return reordered;
   // }
 
-  // auto current_bdd = ep.get_bdd();
-  // auto current_target = ep.get_current_platform();
+  // auto current_bdd = ep->get_bdd();
+  // auto current_target = ep->get_current_platform();
 
-  // const auto &meta = ep.get_meta();
+  // const auto &meta = ep->get_meta();
   // auto roots_per_target = meta.roots_per_target.at(current_target);
 
   // auto reordered_bdds =
   //     bdd::reorder(current_bdd, current_node, roots_per_target);
 
   // for (auto reordered_bdd : reordered_bdds) {
-  //   auto ep_cloned = ep.clone(reordered_bdd.bdd);
+  //   auto ep_cloned = ep->clone(reordered_bdd.bdd);
 
   //   if (!reordered_bdd.condition.isNull()) {
   //     auto ctx = ep_cloned.get_context();
@@ -57,27 +57,28 @@ static std::vector<EP> get_reordered(const EP &ep) {
   return reordered;
 }
 
-modgen_report_t ModuleGenerator::generate(const EP &ep,
-                                          const bdd::Node *node) const {
-  modgen_report_t result;
-
+modgen_report_t ModuleGenerator::generate(const EP *ep, const bdd::Node *node,
+                                          bool reorder_bdd) const {
   if (!can_process_platform(ep, target)) {
-    return result;
+    return modgen_report_t();
   }
 
-  result = process_node(ep, node);
+  modgen_report_t result = process_node(ep, node);
 
-  std::vector<EP> reordered;
-  for (const EP &ep : result.next) {
-    std::vector<EP> ep_reodered = get_reordered(ep);
-    reordered.insert(reordered.end(), ep_reodered.begin(), ep_reodered.end());
+  if (reorder_bdd) {
+    std::vector<const EP *> reordered;
+
+    for (const EP *ep : result.next) {
+      std::vector<const EP *> ep_reodered = get_reordered(ep);
+      reordered.insert(reordered.end(), ep_reodered.begin(), ep_reodered.end());
+    }
+
+    if (reordered.size() > 0) {
+      Log::dbg() << "+ " << reordered.size() << " reordered BDDs\n";
+    }
+
+    result.next.insert(result.next.end(), reordered.begin(), reordered.end());
   }
-
-  if (reordered.size() > 0) {
-    Log::dbg() << "+ " << reordered.size() << " reordered BDDs\n";
-  }
-
-  result.next.insert(result.next.end(), reordered.begin(), reordered.end());
 
   return result;
 }

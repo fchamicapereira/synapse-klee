@@ -22,7 +22,7 @@ public:
         sketch_addr(_sketch_addr), time(_time), success(_success) {}
 
 private:
-  generated_data_t process(const EP &ep, const bdd::Node *node) override {
+  generated_data_t process(const EP *ep, const bdd::Node *node) override {
     generated_data_t result;
 
     auto casted = static_cast<const bdd::Call *>(node);

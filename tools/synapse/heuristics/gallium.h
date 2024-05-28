@@ -6,7 +6,7 @@
 namespace synapse {
 
 struct GalliumComparator : public HeuristicCfg {
-  Score get_score(const EP &ep) const override {
+  Score get_score(const EP *ep) const override {
     Score score(
         ep, {
                 {ScoreCategory::NumberOfCounters, ScoreObjective::MAX},

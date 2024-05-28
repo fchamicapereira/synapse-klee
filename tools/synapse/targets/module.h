@@ -4,6 +4,9 @@
 
 #include "context.h"
 #include "target.h"
+#include "../execution_plan/execution_plan.h"
+#include "../execution_plan/node.h"
+#include "../execution_plan/visitor.h"
 
 #include "../log.h"
 
@@ -109,7 +112,7 @@ protected:
   ModuleType type;
   TargetType target;
   TargetType next_target;
-  const std::string &name;
+  std::string name;
   const bdd::Node *node;
 
   Module(ModuleType _type, TargetType _target, const std::string &_name,
@@ -123,17 +126,13 @@ protected:
 
 public:
   Module(const Module &m) : Module(m.type, m.target, m.name, m.node) {}
+  virtual ~Module() {}
 
   ModuleType get_type() const { return type; }
   const std::string &get_name() const { return name; }
   TargetType get_target() const { return target; }
   TargetType get_next_target() const { return next_target; }
   const bdd::Node *get_node() const { return node; }
-
-  void replace_node(const bdd::Node *_node) {
-    node = _node;
-    assert(node);
-  }
 
   virtual void visit(EPVisitor &visitor, const EPNode *ep_node) const = 0;
   virtual Module *clone() const = 0;
@@ -143,12 +142,12 @@ protected:
   // General useful queries
   bool query_contains_map_has_key(const bdd::Branch *node) const;
 
-  std::vector<const bdd::Node *> get_prev_fn(const EP &ep,
+  std::vector<const bdd::Node *> get_prev_fn(const EP *ep,
                                              const bdd::Node *node,
                                              const std::string &fnames,
                                              bool ignore_targets = false) const;
   std::vector<const bdd::Node *>
-  get_prev_fn(const EP &ep, const bdd::Node *node,
+  get_prev_fn(const EP *ep, const bdd::Node *node,
               const std::vector<std::string> &functions_names,
               bool ignore_targets = false) const;
 
@@ -160,7 +159,7 @@ protected:
   bool is_parser_drop(const bdd::Node *root) const;
 
   std::vector<const Module *>
-  get_prev_modules(const EP &ep, const std::vector<ModuleType> &) const;
+  get_prev_modules(const EP *ep, const std::vector<ModuleType> &) const;
 
   bool is_expr_only_packet_dependent(klee::ref<klee::Expr> expr) const;
 
@@ -177,20 +176,20 @@ protected:
   // implemented with vectors, such that (1) the value it stores is <= 64 bits,
   // and (2) the only write operations performed on them increment the stored
   // value.
-  counter_data_t is_counter(const EP &ep, addr_t obj) const;
+  counter_data_t is_counter(const EP *ep, addr_t obj) const;
 
   // When we encounter a vector_return operation and want to retrieve its
   // vector_borrow value counterpart. This is useful to compare changes to the
   // value expression and retrieve the performed modifications (if any).
-  klee::ref<klee::Expr> get_original_vector_value(const EP &ep,
+  klee::ref<klee::Expr> get_original_vector_value(const EP *ep,
                                                   const bdd::Node *node,
                                                   addr_t target_addr) const;
   klee::ref<klee::Expr>
-  get_original_vector_value(const EP &ep, const bdd::Node *node,
+  get_original_vector_value(const EP *ep, const bdd::Node *node,
                             addr_t target_addr, const bdd::Node *&source) const;
 
   // Get the data associated with this address.
-  klee::ref<klee::Expr> get_expr_from_addr(const EP &ep, addr_t addr) const;
+  klee::ref<klee::Expr> get_expr_from_addr(const EP *ep, addr_t addr) const;
 
   struct map_coalescing_data_t {
     bool valid;
@@ -201,7 +200,7 @@ protected:
     map_coalescing_data_t() : valid(false) {}
   };
 
-  map_coalescing_data_t get_map_coalescing_data_t(const EP &ep,
+  map_coalescing_data_t get_map_coalescing_data_t(const EP *ep,
                                                   addr_t map_addr) const;
 };
 

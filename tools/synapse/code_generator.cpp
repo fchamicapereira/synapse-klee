@@ -1,7 +1,7 @@
 #include "code_generator.h"
 
 #include "execution_plan/execution_plan.h"
-#include "execution_plan/execution_plan_node.h"
+#include "execution_plan/node.h"
 #include "graphviz/graphviz.h"
 #include "targets/modules/modules.h"
 
@@ -9,7 +9,7 @@ namespace synapse {
 using tofino::TofinoContext;
 using tofino_cpu::x86TofinoContext;
 
-bool only_has_modules_from_target(const EP &ep, TargetType type) {
+bool only_has_modules_from_target(const EP *ep, TargetType type) {
   std::vector<const EPNode *> nodes{ep.get_root()};
 
   while (nodes.size()) {
@@ -82,7 +82,7 @@ struct tofino_cpu_root_info_t {
 typedef std::vector<std::pair<EPNode *, tofino_cpu_root_info_t>>
     tofino_cpu_roots_t;
 
-tofino_cpu_roots_t get_roots(const EP &execution_plan) {
+tofino_cpu_roots_t get_roots(const EP *execution_plan) {
   assert(execution_plan.get_root());
 
   tofino_cpu_roots_t roots;
@@ -119,7 +119,7 @@ tofino_cpu_roots_t get_roots(const EP &execution_plan) {
   return roots;
 }
 
-EP CodeGenerator::tofino_cpu_extractor(const EP &execution_plan) const {
+EP CodeGenerator::tofino_cpu_extractor(const EP *execution_plan) const {
   if (only_has_modules_from_target(execution_plan, TargetType::TofinoCPU)) {
     return execution_plan;
   }
@@ -204,7 +204,7 @@ EP CodeGenerator::tofino_cpu_extractor(const EP &execution_plan) const {
   return extracted;
 }
 
-EP CodeGenerator::tofino_extractor(const EP &execution_plan) const {
+EP CodeGenerator::tofino_extractor(const EP *execution_plan) const {
   EP extracted = execution_plan.clone(true);
   std::vector<EPNode *> nodes{extracted.get_mutable_root()};
 
@@ -232,7 +232,7 @@ EP CodeGenerator::tofino_extractor(const EP &execution_plan) const {
   return extracted;
 }
 
-EP CodeGenerator::x86_extractor(const EP &execution_plan) const {
+EP CodeGenerator::x86_extractor(const EP *execution_plan) const {
   // No extraction at all, just asserting that this targets contains only x86
   // nodes.
 

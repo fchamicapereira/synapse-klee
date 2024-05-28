@@ -1,6 +1,6 @@
 #include "visitor.h"
 #include "execution_plan.h"
-#include "execution_plan_node.h"
+#include "node.h"
 #include "../targets/module.h"
 #include "../log.h"
 
@@ -8,8 +8,8 @@
 
 namespace synapse {
 
-void EPVisitor::visit(EP ep) {
-  auto root = ep.get_root();
+void EPVisitor::visit(const EP *ep) {
+  const EPNode *root = ep->get_root();
 
   if (root) {
     root->visit(*this);

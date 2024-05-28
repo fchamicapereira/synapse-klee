@@ -2,33 +2,36 @@
 
 #include "x86_module.h"
 
-#include "else.h"
-
 namespace synapse {
 namespace x86 {
 
 class Then : public x86Module {
 public:
-  Then() : x86Module(ModuleType::x86_Then, "Then") {}
   Then(const bdd::Node *node) : x86Module(ModuleType::x86_Then, "Then", node) {}
 
-private:
-  generated_data_t process(const EP &ep, const bdd::Node *node) override {
-    return generated_data_t();
-  }
-
-public:
   virtual void visit(EPVisitor &visitor, const EPNode *ep_node) const override {
     visitor.visit(ep_node, this);
   }
 
-  virtual Module_ptr clone() const override {
-    auto cloned = new Then(node);
-    return std::shared_ptr<Module>(cloned);
+  virtual Module *clone() const override {
+    Then *cloned = new Then(node);
+    return cloned;
   }
 
   virtual bool equals(const Module *other) const override {
     return other->get_type() == type;
+  }
+};
+
+class ThenGenerator : public x86ModuleGenerator {
+public:
+  ThenGenerator() : x86ModuleGenerator(ModuleType::x86_Then) {}
+
+protected:
+  virtual modgen_report_t process_node(const EP *ep,
+                                       const bdd::Node *node) const override {
+    // Never explicitly generate this module from the BDD.
+    return modgen_report_t();
   }
 };
 

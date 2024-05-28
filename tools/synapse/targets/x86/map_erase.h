@@ -20,7 +20,7 @@ public:
         map_addr(_map_addr), key(_key), trash(_trash) {}
 
 private:
-  generated_data_t process(const EP &ep, const bdd::Node *node) override {
+  generated_data_t process(const EP *ep, const bdd::Node *node) override {
     generated_data_t result;
 
     auto casted = static_cast<const bdd::Call *>(node);

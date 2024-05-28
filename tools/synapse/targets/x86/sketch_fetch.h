@@ -18,7 +18,7 @@ public:
         sketch_addr(_sketch_addr), overflow(_overflow) {}
 
 private:
-  generated_data_t process(const EP &ep, const bdd::Node *node) override {
+  generated_data_t process(const EP *ep, const bdd::Node *node) override {
     generated_data_t result;
 
     auto casted = static_cast<const bdd::Call *>(node);

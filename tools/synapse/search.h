@@ -17,18 +17,18 @@ private:
   Heuristic<HCfg> h;
   SearchSpace search_space;
 
-  bool bdd_reordering;
+  bool allow_bdd_reordering;
   bdd::nodes_t nodes_to_peek;
 
 public:
-  SearchEngine(const bdd::BDD &bdd, Heuristic<HCfg> h, bool bdd_reordering,
-               const bdd::nodes_t &nodes_to_peek);
+  SearchEngine(const bdd::BDD &bdd, Heuristic<HCfg> h,
+               bool allow_bdd_reordering, const bdd::nodes_t &nodes_to_peek);
 
   SearchEngine(const bdd::BDD &bdd, Heuristic<HCfg> h);
 
   ~SearchEngine();
 
-  EP search();
+  EP *search();
 
   const SearchSpace &get_search_space() const { return search_space; }
 };

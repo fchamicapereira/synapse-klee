@@ -9,12 +9,13 @@
 // #include "dchain_is_index_allocated.h"
 // #include "dchain_rejuvenate_index.h"
 // #include "drop.h"
-// #include "else.h"
+#include "if.h"
+#include "then.h"
+#include "else.h"
 // #include "expire_items_single_map.h"
 // #include "expire_items_single_map_iteratively.h"
 // #include "forward.h"
 // #include "hash_obj.h"
-// #include "if.h"
 // #include "load_balanced_flow_hash.h"
 // #include "map_erase.h"
 // #include "map_get.h"
@@ -27,7 +28,6 @@
 // #include "sketch_fetch.h"
 // #include "sketch_refresh.h"
 // #include "sketch_touch_buckets.h"
-// #include "then.h"
 // #include "vector_borrow.h"
 // #include "vector_return.h"
 
@@ -42,9 +42,7 @@ struct x86Target : public Target {
                {
                    //    new PacketBorrowNextChunkGenerator(),
                    //    new PacketReturnChunkGenerator(),
-                   //    new IfGenerator(),
-                   //    new ThenGenerator(),
-                   //    new ElseGenerator(),
+                   new IfGenerator(), new ThenGenerator(), new ElseGenerator(),
                    //    new ForwardGenerator(),
                    //    new BroadcastGenerator(),
                    //    new DropGenerator(),

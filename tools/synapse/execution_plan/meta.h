@@ -3,11 +3,15 @@
 #include "call-paths-to-bdd.h"
 #include "klee-util.h"
 
+#include "node.h"
 #include "../targets/target.h"
 
 #include <unordered_map>
+#include <unordered_set>
 
 namespace synapse {
+
+class EPLeaf;
 
 struct EPMeta {
   const size_t total_bdd_nodes;
@@ -17,6 +21,7 @@ struct EPMeta {
   size_t reordered_nodes;
 
   std::unordered_map<TargetType, size_t> nodes_per_target;
+  std::unordered_set<ep_node_id_t> visited_nodes;
   bdd::nodes_t processed_nodes;
 
   EPMeta(const bdd::BDD *bdd)
@@ -51,6 +56,8 @@ struct EPMeta {
   float get_bdd_progress() const {
     return processed_nodes.size() / static_cast<float>(total_bdd_nodes);
   }
+
+  void update(const EPLeaf *leaf, const EPNode *new_node);
 };
 
 } // namespace synapse

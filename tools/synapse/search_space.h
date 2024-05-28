@@ -55,9 +55,9 @@ public:
 
   ~SearchSpace() { delete root; }
 
-  void activate_leaf(const EP &ep);
+  void activate_leaf(const EP *ep);
   void add_to_active_leaf(const bdd::Node *node, const Module *module,
-                          const std::vector<EP> &generated_eps);
+                          const std::vector<const EP *> &generated_eps);
 
   SSNode *get_root() const;
   bool was_explored(ss_node_id_t node_id) const;

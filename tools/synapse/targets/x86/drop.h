@@ -11,7 +11,7 @@ public:
   Drop(const bdd::Node *node) : x86Module(ModuleType::x86_Drop, "Drop", node) {}
 
 private:
-  generated_data_t process(const EP &ep, const bdd::Node *node) override {
+  generated_data_t process(const EP *ep, const bdd::Node *node) override {
     generated_data_t result;
 
     auto casted = static_cast<const bdd::Route *>(node);

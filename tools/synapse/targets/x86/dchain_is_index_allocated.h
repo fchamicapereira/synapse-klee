@@ -24,7 +24,7 @@ public:
         dchain_addr(_dchain_addr), index(_index), is_allocated(_is_allocated) {}
 
 private:
-  generated_data_t process(const EP &ep, const bdd::Node *node) override {
+  generated_data_t process(const EP *ep, const bdd::Node *node) override {
     generated_data_t result;
 
     auto casted = static_cast<const bdd::Call *>(node);

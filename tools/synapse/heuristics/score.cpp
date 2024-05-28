@@ -3,17 +3,17 @@
 
 namespace synapse {
 
-int Score::get_nr_nodes(const EP &ep) const {
-  const EPMeta &meta = ep.get_meta();
+int Score::get_nr_nodes(const EP *ep) const {
+  const EPMeta &meta = ep->get_meta();
   return meta.nodes;
 }
 
 std::vector<const EPNode *>
-Score::get_nodes_with_type(const EP &ep,
+Score::get_nodes_with_type(const EP *ep,
                            const std::vector<ModuleType> &types) const {
   std::vector<const EPNode *> found;
 
-  const EPNode *root = ep.get_root();
+  const EPNode *root = ep->get_root();
 
   if (!root) {
     return found;
@@ -41,20 +41,20 @@ Score::get_nodes_with_type(const EP &ep,
   return found;
 }
 
-int Score::get_nr_counters(const EP &ep) const {
+int Score::get_nr_counters(const EP *ep) const {
   std::vector<const EPNode *> nodes =
       get_nodes_with_type(ep, {ModuleType::Tofino_CounterRead,
                                ModuleType::Tofino_CounterIncrement});
   return nodes.size();
 }
 
-int Score::get_nr_simple_tables(const EP &ep) const {
+int Score::get_nr_simple_tables(const EP *ep) const {
   std::vector<const EPNode *> nodes =
       get_nodes_with_type(ep, {ModuleType::Tofino_TableLookup});
   return nodes.size();
 }
 
-int Score::get_nr_int_allocator_ops(const EP &ep) const {
+int Score::get_nr_int_allocator_ops(const EP *ep) const {
   std::vector<const EPNode *> nodes =
       get_nodes_with_type(ep, {
                                   ModuleType::Tofino_IntegerAllocatorAllocate,
@@ -65,15 +65,15 @@ int Score::get_nr_int_allocator_ops(const EP &ep) const {
   return nodes.size();
 }
 
-int Score::get_depth(const EP &ep) const {
-  const EPMeta &meta = ep.get_meta();
+int Score::get_depth(const EP *ep) const {
+  const EPMeta &meta = ep->get_meta();
   return meta.depth;
 }
 
-int Score::get_nr_switch_nodes(const EP &ep) const {
+int Score::get_nr_switch_nodes(const EP *ep) const {
   int switch_nodes = 0;
 
-  const EPMeta &meta = ep.get_meta();
+  const EPMeta &meta = ep->get_meta();
   auto tofino_nodes_it = meta.nodes_per_target.find(TargetType::Tofino);
 
   if (tofino_nodes_it != meta.nodes_per_target.end()) {
@@ -87,10 +87,10 @@ int Score::get_nr_switch_nodes(const EP &ep) const {
   return switch_nodes - send_to_controller.size();
 }
 
-int Score::get_nr_controller_nodes(const EP &ep) const {
+int Score::get_nr_controller_nodes(const EP *ep) const {
   int controller_nodes = 0;
 
-  const EPMeta &meta = ep.get_meta();
+  const EPMeta &meta = ep->get_meta();
   auto tofino_controller_nodes_it =
       meta.nodes_per_target.find(TargetType::TofinoCPU);
 
@@ -101,15 +101,15 @@ int Score::get_nr_controller_nodes(const EP &ep) const {
   return controller_nodes;
 }
 
-int Score::get_nr_reordered_nodes(const EP &ep) const {
-  const EPMeta &meta = ep.get_meta();
+int Score::get_nr_reordered_nodes(const EP *ep) const {
+  const EPMeta &meta = ep->get_meta();
   return meta.reordered_nodes;
 }
 
-int Score::get_nr_switch_leaves(const EP &ep) const {
+int Score::get_nr_switch_leaves(const EP *ep) const {
   int switch_leaves = 0;
 
-  const std::vector<EPLeaf> &leaves = ep.get_leaves();
+  const std::vector<EPLeaf> &leaves = ep->get_leaves();
   std::vector<TargetType> switch_types{TargetType::Tofino};
 
   for (const EPLeaf &leaf : leaves) {
@@ -124,14 +124,14 @@ int Score::get_nr_switch_leaves(const EP &ep) const {
   return switch_leaves;
 }
 
-int Score::next_op_same_obj_in_switch(const EP &ep) const {
-  TargetType target = ep.get_current_platform();
+int Score::next_op_same_obj_in_switch(const EP *ep) const {
+  TargetType target = ep->get_current_platform();
 
   if (target != TargetType::Tofino) {
     return 0;
   }
 
-  const bdd::Node *next = ep.get_next_node();
+  const bdd::Node *next = ep->get_next_node();
 
   if (!next) {
     return 0;
@@ -165,14 +165,14 @@ int Score::next_op_same_obj_in_switch(const EP &ep) const {
   return 0;
 }
 
-int Score::next_op_is_stateful_in_switch(const EP &ep) const {
-  TargetType target = ep.get_current_platform();
+int Score::next_op_is_stateful_in_switch(const EP *ep) const {
+  TargetType target = ep->get_current_platform();
 
   if (target != TargetType::Tofino) {
     return 0;
   }
 
-  const bdd::Node *next = ep.get_next_node();
+  const bdd::Node *next = ep->get_next_node();
 
   if (!next) {
     return 0;
@@ -205,8 +205,8 @@ int Score::next_op_is_stateful_in_switch(const EP &ep) const {
   return 0;
 }
 
-int Score::get_percentage_of_processed_bdd(const EP &ep) const {
-  const EPMeta &meta = ep.get_meta();
+int Score::get_percentage_of_processed_bdd(const EP *ep) const {
+  const EPMeta &meta = ep->get_meta();
   return 100 * meta.get_bdd_progress();
 }
 

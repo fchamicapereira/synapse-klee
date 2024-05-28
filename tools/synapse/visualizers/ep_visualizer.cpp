@@ -60,13 +60,13 @@ void EPVisualizer::branch(const EPNode *ep_node, const bdd::Node *node,
   ss << "\n";
 }
 
-void EPVisualizer::visualize(const EP &ep, bool interrupt) {
+void EPVisualizer::visualize(const EP *ep, bool interrupt) {
   EPVisualizer visualizer;
   visualizer.visit(ep);
   visualizer.show(interrupt);
 }
 
-void EPVisualizer::visit(EP ep) {
+void EPVisualizer::visit(const EP *ep) {
   ss << "digraph EP {\n";
   ss << "layout=\"dot\";";
   ss << "node [shape=record,style=filled];\n";
@@ -299,9 +299,9 @@ void EPVisualizer::visit(const EPNode *node) {
 // DEFAULT_VISIT_PRINT_MODULE_NAME(x86::CurrentTime)
 // DEFAULT_VISIT_PRINT_MODULE_NAME(x86::PacketBorrowNextChunk)
 // DEFAULT_VISIT_PRINT_MODULE_NAME(x86::PacketReturnChunk)
-// DEFAULT_BRANCH_VISIT_PRINT_MODULE_NAME(x86::If)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(x86::Then)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(x86::Else)
+DEFAULT_BRANCH_VISIT_PRINT_MODULE_NAME(x86::If)
+DEFAULT_VISIT_PRINT_MODULE_NAME(x86::Then)
+DEFAULT_VISIT_PRINT_MODULE_NAME(x86::Else)
 // DEFAULT_VISIT_PRINT_MODULE_NAME(x86::Forward)
 // DEFAULT_VISIT_PRINT_MODULE_NAME(x86::Broadcast)
 // DEFAULT_VISIT_PRINT_MODULE_NAME(x86::Drop)

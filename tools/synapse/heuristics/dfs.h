@@ -6,7 +6,7 @@
 namespace synapse {
 
 struct DFSComparator : public HeuristicCfg {
-  virtual Score get_score(const EP &ep) const override {
+  virtual Score get_score(const EP *ep) const override {
     Score score(ep, {
                         {ScoreCategory::Depth, ScoreObjective::MAX},
                     });

@@ -3,9 +3,9 @@
 #include <assert.h>
 #include <memory>
 
-#define VISIT(M)                                                               \
+#define VISIT_TODO(M)                                                          \
   virtual void visit(const EPNode *ep_node, const M *m) {                      \
-    assert(false && "Unexpected module.");                                     \
+    assert(false && "TODO");                                                   \
   }
 
 namespace synapse {
@@ -104,7 +104,7 @@ class HashObj;
 
 class EPVisitor {
 public:
-  virtual void visit(EP ep);
+  virtual void visit(const EP *ep);
   virtual void visit(const EPNode *ep_node);
 
   /*************************************
@@ -113,28 +113,28 @@ public:
    *
    * **********************************/
 
-  VISIT(tofino::Ignore)
-  VISIT(tofino::If)
-  VISIT(tofino::Then)
-  VISIT(tofino::Else)
-  VISIT(tofino::Forward)
-  VISIT(tofino::ParseCustomHeader)
-  VISIT(tofino::ModifyCustomHeader)
-  VISIT(tofino::ParserCondition)
-  VISIT(tofino::Drop)
-  VISIT(tofino::SendToController)
-  VISIT(tofino::SetupExpirationNotifications)
-  VISIT(tofino::IPv4TCPUDPChecksumsUpdate)
-  VISIT(tofino::TableModule)
-  VISIT(tofino::TableLookup)
-  VISIT(tofino::TableRejuvenation)
-  VISIT(tofino::TableIsAllocated)
-  VISIT(tofino::IntegerAllocatorAllocate)
-  VISIT(tofino::IntegerAllocatorRejuvenate)
-  VISIT(tofino::IntegerAllocatorQuery)
-  VISIT(tofino::CounterRead)
-  VISIT(tofino::CounterIncrement)
-  VISIT(tofino::HashObj)
+  VISIT_TODO(tofino::Ignore)
+  VISIT_TODO(tofino::If)
+  VISIT_TODO(tofino::Then)
+  VISIT_TODO(tofino::Else)
+  VISIT_TODO(tofino::Forward)
+  VISIT_TODO(tofino::ParseCustomHeader)
+  VISIT_TODO(tofino::ModifyCustomHeader)
+  VISIT_TODO(tofino::ParserCondition)
+  VISIT_TODO(tofino::Drop)
+  VISIT_TODO(tofino::SendToController)
+  VISIT_TODO(tofino::SetupExpirationNotifications)
+  VISIT_TODO(tofino::IPv4TCPUDPChecksumsUpdate)
+  VISIT_TODO(tofino::TableModule)
+  VISIT_TODO(tofino::TableLookup)
+  VISIT_TODO(tofino::TableRejuvenation)
+  VISIT_TODO(tofino::TableIsAllocated)
+  VISIT_TODO(tofino::IntegerAllocatorAllocate)
+  VISIT_TODO(tofino::IntegerAllocatorRejuvenate)
+  VISIT_TODO(tofino::IntegerAllocatorQuery)
+  VISIT_TODO(tofino::CounterRead)
+  VISIT_TODO(tofino::CounterIncrement)
+  VISIT_TODO(tofino::HashObj)
 
   /*************************************
    *
@@ -142,35 +142,35 @@ public:
    *
    * **********************************/
 
-  VISIT(tofino_cpu::Ignore)
-  VISIT(tofino_cpu::CurrentTime)
-  VISIT(tofino_cpu::PacketParseCPU)
-  VISIT(tofino_cpu::PacketParseEthernet)
-  VISIT(tofino_cpu::PacketModifyEthernet)
-  VISIT(tofino_cpu::PacketParseIPv4)
-  VISIT(tofino_cpu::PacketModifyIPv4)
-  VISIT(tofino_cpu::PacketParseIPv4Options)
-  VISIT(tofino_cpu::PacketModifyIPv4Options)
-  VISIT(tofino_cpu::PacketParseTCPUDP)
-  VISIT(tofino_cpu::PacketModifyTCPUDP)
-  VISIT(tofino_cpu::PacketParseTCP)
-  VISIT(tofino_cpu::PacketModifyTCP)
-  VISIT(tofino_cpu::PacketParseUDP)
-  VISIT(tofino_cpu::PacketModifyUDP)
-  VISIT(tofino_cpu::PacketModifyChecksums)
-  VISIT(tofino_cpu::ForwardThroughTofino)
-  VISIT(tofino_cpu::If)
-  VISIT(tofino_cpu::Then)
-  VISIT(tofino_cpu::Else)
-  VISIT(tofino_cpu::Drop)
-  VISIT(tofino_cpu::MapGet)
-  VISIT(tofino_cpu::MapPut)
-  VISIT(tofino_cpu::DchainAllocateNewIndex)
-  VISIT(tofino_cpu::DchainIsIndexAllocated)
-  VISIT(tofino_cpu::DchainRejuvenateIndex)
-  VISIT(tofino_cpu::DchainFreeIndex)
-  VISIT(tofino_cpu::HashObj)
-  VISIT(tofino_cpu::MapErase)
+  VISIT_TODO(tofino_cpu::Ignore)
+  VISIT_TODO(tofino_cpu::CurrentTime)
+  VISIT_TODO(tofino_cpu::PacketParseCPU)
+  VISIT_TODO(tofino_cpu::PacketParseEthernet)
+  VISIT_TODO(tofino_cpu::PacketModifyEthernet)
+  VISIT_TODO(tofino_cpu::PacketParseIPv4)
+  VISIT_TODO(tofino_cpu::PacketModifyIPv4)
+  VISIT_TODO(tofino_cpu::PacketParseIPv4Options)
+  VISIT_TODO(tofino_cpu::PacketModifyIPv4Options)
+  VISIT_TODO(tofino_cpu::PacketParseTCPUDP)
+  VISIT_TODO(tofino_cpu::PacketModifyTCPUDP)
+  VISIT_TODO(tofino_cpu::PacketParseTCP)
+  VISIT_TODO(tofino_cpu::PacketModifyTCP)
+  VISIT_TODO(tofino_cpu::PacketParseUDP)
+  VISIT_TODO(tofino_cpu::PacketModifyUDP)
+  VISIT_TODO(tofino_cpu::PacketModifyChecksums)
+  VISIT_TODO(tofino_cpu::ForwardThroughTofino)
+  VISIT_TODO(tofino_cpu::If)
+  VISIT_TODO(tofino_cpu::Then)
+  VISIT_TODO(tofino_cpu::Else)
+  VISIT_TODO(tofino_cpu::Drop)
+  VISIT_TODO(tofino_cpu::MapGet)
+  VISIT_TODO(tofino_cpu::MapPut)
+  VISIT_TODO(tofino_cpu::DchainAllocateNewIndex)
+  VISIT_TODO(tofino_cpu::DchainIsIndexAllocated)
+  VISIT_TODO(tofino_cpu::DchainRejuvenateIndex)
+  VISIT_TODO(tofino_cpu::DchainFreeIndex)
+  VISIT_TODO(tofino_cpu::HashObj)
+  VISIT_TODO(tofino_cpu::MapErase)
 
   /*************************************
    *
@@ -178,35 +178,35 @@ public:
    *
    * **********************************/
 
-  VISIT(x86::MapGet)
-  VISIT(x86::CurrentTime)
-  VISIT(x86::PacketBorrowNextChunk)
-  VISIT(x86::PacketReturnChunk)
-  VISIT(x86::If)
-  VISIT(x86::Then)
-  VISIT(x86::Else)
-  VISIT(x86::Forward)
-  VISIT(x86::Broadcast)
-  VISIT(x86::Drop)
-  VISIT(x86::ExpireItemsSingleMap)
-  VISIT(x86::ExpireItemsSingleMapIteratively)
-  VISIT(x86::DchainRejuvenateIndex)
-  VISIT(x86::VectorBorrow)
-  VISIT(x86::VectorReturn)
-  VISIT(x86::DchainAllocateNewIndex)
-  VISIT(x86::MapPut)
-  VISIT(x86::SetIpv4UdpTcpChecksum)
-  VISIT(x86::DchainIsIndexAllocated)
-  VISIT(x86::SketchComputeHashes)
-  VISIT(x86::SketchExpire)
-  VISIT(x86::SketchFetch)
-  VISIT(x86::SketchRefresh)
-  VISIT(x86::SketchTouchBuckets)
-  VISIT(x86::MapErase)
-  VISIT(x86::DchainFreeIndex)
-  VISIT(x86::LoadBalancedFlowHash)
-  VISIT(x86::ChtFindBackend)
-  VISIT(x86::HashObj)
+  VISIT_TODO(x86::MapGet)
+  VISIT_TODO(x86::CurrentTime)
+  VISIT_TODO(x86::PacketBorrowNextChunk)
+  VISIT_TODO(x86::PacketReturnChunk)
+  VISIT_TODO(x86::If)
+  VISIT_TODO(x86::Then)
+  VISIT_TODO(x86::Else)
+  VISIT_TODO(x86::Forward)
+  VISIT_TODO(x86::Broadcast)
+  VISIT_TODO(x86::Drop)
+  VISIT_TODO(x86::ExpireItemsSingleMap)
+  VISIT_TODO(x86::ExpireItemsSingleMapIteratively)
+  VISIT_TODO(x86::DchainRejuvenateIndex)
+  VISIT_TODO(x86::VectorBorrow)
+  VISIT_TODO(x86::VectorReturn)
+  VISIT_TODO(x86::DchainAllocateNewIndex)
+  VISIT_TODO(x86::MapPut)
+  VISIT_TODO(x86::SetIpv4UdpTcpChecksum)
+  VISIT_TODO(x86::DchainIsIndexAllocated)
+  VISIT_TODO(x86::SketchComputeHashes)
+  VISIT_TODO(x86::SketchExpire)
+  VISIT_TODO(x86::SketchFetch)
+  VISIT_TODO(x86::SketchRefresh)
+  VISIT_TODO(x86::SketchTouchBuckets)
+  VISIT_TODO(x86::MapErase)
+  VISIT_TODO(x86::DchainFreeIndex)
+  VISIT_TODO(x86::LoadBalancedFlowHash)
+  VISIT_TODO(x86::ChtFindBackend)
+  VISIT_TODO(x86::HashObj)
 
 protected:
   virtual void log(const EPNode *ep_node) const;
