@@ -17,21 +17,17 @@ public:
     Else *cloned = new Else(node);
     return cloned;
   }
-
-  virtual bool equals(const Module *other) const override {
-    return other->get_type() == type;
-  }
 };
 
 class ElseGenerator : public x86ModuleGenerator {
 public:
-  ElseGenerator() : x86ModuleGenerator(ModuleType::x86_Else) {}
+  ElseGenerator() : x86ModuleGenerator(ModuleType::x86_Else, "Else") {}
 
 protected:
-  virtual modgen_report_t process_node(const EP *ep,
-                                       const bdd::Node *node) const override {
+  virtual std::vector<const EP *>
+  process_node(const EP *ep, const bdd::Node *node) const override {
     // Never explicitly generate this module from the BDD.
-    return modgen_report_t();
+    return std::vector<const EP *>();
   }
 };
 

@@ -2,6 +2,9 @@
 
 #include "x86_module.h"
 
+#include "else.h"
+#include "then.h"
+
 namespace synapse {
 namespace x86 {
 
@@ -10,43 +13,51 @@ public:
   Broadcast(const bdd::Node *node)
       : x86Module(ModuleType::x86_Broadcast, "Broadcast", node) {}
 
-public:
   virtual void visit(EPVisitor &visitor, const EPNode *ep_node) const override {
     visitor.visit(ep_node, this);
   }
 
-  virtual bool equals(const Module *other) const override {
-    return other->get_type() == type;
+  virtual Module *clone() const {
+    Broadcast *cloned = new Broadcast(node);
+    return cloned;
   }
 };
 
 class BroadcastGenerator : public x86ModuleGenerator {
-protected:
-  ModuleType type;
-  TargetType target;
-
 public:
-  BroadcastGenerator() : x86ModuleGenerator(ModuleType::x86_Broadcast) {}
+  BroadcastGenerator()
+      : x86ModuleGenerator(ModuleType::x86_Broadcast, "Broadcast") {}
 
 protected:
-  generated_data_t process_node(const EP *ep, const bdd::Node *node) override {
-    generated_data_t result;
+  virtual std::vector<const EP *>
+  process_node(const EP *ep, const bdd::Node *node) const override {
+    std::vector<const EP *> new_eps;
 
     if (node->get_type() != bdd::NodeType::ROUTE) {
-      return result;
+      return new_eps;
     }
 
-    const bdd::Route *casted = static_cast<const bdd::Route *>(node);
+    const bdd::Route *route_node = static_cast<const bdd::Route *>(node);
+    bdd::RouteOperation op = route_node->get_operation();
 
-    if (casted->get_operation() == bdd::RouteOperation::BCAST) {
-      std::unique_ptr<Module> new_module = std::make_unique<Broadcast>(node);
-      EP new_ep = ep.process_leaf(new_module, node->get_next(), true);
-
-      result.module = new_module.get();
-      result.next.push_back(new_ep);
+    if (op != bdd::RouteOperation::BCAST) {
+      return new_eps;
     }
 
-    return result;
+    Module *module = new Broadcast(node);
+    EPNode *ep_node = new EPNode(module);
+
+    EP *new_ep = new EP(*ep);
+    new_eps.push_back(new_ep);
+
+    if (node->get_next()) {
+      EPLeaf leaf(ep_node, node->get_next());
+      new_ep->process_leaf(ep_node, {leaf});
+    } else {
+      new_ep->process_leaf(ep_node, {});
+    }
+
+    return new_eps;
   }
 };
 

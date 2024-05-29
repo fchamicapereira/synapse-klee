@@ -20,8 +20,8 @@ protected:
   TargetType target;
 
 public:
-  x86ModuleGenerator(ModuleType _type)
-      : ModuleGenerator(_type, TargetType::x86) {}
+  x86ModuleGenerator(ModuleType _type, const std::string &_name)
+      : ModuleGenerator(_type, TargetType::x86, _name) {}
 };
 
 } // namespace x86

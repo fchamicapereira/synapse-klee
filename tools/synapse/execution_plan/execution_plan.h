@@ -20,8 +20,13 @@ struct EPLeaf {
   EPNode *node;
   const bdd::Node *next;
 
-  EPLeaf(EPNode *_node, const bdd::Node *_next) : node(_node), next(_next) {}
-  EPLeaf(const EPLeaf &other) : node(other.node), next(other.next) {}
+  EPLeaf(EPNode *_node, const bdd::Node *_next) : node(_node), next(_next) {
+    assert(next && "Next node is null.");
+  }
+
+  EPLeaf(const EPLeaf &other) : node(other.node), next(other.next) {
+    assert(next && "Next node is null.");
+  }
 };
 
 class EP {
@@ -70,6 +75,7 @@ public:
   TargetType get_current_platform() const;
 
   void process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves);
+  void process_leaf(const bdd::Node *next_node);
 
   void replace_bdd(
       std::unique_ptr<bdd::BDD> &&new_bdd,

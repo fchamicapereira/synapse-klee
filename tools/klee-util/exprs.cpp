@@ -296,18 +296,16 @@ int64_t get_constant_signed(klee::ref<klee::Expr> expr) {
   return -((~value + 1) & mask);
 }
 
-std::pair<bool, std::string> get_symbol(klee::ref<klee::Expr> expr) {
-  auto symbols = get_symbols(expr);
-  auto result = std::pair<bool, std::string>();
+std::optional<std::string> get_symbol(klee::ref<klee::Expr> expr) {
+  std::optional<std::string> symbol;
 
-  if (symbols.size() != 1) {
-    result.first = false;
-  } else {
-    result.first = true;
-    result.second = *symbols.begin();
+  std::unordered_set<std::string> symbols = get_symbols(expr);
+
+  if (symbols.size() == 1) {
+    symbol = *symbols.begin();
   }
 
-  return result;
+  return symbol;
 }
 
 bool manager_contains(const klee::ConstraintManager &constraints,

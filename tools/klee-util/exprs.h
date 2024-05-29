@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include <unordered_set>
+#include <optional>
 
 typedef uint32_t bytes_t;
 typedef uint64_t addr_t;
@@ -43,7 +44,7 @@ klee::ConstraintManager join_managers(const klee::ConstraintManager &m1,
 
 bool has_symbols(klee::ref<klee::Expr> expr);
 std::unordered_set<std::string> get_symbols(klee::ref<klee::Expr> expr);
-std::pair<bool, std::string> get_symbol(klee::ref<klee::Expr> expr);
+std::optional<std::string> get_symbol(klee::ref<klee::Expr> expr);
 addr_t expr_addr_to_obj_addr(klee::ref<klee::Expr> obj_addr);
 
 klee::ref<klee::Expr> simplify(klee::ref<klee::Expr> expr);

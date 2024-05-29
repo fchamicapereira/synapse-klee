@@ -12,7 +12,7 @@ static const char *COLOR_DROP = "brown1";
 static const char *COLOR_BROADCAST = "purple";
 
 BDDVisualizer::BDDVisualizer(const bdd_visualizer_opts_t &_opts)
-    : Graphviz(), opts(_opts) {}
+    : Graphviz(_opts.fname), opts(_opts) {}
 
 BDDVisualizer::BDDVisualizer() : Graphviz() {}
 

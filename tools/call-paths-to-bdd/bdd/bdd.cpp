@@ -237,6 +237,7 @@ get_successful_call(const std::vector<call_path_t *> &call_paths) {
   }
 
   // No function with successful return.
+  std::cerr << "No function with successful return!\n";
   return call_paths[0]->calls[0];
 }
 

@@ -64,7 +64,7 @@ llvm::cl::opt<bool> Verbose("v", llvm::cl::desc("Verbose mode."),
                             llvm::cl::cat(SyNAPSE));
 } // namespace
 
-std::pair<EP *, SearchSpace> search(const bdd::BDD &bdd) {
+search_product_t search(const bdd::BDD &bdd) {
   Biggest biggest;
   DFS dfs;
   MostCompact most_compact;
@@ -78,10 +78,9 @@ std::pair<EP *, SearchSpace> search(const bdd::BDD &bdd) {
   }
 
   SearchEngine engine(bdd, gallium, BDDReorder, peek);
-  EP *winner = engine.search();
-  const SearchSpace &ss = engine.get_search_space();
+  search_product_t result = engine.search();
 
-  return {winner, ss};
+  return result;
 }
 
 // void synthesize(const std::string &fname, const EP*ep) {
@@ -109,7 +108,7 @@ int main(int argc, char **argv) {
   std::string nf_name = nf_name_from_bdd(InputBDDFile);
 
   auto start_search = std::chrono::steady_clock::now();
-  auto search_results = search(bdd);
+  search_product_t result = search(bdd);
   auto end_search = std::chrono::steady_clock::now();
 
   auto search_dt = std::chrono::duration_cast<std::chrono::seconds>(
@@ -117,11 +116,11 @@ int main(int argc, char **argv) {
                        .count();
 
   if (ShowEP) {
-    EPVisualizer::visualize(search_results.first, false);
+    EPVisualizer::visualize(result.ep, false);
   }
 
   if (ShowSS) {
-    SSVisualizer::visualize(search_results.second, false);
+    SSVisualizer::visualize(result.search_space, false);
   }
 
   int64_t synthesis_dt = -1;
@@ -141,8 +140,6 @@ int main(int argc, char **argv) {
   if (synthesis_dt >= 0) {
     Log::log() << "Generation time: " << synthesis_dt << " sec\n";
   }
-
-  delete search_results.first;
 
   return 0;
 }

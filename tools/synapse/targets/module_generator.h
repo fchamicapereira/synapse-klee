@@ -8,38 +8,29 @@
 
 namespace synapse {
 
-struct modgen_report_t {
-  bool success;
-  const Module *module;
-  std::vector<const EP *> next;
-
-  modgen_report_t() : success(false), module(nullptr) {}
-
-  modgen_report_t(const Module *_module, const std::vector<const EP *> &_next)
-      : success(true), module(_module), next(_next) {
-    assert(module && "Module generator should return a module");
-    assert(next.size() > 0 &&
-           "Module generator should return at least one execution plan");
-  }
-};
-
 class ModuleGenerator {
 protected:
   ModuleType type;
   TargetType target;
+  std::string name;
 
 public:
-  ModuleGenerator(ModuleType _type, TargetType _target)
-      : type(_type), target(_target) {}
+  ModuleGenerator(ModuleType _type, TargetType _target,
+                  const std::string &_name)
+      : type(_type), target(_target), name(_name) {}
 
   virtual ~ModuleGenerator() {}
 
-  modgen_report_t generate(const EP *ep, const bdd::Node *node,
-                           bool reorder_bdd) const;
+  std::vector<const EP *> generate(const EP *ep, const bdd::Node *node,
+                                   bool reorder_bdd) const;
+
+  ModuleType get_type() const { return type; }
+  TargetType get_target() const { return target; }
+  const std::string &get_name() const { return name; }
 
 protected:
-  virtual modgen_report_t process_node(const EP *ep,
-                                       const bdd::Node *node) const = 0;
+  virtual std::vector<const EP *> process_node(const EP *ep,
+                                               const bdd::Node *node) const = 0;
 };
 
 } // namespace synapse

@@ -10,12 +10,31 @@
 
 namespace synapse {
 
+struct search_product_t {
+  const EP *ep;
+  const SearchSpace *search_space;
+
+  search_product_t(const EP *_ep, const SearchSpace *_search_space)
+      : ep(_ep), search_space(_search_space) {}
+
+  ~search_product_t() {
+    if (ep) {
+      delete ep;
+      ep = nullptr;
+    }
+
+    if (search_space) {
+      delete search_space;
+      search_space = nullptr;
+    }
+  }
+};
+
 template <class HCfg> class SearchEngine {
 private:
   std::shared_ptr<bdd::BDD> bdd;
   std::vector<const Target *> targets;
   Heuristic<HCfg> h;
-  SearchSpace search_space;
 
   bool allow_bdd_reordering;
   bdd::nodes_t nodes_to_peek;
@@ -28,9 +47,7 @@ public:
 
   ~SearchEngine();
 
-  EP *search();
-
-  const SearchSpace &get_search_space() const { return search_space; }
+  search_product_t search();
 };
 
 } // namespace synapse

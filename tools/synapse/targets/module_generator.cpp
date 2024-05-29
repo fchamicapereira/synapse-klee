@@ -1,6 +1,7 @@
 #include "module_generator.h"
 
 #include "../execution_plan/execution_plan.h"
+#include "../log.h"
 
 namespace synapse {
 
@@ -57,18 +58,21 @@ static std::vector<const EP *> get_reordered(const EP *ep) {
   return reordered;
 }
 
-modgen_report_t ModuleGenerator::generate(const EP *ep, const bdd::Node *node,
-                                          bool reorder_bdd) const {
+std::vector<const EP *> ModuleGenerator::generate(const EP *ep,
+                                                  const bdd::Node *node,
+                                                  bool reorder_bdd) const {
+  std::vector<const EP *> new_eps;
+
   if (!can_process_platform(ep, target)) {
-    return modgen_report_t();
+    return new_eps;
   }
 
-  modgen_report_t result = process_node(ep, node);
+  new_eps = process_node(ep, node);
 
   if (reorder_bdd) {
     std::vector<const EP *> reordered;
 
-    for (const EP *ep : result.next) {
+    for (const EP *ep : new_eps) {
       std::vector<const EP *> ep_reodered = get_reordered(ep);
       reordered.insert(reordered.end(), ep_reodered.begin(), ep_reodered.end());
     }
@@ -77,10 +81,10 @@ modgen_report_t ModuleGenerator::generate(const EP *ep, const bdd::Node *node,
       Log::dbg() << "+ " << reordered.size() << " reordered BDDs\n";
     }
 
-    result.next.insert(result.next.end(), reordered.begin(), reordered.end());
+    new_eps.insert(new_eps.end(), reordered.begin(), reordered.end());
   }
 
-  return result;
+  return new_eps;
 }
 
 } // namespace synapse

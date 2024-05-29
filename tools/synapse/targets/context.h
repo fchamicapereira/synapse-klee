@@ -6,7 +6,7 @@
 
 #include <unordered_map>
 
-#include "../generic.h"
+#include "../util.h"
 
 namespace synapse {
 

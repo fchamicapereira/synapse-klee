@@ -11,15 +11,12 @@
 namespace synapse {
 
 class SSVisualizer : public Graphviz {
-private:
-  std::vector<std::string> bdd_fpaths;
-
 public:
   SSVisualizer();
 
-  void visit(const SearchSpace &search_space);
+  void visit(const SearchSpace *search_space);
 
-  static void visualize(const SearchSpace &search_space, bool interrupt);
+  static void visualize(const SearchSpace *search_space, bool interrupt);
 };
 
 } // namespace synapse

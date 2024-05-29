@@ -25,33 +25,20 @@ public:
     return cloned;
   }
 
-  virtual bool equals(const Module *other) const {
-    if (other->get_type() != type) {
-      return false;
-    }
-
-    const If *other_cast = static_cast<const If *>(other);
-
-    if (!kutil::solver_toolbox.are_exprs_always_equal(
-            condition, other_cast->get_condition())) {
-      return false;
-    }
-
-    return true;
-  }
-
   const klee::ref<klee::Expr> &get_condition() const { return condition; }
 };
 
 class IfGenerator : public x86ModuleGenerator {
 public:
-  IfGenerator() : x86ModuleGenerator(ModuleType::x86_If) {}
+  IfGenerator() : x86ModuleGenerator(ModuleType::x86_If, "If") {}
 
 protected:
-  virtual modgen_report_t process_node(const EP *ep,
-                                       const bdd::Node *node) const override {
+  virtual std::vector<const EP *>
+  process_node(const EP *ep, const bdd::Node *node) const override {
+    std::vector<const EP *> new_eps;
+
     if (node->get_type() != bdd::NodeType::BRANCH) {
-      return modgen_report_t();
+      return new_eps;
     }
 
     const bdd::Branch *branch_node = static_cast<const bdd::Branch *>(node);
@@ -77,9 +64,11 @@ protected:
     EPLeaf else_leaf(else_node, branch_node->get_on_false());
 
     EP *new_ep = new EP(*ep);
+    new_eps.push_back(new_ep);
+
     new_ep->process_leaf(if_node, {then_leaf, else_leaf});
 
-    return modgen_report_t(if_module, {new_ep});
+    return new_eps;
   }
 };
 

@@ -27,4 +27,5 @@ struct GalliumComparator : public HeuristicCfg {
 };
 
 using Gallium = Heuristic<GalliumComparator>;
+
 } // namespace synapse

@@ -12,9 +12,6 @@ private:
   klee::ref<klee::Expr> time;
 
 public:
-  DchainRejuvenateIndex()
-      : x86Module(ModuleType::x86_DchainRejuvenateIndex, "DchainRejuvenate") {}
-
   DchainRejuvenateIndex(const bdd::Node *node, addr_t _dchain_addr,
                         klee::ref<klee::Expr> _index,
                         klee::ref<klee::Expr> _time)
@@ -22,78 +19,63 @@ public:
                   node),
         dchain_addr(_dchain_addr), index(_index), time(_time) {}
 
-private:
-  generated_data_t process(const EP *ep, const bdd::Node *node) override {
-    generated_data_t result;
-
-    auto casted = static_cast<const bdd::Call *>(node);
-
-    if (!casted) {
-      return result;
-    }
-
-    auto call = casted->get_call();
-
-    if (call.function_name == "dchain_rejuvenate_index") {
-      assert(!call.args["chain"].expr.isNull());
-      assert(!call.args["index"].expr.isNull());
-      assert(!call.args["time"].expr.isNull());
-
-      auto _dchain = call.args["chain"].expr;
-      auto _index = call.args["index"].expr;
-      auto _time = call.args["time"].expr;
-
-      auto _dchain_addr = kutil::expr_addr_to_obj_addr(_dchain);
-      save_dchain(ep, _dchain_addr);
-
-      auto new_module = std::make_shared<DchainRejuvenateIndex>(
-          node, _dchain_addr, _index, _time);
-      auto new_ep = ep.process_leaf(new_module, node->get_next());
-
-      result.module = new_module;
-      result.next_eps.push_back(new_ep);
-    }
-
-    return result;
-  }
-
-public:
   virtual void visit(EPVisitor &visitor, const EPNode *ep_node) const override {
     visitor.visit(ep_node, this);
   }
 
-  virtual Module_ptr clone() const override {
-    auto cloned = new DchainRejuvenateIndex(node, dchain_addr, index, time);
-    return std::shared_ptr<Module>(cloned);
-  }
-
-  virtual bool equals(const Module *other) const override {
-    if (other->get_type() != type) {
-      return false;
-    }
-
-    auto other_cast = static_cast<const DchainRejuvenateIndex *>(other);
-
-    if (dchain_addr != other_cast->get_dchain_addr()) {
-      return false;
-    }
-
-    if (!kutil::solver_toolbox.are_exprs_always_equal(
-            index, other_cast->get_index())) {
-      return false;
-    }
-
-    if (!kutil::solver_toolbox.are_exprs_always_equal(time,
-                                                      other_cast->get_time())) {
-      return false;
-    }
-
-    return true;
+  virtual Module *clone() const override {
+    Module *cloned = new DchainRejuvenateIndex(node, dchain_addr, index, time);
+    return cloned;
   }
 
   const addr_t &get_dchain_addr() const { return dchain_addr; }
-  const klee::ref<klee::Expr> &get_index() const { return index; }
-  const klee::ref<klee::Expr> &get_time() const { return time; }
+  klee::ref<klee::Expr> get_index() const { return index; }
+  klee::ref<klee::Expr> get_time() const { return time; }
+};
+
+class DchainRejuvenateIndexGenerator : public x86ModuleGenerator {
+public:
+  DchainRejuvenateIndexGenerator()
+      : x86ModuleGenerator(ModuleType::x86_DchainRejuvenateIndex,
+                           "DchainRejuvenateIndex") {}
+
+protected:
+  virtual std::vector<const EP *>
+  process_node(const EP *ep, const bdd::Node *node) const override {
+    std::vector<const EP *> new_eps;
+
+    if (node->get_type() != bdd::NodeType::CALL) {
+      return new_eps;
+    }
+
+    const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
+    const call_t &call = call_node->get_call();
+
+    if (call.function_name != "dchain_rejuvenate_index") {
+      return new_eps;
+    }
+
+    klee::ref<klee::Expr> dchain_addr_expr = call.args.at("chain").expr;
+    klee::ref<klee::Expr> index = call.args.at("index").expr;
+    klee::ref<klee::Expr> time = call.args.at("time").expr;
+
+    addr_t dchain_addr = kutil::expr_addr_to_obj_addr(dchain_addr_expr);
+
+    Module *module = new DchainRejuvenateIndex(node, dchain_addr, index, time);
+    EPNode *ep_node = new EPNode(module);
+
+    EP *new_ep = new EP(*ep);
+    new_eps.push_back(new_ep);
+
+    if (node->get_next()) {
+      EPLeaf leaf(ep_node, node->get_next());
+      new_ep->process_leaf(ep_node, {leaf});
+    } else {
+      new_ep->process_leaf(ep_node, {});
+    }
+
+    return new_eps;
+  }
 };
 
 } // namespace x86

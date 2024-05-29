@@ -73,8 +73,8 @@ class HashObj;
 namespace x86 {
 class MapGet;
 class CurrentTime;
-class PacketBorrowNextChunk;
-class PacketReturnChunk;
+class ParseHeader;
+class ModifyHeader;
 class If;
 class Then;
 class Else;
@@ -84,11 +84,11 @@ class Drop;
 class ExpireItemsSingleMap;
 class ExpireItemsSingleMapIteratively;
 class DchainRejuvenateIndex;
-class VectorBorrow;
-class VectorReturn;
+class VectorRead;
+class VectorWrite;
 class DchainAllocateNewIndex;
 class MapPut;
-class SetIpv4UdpTcpChecksum;
+class ChecksumUpdate;
 class DchainIsIndexAllocated;
 class SketchComputeHashes;
 class SketchExpire;
@@ -97,7 +97,6 @@ class SketchRefresh;
 class SketchTouchBuckets;
 class MapErase;
 class DchainFreeIndex;
-class LoadBalancedFlowHash;
 class ChtFindBackend;
 class HashObj;
 } // namespace x86
@@ -178,24 +177,24 @@ public:
    *
    * **********************************/
 
-  VISIT_TODO(x86::MapGet)
-  VISIT_TODO(x86::CurrentTime)
-  VISIT_TODO(x86::PacketBorrowNextChunk)
-  VISIT_TODO(x86::PacketReturnChunk)
   VISIT_TODO(x86::If)
   VISIT_TODO(x86::Then)
   VISIT_TODO(x86::Else)
   VISIT_TODO(x86::Forward)
   VISIT_TODO(x86::Broadcast)
   VISIT_TODO(x86::Drop)
+  VISIT_TODO(x86::ParseHeader)
+  VISIT_TODO(x86::ModifyHeader)
+  VISIT_TODO(x86::MapGet)
+  VISIT_TODO(x86::CurrentTime)
   VISIT_TODO(x86::ExpireItemsSingleMap)
   VISIT_TODO(x86::ExpireItemsSingleMapIteratively)
   VISIT_TODO(x86::DchainRejuvenateIndex)
-  VISIT_TODO(x86::VectorBorrow)
-  VISIT_TODO(x86::VectorReturn)
+  VISIT_TODO(x86::VectorRead)
+  VISIT_TODO(x86::VectorWrite)
   VISIT_TODO(x86::DchainAllocateNewIndex)
   VISIT_TODO(x86::MapPut)
-  VISIT_TODO(x86::SetIpv4UdpTcpChecksum)
+  VISIT_TODO(x86::ChecksumUpdate)
   VISIT_TODO(x86::DchainIsIndexAllocated)
   VISIT_TODO(x86::SketchComputeHashes)
   VISIT_TODO(x86::SketchExpire)
@@ -204,7 +203,6 @@ public:
   VISIT_TODO(x86::SketchTouchBuckets)
   VISIT_TODO(x86::MapErase)
   VISIT_TODO(x86::DchainFreeIndex)
-  VISIT_TODO(x86::LoadBalancedFlowHash)
   VISIT_TODO(x86::ChtFindBackend)
   VISIT_TODO(x86::HashObj)
 

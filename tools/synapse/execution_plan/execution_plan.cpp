@@ -12,12 +12,18 @@ EP::EP(const std::shared_ptr<bdd::BDD> &_bdd,
        const std::vector<const Target *> &_targets)
     : id(counter++), bdd(_bdd), root(nullptr), ctx(_targets), meta(bdd.get()) {
   assert(_targets.size());
+
   initial_target = _targets[0]->type;
 
   for (const Target *target : _targets) {
     targets.insert(target->type);
-    targets_roots[target->type] = bdd::nodes_t();
     meta.nodes_per_target[target->type] = 0;
+
+    if (target->type != initial_target) {
+      targets_roots[target->type] = bdd::nodes_t();
+    } else {
+      targets_roots[initial_target] = bdd::nodes_t({bdd->get_root()->get_id()});
+    }
   }
 
   leaves.emplace_back(nullptr, bdd->get_root());
@@ -134,6 +140,12 @@ TargetType EP::get_current_platform() const {
   return module->get_next_target();
 }
 
+void EP::process_leaf(const bdd::Node *next_node) {
+  EPLeaf *active_leaf = get_mutable_active_leaf();
+  assert(active_leaf && "No active leaf");
+  active_leaf->next = next_node;
+}
+
 void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves) {
   TargetType current_target = get_current_platform();
 
@@ -152,11 +164,11 @@ void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves) {
 
   leaves.erase(leaves.begin());
   for (const EPLeaf &new_leaf : new_leaves) {
+    meta.update(active_leaf, new_leaf.node);
+
     const Module *module = new_leaf.node->get_module();
     TargetType next_target = module->get_next_target();
     bdd::node_id_t next_node_id = new_leaf.next->get_id();
-
-    meta.update(active_leaf, new_leaf.node);
 
     if (next_target != current_target) {
       targets_roots[next_target].insert(next_node_id);

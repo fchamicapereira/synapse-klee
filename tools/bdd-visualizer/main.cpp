@@ -29,7 +29,8 @@ int main(int argc, char **argv) {
   bdd::BDD bdd = bdd::BDD(InputBDDFile);
 
   if (BDDAnalyzerReport.size()) {
-    auto report = parse_bdd_analyzer_report_t(BDDAnalyzerReport);
+    bdd_analyzer_report_t report =
+        parse_bdd_analyzer_report_t(BDDAnalyzerReport);
 
     if (OutputDot.size()) {
       bdd::HitRateGraphvizGenerator generator(OutputDot, report.counters);
@@ -46,6 +47,7 @@ int main(int argc, char **argv) {
 
       bdd::BDDVisualizer generator(opts);
       generator.visit(bdd);
+      generator.write();
     }
 
     if (Show) {

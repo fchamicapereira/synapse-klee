@@ -7,7 +7,7 @@ namespace synapse {
 static std::unordered_map<TargetType, std::string> node_colors = {
     {TargetType::Tofino, "cornflowerblue"},
     {TargetType::TofinoCPU, "firebrick2"},
-    {TargetType::x86, "cadetblue1"},
+    {TargetType::x86, "tomato"},
 };
 
 SSVisualizer::SSVisualizer() {}
@@ -74,7 +74,7 @@ static std::string stringify_bdd_node(const bdd::Node *node) {
 }
 
 static void visit_definitions(std::stringstream &ss,
-                              const SearchSpace &search_space,
+                              const SearchSpace *search_space,
                               const SSNode *ssnode) {
   const std::string &target_color = node_colors.at(ssnode->target);
 
@@ -87,7 +87,7 @@ static void visit_definitions(std::stringstream &ss,
   indent(2);
   ss << "<table";
 
-  if (search_space.was_explored(ssnode->node_id)) {
+  if (search_space->was_explored(ssnode->node_id)) {
     ss << " border=\"4\"";
     ss << " bgcolor=\"blue\"";
     ss << " color=\"green\"";
@@ -127,8 +127,8 @@ static void visit_definitions(std::stringstream &ss,
   ss << " bgcolor=\"" << target_color << "\"";
   ss << " colspan=\"2\"";
   ss << ">";
-  if (ssnode->module) {
-    ss << ssnode->module->get_name();
+  if (ssnode->module_data) {
+    ss << ssnode->module_data->name;
   } else {
     ss << "ROOT";
   }
@@ -182,13 +182,13 @@ static void visit_links(std::stringstream &ss, const SSNode *ssnode) {
   }
 }
 
-void SSVisualizer::visit(const SearchSpace &search_space) {
+void SSVisualizer::visit(const SearchSpace *search_space) {
   ss << "digraph SearchSpace {\n";
 
   ss << "\tlayout=\"dot\";\n";
   ss << "\tnode [shape=none];\n";
 
-  const SSNode *root = search_space.get_root();
+  const SSNode *root = search_space->get_root();
 
   if (root) {
     visit_definitions(ss, search_space, root);
@@ -197,11 +197,9 @@ void SSVisualizer::visit(const SearchSpace &search_space) {
 
   ss << "}";
   ss.flush();
-
-  bdd_fpaths.clear();
 }
 
-void SSVisualizer::visualize(const SearchSpace &search_space, bool interrupt) {
+void SSVisualizer::visualize(const SearchSpace *search_space, bool interrupt) {
   SSVisualizer visualizer;
   visualizer.visit(search_space);
   visualizer.show(interrupt);
