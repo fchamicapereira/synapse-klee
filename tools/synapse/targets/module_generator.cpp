@@ -14,6 +14,9 @@ static std::vector<const EP *> get_reordered(const EP *ep) {
   std::vector<const EP *> reordered;
 
   assert(false && "TODO");
+  // TODO: Don't forget to update the meta information with the new IDs/pointers
+  // (processed nodes).
+
   // auto next_node = ep->get_next_node();
 
   // if (!next_node) {

@@ -1,6 +1,6 @@
 #include "search.h"
 #include "log.h"
-#include "targets/module_generator.h"
+#include "targets/targets.h"
 #include "visualizers/ss_visualizer.h"
 #include "visualizers/ep_visualizer.h"
 #include "heuristics/heuristics.h"
@@ -16,8 +16,8 @@ SearchEngine<HCfg>::SearchEngine(const bdd::BDD &_bdd, Heuristic<HCfg> _h,
     : bdd(std::make_shared<bdd::BDD>(_bdd)), h(_h),
       allow_bdd_reordering(_allow_bdd_reordering),
       nodes_to_peek(_nodes_to_peek) {
-  // targets.push_back(new Tofino::TofinoTarget());
-  // targets.push_back(new TofinoCPU::TofinoCPUTarget());
+  targets.push_back(new tofino::TofinoTarget(tofino::TNAVersion::TNA2));
+  // targets.push_back(new tofinoCPU::TofinoCPUTarget());
   targets.push_back(new x86::x86Target());
 }
 
@@ -53,6 +53,7 @@ struct search_it_report_t {
     targets.push_back(modgen->get_target());
     name.push_back(modgen->get_name());
     gen_ep_ids.emplace_back();
+    available_execution_plans += new_eps.size();
 
     for (const EP *next_ep : new_eps) {
       ep_id_t next_ep_id = next_ep->get_id();
@@ -69,11 +70,11 @@ static void log_search_iteration(const search_it_report_t &report) {
   Log::dbg() << "\n";
   Log::dbg() << "=======================================================\n";
 
-  Log::dbg() << "Available:  " << report.available_execution_plans << "\n";
   Log::dbg() << "EP ID:      " << report.chosen->get_id() << "\n";
+  Log::dbg() << "Target:     " << platform << "\n";
   Log::dbg() << "Progress:   " << std::fixed << std::setprecision(2)
              << 100 * meta.get_bdd_progress() << " %\n";
-  Log::dbg() << "Target:     " << platform << "\n";
+  Log::dbg() << "Available:  " << report.available_execution_plans << "\n";
   if (leaf && leaf->node) {
     const Module *module = leaf->node->get_module();
     Log::dbg() << "Leaf:       " << module->get_name() << "\n";

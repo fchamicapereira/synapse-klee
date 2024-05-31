@@ -43,6 +43,12 @@ public:
 
 class Context {
 private:
+  std::unordered_map<addr_t, bdd::map_config_t> map_configs;
+  std::unordered_map<addr_t, bdd::vector_config_t> vector_configs;
+  std::unordered_map<addr_t, bdd::dchain_config_t> dchain_configs;
+  std::unordered_map<addr_t, bdd::sketch_config_t> sketch_configs;
+  std::unordered_map<addr_t, bdd::cht_config_t> cht_configs;
+
   std::vector<bdd::reorder_op_t> reorder_ops;
   std::unordered_map<addr_t, PlacementDecision> placement_decisions;
   bdd::nodes_t can_be_ignored_bdd_nodes;
@@ -58,10 +64,29 @@ public:
 
   Context &operator=(const Context &other);
 
+  bool has_map_config(addr_t addr) const;
+  bool has_vector_config(addr_t addr) const;
+  bool has_dchain_config(addr_t addr) const;
+  bool has_sketch_config(addr_t addr) const;
+  bool has_cht_config(addr_t addr) const;
+
+  const bdd::map_config_t &get_map_config(addr_t addr) const;
+  const bdd::vector_config_t &get_vector_config(addr_t addr) const;
+  const bdd::dchain_config_t &get_dchain_config(addr_t addr) const;
+  const bdd::sketch_config_t &get_sketch_config(addr_t addr) const;
+  const bdd::cht_config_t &get_cht_config(addr_t addr) const;
+
+  void save_map_config(addr_t addr, bdd::map_config_t cfg);
+  void save_vector_config(addr_t addr, bdd::vector_config_t cfg);
+  void save_dchain_config(addr_t addr, bdd::dchain_config_t cfg);
+  void save_sketch_config(addr_t addr, bdd::sketch_config_t cfg);
+  void save_cht_config(addr_t addr, bdd::cht_config_t cfg);
+
   void set_expiration_data(const expiration_data_t &_expiration_data);
   const expiration_data_t &get_expiration_data() const;
 
-  template <class Ctx> Ctx *get_target_context(TargetType type) const;
+  const TargetContext *get_target_context(TargetType type) const;
+  TargetContext *get_mutable_target_context(TargetType type);
 
   void add_reorder_op(const bdd::reorder_op_t &op);
   void save_placement_decision(addr_t obj_addr, PlacementDecision decision);

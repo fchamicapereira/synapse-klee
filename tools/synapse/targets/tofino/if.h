@@ -1,20 +1,21 @@
 #pragma once
 
-#include "x86_module.h"
+#include "tofino_module.h"
 
 #include "else.h"
 #include "then.h"
 
 namespace synapse {
-namespace x86 {
+namespace tofino {
 
-class If : public x86Module {
+class If : public TofinoModule {
 private:
   klee::ref<klee::Expr> condition;
 
 public:
   If(const bdd::Node *node, klee::ref<klee::Expr> _condition)
-      : x86Module(ModuleType::x86_If, "If", node), condition(_condition) {}
+      : TofinoModule(ModuleType::Tofino_If, "If", node), condition(_condition) {
+  }
 
   virtual void visit(EPVisitor &visitor, const EPNode *ep_node) const override {
     visitor.visit(ep_node, this);
@@ -28,9 +29,9 @@ public:
   klee::ref<klee::Expr> get_condition() const { return condition; }
 };
 
-class IfGenerator : public x86ModuleGenerator {
+class IfGenerator : public TofinoModuleGenerator {
 public:
-  IfGenerator() : x86ModuleGenerator(ModuleType::x86_If, "If") {}
+  IfGenerator() : TofinoModuleGenerator(ModuleType::Tofino_If, "If") {}
 
 protected:
   virtual std::vector<const EP *>
@@ -42,8 +43,16 @@ protected:
     }
 
     const bdd::Branch *branch_node = static_cast<const bdd::Branch *>(node);
-
     klee::ref<klee::Expr> condition = branch_node->get_condition();
+
+    const TNA &tna = get_tna(ep);
+    if (!tna.condition_meets_phv_limit(condition)) {
+      return new_eps;
+    }
+
+    if (is_parser_condition(node)) {
+      return new_eps;
+    }
 
     assert(branch_node->get_on_true());
     assert(branch_node->get_on_false());
@@ -72,5 +81,5 @@ protected:
   }
 };
 
-} // namespace x86
+} // namespace tofino
 } // namespace synapse

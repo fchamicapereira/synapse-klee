@@ -52,7 +52,6 @@ protected:
       return new_eps;
     }
 
-    klee::ref<klee::Expr> p = call.args.at("p").expr;
     klee::ref<klee::Expr> chunk = call.args.at("chunk").out;
     klee::ref<klee::Expr> out_chunk = call.extra_vars.at("the_chunk").second;
     klee::ref<klee::Expr> length = call.args.at("length").expr;

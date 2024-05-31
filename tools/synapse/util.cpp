@@ -178,12 +178,8 @@ bool is_parser_drop(const bdd::Node *root) {
     const bdd::Route *route_node = static_cast<const bdd::Route *>(node);
     bdd::RouteOperation op = route_node->get_operation();
 
-    if (op == bdd::RouteOperation::DROP) {
-      found_drop = true;
-      return bdd::NodeVisitAction::STOP;
-    }
-
-    return bdd::NodeVisitAction::VISIT_CHILDREN;
+    found_drop = (op == bdd::RouteOperation::DROP);
+    return bdd::NodeVisitAction::STOP;
   });
 
   return found_drop;
@@ -744,6 +740,57 @@ map_coalescing_data_t get_map_coalescing_data_t(const EP *ep, addr_t obj) {
     cache[v] = data;
 
   return data;
+}
+
+bool is_parser_condition(const bdd::Node *node) {
+  if (node->get_type() != bdd::NodeType::BRANCH) {
+    return false;
+  }
+
+  const bdd::Branch *branch_node = static_cast<const bdd::Branch *>(node);
+
+  std::vector<const bdd::Node *> future_borrows =
+      get_all_functions_after_node(node, {"packet_borrow_next_chunk"});
+
+  if (future_borrows.size() == 0) {
+    return false;
+  }
+
+  klee::ref<klee::Expr> condition = branch_node->get_condition();
+  bool only_looks_at_packet = is_expr_only_packet_dependent(condition);
+
+  return only_looks_at_packet;
+}
+
+klee::ref<klee::Expr> get_chunk_from_borrow(const bdd::Node *node) {
+  if (node->get_type() != bdd::NodeType::CALL) {
+    return nullptr;
+  }
+
+  const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
+  const call_t &call = call_node->get_call();
+
+  if (call.function_name != "packet_borrow_next_chunk") {
+    return nullptr;
+  }
+
+  return call.extra_vars.at("the_chunk").second;
+}
+
+bool borrow_has_var_len(const bdd::Node *node) {
+  if (node->get_type() != bdd::NodeType::CALL) {
+    return false;
+  }
+
+  const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
+  const call_t &call = call_node->get_call();
+
+  if (call.function_name != "packet_borrow_next_chunk") {
+    return false;
+  }
+
+  klee::ref<klee::Expr> length = call.args.at("length").expr;
+  return length->getKind() != klee::Expr::Kind::Constant;
 }
 
 } // namespace synapse

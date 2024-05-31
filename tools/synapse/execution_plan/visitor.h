@@ -16,14 +16,15 @@ class EPNode;
 namespace tofino {
 class Ignore;
 class If;
+class IfHeaderValid;
 class Then;
 class Else;
 class Forward;
-class ParseCustomHeader;
-class ModifyCustomHeader;
-class ParserCondition;
-class IPv4TCPUDPChecksumsUpdate;
 class Drop;
+class Broadcast;
+class ParseHeader;
+class ModifyHeader;
+class IPv4TCPUDPChecksumsUpdate;
 class SendToController;
 class SetupExpirationNotifications;
 class TableModule;
@@ -114,62 +115,63 @@ public:
 
   VISIT_TODO(tofino::Ignore)
   VISIT_TODO(tofino::If)
+  VISIT_TODO(tofino::IfHeaderValid)
   VISIT_TODO(tofino::Then)
   VISIT_TODO(tofino::Else)
   VISIT_TODO(tofino::Forward)
-  VISIT_TODO(tofino::ParseCustomHeader)
-  VISIT_TODO(tofino::ModifyCustomHeader)
-  VISIT_TODO(tofino::ParserCondition)
   VISIT_TODO(tofino::Drop)
-  VISIT_TODO(tofino::SendToController)
-  VISIT_TODO(tofino::SetupExpirationNotifications)
-  VISIT_TODO(tofino::IPv4TCPUDPChecksumsUpdate)
-  VISIT_TODO(tofino::TableModule)
-  VISIT_TODO(tofino::TableLookup)
-  VISIT_TODO(tofino::TableRejuvenation)
-  VISIT_TODO(tofino::TableIsAllocated)
-  VISIT_TODO(tofino::IntegerAllocatorAllocate)
-  VISIT_TODO(tofino::IntegerAllocatorRejuvenate)
-  VISIT_TODO(tofino::IntegerAllocatorQuery)
-  VISIT_TODO(tofino::CounterRead)
-  VISIT_TODO(tofino::CounterIncrement)
-  VISIT_TODO(tofino::HashObj)
+  VISIT_TODO(tofino::Broadcast)
+  VISIT_TODO(tofino::ParseHeader)
+  VISIT_TODO(tofino::ModifyHeader)
+  // VISIT_TODO(tofino::SendToController)
+  // VISIT_TODO(tofino::SetupExpirationNotifications)
+  // VISIT_TODO(tofino::IPv4TCPUDPChecksumsUpdate)
+  // VISIT_TODO(tofino::TableModule)
+  // VISIT_TODO(tofino::TableLookup)
+  // VISIT_TODO(tofino::TableRejuvenation)
+  // VISIT_TODO(tofino::TableIsAllocated)
+  // VISIT_TODO(tofino::IntegerAllocatorAllocate)
+  // VISIT_TODO(tofino::IntegerAllocatorRejuvenate)
+  // VISIT_TODO(tofino::IntegerAllocatorQuery)
+  // VISIT_TODO(tofino::CounterRead)
+  // VISIT_TODO(tofino::CounterIncrement)
+  // VISIT_TODO(tofino::HashObj)
 
   /*************************************
    *
-   *              x86 Tofino
+   *            Tofino CPU
    *
    * **********************************/
 
-  VISIT_TODO(tofino_cpu::Ignore)
-  VISIT_TODO(tofino_cpu::CurrentTime)
-  VISIT_TODO(tofino_cpu::PacketParseCPU)
-  VISIT_TODO(tofino_cpu::PacketParseEthernet)
-  VISIT_TODO(tofino_cpu::PacketModifyEthernet)
-  VISIT_TODO(tofino_cpu::PacketParseIPv4)
-  VISIT_TODO(tofino_cpu::PacketModifyIPv4)
-  VISIT_TODO(tofino_cpu::PacketParseIPv4Options)
-  VISIT_TODO(tofino_cpu::PacketModifyIPv4Options)
-  VISIT_TODO(tofino_cpu::PacketParseTCPUDP)
-  VISIT_TODO(tofino_cpu::PacketModifyTCPUDP)
-  VISIT_TODO(tofino_cpu::PacketParseTCP)
-  VISIT_TODO(tofino_cpu::PacketModifyTCP)
-  VISIT_TODO(tofino_cpu::PacketParseUDP)
-  VISIT_TODO(tofino_cpu::PacketModifyUDP)
-  VISIT_TODO(tofino_cpu::PacketModifyChecksums)
-  VISIT_TODO(tofino_cpu::ForwardThroughTofino)
-  VISIT_TODO(tofino_cpu::If)
-  VISIT_TODO(tofino_cpu::Then)
-  VISIT_TODO(tofino_cpu::Else)
-  VISIT_TODO(tofino_cpu::Drop)
-  VISIT_TODO(tofino_cpu::MapGet)
-  VISIT_TODO(tofino_cpu::MapPut)
-  VISIT_TODO(tofino_cpu::DchainAllocateNewIndex)
-  VISIT_TODO(tofino_cpu::DchainIsIndexAllocated)
-  VISIT_TODO(tofino_cpu::DchainRejuvenateIndex)
-  VISIT_TODO(tofino_cpu::DchainFreeIndex)
-  VISIT_TODO(tofino_cpu::HashObj)
-  VISIT_TODO(tofino_cpu::MapErase)
+  // VISIT_TODO(tofino_cpu::Ignore)
+  // VISIT_TODO(tofino_cpu::CurrentTime)
+  // VISIT_TODO(tofino_cpu::PacketParseCPU)
+  // VISIT_TODO(tofino_cpu::PacketParseEthernet)
+  // VISIT_TODO(tofino_cpu::PacketModifyEthernet)
+  // VISIT_TODO(tofino_cpu::PacketParseIPv4)
+  // VISIT_TODO(tofino_cpu::PacketModifyIPv4)
+  // VISIT_TODO(tofino_cpu::PacketParseIPv4Options)
+  // VISIT_TODO(tofino_cpu::PacketModifyIPv4Options)
+  // VISIT_TODO(tofino_cpu::PacketParseTCPUDP)
+  // VISIT_TODO(tofino_cpu::PacketModifyTCPUDP)
+  // VISIT_TODO(tofino_cpu::PacketParseTCP)
+  // VISIT_TODO(tofino_cpu::PacketModifyTCP)
+  // VISIT_TODO(tofino_cpu::PacketParseUDP)
+  // VISIT_TODO(tofino_cpu::PacketModifyUDP)
+  // VISIT_TODO(tofino_cpu::PacketModifyChecksums)
+  // VISIT_TODO(tofino_cpu::ForwardThroughTofino)
+  // VISIT_TODO(tofino_cpu::If)
+  // VISIT_TODO(tofino_cpu::Then)
+  // VISIT_TODO(tofino_cpu::Else)
+  // VISIT_TODO(tofino_cpu::Drop)
+  // VISIT_TODO(tofino_cpu::MapGet)
+  // VISIT_TODO(tofino_cpu::MapPut)
+  // VISIT_TODO(tofino_cpu::DchainAllocateNewIndex)
+  // VISIT_TODO(tofino_cpu::DchainIsIndexAllocated)
+  // VISIT_TODO(tofino_cpu::DchainRejuvenateIndex)
+  // VISIT_TODO(tofino_cpu::DchainFreeIndex)
+  // VISIT_TODO(tofino_cpu::HashObj)
+  // VISIT_TODO(tofino_cpu::MapErase)
 
   /*************************************
    *

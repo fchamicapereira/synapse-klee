@@ -28,14 +28,16 @@ public:
    *
    ********************************************/
 
-  // DECLARE_VISIT(tofino::Ignore)
-  // DECLARE_VISIT(tofino::If)
-  // DECLARE_VISIT(tofino::Then)
-  // DECLARE_VISIT(tofino::Else)
-  // DECLARE_VISIT(tofino::Forward)
-  // DECLARE_VISIT(tofino::ParseCustomHeader)
-  // DECLARE_VISIT(tofino::ModifyCustomHeader)
-  // DECLARE_VISIT(tofino::ParserCondition)
+  DECLARE_VISIT(tofino::Ignore)
+  DECLARE_VISIT(tofino::If)
+  DECLARE_VISIT(tofino::IfHeaderValid)
+  DECLARE_VISIT(tofino::Then)
+  DECLARE_VISIT(tofino::Else)
+  DECLARE_VISIT(tofino::Forward)
+  DECLARE_VISIT(tofino::Drop)
+  DECLARE_VISIT(tofino::Broadcast)
+  DECLARE_VISIT(tofino::ParseHeader)
+  DECLARE_VISIT(tofino::ModifyHeader)
   // DECLARE_VISIT(tofino::IPv4TCPUDPChecksumsUpdate)
   // DECLARE_VISIT(tofino::TableModule)
   // DECLARE_VISIT(tofino::TableLookup)
@@ -44,7 +46,6 @@ public:
   // DECLARE_VISIT(tofino::IntegerAllocatorAllocate)
   // DECLARE_VISIT(tofino::IntegerAllocatorRejuvenate)
   // DECLARE_VISIT(tofino::IntegerAllocatorQuery)
-  // DECLARE_VISIT(tofino::Drop)
   // DECLARE_VISIT(tofino::SendToController)
   // DECLARE_VISIT(tofino::SetupExpirationNotifications)
   // DECLARE_VISIT(tofino::CounterRead)
@@ -53,11 +54,13 @@ public:
 
   /********************************************
    *
-   *                x86 Tofino
+   *              Tofino CPU
    *
    ********************************************/
 
-  // DECLARE_VISIT(tofino_cpu::Ignore)
+  // DECLARE_VISIT(tofino_cpu::If)
+  // DECLARE_VISIT(tofino_cpu::Then)
+  // DECLARE_VISIT(tofino_cpu::Else)
   // DECLARE_VISIT(tofino_cpu::PacketParseCPU)
   // DECLARE_VISIT(tofino_cpu::PacketParseEthernet)
   // DECLARE_VISIT(tofino_cpu::PacketModifyEthernet)
@@ -69,9 +72,6 @@ public:
   // DECLARE_VISIT(tofino_cpu::PacketParseTCPUDP)
   // DECLARE_VISIT(tofino_cpu::PacketModifyTCPUDP)
   // DECLARE_VISIT(tofino_cpu::PacketModifyChecksums)
-  // DECLARE_VISIT(tofino_cpu::If)
-  // DECLARE_VISIT(tofino_cpu::Then)
-  // DECLARE_VISIT(tofino_cpu::Else)
   // DECLARE_VISIT(tofino_cpu::Drop)
   // DECLARE_VISIT(tofino_cpu::MapGet)
   // DECLARE_VISIT(tofino_cpu::MapPut)

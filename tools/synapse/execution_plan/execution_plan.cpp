@@ -116,8 +116,19 @@ const Context &EP::get_context() const { return ctx; }
 Context &EP::get_mutable_context() { return ctx; }
 
 const bdd::Node *EP::get_next_node() const {
-  const EPLeaf *leaf = get_active_leaf();
-  return leaf ? leaf->next : nullptr;
+  const EPLeaf *active_leaf = get_active_leaf();
+
+  if (!active_leaf) {
+    return nullptr;
+  }
+
+  const bdd::Node *next_node = active_leaf->next;
+  while (next_node && meta.is_processed_node(next_node)) {
+    assert(next_node->get_type() != bdd::NodeType::BRANCH);
+    next_node = next_node->get_next();
+  }
+
+  return next_node;
 }
 
 const EPLeaf *EP::get_active_leaf() const {
@@ -162,7 +173,6 @@ void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves) {
   meta.update(active_leaf, new_node);
   meta.depth++;
 
-  leaves.erase(leaves.begin());
   for (const EPLeaf &new_leaf : new_leaves) {
     meta.update(active_leaf, new_leaf.node);
 
@@ -173,7 +183,10 @@ void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves) {
     if (next_target != current_target) {
       targets_roots[next_target].insert(next_node_id);
     }
+  }
 
+  leaves.erase(leaves.begin());
+  for (const EPLeaf &new_leaf : new_leaves) {
     leaves.insert(leaves.begin(), new_leaf);
   }
 }
@@ -194,5 +207,9 @@ void EP::replace_bdd(
 }
 
 void EP::visit(EPVisitor &visitor) const { visitor.visit(this); }
+
+void EP::process_future_node(const bdd::Node *future) {
+  meta.processed_nodes.insert(future->get_id());
+}
 
 } // namespace synapse

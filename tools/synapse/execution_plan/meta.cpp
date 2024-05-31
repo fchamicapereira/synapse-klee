@@ -21,4 +21,12 @@ void EPMeta::update(const EPLeaf *leaf, const EPNode *new_node) {
   nodes_per_target[target]++;
 }
 
+float EPMeta::get_bdd_progress() const {
+  return processed_nodes.size() / static_cast<float>(total_bdd_nodes);
+}
+
+bool EPMeta::is_processed_node(const bdd::Node *node) const {
+  return processed_nodes.find(node->get_id()) != processed_nodes.end();
+}
+
 } // namespace synapse

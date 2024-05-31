@@ -3,7 +3,7 @@
 #include "../log.h"
 #include "../search_space.h"
 #include "../execution_plan/execution_plan.h"
-#include "../targets/modules.h"
+#include "../targets/targets.h"
 
 #include <ctime>
 #include <fstream>
@@ -11,24 +11,37 @@
 #include <math.h>
 #include <unistd.h>
 
-#define DEFAULT_VISIT_PRINT_MODULE_NAME(M)                                     \
+#define SHOW_MODULE_NAME(M)                                                    \
   void EPVisualizer::visit(const EPNode *ep_node, const M *node) {             \
     function_call(ep_node, node->get_node(), node->get_target(),               \
                   node->get_name());                                           \
   }
 
-#define DEFAULT_BRANCH_VISIT_PRINT_MODULE_NAME(M)                              \
+#define VISIT_BRANCH(M)                                                        \
   void EPVisualizer::visit(const EPNode *ep_node, const M *node) {             \
     branch(ep_node, node->get_node(), node->get_target(), node->get_name());   \
   }
+
+#define IGNORE_MODULE(M)                                                       \
+  void EPVisualizer::visit(const EPNode *ep_node, const M *node) {}
 
 namespace synapse {
 
 static std::unordered_map<TargetType, std::string> node_colors = {
     {TargetType::Tofino, "cornflowerblue"},
     {TargetType::TofinoCPU, "firebrick2"},
-    {TargetType::x86, "tomato"},
+    {TargetType::x86, "orange"},
 };
+
+static std::unordered_set<ModuleType> modules_to_ignore = {
+    ModuleType::Tofino_Ignore,
+};
+
+static bool should_ignore_node(const EPNode *node) {
+  const Module *module = node->get_module();
+  ModuleType type = module->get_type();
+  return modules_to_ignore.find(type) != modules_to_ignore.end();
+}
 
 EPVisualizer::EPVisualizer() {}
 
@@ -78,14 +91,26 @@ void EPVisualizer::visit(const EP *ep) {
 }
 
 void EPVisualizer::visit(const EPNode *node) {
-  ep_node_id_t id = node->get_id();
+  if (should_ignore_node(node)) {
+    EPVisitor::visit(node);
+    return;
+  }
 
-  ss << id << " ";
+  ss << node->get_id() << " ";
   EPVisitor::visit(node);
 
   const std::vector<EPNode *> &children = node->get_children();
   for (const EPNode *child : children) {
-    ss << id << " -> " << child->get_id() << ";"
+    while (child && should_ignore_node(child)) {
+      assert(child->get_children().size() == 1);
+      child = child->get_children().front();
+    }
+
+    if (!child) {
+      continue;
+    }
+
+    ss << node->get_id() << " -> " << child->get_id() << ";"
        << "\n";
   }
 }
@@ -96,77 +121,35 @@ void EPVisualizer::visit(const EPNode *node) {
  *
  ********************************************/
 
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino::Ignore)
+IGNORE_MODULE(tofino::Ignore)
+VISIT_BRANCH(tofino::If)
+VISIT_BRANCH(tofino::IfHeaderValid)
+SHOW_MODULE_NAME(tofino::Then)
+SHOW_MODULE_NAME(tofino::Else)
+SHOW_MODULE_NAME(tofino::Forward)
+SHOW_MODULE_NAME(tofino::Drop)
+SHOW_MODULE_NAME(tofino::Broadcast)
+SHOW_MODULE_NAME(tofino::ModifyHeader)
 
-// void EPVisualizer::visit(const EPNode *ep_node, const tofino::If *node) {
-//   std::stringstream label_builder;
+void EPVisualizer::visit(const EPNode *ep_node,
+                         const tofino::ParseHeader *node) {
+  std::stringstream label_builder;
 
-//   auto bdd_node = node->get_node();
-//   auto target = node->get_target();
-//   auto conditions = node->get_conditions();
+  const bdd::Node *bdd_node = node->get_node();
+  TargetType target = node->get_target();
+  bytes_t size = node->get_length();
 
-//   for (auto i = 0u; i < conditions.size(); i++) {
-//     auto condition = conditions[i];
+  label_builder << "Parse header (";
+  label_builder << size;
+  label_builder << "B)";
 
-//     if (i > 0) {
-//       label_builder << "\n&& ";
-//     }
+  auto label = label_builder.str();
+  find_and_replace(label, {{"\n", "\\n"}});
 
-//     label_builder << kutil::pretty_print_expr(condition) << "\n";
-//   }
+  function_call(ep_node, bdd_node, target, label);
+}
 
-//   auto label = label_builder.str();
-//   find_and_replace(label, {{"\n", "\\n"}});
-
-//   branch(ep_node, bdd_node, target, label);
-// }
-
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino::Then)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino::Else)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino::Forward)
-
-// void EPVisualizer::visit(const EPNode *ep_node,
-//                          const tofino::ParseCustomHeader *node) {
-//   std::stringstream label_builder;
-
-//   auto bdd_node = node->get_node();
-//   auto target = node->get_target();
-//   auto size = node->get_size();
-
-//   label_builder << "Parse header [";
-//   label_builder << size;
-//   label_builder << " bits (";
-//   label_builder << size / 8;
-//   label_builder << " bytes)]";
-
-//   auto label = label_builder.str();
-//   find_and_replace(label, {{"\n", "\\n"}});
-
-//   function_call(ep_node, bdd_node, target, label);
-// }
-
-// void EPVisualizer::visit(const EPNode *ep_node,
-//                          const tofino::ParserCondition *node) {
-//   std::stringstream label_builder;
-
-//   auto bdd_node = node->get_node();
-//   auto target = node->get_target();
-//   auto condition = node->get_condition();
-//   auto apply_is_valid = node->get_apply_is_valid();
-
-//   label_builder << "Parser condition ";
-//   label_builder << " [apply: " << apply_is_valid << "]";
-//   label_builder << "\n";
-//   label_builder << kutil::pretty_print_expr(condition);
-
-//   auto label = label_builder.str();
-//   find_and_replace(label, {{"\n", "\\n"}});
-
-//   branch(ep_node, bdd_node, target, label);
-// }
-
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino::ModifyCustomHeader)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino::IPv4TCPUDPChecksumsUpdate)
+// SHOW_MODULE_NAME(tofino::IPv4TCPUDPChecksumsUpdate)
 
 // void EPVisualizer::visit(const EPNode *ep_node,
 //                          const tofino::TableModule *node) {
@@ -200,10 +183,9 @@ void EPVisualizer::visit(const EPNode *node) {
 //   visit(ep_node, static_cast<const tofino::TableModule *>(node));
 // }
 
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino::IntegerAllocatorAllocate)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino::IntegerAllocatorRejuvenate)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino::IntegerAllocatorQuery)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino::Drop)
+// SHOW_MODULE_NAME(tofino::IntegerAllocatorAllocate)
+// SHOW_MODULE_NAME(tofino::IntegerAllocatorRejuvenate)
+// SHOW_MODULE_NAME(tofino::IntegerAllocatorQuery)
 
 // void EPVisualizer::visit(const EPNode *ep_node,
 //                          const tofino::SendToController *node) {
@@ -227,21 +209,24 @@ void EPVisualizer::visit(const EPNode *node) {
 //   function_call(ep_node, bdd_node, target, label);
 // }
 
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino::SetupExpirationNotifications)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino::CounterRead)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino::CounterIncrement)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino::HashObj)
+// SHOW_MODULE_NAME(tofino::SetupExpirationNotifications)
+// SHOW_MODULE_NAME(tofino::CounterRead)
+// SHOW_MODULE_NAME(tofino::CounterIncrement)
+// SHOW_MODULE_NAME(tofino::HashObj)
 
 /********************************************
  *
- *                x86 Tofino
+ *               Tofino CPU
  *
  ********************************************/
 
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::Ignore)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::PacketParseEthernet)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::PacketModifyEthernet)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::ForwardThroughTofino)
+// VISIT_BRANCH(tofino_cpu::If)
+// SHOW_MODULE_NAME(tofino_cpu::Then)
+// SHOW_MODULE_NAME(tofino_cpu::Else)
+// SHOW_MODULE_NAME(tofino_cpu::Ignore)
+// SHOW_MODULE_NAME(tofino_cpu::PacketParseEthernet)
+// SHOW_MODULE_NAME(tofino_cpu::PacketModifyEthernet)
+// SHOW_MODULE_NAME(tofino_cpu::ForwardThroughTofino)
 
 // void EPVisualizer::visit(const EPNode *ep_node,
 //                          const tofino_cpu::PacketParseCPU *node) {
@@ -265,29 +250,26 @@ void EPVisualizer::visit(const EPNode *node) {
 //   function_call(ep_node, bdd_node, target, label);
 // }
 
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::PacketParseIPv4)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::PacketModifyIPv4)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::PacketParseIPv4Options)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::PacketModifyIPv4Options)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::PacketParseTCPUDP)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::PacketModifyTCPUDP)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::PacketModifyChecksums)
-// DEFAULT_BRANCH_VISIT_PRINT_MODULE_NAME(tofino_cpu::If)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::Then)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::Else)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::Drop)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::MapGet)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::MapPut)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::MapErase)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::DchainAllocateNewIndex)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::DchainIsIndexAllocated)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::DchainRejuvenateIndex)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::DchainFreeIndex)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::PacketParseTCP)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::PacketModifyTCP)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::PacketParseUDP)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::PacketModifyUDP)
-// DEFAULT_VISIT_PRINT_MODULE_NAME(tofino_cpu::HashObj)
+// SHOW_MODULE_NAME(tofino_cpu::PacketParseIPv4)
+// SHOW_MODULE_NAME(tofino_cpu::PacketModifyIPv4)
+// SHOW_MODULE_NAME(tofino_cpu::PacketParseIPv4Options)
+// SHOW_MODULE_NAME(tofino_cpu::PacketModifyIPv4Options)
+// SHOW_MODULE_NAME(tofino_cpu::PacketParseTCPUDP)
+// SHOW_MODULE_NAME(tofino_cpu::PacketModifyTCPUDP)
+// SHOW_MODULE_NAME(tofino_cpu::PacketModifyChecksums)
+// SHOW_MODULE_NAME(tofino_cpu::Drop)
+// SHOW_MODULE_NAME(tofino_cpu::MapGet)
+// SHOW_MODULE_NAME(tofino_cpu::MapPut)
+// SHOW_MODULE_NAME(tofino_cpu::MapErase)
+// SHOW_MODULE_NAME(tofino_cpu::DchainAllocateNewIndex)
+// SHOW_MODULE_NAME(tofino_cpu::DchainIsIndexAllocated)
+// SHOW_MODULE_NAME(tofino_cpu::DchainRejuvenateIndex)
+// SHOW_MODULE_NAME(tofino_cpu::DchainFreeIndex)
+// SHOW_MODULE_NAME(tofino_cpu::PacketParseTCP)
+// SHOW_MODULE_NAME(tofino_cpu::PacketModifyTCP)
+// SHOW_MODULE_NAME(tofino_cpu::PacketParseUDP)
+// SHOW_MODULE_NAME(tofino_cpu::PacketModifyUDP)
+// SHOW_MODULE_NAME(tofino_cpu::HashObj)
 
 /********************************************
  *
@@ -295,32 +277,32 @@ void EPVisualizer::visit(const EPNode *node) {
  *
  ********************************************/
 
-DEFAULT_BRANCH_VISIT_PRINT_MODULE_NAME(x86::If)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::Then)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::Else)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::Forward)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::Broadcast)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::Drop)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::ParseHeader)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::ModifyHeader)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::ChecksumUpdate)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::MapGet)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::MapPut)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::MapErase)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::ExpireItemsSingleMap)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::ExpireItemsSingleMapIteratively)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::VectorRead)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::VectorWrite)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::DchainAllocateNewIndex)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::DchainIsIndexAllocated)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::DchainRejuvenateIndex)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::DchainFreeIndex)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::SketchComputeHashes)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::SketchExpire)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::SketchFetch)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::SketchRefresh)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::SketchTouchBuckets)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::HashObj)
-DEFAULT_VISIT_PRINT_MODULE_NAME(x86::ChtFindBackend)
+VISIT_BRANCH(x86::If)
+SHOW_MODULE_NAME(x86::Then)
+SHOW_MODULE_NAME(x86::Else)
+SHOW_MODULE_NAME(x86::Forward)
+SHOW_MODULE_NAME(x86::Broadcast)
+SHOW_MODULE_NAME(x86::Drop)
+SHOW_MODULE_NAME(x86::ParseHeader)
+SHOW_MODULE_NAME(x86::ModifyHeader)
+SHOW_MODULE_NAME(x86::ChecksumUpdate)
+SHOW_MODULE_NAME(x86::MapGet)
+SHOW_MODULE_NAME(x86::MapPut)
+SHOW_MODULE_NAME(x86::MapErase)
+SHOW_MODULE_NAME(x86::ExpireItemsSingleMap)
+SHOW_MODULE_NAME(x86::ExpireItemsSingleMapIteratively)
+SHOW_MODULE_NAME(x86::VectorRead)
+SHOW_MODULE_NAME(x86::VectorWrite)
+SHOW_MODULE_NAME(x86::DchainAllocateNewIndex)
+SHOW_MODULE_NAME(x86::DchainIsIndexAllocated)
+SHOW_MODULE_NAME(x86::DchainRejuvenateIndex)
+SHOW_MODULE_NAME(x86::DchainFreeIndex)
+SHOW_MODULE_NAME(x86::SketchComputeHashes)
+SHOW_MODULE_NAME(x86::SketchExpire)
+SHOW_MODULE_NAME(x86::SketchFetch)
+SHOW_MODULE_NAME(x86::SketchRefresh)
+SHOW_MODULE_NAME(x86::SketchTouchBuckets)
+SHOW_MODULE_NAME(x86::HashObj)
+SHOW_MODULE_NAME(x86::ChtFindBackend)
 
 } // namespace synapse

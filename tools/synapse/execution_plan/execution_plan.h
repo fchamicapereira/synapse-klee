@@ -55,6 +55,14 @@ public:
   EP(EP &&other) = delete;
   EP &operator=(const EP *other) = delete;
 
+  void process_future_node(const bdd::Node *future);
+  void process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves);
+  void process_leaf(const bdd::Node *next_node);
+
+  void replace_bdd(
+      std::unique_ptr<bdd::BDD> &&new_bdd,
+      const std::unordered_map<bdd::node_id_t, bdd::node_id_t> &leaves_mapping);
+
   ep_id_t get_id() const;
   const bdd::BDD *get_bdd() const;
   const EPNode *get_root() const;
@@ -63,26 +71,18 @@ public:
   const Context &get_context() const;
   const EPMeta &get_meta() const;
 
-  std::vector<const EPNode *> get_prev_nodes() const;
-  std::vector<const EPNode *> get_prev_nodes_of_current_target() const;
-
   EPNode *get_mutable_root();
   Context &get_mutable_context();
+  EPNode *get_mutable_node_by_id(ep_node_id_t id);
+
+  std::vector<const EPNode *> get_prev_nodes() const;
+  std::vector<const EPNode *> get_prev_nodes_of_current_target() const;
 
   bool has_target(TargetType type) const;
   const bdd::Node *get_next_node() const;
   const EPLeaf *get_active_leaf() const;
   TargetType get_current_platform() const;
-
-  void process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves);
-  void process_leaf(const bdd::Node *next_node);
-
-  void replace_bdd(
-      std::unique_ptr<bdd::BDD> &&new_bdd,
-      const std::unordered_map<bdd::node_id_t, bdd::node_id_t> &leaves_mapping);
-
   EPNode *get_node_by_id(ep_node_id_t id) const;
-  EPNode *get_mutable_node_by_id(ep_node_id_t id);
 
   void visit(EPVisitor &visitor) const;
 

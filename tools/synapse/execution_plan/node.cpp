@@ -8,7 +8,8 @@ namespace synapse {
 
 static ep_node_id_t counter = 0;
 
-EPNode::EPNode(const Module *_module) : id(counter++), module(_module) {}
+EPNode::EPNode(const Module *_module)
+    : id(counter++), module(_module), prev(nullptr) {}
 
 EPNode::~EPNode() {
   if (module) {
@@ -80,6 +81,7 @@ EPNode *EPNode::clone(bool recursive) const {
 
     for (EPNode *child : children) {
       EPNode *cloned_children = child->clone(true);
+      child->set_prev(cloned_node);
       children_clones.push_back(cloned_children);
     }
 

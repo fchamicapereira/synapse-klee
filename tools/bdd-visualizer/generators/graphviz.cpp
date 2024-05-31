@@ -93,7 +93,7 @@ void Graphviz::show(bool interrupt) const {
   }
 }
 
-static void find_and_replace(
+void Graphviz::find_and_replace(
     std::string &str,
     const std::vector<std::pair<std::string, std::string>> &replacements) {
   for (const std::pair<std::string, std::string> &replacement : replacements) {

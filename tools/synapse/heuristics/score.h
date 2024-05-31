@@ -6,7 +6,7 @@
 
 #include "../execution_plan/execution_plan.h"
 #include "../execution_plan/node.h"
-#include "../targets/modules.h"
+#include "../targets/targets.h"
 #include "../log.h"
 
 namespace synapse {

@@ -53,9 +53,8 @@ struct EPMeta {
     return *this;
   }
 
-  float get_bdd_progress() const {
-    return processed_nodes.size() / static_cast<float>(total_bdd_nodes);
-  }
+  float get_bdd_progress() const;
+  bool is_processed_node(const bdd::Node *node) const;
 
   void update(const EPLeaf *leaf, const EPNode *new_node);
 };

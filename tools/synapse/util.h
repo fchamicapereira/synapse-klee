@@ -53,6 +53,18 @@ get_all_functions_after_node(const bdd::Node *root,
 
 bool is_parser_drop(const bdd::Node *root);
 
+// A parser condition should be the single discriminating condition that
+// decides whether a parsing state is performed or not. In BDD language, it
+// decides if a specific packet_borrow_next_chunk is applied.
+//
+// One classic example would be condition that checks if the ethertype field
+// on the ethernet header equals the IP protocol.
+//
+// A branch condition is considered a parsing condition if:
+//   - Has pending chunks to be borrowed in the future
+//   - Only looks at the packet
+bool is_parser_condition(const bdd::Node *node);
+
 std::vector<const Module *> get_prev_modules(const EP *ep,
                                              const std::vector<ModuleType> &);
 
@@ -97,5 +109,7 @@ struct map_coalescing_data_t {
 };
 
 map_coalescing_data_t get_map_coalescing_data_t(const EP *ep, addr_t map_addr);
+klee::ref<klee::Expr> get_chunk_from_borrow(const bdd::Node *node);
+bool borrow_has_var_len(const bdd::Node *node);
 
 } // namespace synapse
