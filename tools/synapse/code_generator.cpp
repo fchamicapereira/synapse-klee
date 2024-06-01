@@ -186,7 +186,7 @@ EP CodeGenerator::tofino_cpu_extractor(const EP *execution_plan) const {
     }
   }
 
-  auto tmb = execution_plan.get_context<TofinoContext>(TargetType::Tofino);
+  auto tmb = execution_plan.get_ctx<TofinoContext>(TargetType::Tofino);
   auto dp_state = tmb->get_dataplane_state();
 
   auto parse_cpu_module =

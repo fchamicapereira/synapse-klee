@@ -2,7 +2,9 @@
 
 #include "call-paths-to-bdd.h"
 
+#include "../visualizers/ep_visualizer.h"
 #include "../execution_plan/visitor.h"
+#include "../log.h"
 
 #include <string>
 
@@ -16,60 +18,20 @@ enum class TargetType;
 enum class ModuleType {
   Tofino_Ignore,
   Tofino_If,
-  Tofino_IfHeaderValid,
+  Tofino_ParserCondition,
   Tofino_Then,
   Tofino_Else,
   Tofino_Forward,
   Tofino_Drop,
   Tofino_Broadcast,
-  Tofino_ParseHeader,
+  Tofino_ParserExtraction,
   Tofino_ModifyHeader,
-  Tofino_IPv4TCPUDPChecksumsUpdate,
-  Tofino_TableLookup,
-  Tofino_TableRejuvenation,
-  Tofino_TableIsAllocated,
-  Tofino_SendToController,
-  Tofino_SetupExpirationNotifications,
-  Tofino_IntegerAllocatorAllocate,
-  Tofino_IntegerAllocatorRejuvenate,
-  Tofino_IntegerAllocatorQuery,
-  Tofino_CounterRead,
-  Tofino_CounterIncrement,
-  Tofino_HashObj,
-  // TofinoCPU_Ignore,
-  // TofinoCPU_PacketParseCPU,
-  // TofinoCPU_SendToTofino,
-  // TofinoCPU_PacketParseEthernet,
-  // TofinoCPU_PacketModifyEthernet,
-  // TofinoCPU_PacketParseIPv4,
-  // TofinoCPU_PacketModifyIPv4,
-  // TofinoCPU_PacketParseIPv4Options,
-  // TofinoCPU_PacketModifyIPv4Options,
-  // TofinoCPU_PacketParseTCPUDP,
-  // TofinoCPU_PacketModifyTCPUDP,
-  // TofinoCPU_PacketParseTCP,
-  // TofinoCPU_PacketModifyTCP,
-  // TofinoCPU_PacketParseUDP,
-  // TofinoCPU_PacketModifyUDP,
-  // TofinoCPU_PacketModifyChecksums,
-  // TofinoCPU_If,
-  // TofinoCPU_Then,
-  // TofinoCPU_Else,
-  // TofinoCPU_Drop,
-  // TofinoCPU_ForwardThroughTofino,
-  // TofinoCPU_MapGet,
-  // TofinoCPU_MapPut,
-  // TofinoCPU_MapErase,
-  // TofinoCPU_DchainAllocateNewIndex,
-  // TofinoCPU_DchainIsIndexAllocated,
-  // TofinoCPU_DchainRejuvenateIndex,
-  // TofinoCPU_DchainFreeIndex,
-  // TofinoCPU_HashObj,
+  Tofino_SimpleTableLookup,
   x86_If,
   x86_Then,
   x86_Else,
   x86_Forward,
-  x86_ParseHeader,
+  x86_ParserExtraction,
   x86_ModifyHeader,
   x86_MapGet,
   x86_MapPut,
@@ -125,7 +87,8 @@ public:
   TargetType get_next_target() const { return next_target; }
   const bdd::Node *get_node() const { return node; }
 
-  virtual void visit(EPVisitor &visitor, const EPNode *ep_node) const = 0;
+  virtual void visit(EPVisitor &visitor, const EP *ep,
+                     const EPNode *ep_node) const = 0;
   virtual Module *clone() const = 0;
 };
 

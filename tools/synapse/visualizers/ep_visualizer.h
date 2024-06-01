@@ -9,7 +9,7 @@
 #include <vector>
 
 #define DECLARE_VISIT(M)                                                       \
-  void visit(const EPNode *ep_node, const M *node) override;
+  void visit(const EP *ep, const EPNode *ep_node, const M *node) override;
 
 namespace synapse {
 
@@ -20,7 +20,7 @@ public:
   static void visualize(const EP *ep, bool interrupt);
 
   void visit(const EP *ep) override;
-  void visit(const EPNode *ep_node) override;
+  void visit(const EP *ep, const EPNode *ep_node) override;
 
   /********************************************
    *
@@ -30,27 +30,15 @@ public:
 
   DECLARE_VISIT(tofino::Ignore)
   DECLARE_VISIT(tofino::If)
-  DECLARE_VISIT(tofino::IfHeaderValid)
+  DECLARE_VISIT(tofino::ParserCondition)
   DECLARE_VISIT(tofino::Then)
   DECLARE_VISIT(tofino::Else)
   DECLARE_VISIT(tofino::Forward)
   DECLARE_VISIT(tofino::Drop)
   DECLARE_VISIT(tofino::Broadcast)
-  DECLARE_VISIT(tofino::ParseHeader)
+  DECLARE_VISIT(tofino::ParserExtraction)
   DECLARE_VISIT(tofino::ModifyHeader)
-  // DECLARE_VISIT(tofino::IPv4TCPUDPChecksumsUpdate)
-  // DECLARE_VISIT(tofino::TableModule)
-  // DECLARE_VISIT(tofino::TableLookup)
-  // DECLARE_VISIT(tofino::TableRejuvenation)
-  // DECLARE_VISIT(tofino::TableIsAllocated)
-  // DECLARE_VISIT(tofino::IntegerAllocatorAllocate)
-  // DECLARE_VISIT(tofino::IntegerAllocatorRejuvenate)
-  // DECLARE_VISIT(tofino::IntegerAllocatorQuery)
-  // DECLARE_VISIT(tofino::SendToController)
-  // DECLARE_VISIT(tofino::SetupExpirationNotifications)
-  // DECLARE_VISIT(tofino::CounterRead)
-  // DECLARE_VISIT(tofino::CounterIncrement)
-  // DECLARE_VISIT(tofino::HashObj)
+  DECLARE_VISIT(tofino::SimpleTableLookup)
 
   /********************************************
    *
@@ -98,7 +86,7 @@ public:
   DECLARE_VISIT(x86::Forward)
   DECLARE_VISIT(x86::Broadcast)
   DECLARE_VISIT(x86::Drop)
-  DECLARE_VISIT(x86::ParseHeader)
+  DECLARE_VISIT(x86::ParserExtraction)
   DECLARE_VISIT(x86::ModifyHeader)
   DECLARE_VISIT(x86::ChecksumUpdate)
   DECLARE_VISIT(x86::MapGet)
@@ -119,6 +107,9 @@ public:
   DECLARE_VISIT(x86::SketchTouchBuckets)
   DECLARE_VISIT(x86::HashObj)
   DECLARE_VISIT(x86::ChtFindBackend)
+
+protected:
+  virtual void log(const EPNode *ep_node) const override;
 
 private:
   void function_call(const EPNode *ep_node, const bdd::Node *node,

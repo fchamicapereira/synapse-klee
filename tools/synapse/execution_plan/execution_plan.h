@@ -68,11 +68,11 @@ public:
   const EPNode *get_root() const;
   const std::vector<EPLeaf> &get_leaves() const;
   const bdd::nodes_t &get_target_roots(TargetType target) const;
-  const Context &get_context() const;
+  const Context &get_ctx() const;
   const EPMeta &get_meta() const;
 
   EPNode *get_mutable_root();
-  Context &get_mutable_context();
+  Context &get_mutable_ctx();
   EPNode *get_mutable_node_by_id(ep_node_id_t id);
 
   std::vector<const EPNode *> get_prev_nodes() const;
@@ -85,9 +85,6 @@ public:
   EPNode *get_node_by_id(ep_node_id_t id) const;
 
   void visit(EPVisitor &visitor) const;
-
-  EP clone(const bdd::BDD &new_bdd) const;
-  EP clone(bool deep = false) const;
 
 private:
   EPLeaf *get_mutable_active_leaf();

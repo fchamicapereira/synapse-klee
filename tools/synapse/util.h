@@ -100,15 +100,14 @@ klee::ref<klee::Expr> get_original_vector_value(const EP *ep,
 klee::ref<klee::Expr> get_expr_from_addr(const EP *ep, addr_t addr);
 
 struct map_coalescing_data_t {
-  bool valid;
   addr_t map;
   addr_t dchain;
-  std::unordered_set<addr_t> vectors;
-
-  map_coalescing_data_t() : valid(false) {}
+  objs_t vectors;
 };
 
-map_coalescing_data_t get_map_coalescing_data_t(const EP *ep, addr_t map_addr);
+std::optional<map_coalescing_data_t>
+get_map_coalescing_data(const bdd::BDD *bdd, addr_t map_addr);
+
 klee::ref<klee::Expr> get_chunk_from_borrow(const bdd::Node *node);
 bool borrow_has_var_len(const bdd::Node *node);
 

@@ -4,7 +4,7 @@
 #include <memory>
 
 #define VISIT_TODO(M)                                                          \
-  virtual void visit(const EPNode *ep_node, const M *m) {                      \
+  virtual void visit(const EP *ep, const EPNode *ep_node, const M *m) {        \
     assert(false && "TODO");                                                   \
   }
 
@@ -16,27 +16,15 @@ class EPNode;
 namespace tofino {
 class Ignore;
 class If;
-class IfHeaderValid;
+class ParserCondition;
 class Then;
 class Else;
 class Forward;
 class Drop;
 class Broadcast;
-class ParseHeader;
+class ParserExtraction;
 class ModifyHeader;
-class IPv4TCPUDPChecksumsUpdate;
-class SendToController;
-class SetupExpirationNotifications;
-class TableModule;
-class TableLookup;
-class TableRejuvenation;
-class TableIsAllocated;
-class IntegerAllocatorAllocate;
-class IntegerAllocatorRejuvenate;
-class IntegerAllocatorQuery;
-class CounterRead;
-class CounterIncrement;
-class HashObj;
+class SimpleTableLookup;
 } // namespace tofino
 
 namespace tofino_cpu {
@@ -74,7 +62,7 @@ class HashObj;
 namespace x86 {
 class MapGet;
 class CurrentTime;
-class ParseHeader;
+class ParserExtraction;
 class ModifyHeader;
 class If;
 class Then;
@@ -105,7 +93,7 @@ class HashObj;
 class EPVisitor {
 public:
   virtual void visit(const EP *ep);
-  virtual void visit(const EPNode *ep_node);
+  virtual void visit(const EP *ep, const EPNode *ep_node);
 
   /*************************************
    *
@@ -115,27 +103,15 @@ public:
 
   VISIT_TODO(tofino::Ignore)
   VISIT_TODO(tofino::If)
-  VISIT_TODO(tofino::IfHeaderValid)
+  VISIT_TODO(tofino::ParserCondition)
   VISIT_TODO(tofino::Then)
   VISIT_TODO(tofino::Else)
   VISIT_TODO(tofino::Forward)
   VISIT_TODO(tofino::Drop)
   VISIT_TODO(tofino::Broadcast)
-  VISIT_TODO(tofino::ParseHeader)
+  VISIT_TODO(tofino::ParserExtraction)
   VISIT_TODO(tofino::ModifyHeader)
-  // VISIT_TODO(tofino::SendToController)
-  // VISIT_TODO(tofino::SetupExpirationNotifications)
-  // VISIT_TODO(tofino::IPv4TCPUDPChecksumsUpdate)
-  // VISIT_TODO(tofino::TableModule)
-  // VISIT_TODO(tofino::TableLookup)
-  // VISIT_TODO(tofino::TableRejuvenation)
-  // VISIT_TODO(tofino::TableIsAllocated)
-  // VISIT_TODO(tofino::IntegerAllocatorAllocate)
-  // VISIT_TODO(tofino::IntegerAllocatorRejuvenate)
-  // VISIT_TODO(tofino::IntegerAllocatorQuery)
-  // VISIT_TODO(tofino::CounterRead)
-  // VISIT_TODO(tofino::CounterIncrement)
-  // VISIT_TODO(tofino::HashObj)
+  VISIT_TODO(tofino::SimpleTableLookup)
 
   /*************************************
    *
@@ -185,7 +161,7 @@ public:
   VISIT_TODO(x86::Forward)
   VISIT_TODO(x86::Broadcast)
   VISIT_TODO(x86::Drop)
-  VISIT_TODO(x86::ParseHeader)
+  VISIT_TODO(x86::ParserExtraction)
   VISIT_TODO(x86::ModifyHeader)
   VISIT_TODO(x86::MapGet)
   VISIT_TODO(x86::CurrentTime)

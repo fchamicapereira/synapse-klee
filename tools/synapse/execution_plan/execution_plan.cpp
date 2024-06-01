@@ -10,9 +10,9 @@ static ep_id_t counter = 0;
 
 EP::EP(const std::shared_ptr<bdd::BDD> &_bdd,
        const std::vector<const Target *> &_targets)
-    : id(counter++), bdd(_bdd), root(nullptr), ctx(_targets), meta(bdd.get()) {
+    : id(counter++), bdd(_bdd), root(nullptr), ctx(_bdd.get(), _targets),
+      meta(bdd.get()) {
   assert(_targets.size());
-
   initial_target = _targets[0]->type;
 
   for (const Target *target : _targets) {
@@ -111,9 +111,9 @@ bool EP::has_target(TargetType type) const {
   return targets.find(type) != targets.end();
 }
 
-const Context &EP::get_context() const { return ctx; }
+const Context &EP::get_ctx() const { return ctx; }
 
-Context &EP::get_mutable_context() { return ctx; }
+Context &EP::get_mutable_ctx() { return ctx; }
 
 const bdd::Node *EP::get_next_node() const {
   const EPLeaf *active_leaf = get_active_leaf();
@@ -182,6 +182,11 @@ void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves) {
 
     if (next_target != current_target) {
       targets_roots[next_target].insert(next_node_id);
+    }
+
+    if (new_leaf.node != new_node) {
+      new_leaf.node->set_prev(new_node);
+      new_node->add_child(new_leaf.node);
     }
   }
 

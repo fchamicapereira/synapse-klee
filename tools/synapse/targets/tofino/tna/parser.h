@@ -9,7 +9,10 @@
 namespace synapse {
 namespace tofino {
 
-enum class ParserStateType { EXTRACTOR, CONDITION, TERMINATING };
+struct ParserState;
+typedef std::unordered_map<bdd::node_id_t, ParserState *> states_t;
+
+enum class ParserStateType { EXTRACT, SELECT, TERMINATE };
 
 struct ParserState {
   bdd::node_id_t id;
@@ -22,15 +25,14 @@ struct ParserState {
 
   virtual std::string dump(int lvl = 0) const = 0;
   virtual ParserState *clone() const = 0;
-  virtual void
-  retrieve(std::unordered_map<bdd::node_id_t, ParserState *> &states) = 0;
+  virtual void retrieve(states_t &states) = 0;
 };
 
 struct ParserStateTerminate : public ParserState {
   bool accept;
 
   ParserStateTerminate(bdd::node_id_t _id, bool _accept)
-      : ParserState(_id, ParserStateType::TERMINATING), accept(_accept) {}
+      : ParserState(_id, ParserStateType::TERMINATE), accept(_accept) {}
 
   ParserStateTerminate(const ParserStateTerminate &other)
       : ParserStateTerminate(other.id, other.accept) {}
@@ -46,29 +48,39 @@ struct ParserStateTerminate : public ParserState {
 
   ParserState *clone() const { return new ParserStateTerminate(*this); }
 
-  void retrieve(std::unordered_map<bdd::node_id_t, ParserState *> &states) {
-    states[id] = this;
-  }
+  void retrieve(states_t &states) { states[id] = this; }
 };
 
-struct ParserStateCondition : public ParserState {
-  klee::ref<klee::Expr> condition;
+struct ParserStateSelect : public ParserState {
+  klee::ref<klee::Expr> field;
+  std::vector<int> values;
   ParserState *on_true;
   ParserState *on_false;
 
-  ParserStateCondition(bdd::node_id_t _id, klee::ref<klee::Expr> _condition)
-      : ParserState(_id, ParserStateType::CONDITION), condition(_condition),
-        on_true(nullptr), on_false(nullptr) {}
+  ParserStateSelect(bdd::node_id_t _id, klee::ref<klee::Expr> _field,
+                    const std::vector<int> &_values)
+      : ParserState(_id, ParserStateType::SELECT), field(_field),
+        values(_values), on_true(nullptr), on_false(nullptr) {}
 
-  ParserStateCondition(const ParserStateCondition &other)
-      : ParserStateCondition(other.id, other.condition) {}
+  ParserStateSelect(const ParserStateSelect &other)
+      : ParserStateSelect(other.id, other.field, other.values) {}
 
   std::string dump(int lvl = 0) const {
     std::stringstream ss;
 
     ss << std::string(lvl * 2, ' ');
     ss << "[" << id << "] ";
-    ss << "if(" << kutil::expr_to_string(condition, true) << ")\n";
+    ss << "select (";
+    ss << "field=";
+    ss << kutil::expr_to_string(field, true);
+    ss << ", values=[";
+    for (size_t i = 0; i < values.size(); i++) {
+      ss << values[i];
+      if (i < values.size() - 1)
+        ss << ", ";
+    }
+    ss << "]";
+    ss << ")\n";
 
     lvl++;
 
@@ -99,14 +111,14 @@ struct ParserStateCondition : public ParserState {
       on_false_clone = on_false->clone();
     }
 
-    ParserStateCondition *clone = new ParserStateCondition(*this);
+    ParserStateSelect *clone = new ParserStateSelect(*this);
     clone->on_true = on_true_clone;
     clone->on_false = on_false_clone;
 
     return clone;
   }
 
-  void retrieve(std::unordered_map<bdd::node_id_t, ParserState *> &states) {
+  void retrieve(states_t &states) {
     states[id] = this;
     if (on_true)
       on_true->retrieve(states);
@@ -115,16 +127,15 @@ struct ParserStateCondition : public ParserState {
   }
 };
 
-struct ParserStateExtractor : public ParserState {
+struct ParserStateExtract : public ParserState {
   klee::ref<klee::Expr> hdr;
   ParserState *next;
 
-  ParserStateExtractor(bdd::node_id_t _id, klee::ref<klee::Expr> _hdr)
-      : ParserState(_id, ParserStateType::EXTRACTOR), hdr(_hdr), next(nullptr) {
-  }
+  ParserStateExtract(bdd::node_id_t _id, klee::ref<klee::Expr> _hdr)
+      : ParserState(_id, ParserStateType::EXTRACT), hdr(_hdr), next(nullptr) {}
 
-  ParserStateExtractor(const ParserStateExtractor &other)
-      : ParserStateExtractor(other.id, other.hdr) {}
+  ParserStateExtract(const ParserStateExtract &other)
+      : ParserStateExtract(other.id, other.hdr) {}
 
   std::string dump(int lvl = 0) const {
     std::stringstream ss;
@@ -149,13 +160,13 @@ struct ParserStateExtractor : public ParserState {
       next_clone = next->clone();
     }
 
-    ParserStateExtractor *clone = new ParserStateExtractor(*this);
+    ParserStateExtract *clone = new ParserStateExtract(*this);
     clone->next = next_clone;
 
     return clone;
   }
 
-  void retrieve(std::unordered_map<bdd::node_id_t, ParserState *> &states) {
+  void retrieve(states_t &states) {
     states[id] = this;
     if (next)
       next->retrieve(states);
@@ -165,7 +176,7 @@ struct ParserStateExtractor : public ParserState {
 class Parser {
 private:
   ParserState *initial_state;
-  std::unordered_map<bdd::node_id_t, ParserState *> states;
+  states_t states;
 
 public:
   Parser() : initial_state(nullptr) {}
@@ -183,37 +194,46 @@ public:
     }
   }
 
-  void add_extractor(bdd::node_id_t leaf_id, bdd::node_id_t id,
-                     klee::ref<klee::Expr> hdr, std::optional<bool> direction) {
-    ParserState *new_state = new ParserStateExtractor(id, hdr);
+  void add_extract(bdd::node_id_t leaf_id, bdd::node_id_t id,
+                   klee::ref<klee::Expr> hdr, std::optional<bool> direction) {
+    ParserState *new_state = new ParserStateExtract(id, hdr);
     add_state(leaf_id, new_state, direction);
   }
 
-  void add_extractor(bdd::node_id_t id, klee::ref<klee::Expr> hdr) {
-    ParserState *new_state = new ParserStateExtractor(id, hdr);
+  void add_extract(bdd::node_id_t id, klee::ref<klee::Expr> hdr) {
+    ParserState *new_state = new ParserStateExtract(id, hdr);
     add_state(new_state);
   }
 
-  void add_condition(bdd::node_id_t leaf_id, bdd::node_id_t id,
-                     klee::ref<klee::Expr> condition,
-                     std::optional<bool> direction) {
-    ParserState *new_state = new ParserStateCondition(id, condition);
+  void add_select(bdd::node_id_t leaf_id, bdd::node_id_t id,
+                  klee::ref<klee::Expr> field, const std::vector<int> &values,
+                  std::optional<bool> direction) {
+    ParserStateSelect *new_state = new ParserStateSelect(id, field, values);
     add_state(leaf_id, new_state, direction);
   }
 
-  void add_condition(bdd::node_id_t id, klee::ref<klee::Expr> condition) {
-    ParserState *new_state = new ParserStateCondition(id, condition);
+  void add_select(bdd::node_id_t id, klee::ref<klee::Expr> field,
+                  const std::vector<int> &values) {
+    ParserState *new_state = new ParserStateSelect(id, field, values);
     add_state(new_state);
   }
 
   void accept(bdd::node_id_t leaf_id, bdd::node_id_t id,
               std::optional<bool> direction) {
+    if (already_terminated(leaf_id, id, direction, true)) {
+      return;
+    }
+
     ParserState *new_state = new ParserStateTerminate(id, true);
     add_state(leaf_id, new_state, direction);
   }
 
   void reject(bdd::node_id_t leaf_id, bdd::node_id_t id,
               std::optional<bool> direction) {
+    if (already_terminated(leaf_id, id, direction, false)) {
+      return;
+    }
+
     ParserState *new_state = new ParserStateTerminate(id, false);
     add_state(leaf_id, new_state, direction);
   }
@@ -228,6 +248,56 @@ public:
   }
 
 private:
+  bool already_terminated(bdd::node_id_t leaf_id, bdd::node_id_t id,
+                          std::optional<bool> direction, bool accepted) {
+    assert(initial_state);
+    assert(states.find(leaf_id) != states.end());
+
+    ParserState *leaf = states[leaf_id];
+
+    switch (leaf->type) {
+    case ParserStateType::EXTRACT: {
+      assert(!direction.has_value());
+      ParserStateExtract *extractor = static_cast<ParserStateExtract *>(leaf);
+
+      if (!extractor->next ||
+          extractor->next->type != ParserStateType::TERMINATE) {
+        return false;
+      }
+
+      ParserStateTerminate *terminate =
+          static_cast<ParserStateTerminate *>(extractor->next);
+      assert(terminate->accept == accepted);
+    } break;
+    case ParserStateType::SELECT: {
+      assert(direction.has_value());
+      ParserStateSelect *condition = static_cast<ParserStateSelect *>(leaf);
+
+      if ((*direction && !condition->on_true) ||
+          (!*direction && !condition->on_false)) {
+        return false;
+      }
+
+      ParserState *next = *direction ? condition->on_true : condition->on_false;
+
+      if (!next || next->type != ParserStateType::TERMINATE) {
+        return false;
+      }
+
+      ParserStateTerminate *terminate =
+          static_cast<ParserStateTerminate *>(next);
+      assert(terminate->accept == accepted);
+    } break;
+    case ParserStateType::TERMINATE: {
+      ParserStateTerminate *terminate =
+          static_cast<ParserStateTerminate *>(leaf);
+      assert(terminate->accept == accepted);
+    } break;
+    }
+
+    return true;
+  }
+
   void add_state(ParserState *new_state) {
     assert(!initial_state);
     assert(states.empty());
@@ -250,17 +320,15 @@ private:
     ParserState *leaf = states[leaf_id];
 
     switch (leaf->type) {
-    case ParserStateType::EXTRACTOR: {
+    case ParserStateType::EXTRACT: {
       assert(!direction.has_value());
-      ParserStateExtractor *extractor =
-          static_cast<ParserStateExtractor *>(leaf);
+      ParserStateExtract *extractor = static_cast<ParserStateExtract *>(leaf);
       assert(!extractor->next);
       extractor->next = new_state;
     } break;
-    case ParserStateType::CONDITION: {
+    case ParserStateType::SELECT: {
       assert(direction.has_value());
-      ParserStateCondition *condition =
-          static_cast<ParserStateCondition *>(leaf);
+      ParserStateSelect *condition = static_cast<ParserStateSelect *>(leaf);
       if (*direction) {
         assert(!condition->on_true);
         condition->on_true = new_state;
@@ -269,8 +337,8 @@ private:
         condition->on_false = new_state;
       }
     } break;
-    case ParserStateType::TERMINATING: {
-      assert(false && "Cannot add extractor to terminating state");
+    case ParserStateType::TERMINATE: {
+      assert(false && "Cannot add state to terminating state");
     } break;
     }
 

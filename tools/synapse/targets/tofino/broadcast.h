@@ -13,8 +13,9 @@ public:
   Broadcast(const bdd::Node *node)
       : TofinoModule(ModuleType::Tofino_Broadcast, "Broadcast", node) {}
 
-  virtual void visit(EPVisitor &visitor, const EPNode *ep_node) const override {
-    visitor.visit(ep_node, this);
+  virtual void visit(EPVisitor &visitor, const EP *ep,
+                     const EPNode *ep_node) const override {
+    visitor.visit(ep, ep_node, this);
   }
 
   virtual Module *clone() const {
@@ -47,8 +48,8 @@ protected:
     EP *new_ep = new EP(*ep);
     new_eps.push_back(new_ep);
 
-    TNA &tna = get_mutable_tna(new_ep);
-    tna.update_parser_accept(ep);
+    TofinoContext *tofino_ctx = get_mutable_tofino_ctx(new_ep);
+    tofino_ctx->parser_accept(ep, node);
 
     Module *module = new Broadcast(node);
     EPNode *ep_node = new EPNode(module);

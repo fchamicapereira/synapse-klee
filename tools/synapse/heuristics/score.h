@@ -17,9 +17,6 @@ enum class ScoreCategory {
   NumberOfSwitchLeaves,
   NumberOfNodes,
   NumberOfControllerNodes,
-  NumberOfCounters,
-  NumberOfSimpleTables,
-  NumberOfIntAllocatorOps,
   Depth,
   ConsecutiveObjectOperationsInSwitch,
   HasNextStatefulOperationInSwitch,
@@ -60,14 +57,6 @@ public:
             &Score::get_nr_nodes,
         },
         {
-            ScoreCategory::NumberOfCounters,
-            &Score::get_nr_counters,
-        },
-        {
-            ScoreCategory::NumberOfSimpleTables,
-            &Score::get_nr_simple_tables,
-        },
-        {
             ScoreCategory::NumberOfSwitchNodes,
             &Score::get_nr_switch_nodes,
         },
@@ -90,10 +79,6 @@ public:
         {
             ScoreCategory::HasNextStatefulOperationInSwitch,
             &Score::next_op_is_stateful_in_switch,
-        },
-        {
-            ScoreCategory::NumberOfIntAllocatorOps,
-            &Score::get_nr_int_allocator_ops,
         },
         {
             ScoreCategory::ProcessedBDDPercentage,
@@ -196,9 +181,6 @@ private:
   get_nodes_with_type(const EP *ep, const std::vector<ModuleType> &types) const;
 
   int get_nr_nodes(const EP *ep) const;
-  int get_nr_counters(const EP *ep) const;
-  int get_nr_int_allocator_ops(const EP *ep) const;
-  int get_nr_simple_tables(const EP *ep) const;
   int get_depth(const EP *ep) const;
   int get_nr_switch_nodes(const EP *ep) const;
   int get_nr_controller_nodes(const EP *ep) const;

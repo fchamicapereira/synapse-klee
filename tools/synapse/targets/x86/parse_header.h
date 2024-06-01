@@ -5,24 +5,26 @@
 namespace synapse {
 namespace x86 {
 
-class ParseHeader : public x86Module {
+class ParserExtraction : public x86Module {
 private:
   addr_t chunk_addr;
   klee::ref<klee::Expr> chunk;
   klee::ref<klee::Expr> length;
 
 public:
-  ParseHeader(const bdd::Node *node, addr_t _chunk_addr,
-              klee::ref<klee::Expr> _chunk, klee::ref<klee::Expr> _length)
-      : x86Module(ModuleType::x86_ParseHeader, "ParseHeader", node),
+  ParserExtraction(const bdd::Node *node, addr_t _chunk_addr,
+                   klee::ref<klee::Expr> _chunk, klee::ref<klee::Expr> _length)
+      : x86Module(ModuleType::x86_ParserExtraction, "ParserExtraction", node),
         chunk_addr(_chunk_addr), chunk(_chunk), length(_length) {}
 
-  virtual void visit(EPVisitor &visitor, const EPNode *ep_node) const override {
-    visitor.visit(ep_node, this);
+  virtual void visit(EPVisitor &visitor, const EP *ep,
+                     const EPNode *ep_node) const override {
+    visitor.visit(ep, ep_node, this);
   }
 
   virtual Module *clone() const {
-    ParseHeader *cloned = new ParseHeader(node, chunk_addr, chunk, length);
+    ParserExtraction *cloned =
+        new ParserExtraction(node, chunk_addr, chunk, length);
     return cloned;
   }
 
@@ -31,10 +33,11 @@ public:
   klee::ref<klee::Expr> get_length() const { return length; }
 };
 
-class ParseHeaderGenerator : public x86ModuleGenerator {
+class ParserExtractionGenerator : public x86ModuleGenerator {
 public:
-  ParseHeaderGenerator()
-      : x86ModuleGenerator(ModuleType::x86_ParseHeader, "ParseHeader") {}
+  ParserExtractionGenerator()
+      : x86ModuleGenerator(ModuleType::x86_ParserExtraction,
+                           "ParserExtraction") {}
 
 protected:
   virtual std::vector<const EP *>
@@ -58,7 +61,7 @@ protected:
 
     addr_t chunk_addr = kutil::expr_addr_to_obj_addr(chunk);
 
-    Module *module = new ParseHeader(node, chunk_addr, out_chunk, length);
+    Module *module = new ParserExtraction(node, chunk_addr, out_chunk, length);
     EPNode *ep_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);

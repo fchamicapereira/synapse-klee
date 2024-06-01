@@ -1,14 +1,17 @@
-#include "tna_arch.h"
+#include "tofino_context.h"
 
-#include "../../../execution_plan/execution_plan.h"
-#include "../../module.h"
+#include "../../execution_plan/execution_plan.h"
+#include "../module.h"
 
-#include "../../../visualizers/ep_visualizer.h"
+#include "../../visualizers/ep_visualizer.h"
 
 namespace synapse {
 namespace tofino {
 
-TNA::TNA(TNAVersion version) {
+static std::unordered_map<TNAProperty, int>
+tna_properties_from_version(TNAVersion version) {
+  std::unordered_map<TNAProperty, int> properties;
+
   switch (version) {
   case TNAVersion::TNA1:
     properties = {
@@ -49,9 +52,47 @@ TNA::TNA(TNAVersion version) {
     };
     break;
   }
+
+  return properties;
 }
 
-bool TNA::condition_meets_phv_limit(klee::ref<klee::Expr> expr) const {
+TofinoContext::TofinoContext(TNAVersion _version)
+    : version(_version), properties(tna_properties_from_version(_version)) {}
+
+TofinoContext::TofinoContext(const TofinoContext &other)
+    : version(other.version), properties(other.properties), ids(other.ids),
+      parser(other.parser) {
+  for (const auto &kv : other.data_structures) {
+    std::vector<DataStructure *> new_data_structures;
+    for (const auto &ds : kv.second) {
+      new_data_structures.push_back(ds->clone());
+    }
+    data_structures[kv.first] = new_data_structures;
+  }
+}
+
+TofinoContext::~TofinoContext() {
+  for (auto &kv : data_structures) {
+    for (auto &ds : kv.second) {
+      delete ds;
+    }
+    kv.second.clear();
+  }
+  data_structures.clear();
+}
+
+const std::vector<DataStructure *> &
+TofinoContext::get_data_structures(addr_t addr) const {
+  return data_structures.at(addr);
+}
+
+void TofinoContext::add_data_structure(addr_t addr, DataStructure *ds) {
+  assert(ids.find(ds->id) == ids.end() && "Duplicate data structure ID");
+  data_structures[addr].push_back(ds);
+}
+
+bool TofinoContext::condition_meets_phv_limit(
+    klee::ref<klee::Expr> expr) const {
   kutil::SymbolRetriever retriever;
   retriever.visit(expr);
 
@@ -60,6 +101,21 @@ bool TNA::condition_meets_phv_limit(klee::ref<klee::Expr> expr) const {
 
   return static_cast<int>(chunks.size()) <=
          properties.at(TNAProperty::MAX_PACKET_BYTES_IN_CONDITION);
+}
+
+const Table *TofinoContext::get_table(int tid) const {
+  for (const auto &kv : data_structures) {
+    for (const DataStructure *ds : kv.second) {
+      if (ds->type == DSType::SIMPLE_TABLE) {
+        const Table *table = static_cast<const Table *>(ds);
+        if (table->id == tid) {
+          return table;
+        }
+      }
+    }
+  }
+
+  return nullptr;
 }
 
 static const bdd::Node *
@@ -73,7 +129,7 @@ get_last_parser_state_op(const EP *ep, std::optional<bool> &direction) {
     const Module *module = node->get_module();
     assert(module && "Module not found");
 
-    if (module->get_type() == ModuleType::Tofino_IfHeaderValid) {
+    if (module->get_type() == ModuleType::Tofino_ParserCondition) {
       assert(next && next->get_module());
       const Module *next_module = next->get_module();
 
@@ -82,10 +138,11 @@ get_last_parser_state_op(const EP *ep, std::optional<bool> &direction) {
       } else {
         direction = false;
       }
+
+      return module->get_node();
     }
 
-    if (module->get_type() == ModuleType::Tofino_ParseHeader ||
-        module->get_type() == ModuleType::Tofino_IfHeaderValid) {
+    if (module->get_type() == ModuleType::Tofino_ParserExtraction) {
       return module->get_node();
     }
 
@@ -96,47 +153,43 @@ get_last_parser_state_op(const EP *ep, std::optional<bool> &direction) {
   return nullptr;
 }
 
-void TNA::update_parser_condition(const EP *ep,
-                                  klee::ref<klee::Expr> condition) {
-  const EPLeaf *leaf = ep->get_active_leaf();
-  const bdd::Node *current_op = leaf->next;
-  bdd::node_id_t id = current_op->get_id();
+void TofinoContext::parser_select(const EP *ep, const bdd::Node *node,
+                                  klee::ref<klee::Expr> field,
+                                  const std::vector<int> &values) {
+  bdd::node_id_t id = node->get_id();
 
   std::optional<bool> direction;
   const bdd::Node *last_op = get_last_parser_state_op(ep, direction);
 
   if (!last_op) {
     // No leaf node found, add the initial parser state.
-    parser.add_condition(id, condition);
+    parser.add_select(id, field, values);
     return;
   }
 
   bdd::node_id_t leaf_id = last_op->get_id();
-  parser.add_condition(leaf_id, id, condition, direction);
+  parser.add_select(leaf_id, id, field, values, direction);
 }
 
-void TNA::update_parser_transition(const EP *ep, klee::ref<klee::Expr> hdr) {
-  const EPLeaf *leaf = ep->get_active_leaf();
-  const bdd::Node *current_op = leaf->next;
-  bdd::node_id_t id = current_op->get_id();
+void TofinoContext::parser_transition(const EP *ep, const bdd::Node *node,
+                                      klee::ref<klee::Expr> hdr) {
+  bdd::node_id_t id = node->get_id();
 
   std::optional<bool> direction;
   const bdd::Node *last_op = get_last_parser_state_op(ep, direction);
 
   if (!last_op) {
     // No leaf node found, add the initial parser state.
-    parser.add_extractor(id, hdr);
+    parser.add_extract(id, hdr);
     return;
   }
 
   bdd::node_id_t leaf_id = last_op->get_id();
-  parser.add_extractor(leaf_id, id, hdr, direction);
+  parser.add_extract(leaf_id, id, hdr, direction);
 }
 
-void TNA::update_parser_accept(const EP *ep) {
-  const EPLeaf *leaf = ep->get_active_leaf();
-  const bdd::Node *current_op = leaf->next;
-  bdd::node_id_t id = current_op->get_id();
+void TofinoContext::parser_accept(const EP *ep, const bdd::Node *node) {
+  bdd::node_id_t id = node->get_id();
 
   std::optional<bool> direction;
   const bdd::Node *last_op = get_last_parser_state_op(ep, direction);
@@ -146,10 +199,8 @@ void TNA::update_parser_accept(const EP *ep) {
   parser.accept(leaf_id, id, direction);
 }
 
-void TNA::update_parser_reject(const EP *ep) {
-  const EPLeaf *leaf = ep->get_active_leaf();
-  const bdd::Node *current_op = leaf->next;
-  bdd::node_id_t id = current_op->get_id();
+void TofinoContext::parser_reject(const EP *ep, const bdd::Node *node) {
+  bdd::node_id_t id = node->get_id();
 
   std::optional<bool> direction;
   const bdd::Node *last_op = get_last_parser_state_op(ep, direction);

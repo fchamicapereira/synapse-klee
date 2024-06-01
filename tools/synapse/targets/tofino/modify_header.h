@@ -18,8 +18,9 @@ public:
       : TofinoModule(ModuleType::Tofino_ModifyHeader, "ModifyHeader", node),
         hdr_addr(_hdr_addr), original_hdr(_original_hdr), changes(_changes) {}
 
-  virtual void visit(EPVisitor &visitor, const EPNode *ep_node) const override {
-    visitor.visit(ep_node, this);
+  virtual void visit(EPVisitor &visitor, const EP *ep,
+                     const EPNode *ep_node) const override {
+    visitor.visit(ep, ep_node, this);
   }
 
   virtual Module *clone() const {

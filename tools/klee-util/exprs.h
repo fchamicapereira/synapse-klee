@@ -9,7 +9,9 @@
 #include <optional>
 
 typedef uint32_t bytes_t;
+
 typedef uint64_t addr_t;
+typedef std::unordered_set<addr_t> objs_t;
 
 namespace kutil {
 

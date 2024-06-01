@@ -166,13 +166,31 @@ bool is_packet_readLSB(klee::ref<klee::Expr> expr, bytes_t &offset,
                        int &n_bytes) {
   assert(!expr.isNull());
 
+  if (expr->getKind() == klee::Expr::Read) {
+    klee::ReadExpr *read = dyn_cast<klee::ReadExpr>(expr);
+    if (read->updates.root->name != "packet_chunks") {
+      return false;
+    }
+
+    klee::ref<klee::Expr> index = read->index;
+    if (index->getKind() == klee::Expr::Constant) {
+      klee::ConstantExpr *index_const =
+          static_cast<klee::ConstantExpr *>(index.get());
+
+      offset = index_const->getZExtValue();
+      n_bytes = read->getWidth() / 8;
+
+      return true;
+    }
+  }
+
   if (expr->getKind() != klee::Expr::Concat) {
     return false;
   }
 
-  auto groups = get_expr_groups(expr);
+  std::vector<expr_group_t> groups = get_expr_groups(expr);
 
-  if (groups.size() <= 1) {
+  if (groups.size() != 1) {
     return false;
   }
 

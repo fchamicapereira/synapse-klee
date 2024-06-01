@@ -4,14 +4,15 @@
 
 #include "ignore.h"
 #include "if.h"
-#include "if_header_valid.h"
 #include "then.h"
 #include "else.h"
 #include "forward.h"
 #include "drop.h"
 #include "broadcast.h"
-#include "parse_header.h"
+#include "parser_extraction.h"
+#include "parser_condition.h"
 #include "modify_header.h"
+#include "simple_table_lookup.h"
 
 #include "tofino_context.h"
 
@@ -24,14 +25,15 @@ struct TofinoTarget : public Target {
                {
                    new IgnoreGenerator(),
                    new IfGenerator(),
-                   new IfHeaderValidGenerator(),
+                   new ParserConditionGenerator(),
                    new ThenGenerator(),
                    new ElseGenerator(),
                    new ForwardGenerator(),
                    new DropGenerator(),
                    new BroadcastGenerator(),
-                   new ParseHeaderGenerator(),
+                   new ParserExtractionGenerator(),
                    new ModifyHeaderGenerator(),
+                   new SimpleTableLookupGenerator(),
                },
                new TofinoContext(version)) {}
 };

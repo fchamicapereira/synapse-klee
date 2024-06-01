@@ -42,7 +42,7 @@ static std::vector<const EP *> get_reordered(const EP *ep) {
   //   auto ep_cloned = ep->clone(reordered_bdd.bdd);
 
   //   if (!reordered_bdd.condition.isNull()) {
-  //     auto ctx = ep_cloned.get_context();
+  //     auto ctx = ep_cloned.get_ctx();
   //     ctx->add_reorder_op(reordered_bdd.candidate->get_id(),
   //                          reordered_bdd.condition);
   //   }

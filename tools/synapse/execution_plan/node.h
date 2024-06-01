@@ -6,6 +6,7 @@ namespace synapse {
 
 class Module;
 class EPVisitor;
+class EP;
 
 typedef uint64_t ep_node_id_t;
 
@@ -30,6 +31,7 @@ public:
 
   void set_id(ep_node_id_t id);
   void set_children(const std::vector<EPNode *> &children);
+  void add_child(EPNode *child);
   void set_prev(EPNode *prev);
 
   const EPNode *get_node_by_id(ep_node_id_t target_id) const;
@@ -38,7 +40,7 @@ public:
   bool is_terminal_node() const;
   EPNode *clone(bool recursive = false) const;
 
-  void visit(EPVisitor &visitor) const;
+  void visit(EPVisitor &visitor, const EP *ep) const;
   void visit_nodes(std::function<EPNodeVisitAction(const EPNode *)> fn) const;
   void visit_mutable_nodes(std::function<EPNodeVisitAction(EPNode *)> fn);
 };

@@ -17,8 +17,9 @@ public:
       : x86Module(ModuleType::x86_HashObj, "HashObj", node),
         obj_addr(_obj_addr), size(_size), hash(_hash) {}
 
-  virtual void visit(EPVisitor &visitor, const EPNode *ep_node) const override {
-    visitor.visit(ep_node, this);
+  virtual void visit(EPVisitor &visitor, const EP *ep,
+                     const EPNode *ep_node) const override {
+    visitor.visit(ep, ep_node, this);
   }
 
   virtual Module *clone() const override {

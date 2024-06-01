@@ -9,8 +9,6 @@ struct GalliumComparator : public HeuristicCfg {
   Score get_score(const EP *ep) const override {
     Score score(
         ep, {
-                {ScoreCategory::NumberOfCounters, ScoreObjective::MAX},
-                {ScoreCategory::NumberOfSimpleTables, ScoreObjective::MAX},
                 {ScoreCategory::NumberOfSwitchNodes, ScoreObjective::MAX},
 
                 // Let's add this one to just speed up the process when

@@ -29,6 +29,8 @@ void EPNode::set_children(const std::vector<EPNode *> &_children) {
   children = _children;
 }
 
+void EPNode::add_child(EPNode *child) { children.push_back(child); }
+
 void EPNode::set_prev(EPNode *_prev) { prev = _prev; }
 
 const Module *EPNode::get_module() const { return module; }
@@ -79,9 +81,9 @@ EPNode *EPNode::clone(bool recursive) const {
   if (recursive) {
     std::vector<EPNode *> children_clones;
 
-    for (EPNode *child : children) {
+    for (const EPNode *child : children) {
       EPNode *cloned_children = child->clone(true);
-      child->set_prev(cloned_node);
+      cloned_children->set_prev(cloned_node);
       children_clones.push_back(cloned_children);
     }
 
@@ -131,6 +133,8 @@ void EPNode::visit_mutable_nodes(
   }
 }
 
-void EPNode::visit(EPVisitor &visitor) const { visitor.visit(this); }
+void EPNode::visit(EPVisitor &visitor, const EP *ep) const {
+  visitor.visit(ep, this);
+}
 
 } // namespace synapse

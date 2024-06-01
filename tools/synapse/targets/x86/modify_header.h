@@ -19,8 +19,9 @@ public:
         chunk_addr(_chunk_addr), original_chunk(_original_chunk),
         changes(_changes) {}
 
-  virtual void visit(EPVisitor &visitor, const EPNode *ep_node) const override {
-    visitor.visit(ep_node, this);
+  virtual void visit(EPVisitor &visitor, const EP *ep,
+                     const EPNode *ep_node) const override {
+    visitor.visit(ep, ep_node, this);
   }
 
   virtual Module *clone() const {

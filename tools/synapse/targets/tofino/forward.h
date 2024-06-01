@@ -17,8 +17,9 @@ public:
       : TofinoModule(ModuleType::Tofino_Forward, "Forward", node),
         dst_device(_dst_device) {}
 
-  virtual void visit(EPVisitor &visitor, const EPNode *ep_node) const override {
-    visitor.visit(ep_node, this);
+  virtual void visit(EPVisitor &visitor, const EP *ep,
+                     const EPNode *ep_node) const override {
+    visitor.visit(ep, ep_node, this);
   }
 
   virtual Module *clone() const {
@@ -55,9 +56,6 @@ protected:
     EP *new_ep = new EP(*ep);
     new_eps.push_back(new_ep);
 
-    TNA &tna = get_mutable_tna(new_ep);
-    tna.update_parser_accept(ep);
-
     Module *module = new Forward(node, dst_device);
     EPNode *ep_node = new EPNode(module);
 
@@ -67,6 +65,9 @@ protected:
     } else {
       new_ep->process_leaf(ep_node, {});
     }
+
+    TofinoContext *tofino_ctx = get_mutable_tofino_ctx(new_ep);
+    tofino_ctx->parser_accept(ep, node);
 
     return new_eps;
   }

@@ -15,8 +15,9 @@ public:
       : x86Module(ModuleType::x86_SketchFetch, "SketchFetch", node),
         sketch_addr(_sketch_addr), overflow(_overflow) {}
 
-  virtual void visit(EPVisitor &visitor, const EPNode *ep_node) const override {
-    visitor.visit(ep_node, this);
+  virtual void visit(EPVisitor &visitor, const EP *ep,
+                     const EPNode *ep_node) const override {
+    visitor.visit(ep, ep_node, this);
   }
 
   virtual Module *clone() const override {

@@ -12,20 +12,20 @@ void EPVisitor::visit(const EP *ep) {
   const EPNode *root = ep->get_root();
 
   if (root) {
-    root->visit(*this);
+    root->visit(*this, ep);
   }
 }
 
-void EPVisitor::visit(const EPNode *node) {
+void EPVisitor::visit(const EP *ep, const EPNode *node) {
   const Module *module = node->get_module();
   const std::vector<EPNode *> &children = node->get_children();
 
   log(node);
 
-  module->visit(*this, node);
+  module->visit(*this, ep, node);
 
   for (EPNode *child : children) {
-    child->visit(*this);
+    child->visit(*this, ep);
   }
 }
 

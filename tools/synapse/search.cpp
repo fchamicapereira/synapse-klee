@@ -18,7 +18,7 @@ SearchEngine<HCfg>::SearchEngine(const bdd::BDD &_bdd, Heuristic<HCfg> _h,
       nodes_to_peek(_nodes_to_peek) {
   targets.push_back(new tofino::TofinoTarget(tofino::TNAVersion::TNA2));
   // targets.push_back(new tofinoCPU::TofinoCPUTarget());
-  targets.push_back(new x86::x86Target());
+  // targets.push_back(new x86::x86Target());
 }
 
 template <class HCfg>

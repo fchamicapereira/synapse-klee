@@ -5,24 +5,27 @@
 namespace synapse {
 namespace tofino {
 
-class ParseHeader : public TofinoModule {
+class ParserExtraction : public TofinoModule {
 private:
   addr_t hdr_addr;
   klee::ref<klee::Expr> hdr;
   bytes_t length;
 
 public:
-  ParseHeader(const bdd::Node *node, addr_t _hdr_addr,
-              klee::ref<klee::Expr> _hdr, bytes_t _length)
-      : TofinoModule(ModuleType::Tofino_ParseHeader, "ParseHeader", node),
+  ParserExtraction(const bdd::Node *node, addr_t _hdr_addr,
+                   klee::ref<klee::Expr> _hdr, bytes_t _length)
+      : TofinoModule(ModuleType::Tofino_ParserExtraction, "ParserExtraction",
+                     node),
         hdr_addr(_hdr_addr), hdr(_hdr), length(_length) {}
 
-  virtual void visit(EPVisitor &visitor, const EPNode *ep_node) const override {
-    visitor.visit(ep_node, this);
+  virtual void visit(EPVisitor &visitor, const EP *ep,
+                     const EPNode *ep_node) const override {
+    visitor.visit(ep, ep_node, this);
   }
 
   virtual Module *clone() const {
-    ParseHeader *cloned = new ParseHeader(node, hdr_addr, hdr, length);
+    ParserExtraction *cloned =
+        new ParserExtraction(node, hdr_addr, hdr, length);
     return cloned;
   }
 
@@ -31,10 +34,11 @@ public:
   bytes_t get_length() const { return length; }
 };
 
-class ParseHeaderGenerator : public TofinoModuleGenerator {
+class ParserExtractionGenerator : public TofinoModuleGenerator {
 public:
-  ParseHeaderGenerator()
-      : TofinoModuleGenerator(ModuleType::Tofino_ParseHeader, "ParseHeader") {}
+  ParserExtractionGenerator()
+      : TofinoModuleGenerator(ModuleType::Tofino_ParserExtraction,
+                              "ParserExtraction") {}
 
 protected:
   virtual std::vector<const EP *>
@@ -62,14 +66,14 @@ protected:
 
     addr_t hdr_addr = kutil::expr_addr_to_obj_addr(hdr_addr_expr);
 
-    Module *module = new ParseHeader(node, hdr_addr, hdr, length);
+    Module *module = new ParserExtraction(node, hdr_addr, hdr, length);
     EPNode *ep_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
     new_eps.push_back(new_ep);
 
-    TNA &tna = get_mutable_tna(new_ep);
-    tna.update_parser_transition(ep, hdr);
+    TofinoContext *tofino_ctx = get_mutable_tofino_ctx(new_ep);
+    tofino_ctx->parser_transition(ep, node, hdr);
 
     if (node->get_next()) {
       EPLeaf leaf(ep_node, node->get_next());

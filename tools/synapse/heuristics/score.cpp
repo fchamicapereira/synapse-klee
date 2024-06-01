@@ -41,30 +41,6 @@ Score::get_nodes_with_type(const EP *ep,
   return found;
 }
 
-int Score::get_nr_counters(const EP *ep) const {
-  std::vector<const EPNode *> nodes =
-      get_nodes_with_type(ep, {ModuleType::Tofino_CounterRead,
-                               ModuleType::Tofino_CounterIncrement});
-  return nodes.size();
-}
-
-int Score::get_nr_simple_tables(const EP *ep) const {
-  std::vector<const EPNode *> nodes =
-      get_nodes_with_type(ep, {ModuleType::Tofino_TableLookup});
-  return nodes.size();
-}
-
-int Score::get_nr_int_allocator_ops(const EP *ep) const {
-  std::vector<const EPNode *> nodes =
-      get_nodes_with_type(ep, {
-                                  ModuleType::Tofino_IntegerAllocatorAllocate,
-                                  ModuleType::Tofino_IntegerAllocatorQuery,
-                                  ModuleType::Tofino_IntegerAllocatorRejuvenate,
-                              });
-
-  return nodes.size();
-}
-
 int Score::get_depth(const EP *ep) const {
   const EPMeta &meta = ep->get_meta();
   return meta.depth;
@@ -80,11 +56,13 @@ int Score::get_nr_switch_nodes(const EP *ep) const {
     switch_nodes += tofino_nodes_it->second;
   }
 
-  std::vector<const EPNode *> send_to_controller =
-      get_nodes_with_type(ep, {ModuleType::Tofino_SendToController});
+  // std::vector<const EPNode *> send_to_controller =
+  //     get_nodes_with_type(ep, {ModuleType::Tofino_SendToController});
 
-  // Let's ignore the SendToController nodes
-  return switch_nodes - send_to_controller.size();
+  // // Let's ignore the SendToController nodes
+  // switch_nodes -= send_to_controller.size();
+
+  return switch_nodes;
 }
 
 int Score::get_nr_controller_nodes(const EP *ep) const {
@@ -246,15 +224,6 @@ std::ostream &operator<<(std::ostream &os, ScoreCategory score_category) {
     break;
   case ScoreCategory::NumberOfControllerNodes:
     os << "NumberOfControllerNodes";
-    break;
-  case ScoreCategory::NumberOfCounters:
-    os << "NumberOfCounters";
-    break;
-  case ScoreCategory::NumberOfSimpleTables:
-    os << "NumberOfSimpleTables";
-    break;
-  case ScoreCategory::NumberOfIntAllocatorOps:
-    os << "NumberOfIntAllocatorOps";
     break;
   case ScoreCategory::Depth:
     os << "Depth";

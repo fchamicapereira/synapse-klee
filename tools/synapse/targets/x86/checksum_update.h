@@ -18,8 +18,9 @@ public:
         ip_hdr_addr(_ip_hdr_addr), l4_hdr_addr(_l4_hdr_addr),
         checksum(_checksum) {}
 
-  virtual void visit(EPVisitor &visitor, const EPNode *ep_node) const override {
-    visitor.visit(ep_node, this);
+  virtual void visit(EPVisitor &visitor, const EP *ep,
+                     const EPNode *ep_node) const override {
+    visitor.visit(ep, ep_node, this);
   }
 
   virtual Module *clone() const override {

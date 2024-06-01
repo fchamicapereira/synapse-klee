@@ -20,8 +20,9 @@ public:
         vector_addr(_vector_addr), index(_index), value_addr(_value_addr),
         modifications(_modifications) {}
 
-  virtual void visit(EPVisitor &visitor, const EPNode *ep_node) const override {
-    visitor.visit(ep_node, this);
+  virtual void visit(EPVisitor &visitor, const EP *ep,
+                     const EPNode *ep_node) const override {
+    visitor.visit(ep, ep_node, this);
   }
 
   virtual Module *clone() const override {

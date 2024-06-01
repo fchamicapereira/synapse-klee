@@ -573,15 +573,14 @@ klee::ref<klee::Expr> get_expr_from_addr(const EP *ep, addr_t addr) {
 */
 
 struct next_t {
-  std::unordered_set<addr_t> maps;
-  std::unordered_set<addr_t> vectors;
-  std::unordered_set<addr_t> dchains;
+  objs_t maps;
+  objs_t vectors;
+  objs_t dchains;
 
   int size() const { return maps.size() + vectors.size(); }
 
   void intersect(const next_t &other) {
-    auto intersector = [](std::unordered_set<addr_t> &a,
-                          const std::unordered_set<addr_t> &b) {
+    auto intersector = [](objs_t &a, const objs_t &b) {
       for (auto it = a.begin(); it != a.end();) {
         if (b.find(*it) == b.end()) {
           it = a.erase(it);
@@ -699,45 +698,30 @@ get_allowed_coalescing_objs(std::vector<const bdd::Node *> index_allocators,
   return candidates;
 }
 
-map_coalescing_data_t get_map_coalescing_data_t(const EP *ep, addr_t obj) {
-  // We can cache results previously made, as BDD reordering will not change the
-  // result.
-  std::unordered_map<addr_t, map_coalescing_data_t> cache;
-
-  if (cache.find(obj) != cache.end()) {
-    return cache[obj];
-  }
-
-  map_coalescing_data_t data;
-
-  const bdd::BDD *bdd = ep->get_bdd();
+std::optional<map_coalescing_data_t>
+get_map_coalescing_data(const bdd::BDD *bdd, addr_t obj) {
   const bdd::Node *root = bdd->get_root();
 
   std::vector<const bdd::Node *> index_allocators =
       get_all_functions_after_node(root, {"dchain_allocate_new_index"});
 
   if (index_allocators.size() == 0) {
-    return data;
+    return std::nullopt;
   }
 
   next_t candidates = get_allowed_coalescing_objs(index_allocators, obj);
 
   if (candidates.size() == 0) {
-    return data;
+    return std::nullopt;
   }
 
   assert(candidates.maps.size() == 1);
   assert(candidates.dchains.size() == 1);
 
-  data.valid = true;
+  map_coalescing_data_t data;
   data.map = *candidates.maps.begin();
   data.dchain = *candidates.dchains.begin();
   data.vectors = candidates.vectors;
-
-  cache[data.map] = data;
-  cache[data.dchain] = data;
-  for (addr_t v : data.vectors)
-    cache[v] = data;
 
   return data;
 }

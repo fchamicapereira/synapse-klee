@@ -17,8 +17,9 @@ public:
       : TofinoModule(ModuleType::Tofino_If, "If", node), condition(_condition) {
   }
 
-  virtual void visit(EPVisitor &visitor, const EPNode *ep_node) const override {
-    visitor.visit(ep_node, this);
+  virtual void visit(EPVisitor &visitor, const EP *ep,
+                     const EPNode *ep_node) const override {
+    visitor.visit(ep, ep_node, this);
   }
 
   virtual Module *clone() const {
@@ -45,8 +46,8 @@ protected:
     const bdd::Branch *branch_node = static_cast<const bdd::Branch *>(node);
     klee::ref<klee::Expr> condition = branch_node->get_condition();
 
-    const TNA &tna = get_tna(ep);
-    if (!tna.condition_meets_phv_limit(condition)) {
+    const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
+    if (!tofino_ctx->condition_meets_phv_limit(condition)) {
       return new_eps;
     }
 
@@ -64,10 +65,6 @@ protected:
     EPNode *if_node = new EPNode(if_module);
     EPNode *then_node = new EPNode(then_module);
     EPNode *else_node = new EPNode(else_module);
-
-    if_node->set_children({then_node, else_node});
-    then_node->set_prev(if_node);
-    else_node->set_prev(if_node);
 
     EPLeaf then_leaf(then_node, branch_node->get_on_true());
     EPLeaf else_leaf(else_node, branch_node->get_on_false());
