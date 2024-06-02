@@ -14,14 +14,14 @@ namespace synapse {
 class EPLeaf;
 
 struct EPMeta {
-  const size_t total_bdd_nodes;
+  size_t total_bdd_nodes;
 
   size_t depth;
   size_t nodes;
   size_t reordered_nodes;
 
   std::unordered_map<TargetType, size_t> nodes_per_target;
-  std::unordered_set<ep_node_id_t> visited_nodes;
+  std::unordered_set<ep_node_id_t> visited_ep_nodes;
   bdd::nodes_t processed_nodes;
 
   EPMeta(const bdd::BDD *bdd)
@@ -54,9 +54,10 @@ struct EPMeta {
   }
 
   float get_bdd_progress() const;
-  bool is_processed_node(const bdd::Node *node) const;
+  void update_total_bdd_nodes(const bdd::BDD *bdd);
 
-  void update(const EPLeaf *leaf, const EPNode *new_node);
+  bool is_processed_node(const bdd::Node *node) const;
+  void update(const EPLeaf *leaf, const EPNode *new_node, bool process_node);
 };
 
 } // namespace synapse

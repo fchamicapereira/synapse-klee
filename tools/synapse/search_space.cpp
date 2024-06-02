@@ -1,5 +1,7 @@
 #include "search_space.h"
 
+#include "bdd-visualizer.h"
+
 namespace synapse {
 
 static ss_node_id_t node_id_counter = 0;
@@ -26,8 +28,57 @@ void SearchSpace::activate_leaf(const EP *ep) {
 
   active_leaf = *found_it;
   leaves.erase(found_it);
+}
 
-  explored.insert(active_leaf->ep_id);
+static std::string get_bdd_node_description(const bdd::Node *node) {
+  std::stringstream description;
+
+  description << node->get_id();
+  description << ": ";
+
+  switch (node->get_type()) {
+  case bdd::NodeType::CALL: {
+    const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
+    description << call_node->get_call().function_name;
+  } break;
+  case bdd::NodeType::BRANCH: {
+    const bdd::Branch *branch_node = static_cast<const bdd::Branch *>(node);
+    klee::ref<klee::Expr> condition = branch_node->get_condition();
+    description << "if (";
+    description << kutil::pretty_print_expr(condition);
+    description << ")";
+  } break;
+  case bdd::NodeType::ROUTE: {
+    const bdd::Route *route = static_cast<const bdd::Route *>(node);
+    bdd::RouteOperation op = route->get_operation();
+
+    switch (op) {
+    case bdd::RouteOperation::BCAST: {
+      description << "broadcast()";
+    } break;
+    case bdd::RouteOperation::DROP: {
+      description << "drop()";
+    } break;
+    case bdd::RouteOperation::FWD: {
+      description << "forward(";
+      description << route->get_dst_device();
+      description << ")";
+    } break;
+    }
+  } break;
+  }
+
+  std::string node_str = description.str();
+
+  constexpr int MAX_STR_SIZE = 250;
+  if (node_str.size() > MAX_STR_SIZE) {
+    node_str = node_str.substr(0, MAX_STR_SIZE);
+    node_str += " [...]";
+  }
+
+  Graphviz::sanitize_html_label(node_str);
+
+  return node_str;
 }
 
 void SearchSpace::add_to_active_leaf(
@@ -41,8 +92,11 @@ void SearchSpace::add_to_active_leaf(
     Score score = hcfg->get_score(ep);
     TargetType target = modgen->get_target();
     module_data_t module_data = {modgen->get_type(), modgen->get_name()};
+    bdd_node_data_t bdd_node_data = {node->get_id(),
+                                     get_bdd_node_description(node)};
 
-    SSNode *new_node = new SSNode(id, ep_id, score, target, module_data, node);
+    SSNode *new_node =
+        new SSNode(id, ep_id, score, target, module_data, bdd_node_data);
 
     active_leaf->children.push_back(new_node);
     leaves.push_back(new_node);
@@ -50,9 +104,5 @@ void SearchSpace::add_to_active_leaf(
 }
 
 SSNode *SearchSpace::get_root() const { return root; }
-
-bool SearchSpace::was_explored(ss_node_id_t node_id) const {
-  return explored.find(node_id) != explored.end();
-}
 
 } // namespace synapse

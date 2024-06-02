@@ -11,13 +11,13 @@
 
 namespace bdd {
 
-std::vector<node_id_t> Node::get_terminating_node_ids() const {
+std::vector<node_id_t> Node::get_leaves() const {
   if (!next)
     return std::vector<node_id_t>{id};
-  return next->get_terminating_node_ids();
+  return next->get_leaves();
 }
 
-bool Node::is_reachable_by_node(node_id_t id) const {
+bool Node::is_reachable(node_id_t id) const {
   const Node *node = this;
   while (node) {
     if (node->get_id() == id)

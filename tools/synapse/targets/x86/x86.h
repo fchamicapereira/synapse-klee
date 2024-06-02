@@ -39,7 +39,7 @@ struct x86Target : public Target {
   x86Target()
       : Target(TargetType::x86,
                {
-                   new ParserExtractionGenerator(),
+                   new ParseHeaderGenerator(),
                    new ModifyHeaderGenerator(),
                    new ChecksumUpdateGenerator(),
                    new IfGenerator(),

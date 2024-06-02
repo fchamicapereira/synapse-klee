@@ -12,6 +12,10 @@ public:
   TofinoModule(ModuleType _type, const std::string &_name,
                const bdd::Node *node)
       : Module(_type, TargetType::Tofino, _name, node) {}
+
+  TofinoModule(ModuleType _type, TargetType _next_type,
+               const std::string &_name, const bdd::Node *node)
+      : Module(_type, TargetType::Tofino, _next_type, _name, node) {}
 };
 
 class TofinoModuleGenerator : public ModuleGenerator {

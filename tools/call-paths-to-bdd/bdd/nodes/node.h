@@ -52,8 +52,8 @@ public:
   Node *get_mutable_next() { return next; }
   Node *get_mutable_prev() { return prev; }
 
-  const Node *get_node_by_id(node_id_t _id) const;
-  Node *get_mutable_node_by_id(node_id_t _id);
+  const Node *get_node_by_id(node_id_t id) const;
+  Node *get_mutable_node_by_id(node_id_t id);
 
   void visit_nodes(std::function<NodeVisitAction(const Node *)> fn) const;
   void visit_mutable_nodes(std::function<NodeVisitAction(Node *)> fn);
@@ -64,12 +64,12 @@ public:
   std::string recursive_dump(int lvl = 0) const;
   void recursive_add_constraint(klee::ref<klee::Expr> constraint);
 
-  bool is_reachable_by_node(node_id_t id) const;
+  bool is_reachable(node_id_t id) const;
   std::string hash(bool recursive) const;
   size_t count_children(bool recursive) const;
   size_t count_code_paths() const;
 
-  virtual std::vector<node_id_t> get_terminating_node_ids() const;
+  virtual std::vector<node_id_t> get_leaves() const;
   virtual Node *clone(NodeManager &manager, bool recursive = false) const = 0;
   virtual void visit(BDDVisitor &visitor) const = 0;
   virtual std::string dump(bool one_liner = false) const = 0;

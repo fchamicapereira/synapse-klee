@@ -10,7 +10,12 @@ static std::unordered_map<TargetType, std::string> node_colors = {
     {TargetType::x86, "orange"},
 };
 
+static std::string selected_color = "green";
+
 SSVisualizer::SSVisualizer() {}
+
+SSVisualizer::SSVisualizer(const EP *_highlight)
+    : highlight(_highlight->get_ancestors()) {}
 
 static std::string stringify_score(const Score &score) {
   std::stringstream score_builder;
@@ -22,60 +27,15 @@ static std::string stringify_score(const Score &score) {
   return score_str;
 }
 
-static std::string stringify_bdd_node(const bdd::Node *node) {
-  std::stringstream node_builder;
-
-  node_builder << node->get_id();
-  node_builder << ": ";
-
-  switch (node->get_type()) {
-  case bdd::NodeType::CALL: {
-    const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
-    node_builder << call_node->get_call().function_name;
-  } break;
-  case bdd::NodeType::BRANCH: {
-    const bdd::Branch *branch_node = static_cast<const bdd::Branch *>(node);
-    klee::ref<klee::Expr> condition = branch_node->get_condition();
-    node_builder << "if (";
-    node_builder << kutil::pretty_print_expr(condition);
-    node_builder << ")";
-  } break;
-  case bdd::NodeType::ROUTE: {
-    const bdd::Route *route = static_cast<const bdd::Route *>(node);
-    bdd::RouteOperation op = route->get_operation();
-
-    switch (op) {
-    case bdd::RouteOperation::BCAST: {
-      node_builder << "broadcast()";
-    } break;
-    case bdd::RouteOperation::DROP: {
-      node_builder << "drop()";
-    } break;
-    case bdd::RouteOperation::FWD: {
-      node_builder << "forward(";
-      node_builder << route->get_dst_device();
-      node_builder << ")";
-    } break;
-    }
-  } break;
-  }
-
-  std::string node_str = node_builder.str();
-
-  constexpr int MAX_STR_SIZE = 250;
-  if (node_str.size() > MAX_STR_SIZE) {
-    node_str = node_str.substr(0, MAX_STR_SIZE);
-    node_str += " [...]";
-  }
-
-  Graphviz::sanitize_html_label(node_str);
-
-  return node_str;
+static bool should_highlight(const SSNode *ssnode,
+                             const std::set<ep_id_t> &highlight) {
+  return highlight.find(ssnode->ep_id) != highlight.end();
 }
 
 static void visit_definitions(std::stringstream &ss,
                               const SearchSpace *search_space,
-                              const SSNode *ssnode) {
+                              const SSNode *ssnode,
+                              const std::set<ep_id_t> &highlight) {
   const std::string &target_color = node_colors.at(ssnode->target);
 
   auto indent = [&ss](int lvl) { ss << std::string(lvl, '\t'); };
@@ -87,10 +47,10 @@ static void visit_definitions(std::stringstream &ss,
   indent(2);
   ss << "<table";
 
-  if (search_space->was_explored(ssnode->node_id)) {
+  if (should_highlight(ssnode, highlight)) {
     ss << " border=\"4\"";
     ss << " bgcolor=\"blue\"";
-    ss << " color=\"green\"";
+    ss << " color=\"" << selected_color << "\"";
   }
   ss << ">\n";
 
@@ -147,8 +107,8 @@ static void visit_definitions(std::stringstream &ss,
   ss << " bgcolor=\"" << target_color << "\"";
   ss << " colspan=\"2\"";
   ss << ">";
-  if (ssnode->node) {
-    ss << stringify_bdd_node(ssnode->node);
+  if (ssnode->bdd_node_data) {
+    ss << ssnode->bdd_node_data->description;
   }
   ss << "</td>\n";
 
@@ -162,7 +122,7 @@ static void visit_definitions(std::stringstream &ss,
   ss << ">]\n\n";
 
   for (const SSNode *next : ssnode->children) {
-    visit_definitions(ss, search_space, next);
+    visit_definitions(ss, search_space, next, highlight);
   }
 }
 
@@ -191,7 +151,7 @@ void SSVisualizer::visit(const SearchSpace *search_space) {
   const SSNode *root = search_space->get_root();
 
   if (root) {
-    visit_definitions(ss, search_space, root);
+    visit_definitions(ss, search_space, root, highlight);
     visit_links(ss, root);
   }
 
@@ -201,6 +161,13 @@ void SSVisualizer::visit(const SearchSpace *search_space) {
 
 void SSVisualizer::visualize(const SearchSpace *search_space, bool interrupt) {
   SSVisualizer visualizer;
+  visualizer.visit(search_space);
+  visualizer.show(interrupt);
+}
+
+void SSVisualizer::visualize(const SearchSpace *search_space,
+                             const EP *highlight, bool interrupt) {
+  SSVisualizer visualizer(highlight);
   visualizer.visit(search_space);
   visualizer.show(interrupt);
 }

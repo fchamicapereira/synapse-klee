@@ -112,11 +112,10 @@ Node_ptr build_ast(AST &ast, const bdd::Node *root, TargetOption target) {
 
       auto condition = transpile(&ast, cond, true);
 
-      auto on_true_term = on_true_bdd ? on_true_bdd->get_terminating_node_ids()
-                                      : std::vector<uint64_t>();
-      auto on_false_term = on_false_bdd
-                               ? on_false_bdd->get_terminating_node_ids()
-                               : std::vector<uint64_t>();
+      auto on_true_term =
+          on_true_bdd ? on_true_bdd->get_leaves() : std::vector<uint64_t>();
+      auto on_false_term =
+          on_false_bdd ? on_false_bdd->get_leaves() : std::vector<uint64_t>();
 
       Branch_ptr branch = Branch::build(condition, then_node, else_node,
                                         on_true_term, on_false_term);

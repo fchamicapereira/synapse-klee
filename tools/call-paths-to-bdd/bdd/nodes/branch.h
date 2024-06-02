@@ -38,7 +38,7 @@ public:
   Node *get_mutable_on_true() { return next; }
   Node *get_mutable_on_false() { return on_false; }
 
-  virtual std::vector<node_id_t> get_terminating_node_ids() const override;
+  virtual std::vector<node_id_t> get_leaves() const override;
   virtual Node *clone(NodeManager &manager,
                       bool recursive = false) const override;
 

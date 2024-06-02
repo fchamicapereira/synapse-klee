@@ -1,6 +1,7 @@
 #pragma once
 
 #include "call-paths-to-bdd.h"
+#include "bdd-visualizer.h"
 
 #include <vector>
 #include <string>
@@ -42,9 +43,8 @@ bool query_contains_map_has_key(const bdd::Branch *node);
 klee::ref<klee::Expr> get_original_chunk(const EP *ep, const bdd::Node *node);
 
 std::vector<const bdd::Node *>
-get_prev_fn(const EP *ep, const bdd::Node *node,
-            const std::vector<std::string> &functions_names,
-            bool ignore_targets = false);
+get_prev_functions(const EP *ep, const bdd::Node *node,
+                   const std::vector<std::string> &functions_names);
 
 std::vector<const bdd::Node *>
 get_all_functions_after_node(const bdd::Node *root,
@@ -65,8 +65,8 @@ bool is_parser_drop(const bdd::Node *root);
 //   - Only looks at the packet
 bool is_parser_condition(const bdd::Node *node);
 
-std::vector<const Module *> get_prev_modules(const EP *ep,
-                                             const std::vector<ModuleType> &);
+std::vector<const Module *>
+get_prev_modules(const EP *ep, const std::vector<ModuleType> &types);
 
 bool is_expr_only_packet_dependent(klee::ref<klee::Expr> expr);
 
@@ -110,5 +110,8 @@ get_map_coalescing_data(const bdd::BDD *bdd, addr_t map_addr);
 
 klee::ref<klee::Expr> get_chunk_from_borrow(const bdd::Node *node);
 bool borrow_has_var_len(const bdd::Node *node);
+
+symbols_t get_prev_symbols(const bdd::Node *node,
+                           const bdd::nodes_t &stop_nodes = bdd::nodes_t());
 
 } // namespace synapse

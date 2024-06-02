@@ -10,15 +10,14 @@
 namespace synapse {
 
 template <class HCfg>
-SearchEngine<HCfg>::SearchEngine(const bdd::BDD &_bdd, Heuristic<HCfg> _h,
-                                 bool _allow_bdd_reordering,
-                                 const bdd::nodes_t &_nodes_to_peek)
+SearchEngine<HCfg>::SearchEngine(
+    const bdd::BDD &_bdd, Heuristic<HCfg> _h, bool _allow_bdd_reordering,
+    const std::unordered_set<ep_id_t> &_eps_to_peek)
     : bdd(std::make_shared<bdd::BDD>(_bdd)), h(_h),
-      allow_bdd_reordering(_allow_bdd_reordering),
-      nodes_to_peek(_nodes_to_peek) {
+      allow_bdd_reordering(_allow_bdd_reordering), eps_to_peek(_eps_to_peek) {
   targets.push_back(new tofino::TofinoTarget(tofino::TNAVersion::TNA2));
   // targets.push_back(new tofinoCPU::TofinoCPUTarget());
-  // targets.push_back(new x86::x86Target());
+  targets.push_back(new x86::x86Target());
 }
 
 template <class HCfg>
@@ -50,6 +49,10 @@ struct search_it_report_t {
 
   void save(const ModuleGenerator *modgen,
             const std::vector<const EP *> &new_eps) {
+    if (new_eps.empty()) {
+      return;
+    }
+
     targets.push_back(modgen->get_target());
     name.push_back(modgen->get_name());
     gen_ep_ids.emplace_back();
@@ -112,6 +115,23 @@ static void log_search_iteration(const search_it_report_t &report) {
   Log::dbg() << "=======================================================\n";
 }
 
+static void peek_search_space(const std::vector<const EP *> &eps,
+                              const std::unordered_set<ep_id_t> &eps_to_peek,
+                              SearchSpace *search_space) {
+  bool peek_search_space = false;
+
+  for (const EP *ep : eps) {
+    if (eps_to_peek.find(ep->get_id()) != eps_to_peek.end()) {
+      peek_search_space = true;
+      EPVisualizer::visualize(ep, false);
+    }
+  }
+
+  if (peek_search_space) {
+    SSVisualizer::visualize(search_space, true);
+  }
+}
+
 template <class HCfg> search_product_t SearchEngine<HCfg>::search() {
   SearchSpace *search_space = new SearchSpace(h.get_cfg());
 
@@ -125,37 +145,29 @@ template <class HCfg> search_product_t SearchEngine<HCfg>::search() {
     const bdd::Node *node = ep->get_next_node();
     search_it_report_t report(available, ep, node);
 
+    std::vector<const EP *> new_eps;
+
     for (const Target *target : targets) {
       for (const ModuleGenerator *modgen : target->module_generators) {
-        std::vector<const EP *> new_eps =
+        std::vector<const EP *> modgen_new_eps =
             modgen->generate(ep, node, allow_bdd_reordering);
-
-        if (new_eps.size() == 0)
-          continue;
-
-        report.save(modgen, new_eps);
-
-        // for (const EP *next_ep : new_eps) {
-        //   EPVisualizer::visualize(next_ep, true);
-        // }
-
-        h.add(new_eps);
-        search_space->add_to_active_leaf(node, modgen, new_eps);
+        new_eps.insert(new_eps.end(), modgen_new_eps.begin(),
+                       modgen_new_eps.end());
+        search_space->add_to_active_leaf(node, modgen, modgen_new_eps);
+        report.save(modgen, modgen_new_eps);
       }
     }
 
-    log_search_iteration(report);
-    // SSVisualizer::visualize(search_space, true);
+    h.add(new_eps);
 
-    if (nodes_to_peek.find(node->get_id()) != nodes_to_peek.end()) {
-      SSVisualizer::visualize(search_space, true);
-    }
+    log_search_iteration(report);
+    peek_search_space(new_eps, eps_to_peek, search_space);
 
     delete ep;
   }
 
-  Log::log() << "Solutions:      " << h.get_all().size() << "\n";
-  Log::log() << "Winner:         " << h.get_score(h.get()) << "\n";
+  Log::log() << "Solutions:       " << h.get_all().size() << "\n";
+  Log::log() << "Winner:          " << h.get_score(h.get()) << "\n";
 
   EP *winner = new EP(*h.get());
 

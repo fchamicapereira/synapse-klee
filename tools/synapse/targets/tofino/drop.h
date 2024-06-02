@@ -59,12 +59,8 @@ protected:
     Module *module = new Drop(node, parser_reject);
     EPNode *ep_node = new EPNode(module);
 
-    if (node->get_next()) {
-      EPLeaf leaf(ep_node, node->get_next());
-      new_ep->process_leaf(ep_node, {leaf});
-    } else {
-      new_ep->process_leaf(ep_node, {});
-    }
+    EPLeaf leaf(ep_node, node->get_next());
+    new_ep->process_leaf(ep_node, {leaf});
 
     TofinoContext *tofino_ctx = get_mutable_tofino_ctx(new_ep);
     if (parser_reject) {

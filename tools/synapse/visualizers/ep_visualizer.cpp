@@ -36,8 +36,7 @@ static std::unordered_map<TargetType, std::string> node_colors = {
 };
 
 static std::unordered_set<ModuleType> modules_to_ignore = {
-    ModuleType::Tofino_Ignore, ModuleType::Tofino_Then, ModuleType::Tofino_Else,
-    ModuleType::x86_Then,      ModuleType::x86_Else,
+    ModuleType::Tofino_Ignore,
 };
 
 static bool should_ignore_node(const EPNode *node) {
@@ -58,7 +57,10 @@ void EPVisualizer::function_call(const EPNode *ep_node, const bdd::Node *node,
   ss << "[label=\"";
 
   ss << "[";
+  ss << "ID=";
   ss << ep_node->get_id();
+  ss << ",Node=";
+  ss << node->get_id();
   ss << "] ";
 
   ss << label << "\", ";
@@ -72,7 +74,10 @@ void EPVisualizer::branch(const EPNode *ep_node, const bdd::Node *node,
   ss << "[shape=Mdiamond, label=\"";
 
   ss << "[";
+  ss << "ID=";
   ss << ep_node->get_id();
+  ss << ",Node=";
+  ss << node->get_id();
   ss << "] ";
 
   ss << label << "\", ";
@@ -80,9 +85,27 @@ void EPVisualizer::branch(const EPNode *ep_node, const bdd::Node *node,
   ss << "\n";
 }
 
+static void log_visualization(const EP *ep, const std::string &fname) {
+  std::cerr << "Visualizing EP";
+  std::cerr << " id=" << ep->get_id();
+  std::cerr << " file=" << fname;
+  std::cerr << " ancestors=[";
+  bool first = true;
+  for (ep_id_t ancestor : ep->get_ancestors()) {
+    if (!first) {
+      std::cerr << " ";
+    }
+    std::cerr << ancestor;
+    first = false;
+  }
+  std::cerr << "]";
+  std::cerr << "\n";
+}
+
 void EPVisualizer::visualize(const EP *ep, bool interrupt) {
   EPVisualizer visualizer;
   visualizer.visit(ep);
+  log_visualization(ep, visualizer.fpath);
   visualizer.show(interrupt);
 }
 

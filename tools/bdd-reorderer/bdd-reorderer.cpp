@@ -595,7 +595,7 @@ static bool anchor_reaches_candidate(const vector_t &anchor,
     return false;
 
   node_id_t anchor_next_id = anchor_next->get_id();
-  return candidate->is_reachable_by_node(anchor_next_id);
+  return candidate->is_reachable(anchor_next_id);
 }
 
 candidate_info_t

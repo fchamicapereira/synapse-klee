@@ -9,8 +9,8 @@ struct MaximizeSwitchNodesComparator : public HeuristicCfg {
   Score get_score(const EP *ep) const override {
     Score score(
         ep, {
-                {ScoreCategory::NumberOfSwitchNodes, ScoreObjective::MAX},
-                {ScoreCategory::NumberOfSwitchLeaves, ScoreObjective::MAX},
+                {ScoreCategory::TotalSwitchNodes, ScoreObjective::MAX},
+                {ScoreCategory::TotalSwitchLeaves, ScoreObjective::MAX},
                 // {ScoreCategory::HasNextStatefulOperationInSwitch,
                 // ScoreObjective::MAX},
                 {ScoreCategory::ConsecutiveObjectOperationsInSwitch,

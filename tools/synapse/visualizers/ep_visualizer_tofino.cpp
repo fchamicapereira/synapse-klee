@@ -30,11 +30,16 @@
 namespace synapse {
 
 IGNORE_MODULE(tofino::Ignore)
-IGNORE_MODULE(tofino::Then)
-IGNORE_MODULE(tofino::Else)
 
 VISIT_BRANCH(tofino::If)
 VISIT_BRANCH(tofino::ParserCondition)
+
+SHOW_MODULE_NAME(tofino::SendToController)
+SHOW_MODULE_NAME(tofino::Drop)
+SHOW_MODULE_NAME(tofino::Broadcast)
+SHOW_MODULE_NAME(tofino::ModifyHeader)
+SHOW_MODULE_NAME(tofino::Then)
+SHOW_MODULE_NAME(tofino::Else)
 
 void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
                          const tofino::Forward *node) {
@@ -53,10 +58,6 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
 
   function_call(ep_node, bdd_node, target, label);
 }
-
-SHOW_MODULE_NAME(tofino::Drop)
-SHOW_MODULE_NAME(tofino::Broadcast)
-SHOW_MODULE_NAME(tofino::ModifyHeader)
 
 void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
                          const tofino::SimpleTableLookup *node) {

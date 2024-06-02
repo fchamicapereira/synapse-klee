@@ -7,11 +7,11 @@ namespace synapse {
 
 struct LeastReorderedComparator : public HeuristicCfg {
   Score get_score(const EP *ep) const override {
-    Score score(
-        ep, {
-                {ScoreCategory::NumberOfReorderedNodes, ScoreObjective::MIN},
-                {ScoreCategory::NumberOfNodes, ScoreObjective::MAX},
-            });
+    Score score(ep,
+                {
+                    {ScoreCategory::TotalReorderedNodes, ScoreObjective::MIN},
+                    {ScoreCategory::TotalNodes, ScoreObjective::MAX},
+                });
     return score;
   }
 

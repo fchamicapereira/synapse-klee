@@ -28,6 +28,7 @@ public:
    *
    ********************************************/
 
+  DECLARE_VISIT(tofino::SendToController)
   DECLARE_VISIT(tofino::Ignore)
   DECLARE_VISIT(tofino::If)
   DECLARE_VISIT(tofino::ParserCondition)
@@ -86,7 +87,7 @@ public:
   DECLARE_VISIT(x86::Forward)
   DECLARE_VISIT(x86::Broadcast)
   DECLARE_VISIT(x86::Drop)
-  DECLARE_VISIT(x86::ParserExtraction)
+  DECLARE_VISIT(x86::ParseHeader)
   DECLARE_VISIT(x86::ModifyHeader)
   DECLARE_VISIT(x86::ChecksumUpdate)
   DECLARE_VISIT(x86::MapGet)

@@ -30,12 +30,13 @@
 namespace synapse {
 
 VISIT_BRANCH(x86::If)
-IGNORE_MODULE(x86::Then)
-IGNORE_MODULE(x86::Else)
+
+SHOW_MODULE_NAME(x86::Then)
+SHOW_MODULE_NAME(x86::Else)
 SHOW_MODULE_NAME(x86::Forward)
 SHOW_MODULE_NAME(x86::Broadcast)
 SHOW_MODULE_NAME(x86::Drop)
-SHOW_MODULE_NAME(x86::ParserExtraction)
+SHOW_MODULE_NAME(x86::ParseHeader)
 SHOW_MODULE_NAME(x86::ModifyHeader)
 SHOW_MODULE_NAME(x86::ChecksumUpdate)
 SHOW_MODULE_NAME(x86::MapGet)

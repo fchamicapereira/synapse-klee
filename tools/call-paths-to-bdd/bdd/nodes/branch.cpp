@@ -29,14 +29,14 @@ Node *Branch::clone(NodeManager &manager, bool recursive) const {
   return clone;
 }
 
-std::vector<node_id_t> Branch::get_terminating_node_ids() const {
+std::vector<node_id_t> Branch::get_leaves() const {
   std::vector<node_id_t> terminating_ids;
 
   assert(next);
   assert(on_false);
 
-  auto on_true_ids = next->get_terminating_node_ids();
-  auto on_false_ids = on_false->get_terminating_node_ids();
+  auto on_true_ids = next->get_leaves();
+  auto on_false_ids = on_false->get_leaves();
 
   terminating_ids.insert(terminating_ids.end(), on_true_ids.begin(),
                          on_true_ids.end());

@@ -14,6 +14,7 @@ class EP;
 class EPNode;
 
 namespace tofino {
+class SendToController;
 class Ignore;
 class If;
 class ParserCondition;
@@ -62,7 +63,7 @@ class HashObj;
 namespace x86 {
 class MapGet;
 class CurrentTime;
-class ParserExtraction;
+class ParseHeader;
 class ModifyHeader;
 class If;
 class Then;
@@ -101,6 +102,7 @@ public:
    *
    * **********************************/
 
+  VISIT_TODO(tofino::SendToController)
   VISIT_TODO(tofino::Ignore)
   VISIT_TODO(tofino::If)
   VISIT_TODO(tofino::ParserCondition)
@@ -161,7 +163,7 @@ public:
   VISIT_TODO(x86::Forward)
   VISIT_TODO(x86::Broadcast)
   VISIT_TODO(x86::Drop)
-  VISIT_TODO(x86::ParserExtraction)
+  VISIT_TODO(x86::ParseHeader)
   VISIT_TODO(x86::ModifyHeader)
   VISIT_TODO(x86::MapGet)
   VISIT_TODO(x86::CurrentTime)

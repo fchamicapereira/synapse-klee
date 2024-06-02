@@ -21,7 +21,7 @@ private:
   NodeManager manager;
 
 public:
-  BDD() : id(0) {}
+  BDD() : id(0), root(nullptr) {}
 
   BDD(const call_paths_t &call_paths);
   BDD(const std::string &file_path);

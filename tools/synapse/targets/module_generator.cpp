@@ -6,7 +6,7 @@
 namespace synapse {
 
 static bool can_process_platform(const EP *ep, TargetType target) {
-  auto current_target = ep->get_current_platform();
+  TargetType current_target = ep->get_current_platform();
   return current_target == target;
 }
 

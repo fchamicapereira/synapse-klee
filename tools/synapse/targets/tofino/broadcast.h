@@ -54,12 +54,8 @@ protected:
     Module *module = new Broadcast(node);
     EPNode *ep_node = new EPNode(module);
 
-    if (node->get_next()) {
-      EPLeaf leaf(ep_node, node->get_next());
-      new_ep->process_leaf(ep_node, {leaf});
-    } else {
-      new_ep->process_leaf(ep_node, {});
-    }
+    EPLeaf leaf(ep_node, node->get_next());
+    new_ep->process_leaf(ep_node, {leaf});
 
     return new_eps;
   }

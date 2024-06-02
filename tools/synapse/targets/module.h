@@ -1,6 +1,7 @@
 #pragma once
 
 #include "call-paths-to-bdd.h"
+#include "bdd-visualizer.h"
 
 #include "../visualizers/ep_visualizer.h"
 #include "../execution_plan/visitor.h"
@@ -16,6 +17,7 @@ class EPNode;
 enum class TargetType;
 
 enum class ModuleType {
+  Tofino_SendToController,
   Tofino_Ignore,
   Tofino_If,
   Tofino_ParserCondition,
@@ -31,7 +33,7 @@ enum class ModuleType {
   x86_Then,
   x86_Else,
   x86_Forward,
-  x86_ParserExtraction,
+  x86_ParseHeader,
   x86_ModifyHeader,
   x86_MapGet,
   x86_MapPut,
@@ -69,9 +71,10 @@ protected:
       : type(_type), target(_target), next_target(_target), name(_name),
         node(_node) {}
 
-  Module(ModuleType _type, TargetType _target, const std::string &_name)
-      : type(_type), target(_target), next_target(_target), name(_name),
-        node(nullptr) {}
+  Module(ModuleType _type, TargetType _target, TargetType _next_target,
+         const std::string &_name, const bdd::Node *_node)
+      : type(_type), target(_target), next_target(_next_target), name(_name),
+        node(_node) {}
 
 public:
   Module(const Module &other) = delete;
@@ -86,6 +89,8 @@ public:
   TargetType get_target() const { return target; }
   TargetType get_next_target() const { return next_target; }
   const bdd::Node *get_node() const { return node; }
+
+  void set_node(const bdd::Node *new_node) { node = new_node; }
 
   virtual void visit(EPVisitor &visitor, const EP *ep,
                      const EPNode *ep_node) const = 0;

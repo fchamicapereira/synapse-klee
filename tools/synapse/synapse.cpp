@@ -56,8 +56,9 @@ llvm::cl::opt<bool> ShowSS("ss",
                            llvm::cl::cat(SyNAPSE));
 
 llvm::cl::list<int>
-    Peek("peek", llvm::cl::desc("Peek search space at the given BDD node."),
-         llvm::cl::Optional, llvm::cl::cat(SyNAPSE));
+    Peek("ep-peek",
+         llvm::cl::desc("Peek search space at these Execution Plans."),
+         llvm::cl::Positional, llvm::cl::ZeroOrMore, llvm::cl::cat(SyNAPSE));
 
 llvm::cl::opt<bool> Verbose("v", llvm::cl::desc("Verbose mode."),
                             llvm::cl::ValueDisallowed, llvm::cl::init(false),
@@ -72,12 +73,12 @@ search_product_t search(const bdd::BDD &bdd) {
   MaximizeSwitchNodes maximize_switch_nodes;
   Gallium gallium;
 
-  bdd::nodes_t peek;
-  for (int node_id : Peek) {
-    peek.insert(node_id);
+  std::unordered_set<ep_id_t> eps_to_peek;
+  for (ep_id_t ep_id : Peek) {
+    eps_to_peek.insert(ep_id);
   }
 
-  SearchEngine engine(bdd, gallium, BDDReorder, peek);
+  SearchEngine engine(bdd, gallium, BDDReorder, eps_to_peek);
   search_product_t result = engine.search();
 
   return result;
@@ -120,7 +121,7 @@ int main(int argc, char **argv) {
   }
 
   if (ShowSS) {
-    SSVisualizer::visualize(result.search_space, false);
+    SSVisualizer::visualize(result.search_space, result.ep, false);
   }
 
   int64_t synthesis_dt = -1;

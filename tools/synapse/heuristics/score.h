@@ -12,11 +12,12 @@
 namespace synapse {
 
 enum class ScoreCategory {
-  NumberOfReorderedNodes,
-  NumberOfSwitchNodes,
-  NumberOfSwitchLeaves,
-  NumberOfNodes,
-  NumberOfControllerNodes,
+  TotalSendToControllerNodes,
+  TotalReorderedNodes,
+  TotalSwitchNodes,
+  TotalSwitchLeaves,
+  TotalNodes,
+  TotalControllerNodes,
   Depth,
   ConsecutiveObjectOperationsInSwitch,
   HasNextStatefulOperationInSwitch,
@@ -49,23 +50,27 @@ public:
             &categories_objectives) {
     computers = {
         {
-            ScoreCategory::NumberOfReorderedNodes,
+            ScoreCategory::TotalSendToControllerNodes,
+            &Score::get_nr_send_to_controller,
+        },
+        {
+            ScoreCategory::TotalReorderedNodes,
             &Score::get_nr_reordered_nodes,
         },
         {
-            ScoreCategory::NumberOfNodes,
+            ScoreCategory::TotalNodes,
             &Score::get_nr_nodes,
         },
         {
-            ScoreCategory::NumberOfSwitchNodes,
+            ScoreCategory::TotalSwitchNodes,
             &Score::get_nr_switch_nodes,
         },
         {
-            ScoreCategory::NumberOfSwitchLeaves,
+            ScoreCategory::TotalSwitchLeaves,
             &Score::get_nr_switch_leaves,
         },
         {
-            ScoreCategory::NumberOfControllerNodes,
+            ScoreCategory::TotalControllerNodes,
             &Score::get_nr_controller_nodes,
         },
         {
@@ -92,7 +97,7 @@ public:
 
       add(ScoreCategory, ScoreObjective);
 
-      auto value = compute(ep, ScoreCategory, ScoreObjective);
+      int value = compute(ep, ScoreCategory, ScoreObjective);
       values.push_back(value);
     }
   }
@@ -103,8 +108,8 @@ public:
     assert(values.size() == other.values.size());
 
     for (auto i = 0u; i < values.size(); i++) {
-      auto this_score = values[i];
-      auto other_score = other.values[i];
+      int this_score = values[i];
+      int other_score = other.values[i];
 
       if (this_score > other_score) {
         return false;
@@ -147,15 +152,11 @@ private:
   int compute(const EP *ep, ScoreCategory ScoreCategory,
               ScoreObjective ScoreObjective) const {
     auto found_it = computers.find(ScoreCategory);
+    assert(found_it != computers.end() &&
+           "ScoreCategory not found in lookup table");
 
-    if (found_it == computers.end()) {
-      Log::err() << "\nScore error: " << ScoreCategory
-                 << " not found in lookup table.\n";
-      exit(1);
-    }
-
-    auto computer = found_it->second;
-    auto value = (this->*computer)(ep);
+    ComputerPtr computer = found_it->second;
+    int value = (this->*computer)(ep);
 
     if (ScoreObjective == ScoreObjective::MIN) {
       value *= -1;
@@ -173,7 +174,6 @@ private:
         });
 
     assert(found_it == categories.end() && "ScoreCategory already inserted");
-
     categories.emplace_back(score_category, score_objective);
   }
 
@@ -189,6 +189,7 @@ private:
   int next_op_same_obj_in_switch(const EP *ep) const;
   int next_op_is_stateful_in_switch(const EP *ep) const;
   int get_percentage_of_processed_bdd(const EP *ep) const;
+  int get_nr_send_to_controller(const EP *ep) const;
 };
 
 std::ostream &operator<<(std::ostream &os, const Score &score);

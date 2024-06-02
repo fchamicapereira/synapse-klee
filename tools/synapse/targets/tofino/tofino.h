@@ -2,6 +2,7 @@
 
 #include "../target.h"
 
+#include "send_to_controller.h"
 #include "ignore.h"
 #include "if.h"
 #include "then.h"
@@ -23,6 +24,7 @@ struct TofinoTarget : public Target {
   TofinoTarget(TNAVersion version)
       : Target(TargetType::Tofino,
                {
+                   new SendToControllerGenerator(),
                    new IgnoreGenerator(),
                    new IfGenerator(),
                    new ParserConditionGenerator(),

@@ -85,20 +85,9 @@ public:
 
   void add(const std::vector<const EP *> &next_eps) {
     for (const EP *ep : next_eps) {
-      bool found = false;
-
-      for (const EP *saved_ep : execution_plans) {
-        if (saved_ep == ep) {
-          found = true;
-          break;
-        }
+      if (execution_plans.find(ep) == execution_plans.end()) {
+        execution_plans.insert(ep);
       }
-
-      if (found) {
-        continue;
-      }
-
-      execution_plans.insert(ep);
     }
   }
 

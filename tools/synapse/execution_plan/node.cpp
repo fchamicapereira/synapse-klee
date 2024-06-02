@@ -8,7 +8,7 @@ namespace synapse {
 
 static ep_node_id_t counter = 0;
 
-EPNode::EPNode(const Module *_module)
+EPNode::EPNode(Module *_module)
     : id(counter++), module(_module), prev(nullptr) {}
 
 EPNode::~EPNode() {
@@ -34,6 +34,7 @@ void EPNode::add_child(EPNode *child) { children.push_back(child); }
 void EPNode::set_prev(EPNode *_prev) { prev = _prev; }
 
 const Module *EPNode::get_module() const { return module; }
+Module *EPNode::get_mutable_module() { return module; }
 
 const std::vector<EPNode *> &EPNode::get_children() const { return children; }
 EPNode *EPNode::get_prev() const { return prev; }

@@ -8,33 +8,57 @@ namespace synapse {
 
 static ep_id_t counter = 0;
 
-EP::EP(const std::shared_ptr<bdd::BDD> &_bdd,
+static std::unordered_set<TargetType>
+get_target_types(const std::vector<const Target *> &targets) {
+  assert(targets.size());
+  std::unordered_set<TargetType> targets_types;
+
+  for (const Target *target : targets) {
+    targets_types.insert(target->type);
+  }
+
+  return targets_types;
+}
+
+static TargetType
+get_initial_target(const std::vector<const Target *> &targets) {
+  assert(targets.size());
+  return targets[0]->type;
+}
+
+EP::EP(std::shared_ptr<const bdd::BDD> _bdd,
        const std::vector<const Target *> &_targets)
-    : id(counter++), bdd(_bdd), root(nullptr), ctx(_bdd.get(), _targets),
+    : id(counter++), bdd(_bdd), root(nullptr),
+      initial_target(get_initial_target(_targets)),
+      targets(get_target_types(_targets)), ctx(_bdd.get(), _targets),
       meta(bdd.get()) {
-  assert(_targets.size());
-  initial_target = _targets[0]->type;
+  targets_roots[initial_target] = bdd::nodes_t({bdd->get_root()->get_id()});
 
   for (const Target *target : _targets) {
-    targets.insert(target->type);
     meta.nodes_per_target[target->type] = 0;
 
     if (target->type != initial_target) {
       targets_roots[target->type] = bdd::nodes_t();
-    } else {
-      targets_roots[initial_target] = bdd::nodes_t({bdd->get_root()->get_id()});
     }
   }
 
   leaves.emplace_back(nullptr, bdd->get_root());
 }
 
+static std::set<ep_id_t> update_ancestors(const EP &other) {
+  std::set<ep_id_t> ancestors = other.get_ancestors();
+  ancestors.insert(other.get_id());
+  return ancestors;
+}
+
 EP::EP(const EP &other)
-    : id(other.id), bdd(other.bdd),
+    : id(counter++), bdd(other.bdd),
       root(other.root ? other.root->clone(true) : nullptr),
       initial_target(other.initial_target), targets(other.targets),
-      targets_roots(other.targets_roots), ctx(other.ctx), meta(other.meta) {
+      ancestors(update_ancestors(other)), targets_roots(other.targets_roots),
+      ctx(other.ctx), meta(other.meta) {
   if (!root) {
+    assert(other.leaves.size() == 1);
     leaves.emplace_back(nullptr, bdd->get_root());
     return;
   }
@@ -69,6 +93,8 @@ const bdd::nodes_t &EP::get_target_roots(TargetType target) const {
          "Target not found in the roots map.");
   return targets_roots.at(target);
 }
+
+const std::set<ep_id_t> &EP::get_ancestors() const { return ancestors; }
 
 const bdd::BDD *EP::get_bdd() const { return bdd.get(); }
 
@@ -123,6 +149,8 @@ const bdd::Node *EP::get_next_node() const {
   }
 
   const bdd::Node *next_node = active_leaf->next;
+  assert(!meta.is_processed_node(next_node) && "Next node already processed.");
+
   while (next_node && meta.is_processed_node(next_node)) {
     assert(next_node->get_type() != bdd::NodeType::BRANCH);
     next_node = next_node->get_next();
@@ -140,24 +168,32 @@ EPLeaf *EP::get_mutable_active_leaf() {
 }
 
 TargetType EP::get_current_platform() const {
-  assert(leaves.size() && "No leaves");
-
   if (!root) {
     return initial_target;
   }
 
-  const EPLeaf &leaf = leaves[0];
-  const Module *module = leaf.node->get_module();
+  const EPLeaf *active_leaf = get_active_leaf();
+  assert(active_leaf && "No active leaf");
+
+  const EPNode *node = active_leaf->node;
+  const Module *module = node->get_module();
+
   return module->get_next_target();
 }
 
 void EP::process_leaf(const bdd::Node *next_node) {
   EPLeaf *active_leaf = get_mutable_active_leaf();
   assert(active_leaf && "No active leaf");
-  active_leaf->next = next_node;
+
+  if (next_node) {
+    active_leaf->next = next_node;
+  } else {
+    leaves.erase(leaves.begin());
+  }
 }
 
-void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves) {
+void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves,
+                      bool process_node) {
   TargetType current_target = get_current_platform();
 
   EPLeaf *active_leaf = get_mutable_active_leaf();
@@ -170,11 +206,14 @@ void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves) {
     new_node->set_prev(active_leaf->node);
   }
 
-  meta.update(active_leaf, new_node);
+  meta.update(active_leaf, new_node, process_node);
   meta.depth++;
 
   for (const EPLeaf &new_leaf : new_leaves) {
-    meta.update(active_leaf, new_leaf.node);
+    if (!new_leaf.next)
+      continue;
+
+    meta.update(active_leaf, new_leaf.node, process_node);
 
     const Module *module = new_leaf.node->get_module();
     TargetType next_target = module->get_next_target();
@@ -192,23 +231,49 @@ void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves) {
 
   leaves.erase(leaves.begin());
   for (const EPLeaf &new_leaf : new_leaves) {
+    if (!new_leaf.next)
+      continue;
     leaves.insert(leaves.begin(), new_leaf);
   }
 }
 
 void EP::replace_bdd(
-    std::unique_ptr<bdd::BDD> &&new_bdd,
+    const bdd::BDD *new_bdd,
     const std::unordered_map<bdd::node_id_t, bdd::node_id_t> &leaves_mapping) {
-  bdd = std::move(new_bdd);
-
   for (EPLeaf &leaf : leaves) {
-    auto found_it = leaves_mapping.find(leaf.next->get_id());
-    assert(found_it != leaves_mapping.end() && "Leaf not found in mapping.");
+    bdd::node_id_t old_id = leaf.next->get_id();
+    auto found_it = leaves_mapping.find(old_id);
+    bdd::node_id_t new_id =
+        (found_it != leaves_mapping.end()) ? found_it->second : old_id;
 
-    const bdd::Node *new_node = bdd->get_node_by_id(found_it->second);
+    const bdd::Node *new_node = new_bdd->get_node_by_id(new_id);
     assert(new_node && "New node not found in the new BDD.");
+
     leaf.next = new_node;
   }
+
+  if (!root) {
+    return;
+  }
+
+  root->visit_mutable_nodes([&new_bdd](EPNode *node) {
+    Module *module = node->get_mutable_module();
+
+    const bdd::Node *node_bdd = module->get_node();
+    bdd::node_id_t target_id = node_bdd->get_id();
+
+    const bdd::Node *new_node = new_bdd->get_node_by_id(target_id);
+    assert(new_node && "New node not found in the new BDD.");
+
+    module->set_node(new_node);
+
+    return EPNodeVisitAction::VISIT_CHILDREN;
+  });
+
+  // Reset the BDD only here, because we might lose the final reference to it
+  // and we needed the old nodes to find the new ones.
+  bdd.reset(new_bdd);
+  meta.update_total_bdd_nodes(new_bdd);
 }
 
 void EP::visit(EPVisitor &visitor) const { visitor.visit(this); }

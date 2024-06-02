@@ -5,16 +5,16 @@
 namespace synapse {
 namespace x86 {
 
-class ParserExtraction : public x86Module {
+class ParseHeader : public x86Module {
 private:
   addr_t chunk_addr;
   klee::ref<klee::Expr> chunk;
   klee::ref<klee::Expr> length;
 
 public:
-  ParserExtraction(const bdd::Node *node, addr_t _chunk_addr,
-                   klee::ref<klee::Expr> _chunk, klee::ref<klee::Expr> _length)
-      : x86Module(ModuleType::x86_ParserExtraction, "ParserExtraction", node),
+  ParseHeader(const bdd::Node *node, addr_t _chunk_addr,
+              klee::ref<klee::Expr> _chunk, klee::ref<klee::Expr> _length)
+      : x86Module(ModuleType::x86_ParseHeader, "ParseHeader", node),
         chunk_addr(_chunk_addr), chunk(_chunk), length(_length) {}
 
   virtual void visit(EPVisitor &visitor, const EP *ep,
@@ -23,8 +23,7 @@ public:
   }
 
   virtual Module *clone() const {
-    ParserExtraction *cloned =
-        new ParserExtraction(node, chunk_addr, chunk, length);
+    ParseHeader *cloned = new ParseHeader(node, chunk_addr, chunk, length);
     return cloned;
   }
 
@@ -33,11 +32,10 @@ public:
   klee::ref<klee::Expr> get_length() const { return length; }
 };
 
-class ParserExtractionGenerator : public x86ModuleGenerator {
+class ParseHeaderGenerator : public x86ModuleGenerator {
 public:
-  ParserExtractionGenerator()
-      : x86ModuleGenerator(ModuleType::x86_ParserExtraction,
-                           "ParserExtraction") {}
+  ParseHeaderGenerator()
+      : x86ModuleGenerator(ModuleType::x86_ParseHeader, "ParseHeader") {}
 
 protected:
   virtual std::vector<const EP *>
@@ -61,18 +59,14 @@ protected:
 
     addr_t chunk_addr = kutil::expr_addr_to_obj_addr(chunk);
 
-    Module *module = new ParserExtraction(node, chunk_addr, out_chunk, length);
+    Module *module = new ParseHeader(node, chunk_addr, out_chunk, length);
     EPNode *ep_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
     new_eps.push_back(new_ep);
 
-    if (node->get_next()) {
-      EPLeaf leaf(ep_node, node->get_next());
-      new_ep->process_leaf(ep_node, {leaf});
-    } else {
-      new_ep->process_leaf(ep_node, {});
-    }
+    EPLeaf leaf(ep_node, node->get_next());
+    new_ep->process_leaf(ep_node, {leaf});
 
     return new_eps;
   }

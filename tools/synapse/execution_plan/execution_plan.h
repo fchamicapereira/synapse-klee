@@ -9,6 +9,7 @@
 
 #include <unordered_map>
 #include <unordered_set>
+#include <set>
 
 namespace synapse {
 
@@ -20,32 +21,29 @@ struct EPLeaf {
   EPNode *node;
   const bdd::Node *next;
 
-  EPLeaf(EPNode *_node, const bdd::Node *_next) : node(_node), next(_next) {
-    assert(next && "Next node is null.");
-  }
-
-  EPLeaf(const EPLeaf &other) : node(other.node), next(other.next) {
-    assert(next && "Next node is null.");
-  }
+  EPLeaf(EPNode *_node, const bdd::Node *_next) : node(_node), next(_next) {}
+  EPLeaf(const EPLeaf &other) : node(other.node), next(other.next) {}
 };
 
 class EP {
 private:
   ep_id_t id;
-  std::shared_ptr<bdd::BDD> bdd;
+  std::shared_ptr<const bdd::BDD> bdd;
 
   EPNode *root;
   std::vector<EPLeaf> leaves;
 
-  TargetType initial_target;
-  std::unordered_set<TargetType> targets;
+  const TargetType initial_target;
+  const std::unordered_set<TargetType> targets;
+  const std::set<ep_id_t> ancestors;
+
   std::unordered_map<TargetType, bdd::nodes_t> targets_roots;
 
   Context ctx;
   EPMeta meta;
 
 public:
-  EP(const std::shared_ptr<bdd::BDD> &bdd,
+  EP(std::shared_ptr<const bdd::BDD> bdd,
      const std::vector<const Target *> &targets);
 
   EP(const EP &other);
@@ -56,18 +54,21 @@ public:
   EP &operator=(const EP *other) = delete;
 
   void process_future_node(const bdd::Node *future);
-  void process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves);
+  void process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves,
+                    bool process_node = true);
   void process_leaf(const bdd::Node *next_node);
 
   void replace_bdd(
-      std::unique_ptr<bdd::BDD> &&new_bdd,
-      const std::unordered_map<bdd::node_id_t, bdd::node_id_t> &leaves_mapping);
+      const bdd::BDD *new_bdd,
+      const std::unordered_map<bdd::node_id_t, bdd::node_id_t> &leaves_mapping =
+          std::unordered_map<bdd::node_id_t, bdd::node_id_t>());
 
   ep_id_t get_id() const;
   const bdd::BDD *get_bdd() const;
   const EPNode *get_root() const;
   const std::vector<EPLeaf> &get_leaves() const;
   const bdd::nodes_t &get_target_roots(TargetType target) const;
+  const std::set<ep_id_t> &get_ancestors() const;
   const Context &get_ctx() const;
   const EPMeta &get_meta() const;
 

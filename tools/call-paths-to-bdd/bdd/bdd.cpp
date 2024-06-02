@@ -144,11 +144,11 @@ static std::unordered_map<std::string, SymbolsExtractor>
 void BDD::visit(BDDVisitor &visitor) const { visitor.visit(*this); }
 
 const Node *BDD::get_node_by_id(node_id_t _id) const {
-  return root->get_node_by_id(_id);
+  return root ? root->get_node_by_id(_id) : nullptr;
 }
 
 Node *BDD::get_mutable_node_by_id(node_id_t _id) {
-  return root->get_mutable_node_by_id(_id);
+  return root ? root->get_mutable_node_by_id(_id) : nullptr;
 }
 
 static bool is_bdd_symbol(const std::string &symbol) {

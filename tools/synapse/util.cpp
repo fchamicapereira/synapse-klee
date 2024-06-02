@@ -83,9 +83,9 @@ bool query_contains_map_has_key(const bdd::Branch *node) {
 
 klee::ref<klee::Expr> get_original_chunk(const EP *ep, const bdd::Node *node) {
   std::vector<const bdd::Node *> prev_borrows =
-      get_prev_fn(ep, node, {"packet_borrow_next_chunk"});
+      get_prev_functions(ep, node, {"packet_borrow_next_chunk"});
   std::vector<const bdd::Node *> prev_returns =
-      get_prev_fn(ep, node, {"packet_return_chunk"});
+      get_prev_functions(ep, node, {"packet_return_chunk"});
 
   assert(prev_borrows.size());
   assert(prev_borrows.size() > prev_returns.size());
@@ -99,16 +99,18 @@ klee::ref<klee::Expr> get_original_chunk(const EP *ep, const bdd::Node *node) {
 }
 
 std::vector<const bdd::Node *>
-get_prev_fn(const EP *ep, const bdd::Node *node,
-            const std::vector<std::string> &fnames, bool ignore_targets) {
+get_prev_functions(const EP *ep, const bdd::Node *node,
+                   const std::vector<std::string> &fnames) {
   std::vector<const bdd::Node *> prev_functions;
 
   TargetType target = ep->get_current_platform();
   const bdd::nodes_t &roots = ep->get_target_roots(target);
 
-  while (node->get_prev()) {
-    node = node->get_prev();
+  if (!node) {
+    return prev_functions;
+  }
 
+  while ((node = node->get_prev())) {
     if (node->get_type() == bdd::NodeType::CALL) {
       const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
       const call_t &call = call_node->get_call();
@@ -489,7 +491,7 @@ klee::ref<klee::Expr> get_original_vector_value(const EP *ep,
                                                 addr_t target_addr,
                                                 const bdd::Node *&source) {
   std::vector<const bdd::Node *> all_prev_vector_borrow =
-      get_prev_fn(ep, node, {"vector_borrow"});
+      get_prev_functions(ep, node, {"vector_borrow"});
 
   klee::ref<klee::Expr> borrowed_cell;
 
@@ -775,6 +777,27 @@ bool borrow_has_var_len(const bdd::Node *node) {
 
   klee::ref<klee::Expr> length = call.args.at("length").expr;
   return length->getKind() != klee::Expr::Kind::Constant;
+}
+
+symbols_t get_prev_symbols(const bdd::Node *node,
+                           const bdd::nodes_t &stop_nodes) {
+  symbols_t symbols;
+
+  while (node) {
+    if (stop_nodes.find(node->get_id()) != stop_nodes.end()) {
+      break;
+    }
+
+    if (node->get_type() == bdd::NodeType::CALL) {
+      const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
+      symbols_t local_symbols = call_node->get_locally_generated_symbols();
+      symbols.insert(local_symbols.begin(), local_symbols.end());
+    }
+
+    node = node->get_prev();
+  }
+
+  return symbols;
 }
 
 } // namespace synapse

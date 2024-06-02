@@ -37,11 +37,12 @@ private:
   Heuristic<HCfg> h;
 
   bool allow_bdd_reordering;
-  bdd::nodes_t nodes_to_peek;
+  std::unordered_set<ep_id_t> eps_to_peek;
 
 public:
   SearchEngine(const bdd::BDD &bdd, Heuristic<HCfg> h,
-               bool allow_bdd_reordering, const bdd::nodes_t &nodes_to_peek);
+               bool allow_bdd_reordering,
+               const std::unordered_set<ep_id_t> &eps_to_peek);
 
   SearchEngine(const bdd::BDD &bdd, Heuristic<HCfg> h);
 

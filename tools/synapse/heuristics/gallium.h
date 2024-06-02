@@ -9,7 +9,7 @@ struct GalliumComparator : public HeuristicCfg {
   Score get_score(const EP *ep) const override {
     Score score(
         ep, {
-                {ScoreCategory::NumberOfSwitchNodes, ScoreObjective::MAX},
+                {ScoreCategory::TotalSwitchNodes, ScoreObjective::MAX},
 
                 // Let's add this one to just speed up the process when
                 // we are generating controller nodes. After all, we

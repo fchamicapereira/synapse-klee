@@ -16,16 +16,19 @@ enum class EPNodeVisitAction { VISIT_CHILDREN, SKIP_CHILDREN, STOP };
 class EPNode {
 private:
   ep_node_id_t id;
-  const Module *module;
+  Module *module;
   std::vector<EPNode *> children;
   EPNode *prev;
 
 public:
-  EPNode(const Module *_module);
+  EPNode(Module *module);
   ~EPNode();
 
   ep_node_id_t get_id() const;
+
   const Module *get_module() const;
+  Module *get_mutable_module();
+
   const std::vector<EPNode *> &get_children() const;
   EPNode *get_prev() const;
 

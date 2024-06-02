@@ -19,12 +19,7 @@ Score::get_nodes_with_type(const EP *ep,
     return found;
   }
 
-  std::vector<const EPNode *> nodes{root};
-
-  while (nodes.size()) {
-    const EPNode *node = nodes[0];
-    nodes.erase(nodes.begin());
-
+  root->visit_nodes([&found, &types](const EPNode *node) {
     const Module *module = node->get_module();
 
     auto found_it = std::find(types.begin(), types.end(), module->get_type());
@@ -32,11 +27,8 @@ Score::get_nodes_with_type(const EP *ep,
       found.push_back(node);
     }
 
-    const std::vector<EPNode *> &children = node->get_children();
-    for (const EPNode *child : children) {
-      nodes.push_back(child);
-    }
-  }
+    return EPNodeVisitAction::VISIT_CHILDREN;
+  });
 
   return found;
 }
@@ -56,11 +48,9 @@ int Score::get_nr_switch_nodes(const EP *ep) const {
     switch_nodes += tofino_nodes_it->second;
   }
 
-  // std::vector<const EPNode *> send_to_controller =
-  //     get_nodes_with_type(ep, {ModuleType::Tofino_SendToController});
-
-  // // Let's ignore the SendToController nodes
-  // switch_nodes -= send_to_controller.size();
+  // Take away the controller nodes.
+  int controller_nodes = get_nr_controller_nodes(ep);
+  switch_nodes -= controller_nodes;
 
   return switch_nodes;
 }
@@ -77,6 +67,12 @@ int Score::get_nr_controller_nodes(const EP *ep) const {
   }
 
   return controller_nodes;
+}
+
+int Score::get_nr_send_to_controller(const EP *ep) const {
+  std::vector<const EPNode *> send_to_controller =
+      get_nodes_with_type(ep, {ModuleType::Tofino_SendToController});
+  return send_to_controller.size();
 }
 
 int Score::get_nr_reordered_nodes(const EP *ep) const {
@@ -192,16 +188,27 @@ std::ostream &operator<<(std::ostream &os, const Score &score) {
   os << "<";
 
   bool first = true;
-  for (auto i = 0u; i < score.values.size(); i++) {
-    auto value = score.values[i];
-
-    if (!first) {
+  for (size_t i = 0u; i < score.values.size(); i++) {
+    if (!first)
       os << ",";
+    first = false;
+
+    ScoreCategory category = score.categories[i].first;
+    ScoreObjective objective = score.categories[i].second;
+    int value = score.values[i];
+
+    switch (objective) {
+    case ScoreObjective::MIN:
+      os << "[-]";
+      value *= -1;
+      break;
+    case ScoreObjective::MAX:
+      os << "[+]";
+      break;
     }
-
+    os << category;
+    os << "=";
     os << value;
-
-    first &= false;
   }
 
   os << ">";
@@ -210,32 +217,35 @@ std::ostream &operator<<(std::ostream &os, const Score &score) {
 
 std::ostream &operator<<(std::ostream &os, ScoreCategory score_category) {
   switch (score_category) {
-  case ScoreCategory::NumberOfReorderedNodes:
-    os << "NumberOfReorderedNodes";
+  case ScoreCategory::TotalSendToControllerNodes:
+    os << "#SendToController";
     break;
-  case ScoreCategory::NumberOfSwitchNodes:
-    os << "NumberOfSwitchNodes";
+  case ScoreCategory::TotalReorderedNodes:
+    os << "#Reordered";
     break;
-  case ScoreCategory::NumberOfSwitchLeaves:
-    os << "NumberOfSwitchLeaves";
+  case ScoreCategory::TotalSwitchNodes:
+    os << "#SwitchNodes";
     break;
-  case ScoreCategory::NumberOfNodes:
-    os << "NumberOfNodes";
+  case ScoreCategory::TotalSwitchLeaves:
+    os << "#SwitchLeaves";
     break;
-  case ScoreCategory::NumberOfControllerNodes:
-    os << "NumberOfControllerNodes";
+  case ScoreCategory::TotalNodes:
+    os << "#Nodes";
+    break;
+  case ScoreCategory::TotalControllerNodes:
+    os << "#Controller";
     break;
   case ScoreCategory::Depth:
     os << "Depth";
     break;
   case ScoreCategory::ConsecutiveObjectOperationsInSwitch:
-    os << "ConsecutiveObjectOperationsInSwitch";
+    os << "#ConsecutiveObjectOperationsInSwitch";
     break;
   case ScoreCategory::HasNextStatefulOperationInSwitch:
     os << "HasNextStatefulOperationInSwitch";
     break;
   case ScoreCategory::ProcessedBDDPercentage:
-    os << "ProcessedBDDPercentage";
+    os << "BDDProgress";
     break;
   }
   return os;
