@@ -53,6 +53,10 @@ protected:
       return new_eps;
     }
 
+    if (!can_place(ep, call_node, "map", PlacementDecision::x86Map)) {
+      return new_eps;
+    }
+
     klee::ref<klee::Expr> map_addr_expr = call.args.at("map").expr;
     klee::ref<klee::Expr> key = call.args.at("key").in;
     klee::ref<klee::Expr> trash = call.args.at("trash").out;
@@ -67,6 +71,8 @@ protected:
 
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
+
+    place(new_ep, map_addr, PlacementDecision::x86Map);
 
     return new_eps;
   }

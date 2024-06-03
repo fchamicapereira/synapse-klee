@@ -54,6 +54,7 @@ struct EPMeta {
   }
 
   float get_bdd_progress() const;
+  void process_node(const bdd::Node *node);
   void update_total_bdd_nodes(const bdd::BDD *bdd);
 
   bool is_processed_node(const bdd::Node *node) const;

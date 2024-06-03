@@ -2,9 +2,6 @@
 
 #include "tofino_module.h"
 
-#include "else.h"
-#include "then.h"
-
 namespace synapse {
 namespace tofino {
 

@@ -2,9 +2,6 @@
 
 #include "tofino_module.h"
 
-#include "else.h"
-#include "then.h"
-
 namespace synapse {
 namespace tofino {
 
@@ -26,7 +23,7 @@ public:
 
 class IgnoreGenerator : public TofinoModuleGenerator {
 private:
-  std::unordered_set<std::string> functions_to_ignore = {
+  std::unordered_set<std::string> functions_to_always_ignore = {
       "expire_items_single_map",
       "nf_set_rte_ipv4_udptcp_checksum",
   };
@@ -62,17 +59,21 @@ private:
       return false;
     }
 
-    const Context &ctx = ep->get_ctx();
     const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
     const call_t &call = call_node->get_call();
 
-    if (functions_to_ignore.find(call.function_name) !=
-        functions_to_ignore.end()) {
+    if (functions_to_always_ignore.find(call.function_name) !=
+        functions_to_always_ignore.end()) {
       return true;
     }
 
+    const Context &ctx = ep->get_ctx();
     if (call.function_name == "dchain_rejuvenate_index") {
       return can_ignore_dchain_op(ctx, call);
+    }
+
+    if (call.function_name == "vector_return") {
+      return is_vector_return_without_modifications(ep, call_node);
     }
 
     return false;
@@ -95,7 +96,7 @@ private:
     }
 
     if (!ctx.check_placement(coalescing_data->map,
-                             PlacementDecision::TofinoTableSimple)) {
+                             PlacementDecision::TofinoSimpleTable)) {
       return false;
     }
 

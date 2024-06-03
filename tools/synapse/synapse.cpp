@@ -116,14 +116,6 @@ int main(int argc, char **argv) {
                        end_search - start_search)
                        .count();
 
-  if (ShowEP) {
-    EPVisualizer::visualize(result.ep, false);
-  }
-
-  if (ShowSS) {
-    SSVisualizer::visualize(result.search_space, result.ep, false);
-  }
-
   int64_t synthesis_dt = -1;
 
   // if (Out.size()) {
@@ -140,6 +132,14 @@ int main(int argc, char **argv) {
 
   if (synthesis_dt >= 0) {
     Log::log() << "Generation time: " << synthesis_dt << " sec\n";
+  }
+
+  if (ShowEP) {
+    EPVisualizer::visualize(result.ep, false);
+  }
+
+  if (ShowSS) {
+    SSVisualizer::visualize(result.search_space, result.ep, false);
   }
 
   return 0;

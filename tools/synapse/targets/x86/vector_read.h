@@ -58,6 +58,10 @@ protected:
       return new_eps;
     }
 
+    if (!can_place(ep, call_node, "vector", PlacementDecision::x86Vector)) {
+      return new_eps;
+    }
+
     klee::ref<klee::Expr> vector_addr_expr = call.args.at("vector").expr;
     klee::ref<klee::Expr> index = call.args.at("index").expr;
     klee::ref<klee::Expr> value_addr_expr = call.args.at("val_out").out;
@@ -75,6 +79,8 @@ protected:
 
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
+
+    place(new_ep, vector_addr, PlacementDecision::x86Vector);
 
     return new_eps;
   }

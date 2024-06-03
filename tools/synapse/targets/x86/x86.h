@@ -2,6 +2,7 @@
 
 #include "../target.h"
 
+#include "ignore.h"
 #include "if.h"
 #include "then.h"
 #include "else.h"
@@ -39,6 +40,7 @@ struct x86Target : public Target {
   x86Target()
       : Target(TargetType::x86,
                {
+                   new IgnoreGenerator(),
                    new ParseHeaderGenerator(),
                    new ModifyHeaderGenerator(),
                    new ChecksumUpdateGenerator(),

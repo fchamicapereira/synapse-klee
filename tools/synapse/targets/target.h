@@ -10,8 +10,8 @@ class TargetContext;
 
 enum class TargetType {
   x86,
-  TofinoCPU,
   Tofino,
+  TofinoCPU,
 };
 
 std::ostream &operator<<(std::ostream &os, TargetType target);

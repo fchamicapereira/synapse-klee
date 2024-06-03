@@ -61,6 +61,10 @@ protected:
       return new_eps;
     }
 
+    if (!can_place(ep, call_node, "vector", PlacementDecision::x86Vector)) {
+      return new_eps;
+    }
+
     klee::ref<klee::Expr> vector_addr_expr = call.args.at("vector").expr;
     klee::ref<klee::Expr> index = call.args.at("index").expr;
     klee::ref<klee::Expr> value_addr_expr = call.args.at("value").expr;
@@ -74,13 +78,13 @@ protected:
     std::vector<modification_t> changes =
         build_modifications(original_value, value);
 
-    EP *new_ep = new EP(*ep);
-    new_eps.push_back(new_ep);
-
-    if (changes.size() == 0) {
-      new_ep->process_leaf(node->get_next());
+    // Check the Ignore module.
+    if (changes.empty()) {
       return new_eps;
     }
+
+    EP *new_ep = new EP(*ep);
+    new_eps.push_back(new_ep);
 
     Module *module =
         new VectorWrite(node, vector_addr, index, value_addr, changes);
@@ -88,6 +92,8 @@ protected:
 
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
+
+    place(new_ep, vector_addr, PlacementDecision::x86Vector);
 
     return new_eps;
   }

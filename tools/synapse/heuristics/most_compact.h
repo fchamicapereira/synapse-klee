@@ -8,7 +8,7 @@ namespace synapse {
 struct MostCompactComparator : public HeuristicCfg {
   Score get_score(const EP *ep) const override {
     Score score(ep, {
-                        {ScoreCategory::TotalNodes, ScoreObjective::MIN},
+                        {ScoreCategory::Nodes, ScoreObjective::MIN},
                     });
     return score;
   }

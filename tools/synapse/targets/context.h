@@ -15,8 +15,17 @@ class Target;
 enum class TargetType;
 
 enum class PlacementDecision {
-  TofinoTableSimple,
+  TofinoSimpleTable,
+  TofinoCPUDchain,
+  TofinoCPUVector,
+  x86Map,
+  x86Vector,
+  x86Dchain,
+  x86Sketch,
+  x86Cht,
 };
+
+std::ostream &operator<<(std::ostream &os, PlacementDecision decision);
 
 struct expiration_data_t {
   bool valid;
@@ -69,6 +78,8 @@ public:
 
   std::optional<map_coalescing_data_t> get_coalescing_data(addr_t obj) const;
   const expiration_data_t &get_expiration_data() const;
+
+  const std::unordered_map<addr_t, PlacementDecision> &get_placements() const;
 
   template <class TCtx> const TCtx *get_target_ctx() const;
   template <class TCtx> TCtx *get_mutable_target_ctx();

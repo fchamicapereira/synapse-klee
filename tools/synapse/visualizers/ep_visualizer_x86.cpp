@@ -29,6 +29,8 @@
 
 namespace synapse {
 
+IGNORE_MODULE(x86::Ignore)
+
 VISIT_BRANCH(x86::If)
 
 SHOW_MODULE_NAME(x86::Then)

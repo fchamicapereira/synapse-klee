@@ -520,6 +520,29 @@ klee::ref<klee::Expr> get_original_vector_value(const EP *ep,
   return borrowed_cell;
 }
 
+const bdd::Node *get_future_vector_return(const bdd::Node *root,
+                                          addr_t target_addr) {
+  std::vector<const bdd::Node *> vector_returns =
+      get_all_functions_after_node(root, {"vector_return"});
+
+  for (const bdd::Node *vector_return : vector_returns) {
+    assert(vector_return->get_type() == bdd::NodeType::CALL);
+    const bdd::Call *call_node = static_cast<const bdd::Call *>(vector_return);
+    const call_t &call = call_node->get_call();
+
+    klee::ref<klee::Expr> vector_addr_expr = call.args.at("vector").expr;
+    addr_t obj = kutil::expr_addr_to_obj_addr(vector_addr_expr);
+
+    if (obj != target_addr) {
+      continue;
+    }
+
+    return vector_return;
+  }
+
+  return nullptr;
+}
+
 klee::ref<klee::Expr> get_expr_from_addr(const EP *ep, addr_t addr) {
   const bdd::BDD *bdd = ep->get_bdd();
   const bdd::Node *root = bdd->get_root();
@@ -798,6 +821,32 @@ symbols_t get_prev_symbols(const bdd::Node *node,
   }
 
   return symbols;
+}
+
+bool is_vector_return_without_modifications(const EP *ep,
+                                            const bdd::Node *node) {
+  if (node->get_type() != bdd::NodeType::CALL) {
+    return false;
+  }
+
+  const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
+  const call_t &call = call_node->get_call();
+
+  if (call.function_name != "vector_return") {
+    return false;
+  }
+
+  klee::ref<klee::Expr> vector_addr_expr = call.args.at("vector").expr;
+  klee::ref<klee::Expr> value = call.args.at("value").in;
+
+  addr_t vector_addr = kutil::expr_addr_to_obj_addr(vector_addr_expr);
+
+  klee::ref<klee::Expr> original_value =
+      get_original_vector_value(ep, call_node, vector_addr);
+  std::vector<modification_t> changes =
+      build_modifications(original_value, value);
+
+  return changes.empty();
 }
 
 } // namespace synapse

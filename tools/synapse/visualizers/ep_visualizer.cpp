@@ -31,12 +31,14 @@ namespace synapse {
 
 static std::unordered_map<TargetType, std::string> node_colors = {
     {TargetType::Tofino, "cornflowerblue"},
-    {TargetType::TofinoCPU, "firebrick2"},
+    {TargetType::TofinoCPU, "lightcoral"},
     {TargetType::x86, "orange"},
 };
 
 static std::unordered_set<ModuleType> modules_to_ignore = {
+    ModuleType::x86_Ignore,
     ModuleType::Tofino_Ignore,
+    ModuleType::TofinoCPU_Ignore,
 };
 
 static bool should_ignore_node(const EPNode *node) {
@@ -57,13 +59,15 @@ void EPVisualizer::function_call(const EPNode *ep_node, const bdd::Node *node,
   ss << "[label=\"";
 
   ss << "[";
-  ss << "ID=";
+  ss << "EPNode=";
   ss << ep_node->get_id();
-  ss << ",Node=";
+  ss << ",BDDNode=";
   ss << node->get_id();
-  ss << "] ";
+  ss << "]";
+  ss << "\\n";
 
-  ss << label << "\", ";
+  ss << label;
+  ss << "\", ";
   ss << "color=" << node_colors[target] << "];";
   ss << "\n";
 }
@@ -74,13 +78,15 @@ void EPVisualizer::branch(const EPNode *ep_node, const bdd::Node *node,
   ss << "[shape=Mdiamond, label=\"";
 
   ss << "[";
-  ss << "ID=";
+  ss << "EPNode=";
   ss << ep_node->get_id();
-  ss << ",Node=";
+  ss << ",BDDNode=";
   ss << node->get_id();
-  ss << "] ";
+  ss << "]";
+  ss << " ";
 
-  ss << label << "\", ";
+  ss << label;
+  ss << "\", ";
   ss << "color=" << node_colors[target] << "];";
   ss << "\n";
 }

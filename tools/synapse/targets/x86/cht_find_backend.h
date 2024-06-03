@@ -66,6 +66,10 @@ protected:
       return new_eps;
     }
 
+    if (!can_place(ep, call_node, "cht", PlacementDecision::x86Cht)) {
+      return new_eps;
+    }
+
     klee::ref<klee::Expr> cht = call.args.at("cht").expr;
     klee::ref<klee::Expr> backends = call.args.at("active_backends").expr;
     klee::ref<klee::Expr> hash = call.args.at("hash").expr;
@@ -91,6 +95,8 @@ protected:
 
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
+
+    place(new_ep, cht_addr, PlacementDecision::x86Cht);
 
     return new_eps;
   }

@@ -49,7 +49,7 @@ int Score::get_nr_switch_nodes(const EP *ep) const {
   }
 
   // Take away the controller nodes.
-  int controller_nodes = get_nr_controller_nodes(ep);
+  int controller_nodes = get_nr_send_to_controller(ep);
   switch_nodes -= controller_nodes;
 
   return switch_nodes;
@@ -184,6 +184,26 @@ int Score::get_percentage_of_processed_bdd(const EP *ep) const {
   return 100 * meta.get_bdd_progress();
 }
 
+int Score::get_nr_switch_data_structures(const EP *ep) const {
+  int switch_data_structures = 0;
+
+  const Context &ctx = ep->get_ctx();
+  const std::unordered_map<addr_t, PlacementDecision> &placements =
+      ctx.get_placements();
+
+  std::unordered_set<PlacementDecision> switch_placements{
+      PlacementDecision::TofinoSimpleTable,
+  };
+
+  for (const auto &[obj, decision] : placements) {
+    if (switch_placements.find(decision) != switch_placements.end()) {
+      switch_data_structures++;
+    }
+  }
+
+  return switch_data_structures;
+}
+
 std::ostream &operator<<(std::ostream &os, const Score &score) {
   os << "<";
 
@@ -217,35 +237,38 @@ std::ostream &operator<<(std::ostream &os, const Score &score) {
 
 std::ostream &operator<<(std::ostream &os, ScoreCategory score_category) {
   switch (score_category) {
-  case ScoreCategory::TotalSendToControllerNodes:
+  case ScoreCategory::SendToControllerNodes:
     os << "#SendToController";
     break;
-  case ScoreCategory::TotalReorderedNodes:
+  case ScoreCategory::ReorderedNodes:
     os << "#Reordered";
     break;
-  case ScoreCategory::TotalSwitchNodes:
+  case ScoreCategory::SwitchNodes:
     os << "#SwitchNodes";
     break;
-  case ScoreCategory::TotalSwitchLeaves:
+  case ScoreCategory::SwitchLeaves:
     os << "#SwitchLeaves";
     break;
-  case ScoreCategory::TotalNodes:
+  case ScoreCategory::Nodes:
     os << "#Nodes";
     break;
-  case ScoreCategory::TotalControllerNodes:
+  case ScoreCategory::ControllerNodes:
     os << "#Controller";
     break;
   case ScoreCategory::Depth:
     os << "Depth";
     break;
   case ScoreCategory::ConsecutiveObjectOperationsInSwitch:
-    os << "#ConsecutiveObjectOperationsInSwitch";
+    os << "#ConsecutiveSwitchObjOp";
     break;
   case ScoreCategory::HasNextStatefulOperationInSwitch:
-    os << "HasNextStatefulOperationInSwitch";
+    os << "HasNextStatefulOpInSwitch";
     break;
   case ScoreCategory::ProcessedBDDPercentage:
     os << "BDDProgress";
+    break;
+  case ScoreCategory::SwitchDataStructures:
+    os << "#SwitchDS";
     break;
   }
   return os;

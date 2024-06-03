@@ -149,7 +149,6 @@ const bdd::Node *EP::get_next_node() const {
   }
 
   const bdd::Node *next_node = active_leaf->next;
-  assert(!meta.is_processed_node(next_node) && "Next node already processed.");
 
   while (next_node && meta.is_processed_node(next_node)) {
     assert(next_node->get_type() != bdd::NodeType::BRANCH);
@@ -186,6 +185,7 @@ void EP::process_leaf(const bdd::Node *next_node) {
   assert(active_leaf && "No active leaf");
 
   if (next_node) {
+    meta.process_node(active_leaf->next);
     active_leaf->next = next_node;
   } else {
     leaves.erase(leaves.begin());
@@ -278,8 +278,18 @@ void EP::replace_bdd(
 
 void EP::visit(EPVisitor &visitor) const { visitor.visit(this); }
 
-void EP::process_future_node(const bdd::Node *future) {
+void EP::process_future_non_branch_node(const bdd::Node *future) {
+  assert(future->get_type() != bdd::NodeType::BRANCH);
   meta.processed_nodes.insert(future->get_id());
+}
+
+void EP::log_debug_placements() const {
+  Log::dbg() << "Placements:\n";
+  const std::unordered_map<addr_t, PlacementDecision> &placements =
+      ctx.get_placements();
+  for (const auto &[obj, decision] : placements) {
+    Log::dbg() << "  " << obj << " -> " << decision << "\n";
+  }
 }
 
 } // namespace synapse

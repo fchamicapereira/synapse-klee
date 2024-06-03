@@ -56,6 +56,10 @@ protected:
       return new_eps;
     }
 
+    if (!can_place(ep, call_node, "chain", PlacementDecision::x86Dchain)) {
+      return new_eps;
+    }
+
     klee::ref<klee::Expr> dchain_addr_expr = call.args.at("chain").expr;
     klee::ref<klee::Expr> index = call.args.at("index").expr;
     klee::ref<klee::Expr> time = call.args.at("time").expr;
@@ -70,6 +74,8 @@ protected:
 
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
+
+    place(new_ep, dchain_addr, PlacementDecision::x86Dchain);
 
     return new_eps;
   }

@@ -12,12 +12,13 @@
 namespace synapse {
 
 enum class ScoreCategory {
-  TotalSendToControllerNodes,
-  TotalReorderedNodes,
-  TotalSwitchNodes,
-  TotalSwitchLeaves,
-  TotalNodes,
-  TotalControllerNodes,
+  SendToControllerNodes,
+  ReorderedNodes,
+  SwitchNodes,
+  SwitchLeaves,
+  Nodes,
+  ControllerNodes,
+  SwitchDataStructures,
   Depth,
   ConsecutiveObjectOperationsInSwitch,
   HasNextStatefulOperationInSwitch,
@@ -50,28 +51,32 @@ public:
             &categories_objectives) {
     computers = {
         {
-            ScoreCategory::TotalSendToControllerNodes,
+            ScoreCategory::SendToControllerNodes,
             &Score::get_nr_send_to_controller,
         },
         {
-            ScoreCategory::TotalReorderedNodes,
+            ScoreCategory::ReorderedNodes,
             &Score::get_nr_reordered_nodes,
         },
         {
-            ScoreCategory::TotalNodes,
+            ScoreCategory::Nodes,
             &Score::get_nr_nodes,
         },
         {
-            ScoreCategory::TotalSwitchNodes,
+            ScoreCategory::SwitchNodes,
             &Score::get_nr_switch_nodes,
         },
         {
-            ScoreCategory::TotalSwitchLeaves,
+            ScoreCategory::SwitchLeaves,
             &Score::get_nr_switch_leaves,
         },
         {
-            ScoreCategory::TotalControllerNodes,
+            ScoreCategory::ControllerNodes,
             &Score::get_nr_controller_nodes,
+        },
+        {
+            ScoreCategory::SwitchDataStructures,
+            &Score::get_nr_switch_data_structures,
         },
         {
             ScoreCategory::Depth,
@@ -190,6 +195,7 @@ private:
   int next_op_is_stateful_in_switch(const EP *ep) const;
   int get_percentage_of_processed_bdd(const EP *ep) const;
   int get_nr_send_to_controller(const EP *ep) const;
+  int get_nr_switch_data_structures(const EP *ep) const;
 };
 
 std::ostream &operator<<(std::ostream &os, const Score &score);

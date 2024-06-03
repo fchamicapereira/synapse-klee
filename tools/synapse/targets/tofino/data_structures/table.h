@@ -3,6 +3,7 @@
 #include "data_structure.h"
 
 #include <vector>
+#include <optional>
 
 namespace synapse {
 namespace tofino {
@@ -11,11 +12,12 @@ struct Table : public DataStructure {
   int num_entries;
   std::vector<klee::ref<klee::Expr>> keys;
   std::vector<klee::ref<klee::Expr>> params;
-  symbol_t hit;
+  std::optional<symbol_t> hit;
 
   Table(DataStructureID _id, int _num_entries,
         const std::vector<klee::ref<klee::Expr>> &_keys,
-        const std::vector<klee::ref<klee::Expr>> &_params, symbol_t _hit)
+        const std::vector<klee::ref<klee::Expr>> &_params,
+        const std::optional<symbol_t> &_hit)
       : DataStructure(DSType::SIMPLE_TABLE, _id), num_entries(_num_entries),
         keys(_keys), params(_params), hit(_hit) {}
 

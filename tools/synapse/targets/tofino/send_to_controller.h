@@ -2,9 +2,6 @@
 
 #include "tofino_module.h"
 
-#include "else.h"
-#include "then.h"
-
 namespace synapse {
 namespace tofino {
 
@@ -14,7 +11,7 @@ private:
 
 public:
   SendToController(const bdd::Node *node, symbols_t _symbols)
-      : TofinoModule(ModuleType::Tofino_SendToController, TargetType::x86,
+      : TofinoModule(ModuleType::Tofino_SendToController, TargetType::TofinoCPU,
                      "SendToController", node),
         symbols(_symbols) {}
 
@@ -67,6 +64,8 @@ protected:
     if (replicated_bdd) {
       new_ep->replace_bdd(new_bdd);
     }
+
+    // FIXME: missing custom packet parsing for the SyNAPSE header.
 
     return new_eps;
   }

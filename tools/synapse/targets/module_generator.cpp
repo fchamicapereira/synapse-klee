@@ -90,4 +90,36 @@ std::vector<const EP *> ModuleGenerator::generate(const EP *ep,
   return new_eps;
 }
 
+bool ModuleGenerator::can_place(const EP *ep, const bdd::Call *call_node,
+                                const std::string &obj_arg,
+                                PlacementDecision decision) const {
+  const call_t &call = call_node->get_call();
+
+  assert(call.args.find(obj_arg) != call.args.end());
+  klee::ref<klee::Expr> obj_expr = call.args.at(obj_arg).expr;
+  addr_t obj = kutil::expr_addr_to_obj_addr(obj_expr);
+
+  const Context &ctx = ep->get_ctx();
+  return ctx.can_place(obj, decision);
+}
+
+bool ModuleGenerator::check_placement(const EP *ep, const bdd::Call *call_node,
+                                      const std::string &obj_arg,
+                                      PlacementDecision decision) const {
+  const call_t &call = call_node->get_call();
+
+  assert(call.args.find(obj_arg) != call.args.end());
+  klee::ref<klee::Expr> obj_expr = call.args.at(obj_arg).expr;
+  addr_t obj = kutil::expr_addr_to_obj_addr(obj_expr);
+
+  const Context &ctx = ep->get_ctx();
+  return ctx.check_placement(obj, decision);
+}
+
+void ModuleGenerator::place(EP *ep, addr_t obj,
+                            PlacementDecision decision) const {
+  Context &new_ctx = ep->get_mutable_ctx();
+  new_ctx.save_placement(obj, decision);
+}
+
 } // namespace synapse

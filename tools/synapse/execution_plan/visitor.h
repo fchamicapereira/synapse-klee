@@ -30,39 +30,24 @@ class SimpleTableLookup;
 
 namespace tofino_cpu {
 class Ignore;
-class CurrentTime;
-class PacketParseCPU;
-class PacketParseEthernet;
-class PacketModifyEthernet;
-class PacketParseIPv4;
-class PacketModifyIPv4;
-class PacketParseIPv4Options;
-class PacketModifyIPv4Options;
-class PacketParseTCPUDP;
-class PacketModifyTCPUDP;
-class PacketParseTCP;
-class PacketModifyTCP;
-class PacketParseUDP;
-class PacketModifyUDP;
-class PacketModifyChecksums;
-class ForwardThroughTofino;
+class ParseHeader;
+class ModifyHeader;
 class If;
 class Then;
 class Else;
+class Forward;
+class Broadcast;
 class Drop;
-class MapGet;
-class MapPut;
-class MapErase;
+class SimpleTableLookup;
+class SimpleTableUpdate;
 class DchainAllocateNewIndex;
-class DchainIsIndexAllocated;
-class DchainRejuvenateIndex;
-class DchainFreeIndex;
-class HashObj;
+class VectorRead;
+class VectorWrite;
 } // namespace tofino_cpu
 
 namespace x86 {
+class Ignore;
 class MapGet;
-class CurrentTime;
 class ParseHeader;
 class ModifyHeader;
 class If;
@@ -121,35 +106,20 @@ public:
    *
    * **********************************/
 
-  // VISIT_TODO(tofino_cpu::Ignore)
-  // VISIT_TODO(tofino_cpu::CurrentTime)
-  // VISIT_TODO(tofino_cpu::PacketParseCPU)
-  // VISIT_TODO(tofino_cpu::PacketParseEthernet)
-  // VISIT_TODO(tofino_cpu::PacketModifyEthernet)
-  // VISIT_TODO(tofino_cpu::PacketParseIPv4)
-  // VISIT_TODO(tofino_cpu::PacketModifyIPv4)
-  // VISIT_TODO(tofino_cpu::PacketParseIPv4Options)
-  // VISIT_TODO(tofino_cpu::PacketModifyIPv4Options)
-  // VISIT_TODO(tofino_cpu::PacketParseTCPUDP)
-  // VISIT_TODO(tofino_cpu::PacketModifyTCPUDP)
-  // VISIT_TODO(tofino_cpu::PacketParseTCP)
-  // VISIT_TODO(tofino_cpu::PacketModifyTCP)
-  // VISIT_TODO(tofino_cpu::PacketParseUDP)
-  // VISIT_TODO(tofino_cpu::PacketModifyUDP)
-  // VISIT_TODO(tofino_cpu::PacketModifyChecksums)
-  // VISIT_TODO(tofino_cpu::ForwardThroughTofino)
-  // VISIT_TODO(tofino_cpu::If)
-  // VISIT_TODO(tofino_cpu::Then)
-  // VISIT_TODO(tofino_cpu::Else)
-  // VISIT_TODO(tofino_cpu::Drop)
-  // VISIT_TODO(tofino_cpu::MapGet)
-  // VISIT_TODO(tofino_cpu::MapPut)
-  // VISIT_TODO(tofino_cpu::DchainAllocateNewIndex)
-  // VISIT_TODO(tofino_cpu::DchainIsIndexAllocated)
-  // VISIT_TODO(tofino_cpu::DchainRejuvenateIndex)
-  // VISIT_TODO(tofino_cpu::DchainFreeIndex)
-  // VISIT_TODO(tofino_cpu::HashObj)
-  // VISIT_TODO(tofino_cpu::MapErase)
+  VISIT_TODO(tofino_cpu::Ignore)
+  VISIT_TODO(tofino_cpu::ParseHeader)
+  VISIT_TODO(tofino_cpu::ModifyHeader)
+  VISIT_TODO(tofino_cpu::If)
+  VISIT_TODO(tofino_cpu::Then)
+  VISIT_TODO(tofino_cpu::Else)
+  VISIT_TODO(tofino_cpu::Forward)
+  VISIT_TODO(tofino_cpu::Broadcast)
+  VISIT_TODO(tofino_cpu::Drop)
+  VISIT_TODO(tofino_cpu::SimpleTableLookup)
+  VISIT_TODO(tofino_cpu::SimpleTableUpdate)
+  VISIT_TODO(tofino_cpu::DchainAllocateNewIndex)
+  VISIT_TODO(tofino_cpu::VectorRead)
+  VISIT_TODO(tofino_cpu::VectorWrite)
 
   /*************************************
    *
@@ -157,6 +127,7 @@ public:
    *
    * **********************************/
 
+  VISIT_TODO(x86::Ignore)
   VISIT_TODO(x86::If)
   VISIT_TODO(x86::Then)
   VISIT_TODO(x86::Else)
@@ -166,7 +137,6 @@ public:
   VISIT_TODO(x86::ParseHeader)
   VISIT_TODO(x86::ModifyHeader)
   VISIT_TODO(x86::MapGet)
-  VISIT_TODO(x86::CurrentTime)
   VISIT_TODO(x86::ExpireItemsSingleMap)
   VISIT_TODO(x86::ExpireItemsSingleMapIteratively)
   VISIT_TODO(x86::DchainRejuvenateIndex)

@@ -2,11 +2,6 @@
 
 #include "tofino_module.h"
 
-#include "else.h"
-#include "then.h"
-
-#include "../../visualizers/ep_visualizer.h"
-
 namespace synapse {
 namespace tofino {
 

@@ -256,4 +256,39 @@ bool Context::can_place(addr_t obj, PlacementDecision decision) const {
   return found_it == placement_decisions.end() || found_it->second == decision;
 }
 
+const std::unordered_map<addr_t, PlacementDecision> &
+Context::get_placements() const {
+  return placement_decisions;
+}
+
+std::ostream &operator<<(std::ostream &os, PlacementDecision decision) {
+  switch (decision) {
+  case PlacementDecision::TofinoSimpleTable:
+    os << "Tofino::SimpleTable";
+    break;
+  case PlacementDecision::TofinoCPUDchain:
+    os << "TofinoCPU::Dchain";
+    break;
+  case PlacementDecision::TofinoCPUVector:
+    os << "TofinoCPU::Vector";
+    break;
+  case PlacementDecision::x86Map:
+    os << "x86::Map";
+    break;
+  case PlacementDecision::x86Vector:
+    os << "x86::Vector";
+    break;
+  case PlacementDecision::x86Dchain:
+    os << "x86::Dchain";
+    break;
+  case PlacementDecision::x86Sketch:
+    os << "x86::Sketch";
+    break;
+  case PlacementDecision::x86Cht:
+    os << "x86::Cht";
+    break;
+  }
+  return os;
+}
+
 } // namespace synapse

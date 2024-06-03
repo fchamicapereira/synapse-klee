@@ -96,6 +96,12 @@ klee::ref<klee::Expr> get_original_vector_value(const EP *ep,
                                                 addr_t target_addr,
                                                 const bdd::Node *&source);
 
+bool is_vector_return_without_modifications(const EP *ep,
+                                            const bdd::Node *node);
+
+const bdd::Node *get_future_vector_return(const bdd::Node *root,
+                                          addr_t target_addr);
+
 // Get the data associated with this address.
 klee::ref<klee::Expr> get_expr_from_addr(const EP *ep, addr_t addr);
 

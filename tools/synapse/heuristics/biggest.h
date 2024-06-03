@@ -8,7 +8,7 @@ namespace synapse {
 struct BiggestComparator : public HeuristicCfg {
   Score get_score(const EP *ep) const override {
     Score score(ep, {
-                        {ScoreCategory::TotalNodes, ScoreObjective::MAX},
+                        {ScoreCategory::Nodes, ScoreObjective::MAX},
                     });
     return score;
   }

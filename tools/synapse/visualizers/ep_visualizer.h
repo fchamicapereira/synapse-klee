@@ -47,33 +47,20 @@ public:
    *
    ********************************************/
 
-  // DECLARE_VISIT(tofino_cpu::If)
-  // DECLARE_VISIT(tofino_cpu::Then)
-  // DECLARE_VISIT(tofino_cpu::Else)
-  // DECLARE_VISIT(tofino_cpu::PacketParseCPU)
-  // DECLARE_VISIT(tofino_cpu::PacketParseEthernet)
-  // DECLARE_VISIT(tofino_cpu::PacketModifyEthernet)
-  // DECLARE_VISIT(tofino_cpu::ForwardThroughTofino)
-  // DECLARE_VISIT(tofino_cpu::PacketParseIPv4)
-  // DECLARE_VISIT(tofino_cpu::PacketModifyIPv4)
-  // DECLARE_VISIT(tofino_cpu::PacketParseIPv4Options)
-  // DECLARE_VISIT(tofino_cpu::PacketModifyIPv4Options)
-  // DECLARE_VISIT(tofino_cpu::PacketParseTCPUDP)
-  // DECLARE_VISIT(tofino_cpu::PacketModifyTCPUDP)
-  // DECLARE_VISIT(tofino_cpu::PacketModifyChecksums)
-  // DECLARE_VISIT(tofino_cpu::Drop)
-  // DECLARE_VISIT(tofino_cpu::MapGet)
-  // DECLARE_VISIT(tofino_cpu::MapPut)
-  // DECLARE_VISIT(tofino_cpu::MapErase)
-  // DECLARE_VISIT(tofino_cpu::DchainAllocateNewIndex)
-  // DECLARE_VISIT(tofino_cpu::DchainIsIndexAllocated)
-  // DECLARE_VISIT(tofino_cpu::DchainRejuvenateIndex)
-  // DECLARE_VISIT(tofino_cpu::DchainFreeIndex)
-  // DECLARE_VISIT(tofino_cpu::PacketParseTCP)
-  // DECLARE_VISIT(tofino_cpu::PacketModifyTCP)
-  // DECLARE_VISIT(tofino_cpu::PacketParseUDP)
-  // DECLARE_VISIT(tofino_cpu::PacketModifyUDP)
-  // DECLARE_VISIT(tofino_cpu::HashObj)
+  DECLARE_VISIT(tofino_cpu::Ignore)
+  DECLARE_VISIT(tofino_cpu::ParseHeader)
+  DECLARE_VISIT(tofino_cpu::ModifyHeader)
+  DECLARE_VISIT(tofino_cpu::If)
+  DECLARE_VISIT(tofino_cpu::Then)
+  DECLARE_VISIT(tofino_cpu::Else)
+  DECLARE_VISIT(tofino_cpu::Forward)
+  DECLARE_VISIT(tofino_cpu::Broadcast)
+  DECLARE_VISIT(tofino_cpu::Drop)
+  DECLARE_VISIT(tofino_cpu::SimpleTableLookup)
+  DECLARE_VISIT(tofino_cpu::SimpleTableUpdate)
+  DECLARE_VISIT(tofino_cpu::DchainAllocateNewIndex)
+  DECLARE_VISIT(tofino_cpu::VectorRead)
+  DECLARE_VISIT(tofino_cpu::VectorWrite)
 
   /********************************************
    *
@@ -81,6 +68,7 @@ public:
    *
    ********************************************/
 
+  DECLARE_VISIT(x86::Ignore)
   DECLARE_VISIT(x86::If)
   DECLARE_VISIT(x86::Then)
   DECLARE_VISIT(x86::Else)

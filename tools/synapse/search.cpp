@@ -1,9 +1,9 @@
 #include "search.h"
 #include "log.h"
 #include "targets/targets.h"
+#include "heuristics/heuristics.h"
 #include "visualizers/ss_visualizer.h"
 #include "visualizers/ep_visualizer.h"
-#include "heuristics/heuristics.h"
 
 #include <iomanip>
 
@@ -13,12 +13,14 @@ template <class HCfg>
 SearchEngine<HCfg>::SearchEngine(
     const bdd::BDD &_bdd, Heuristic<HCfg> _h, bool _allow_bdd_reordering,
     const std::unordered_set<ep_id_t> &_eps_to_peek)
-    : bdd(std::make_shared<bdd::BDD>(_bdd)), h(_h),
-      allow_bdd_reordering(_allow_bdd_reordering), eps_to_peek(_eps_to_peek) {
-  targets.push_back(new tofino::TofinoTarget(tofino::TNAVersion::TNA2));
-  // targets.push_back(new tofinoCPU::TofinoCPUTarget());
-  targets.push_back(new x86::x86Target());
-}
+    : bdd(std::make_shared<bdd::BDD>(_bdd)),
+      targets({
+          new tofino::TofinoTarget(tofino::TNAVersion::TNA2),
+          new tofino_cpu::TofinoCPUTarget(),
+          new x86::x86Target(),
+      }),
+      h(_h), allow_bdd_reordering(_allow_bdd_reordering),
+      eps_to_peek(_eps_to_peek) {}
 
 template <class HCfg>
 SearchEngine<HCfg>::SearchEngine(const bdd::BDD &_bdd, Heuristic<HCfg> _h)
@@ -118,17 +120,11 @@ static void log_search_iteration(const search_it_report_t &report) {
 static void peek_search_space(const std::vector<const EP *> &eps,
                               const std::unordered_set<ep_id_t> &eps_to_peek,
                               SearchSpace *search_space) {
-  bool peek_search_space = false;
-
   for (const EP *ep : eps) {
     if (eps_to_peek.find(ep->get_id()) != eps_to_peek.end()) {
-      peek_search_space = true;
       EPVisualizer::visualize(ep, false);
+      SSVisualizer::visualize(search_space, ep, true);
     }
-  }
-
-  if (peek_search_space) {
-    SSVisualizer::visualize(search_space, true);
   }
 }
 

@@ -54,9 +54,9 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
   label_builder << ")";
 
   std::string label = label_builder.str();
-  find_and_replace(label, {{"\n", "\\n"}});
-
   function_call(ep_node, bdd_node, target, label);
+
+  find_and_replace(label, {{"\n", "\\n"}});
 }
 
 void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
@@ -76,9 +76,9 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
   label_builder << ")";
 
   std::string label = label_builder.str();
-  find_and_replace(label, {{"\n", "\\n"}});
-
   function_call(ep_node, bdd_node, target, label);
+
+  find_and_replace(label, {{"\n", "\\n"}});
 }
 
 void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
@@ -95,9 +95,9 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
   label_builder << "B)";
 
   auto label = label_builder.str();
-  find_and_replace(label, {{"\n", "\\n"}});
-
   function_call(ep_node, bdd_node, target, label);
+
+  find_and_replace(label, {{"\n", "\\n"}});
 }
 
 } // namespace synapse

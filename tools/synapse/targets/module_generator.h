@@ -31,6 +31,13 @@ public:
 protected:
   virtual std::vector<const EP *> process_node(const EP *ep,
                                                const bdd::Node *node) const = 0;
+
+  bool can_place(const EP *ep, const bdd::Call *call_node,
+                 const std::string &obj_arg, PlacementDecision decision) const;
+  bool check_placement(const EP *ep, const bdd::Call *call_node,
+                       const std::string &obj_arg,
+                       PlacementDecision decision) const;
+  void place(EP *ep, addr_t obj, PlacementDecision decision) const;
 };
 
 } // namespace synapse
