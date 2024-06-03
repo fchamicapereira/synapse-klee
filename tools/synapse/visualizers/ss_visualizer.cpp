@@ -146,6 +146,9 @@ void SSVisualizer::visit(const SearchSpace *search_space) {
   ss << "digraph SearchSpace {\n";
 
   ss << "\tlayout=\"dot\";\n";
+  // ss << "\tlayout=\"twopi\";\n";
+  // ss << "\tlayout=\"sfdp\";\n";
+  // ss << "\tgraph [splines=true overlap=false];\n";
   ss << "\tnode [shape=none];\n";
 
   const SSNode *root = search_space->get_root();
@@ -159,9 +162,20 @@ void SSVisualizer::visit(const SearchSpace *search_space) {
   ss.flush();
 }
 
+static void log_visualization(const SearchSpace *search_space,
+                              const std::string &fname,
+                              const EP *ep = nullptr) {
+  std::cerr << "Visualizing SS";
+  std::cerr << " file=" << fname;
+  if (ep)
+    std::cerr << " highlight=" << ep->get_id();
+  std::cerr << "\n";
+}
+
 void SSVisualizer::visualize(const SearchSpace *search_space, bool interrupt) {
   SSVisualizer visualizer;
   visualizer.visit(search_space);
+  log_visualization(search_space, visualizer.fpath);
   visualizer.show(interrupt);
 }
 
@@ -169,6 +183,7 @@ void SSVisualizer::visualize(const SearchSpace *search_space,
                              const EP *highlight, bool interrupt) {
   SSVisualizer visualizer(highlight);
   visualizer.visit(search_space);
+  log_visualization(search_space, visualizer.fpath, highlight);
   visualizer.show(interrupt);
 }
 

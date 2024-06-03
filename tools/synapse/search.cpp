@@ -10,17 +10,16 @@
 namespace synapse {
 
 template <class HCfg>
-SearchEngine<HCfg>::SearchEngine(
-    const bdd::BDD &_bdd, Heuristic<HCfg> _h, bool _allow_bdd_reordering,
-    const std::unordered_set<ep_id_t> &_eps_to_peek)
+SearchEngine<HCfg>::SearchEngine(const bdd::BDD &_bdd, Heuristic<HCfg> _h,
+                                 bool _allow_bdd_reordering,
+                                 const std::unordered_set<ep_id_t> &_peek)
     : bdd(std::make_shared<bdd::BDD>(_bdd)),
       targets({
           new tofino::TofinoTarget(tofino::TNAVersion::TNA2),
           new tofino_cpu::TofinoCPUTarget(),
           new x86::x86Target(),
       }),
-      h(_h), allow_bdd_reordering(_allow_bdd_reordering),
-      eps_to_peek(_eps_to_peek) {}
+      h(_h), allow_bdd_reordering(_allow_bdd_reordering), peek(_peek) {}
 
 template <class HCfg>
 SearchEngine<HCfg>::SearchEngine(const bdd::BDD &_bdd, Heuristic<HCfg> _h)
@@ -118,10 +117,10 @@ static void log_search_iteration(const search_it_report_t &report) {
 }
 
 static void peek_search_space(const std::vector<const EP *> &eps,
-                              const std::unordered_set<ep_id_t> &eps_to_peek,
+                              const std::unordered_set<ep_id_t> &peek,
                               SearchSpace *search_space) {
   for (const EP *ep : eps) {
-    if (eps_to_peek.find(ep->get_id()) != eps_to_peek.end()) {
+    if (peek.find(ep->get_id()) != peek.end()) {
       EPVisualizer::visualize(ep, false);
       SSVisualizer::visualize(search_space, ep, true);
     }
@@ -157,7 +156,7 @@ template <class HCfg> search_product_t SearchEngine<HCfg>::search() {
     h.add(new_eps);
 
     log_search_iteration(report);
-    peek_search_space(new_eps, eps_to_peek, search_space);
+    peek_search_space(new_eps, peek, search_space);
 
     delete ep;
   }

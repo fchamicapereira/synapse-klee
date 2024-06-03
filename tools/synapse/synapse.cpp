@@ -56,8 +56,7 @@ llvm::cl::opt<bool> ShowSS("ss",
                            llvm::cl::cat(SyNAPSE));
 
 llvm::cl::list<int>
-    Peek("ep-peek",
-         llvm::cl::desc("Peek search space at these Execution Plans."),
+    Peek("peek", llvm::cl::desc("Peek search space at these Execution Plans."),
          llvm::cl::Positional, llvm::cl::ZeroOrMore, llvm::cl::cat(SyNAPSE));
 
 llvm::cl::opt<bool> Verbose("v", llvm::cl::desc("Verbose mode."),
@@ -73,12 +72,12 @@ search_product_t search(const bdd::BDD &bdd) {
   MaximizeSwitchNodes maximize_switch_nodes;
   Gallium gallium;
 
-  std::unordered_set<ep_id_t> eps_to_peek;
+  std::unordered_set<ep_id_t> peek;
   for (ep_id_t ep_id : Peek) {
-    eps_to_peek.insert(ep_id);
+    peek.insert(ep_id);
   }
 
-  SearchEngine engine(bdd, gallium, BDDReorder, eps_to_peek);
+  SearchEngine engine(bdd, gallium, BDDReorder, peek);
   search_product_t result = engine.search();
 
   return result;

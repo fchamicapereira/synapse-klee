@@ -32,6 +32,7 @@ namespace tofino_cpu {
 class Ignore;
 class ParseHeader;
 class ModifyHeader;
+class ChecksumUpdate;
 class If;
 class Then;
 class Else;
@@ -41,13 +42,26 @@ class Drop;
 class SimpleTableLookup;
 class SimpleTableUpdate;
 class DchainAllocateNewIndex;
+class DchainRejuvenateIndex;
+class DchainIsIndexAllocated;
+class DchainFreeIndex;
 class VectorRead;
 class VectorWrite;
+class MapGet;
+class MapPut;
+class MapErase;
+class ChtFindBackend;
+class HashObj;
+class SketchComputeHashes;
+class SketchExpire;
+class SketchFetch;
+class SketchRefresh;
+class SketchTouchBuckets;
+class SimpleTableDelete;
 } // namespace tofino_cpu
 
 namespace x86 {
 class Ignore;
-class MapGet;
 class ParseHeader;
 class ModifyHeader;
 class If;
@@ -56,22 +70,23 @@ class Else;
 class Forward;
 class Broadcast;
 class Drop;
+class MapGet;
+class MapPut;
+class MapErase;
 class ExpireItemsSingleMap;
 class ExpireItemsSingleMapIteratively;
-class DchainRejuvenateIndex;
 class VectorRead;
 class VectorWrite;
-class DchainAllocateNewIndex;
-class MapPut;
 class ChecksumUpdate;
+class DchainAllocateNewIndex;
+class DchainRejuvenateIndex;
 class DchainIsIndexAllocated;
+class DchainFreeIndex;
 class SketchComputeHashes;
 class SketchExpire;
 class SketchFetch;
 class SketchRefresh;
 class SketchTouchBuckets;
-class MapErase;
-class DchainFreeIndex;
 class ChtFindBackend;
 class HashObj;
 } // namespace x86
@@ -109,6 +124,7 @@ public:
   VISIT_TODO(tofino_cpu::Ignore)
   VISIT_TODO(tofino_cpu::ParseHeader)
   VISIT_TODO(tofino_cpu::ModifyHeader)
+  VISIT_TODO(tofino_cpu::ChecksumUpdate)
   VISIT_TODO(tofino_cpu::If)
   VISIT_TODO(tofino_cpu::Then)
   VISIT_TODO(tofino_cpu::Else)
@@ -117,9 +133,23 @@ public:
   VISIT_TODO(tofino_cpu::Drop)
   VISIT_TODO(tofino_cpu::SimpleTableLookup)
   VISIT_TODO(tofino_cpu::SimpleTableUpdate)
+  VISIT_TODO(tofino_cpu::SimpleTableDelete)
   VISIT_TODO(tofino_cpu::DchainAllocateNewIndex)
+  VISIT_TODO(tofino_cpu::DchainRejuvenateIndex)
+  VISIT_TODO(tofino_cpu::DchainIsIndexAllocated)
+  VISIT_TODO(tofino_cpu::DchainFreeIndex)
   VISIT_TODO(tofino_cpu::VectorRead)
   VISIT_TODO(tofino_cpu::VectorWrite)
+  VISIT_TODO(tofino_cpu::MapGet)
+  VISIT_TODO(tofino_cpu::MapPut)
+  VISIT_TODO(tofino_cpu::MapErase)
+  VISIT_TODO(tofino_cpu::ChtFindBackend)
+  VISIT_TODO(tofino_cpu::HashObj)
+  VISIT_TODO(tofino_cpu::SketchComputeHashes)
+  VISIT_TODO(tofino_cpu::SketchExpire)
+  VISIT_TODO(tofino_cpu::SketchFetch)
+  VISIT_TODO(tofino_cpu::SketchRefresh)
+  VISIT_TODO(tofino_cpu::SketchTouchBuckets)
 
   /*************************************
    *

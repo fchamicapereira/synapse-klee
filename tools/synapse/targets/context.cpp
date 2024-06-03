@@ -272,6 +272,15 @@ std::ostream &operator<<(std::ostream &os, PlacementDecision decision) {
   case PlacementDecision::TofinoCPUVector:
     os << "TofinoCPU::Vector";
     break;
+  case PlacementDecision::TofinoCPUSketch:
+    os << "TofinoCPU::Sketch";
+    break;
+  case PlacementDecision::TofinoCPUMap:
+    os << "TofinoCPU::Map";
+    break;
+  case PlacementDecision::TofinoCPUCht:
+    os << "TofinoCPU::Cht";
+    break;
   case PlacementDecision::x86Map:
     os << "x86::Map";
     break;

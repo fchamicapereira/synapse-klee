@@ -95,6 +95,9 @@ private:
       obj_arg = "map";
     } else if (call.function_name == "vector_borrow") {
       obj_arg = "vector";
+    } else if (call.function_name == "dchain_is_index_allocated" ||
+               call.function_name == "dchain_rejuvenate_index") {
+      obj_arg = "chain";
     } else {
       return false;
     }
@@ -110,11 +113,16 @@ private:
     const call_t &call = call_node->get_call();
 
     if (call.function_name == "map_get") {
-      return table_data_from_map_get(call_node, obj, keys, value, hit);
+      return table_data_from_map_op(call_node, obj, keys, value, hit);
     }
 
     if (call.function_name == "vector_borrow") {
-      return table_data_from_vector_borrow(call_node, obj, keys, value, hit);
+      return table_data_from_vector_op(call_node, obj, keys, value, hit);
+    }
+
+    if (call.function_name == "dchain_is_index_allocated" ||
+        call.function_name == "dchain_rejuvenate_index") {
+      return table_data_from_dchain_op(call_node, obj, keys, value, hit);
     }
 
     return false;
@@ -132,10 +140,10 @@ private:
     return keys;
   }
 
-  bool table_data_from_map_get(const bdd::Call *call_node, addr_t &obj,
-                               std::vector<klee::ref<klee::Expr>> &keys,
-                               klee::ref<klee::Expr> &value,
-                               std::optional<symbol_t> &hit) const {
+  bool table_data_from_map_op(const bdd::Call *call_node, addr_t &obj,
+                              std::vector<klee::ref<klee::Expr>> &keys,
+                              klee::ref<klee::Expr> &value,
+                              std::optional<symbol_t> &hit) const {
     const call_t &call = call_node->get_call();
     assert(call.function_name == "map_get");
 
@@ -157,10 +165,10 @@ private:
     return true;
   }
 
-  bool table_data_from_vector_borrow(const bdd::Call *call_node, addr_t &obj,
-                                     std::vector<klee::ref<klee::Expr>> &keys,
-                                     klee::ref<klee::Expr> &value,
-                                     std::optional<symbol_t> &hit) const {
+  bool table_data_from_vector_op(const bdd::Call *call_node, addr_t &obj,
+                                 std::vector<klee::ref<klee::Expr>> &keys,
+                                 klee::ref<klee::Expr> &value,
+                                 std::optional<symbol_t> &hit) const {
     // We can place even if we later update the vector's contents!
 
     const call_t &call = call_node->get_call();
@@ -173,6 +181,35 @@ private:
     obj = kutil::expr_addr_to_obj_addr(vector_addr_expr);
     keys.push_back(index);
     value = cell;
+
+    return true;
+  }
+
+  bool table_data_from_dchain_op(const bdd::Call *call_node, addr_t &obj,
+                                 std::vector<klee::ref<klee::Expr>> &keys,
+                                 klee::ref<klee::Expr> &value,
+                                 std::optional<symbol_t> &hit) const {
+    const call_t &call = call_node->get_call();
+    assert(call.function_name == "dchain_is_index_allocated" ||
+           call.function_name == "dchain_rejuvenate_index");
+
+    klee::ref<klee::Expr> dchain_addr_expr = call.args.at("chain").expr;
+    klee::ref<klee::Expr> index = call.args.at("index").in;
+
+    addr_t dchain_addr = kutil::expr_addr_to_obj_addr(dchain_addr_expr);
+
+    obj = dchain_addr;
+    keys.push_back(index);
+
+    if (call.function_name == "dchain_is_index_allocated") {
+      symbols_t symbols = call_node->get_locally_generated_symbols();
+      symbol_t is_allocated;
+      bool found =
+          get_symbol(symbols, "dchain_is_index_allocated", is_allocated);
+      assert(found && "Symbol dchain_is_index_allocated not found");
+
+      hit = is_allocated;
+    }
 
     return true;
   }

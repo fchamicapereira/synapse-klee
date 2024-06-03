@@ -16,13 +16,16 @@ enum class TargetType;
 
 enum class PlacementDecision {
   TofinoSimpleTable,
-  TofinoCPUDchain,
+  TofinoCPUMap,
   TofinoCPUVector,
+  TofinoCPUDchain,
+  TofinoCPUCht,
+  TofinoCPUSketch,
   x86Map,
   x86Vector,
   x86Dchain,
-  x86Sketch,
   x86Cht,
+  x86Sketch,
 };
 
 std::ostream &operator<<(std::ostream &os, PlacementDecision decision);
