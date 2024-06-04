@@ -161,6 +161,7 @@ template <class HCfg> search_product_t SearchEngine<HCfg>::search() {
     delete ep;
   }
 
+  Log::log() << "Random seed:     " << h.get_random_seed() << "\n";
   Log::log() << "Solutions:       " << h.get_all().size() << "\n";
   Log::log() << "Winner:          " << h.get_score(h.get()) << "\n";
 

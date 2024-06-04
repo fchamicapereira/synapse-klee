@@ -20,6 +20,7 @@
 #include <stack>
 #include <utility>
 #include <vector>
+#include <random>
 
 #include "call-paths-to-bdd.h"
 #include "load-call-paths.h"
@@ -41,6 +42,10 @@ llvm::cl::opt<std::string> InputBDDFile("in", llvm::cl::desc("Input BDD."),
 llvm::cl::opt<std::string>
     Out("out", llvm::cl::desc("Output directory for every generated file."),
         llvm::cl::cat(SyNAPSE));
+
+llvm::cl::opt<int> Seed("seed", llvm::cl::desc("Random seed."),
+                        llvm::cl::ValueRequired, llvm::cl::Optional,
+                        llvm::cl::init(false), llvm::cl::cat(SyNAPSE));
 
 llvm::cl::opt<bool> BDDReorder("r", llvm::cl::desc("Activate BDD reordering."),
                                llvm::cl::ValueDisallowed, llvm::cl::init(false),
@@ -65,12 +70,15 @@ llvm::cl::opt<bool> Verbose("v", llvm::cl::desc("Verbose mode."),
 } // namespace
 
 search_product_t search(const bdd::BDD &bdd) {
-  Biggest biggest;
-  DFS dfs;
-  MostCompact most_compact;
-  LeastReordered least_reordered;
-  MaximizeSwitchNodes maximize_switch_nodes;
-  Gallium gallium;
+  unsigned seed = Seed ? Seed : std::random_device()();
+  std::cerr << "Seed: " << seed << "\n";
+
+  // Biggest biggest(seed);
+  // DFS dfs(seed);
+  // MostCompact most_compact(seed);
+  // LeastReordered least_reordered(seed);
+  // MaximizeSwitchNodes maximize_switch_nodes(seed);
+  Gallium gallium(seed);
 
   std::unordered_set<ep_id_t> peek;
   for (ep_id_t ep_id : Peek) {
