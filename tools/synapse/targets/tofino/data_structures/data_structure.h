@@ -8,20 +8,20 @@
 namespace synapse {
 namespace tofino {
 
-typedef int DataStructureID;
+typedef int DS_ID;
 
 enum class DSType {
   SIMPLE_TABLE,
 };
 
-struct DataStructure {
+struct DS {
   DSType type;
-  DataStructureID id;
+  DS_ID id;
 
-  DataStructure(DSType _type, DataStructureID _id) : type(_type), id(_id) {}
+  DS(DSType _type, DS_ID _id) : type(_type), id(_id) {}
 
-  virtual ~DataStructure() {}
-  virtual DataStructure *clone() const = 0;
+  virtual ~DS() {}
+  virtual DS *clone() const = 0;
 };
 
 } // namespace tofino

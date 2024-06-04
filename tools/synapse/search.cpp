@@ -72,7 +72,7 @@ static void log_search_iteration(const search_it_report_t &report) {
   const EPMeta &meta = report.chosen->get_meta();
 
   Log::dbg() << "\n";
-  Log::dbg() << "=======================================================\n";
+  Log::dbg() << "==========================================================\n";
 
   Log::dbg() << "EP ID:      " << report.chosen->get_id() << "\n";
   Log::dbg() << "Target:     " << platform << "\n";
@@ -113,7 +113,7 @@ static void log_search_iteration(const search_it_report_t &report) {
     Log::dbg() << "Deleting solution from search space.\n";
   }
 
-  Log::dbg() << "=======================================================\n";
+  Log::dbg() << "==========================================================\n";
 }
 
 static void peek_search_space(const std::vector<const EP *> &eps,

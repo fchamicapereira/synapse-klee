@@ -1,3 +1,5 @@
+#pragma once
+
 #include "klee-util.h"
 #include "call-paths-to-bdd.h"
 

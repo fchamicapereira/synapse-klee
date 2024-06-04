@@ -28,14 +28,24 @@ public:
       : ModuleGenerator(_type, TargetType::Tofino, _name) {}
 
 protected:
-  static TofinoContext *get_mutable_tofino_ctx(EP *ep) {
+  TofinoContext *get_mutable_tofino_ctx(EP *ep) const {
     Context &ctx = ep->get_mutable_ctx();
     return ctx.get_mutable_target_ctx<TofinoContext>();
   }
 
-  static const TofinoContext *get_tofino_ctx(const EP *ep) {
+  const TofinoContext *get_tofino_ctx(const EP *ep) const {
     const Context &ctx = ep->get_ctx();
     return ctx.get_target_ctx<TofinoContext>();
+  }
+
+  TNA &get_mutable_tna(EP *ep) const {
+    TofinoContext *ctx = get_mutable_tofino_ctx(ep);
+    return ctx->get_mutable_tna();
+  }
+
+  const TNA &get_tna(const EP *ep) const {
+    const TofinoContext *ctx = get_tofino_ctx(ep);
+    return ctx->get_tna();
   }
 };
 

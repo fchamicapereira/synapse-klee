@@ -71,7 +71,6 @@ llvm::cl::opt<bool> Verbose("v", llvm::cl::desc("Verbose mode."),
 
 search_product_t search(const bdd::BDD &bdd) {
   unsigned seed = Seed ? Seed : std::random_device()();
-  std::cerr << "Seed: " << seed << "\n";
 
   // Biggest biggest(seed);
   // DFS dfs(seed);

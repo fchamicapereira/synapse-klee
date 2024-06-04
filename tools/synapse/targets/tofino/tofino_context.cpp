@@ -1,3 +1,4 @@
+#include "tofino.h"
 #include "tofino_context.h"
 
 #include "../../execution_plan/execution_plan.h"
@@ -8,62 +9,12 @@
 namespace synapse {
 namespace tofino {
 
-static std::unordered_map<TNAProperty, int>
-tna_properties_from_version(TNAVersion version) {
-  std::unordered_map<TNAProperty, int> properties;
-
-  switch (version) {
-  case TNAVersion::TNA1:
-    properties = {
-        {TNAProperty::MAX_PACKET_BYTES_IN_CONDITION, 4},
-        {TNAProperty::STAGES, 12},
-        {TNAProperty::SRAM_PER_STAGE_BITS, 128 * 1024 * 80},
-        {TNAProperty::TCAM_PER_STAGE_BITS, 44 * 512 * 24},
-        {TNAProperty::MAX_LOGICAL_TCAM_TABLES, 8},
-        {TNAProperty::MAX_LOGICAL_SRAM_AND_TCAM_TABLES, 16},
-        {TNAProperty::PHV_SIZE_BITS, 4000},
-        {TNAProperty::PHV_8BIT_CONTAINERS, 64},
-        {TNAProperty::PHV_16BIT_CONTAINERS, 96},
-        {TNAProperty::PHV_32BIT_CONTAINERS, 64},
-        {TNAProperty::PACKET_BUFFER_SIZE_BITS, 20e6 * 8},
-        {TNAProperty::EXACT_MATCH_XBAR_BITS, 128 * 8},
-        {TNAProperty::MAX_EXACT_MATCH_KEYS, 16},
-        {TNAProperty::TERNARY_MATCH_XBAR_BITS, 66 * 8},
-        {TNAProperty::MAX_TERNARY_MATCH_KEYS, 8},
-    };
-    break;
-  case TNAVersion::TNA2:
-    properties = {
-        {TNAProperty::MAX_PACKET_BYTES_IN_CONDITION, 4},
-        {TNAProperty::STAGES, 20},
-        {TNAProperty::SRAM_PER_STAGE_BITS, 128 * 1024 * 80},
-        {TNAProperty::TCAM_PER_STAGE_BITS, 44 * 512 * 24},
-        {TNAProperty::MAX_LOGICAL_TCAM_TABLES, 8},
-        {TNAProperty::MAX_LOGICAL_SRAM_AND_TCAM_TABLES, 16},
-        {TNAProperty::PHV_SIZE_BITS, 5000},
-        {TNAProperty::PHV_8BIT_CONTAINERS, 80},
-        {TNAProperty::PHV_16BIT_CONTAINERS, 120},
-        {TNAProperty::PHV_32BIT_CONTAINERS, 80},
-        {TNAProperty::PACKET_BUFFER_SIZE_BITS, 64e6 * 8},
-        {TNAProperty::EXACT_MATCH_XBAR_BITS, 128 * 8},
-        {TNAProperty::MAX_EXACT_MATCH_KEYS, 16},
-        {TNAProperty::TERNARY_MATCH_XBAR_BITS, 66 * 8},
-        {TNAProperty::MAX_TERNARY_MATCH_KEYS, 8},
-    };
-    break;
-  }
-
-  return properties;
-}
-
-TofinoContext::TofinoContext(TNAVersion _version)
-    : version(_version), properties(tna_properties_from_version(_version)) {}
+TofinoContext::TofinoContext(TNAVersion _version) : tna(_version) {}
 
 TofinoContext::TofinoContext(const TofinoContext &other)
-    : version(other.version), properties(other.properties), ids(other.ids),
-      parser(other.parser) {
+    : tna(other.tna), ids(other.ids) {
   for (const auto &kv : other.data_structures) {
-    std::vector<DataStructure *> new_data_structures;
+    std::vector<DS *> new_data_structures;
     for (const auto &ds : kv.second) {
       new_data_structures.push_back(ds->clone());
     }
@@ -81,31 +32,18 @@ TofinoContext::~TofinoContext() {
   data_structures.clear();
 }
 
-const std::vector<DataStructure *> &
-TofinoContext::get_data_structures(addr_t addr) const {
+const std::vector<DS *> &TofinoContext::get_ds(addr_t addr) const {
   return data_structures.at(addr);
 }
 
-void TofinoContext::add_data_structure(addr_t addr, DataStructure *ds) {
+void TofinoContext::save_ds(addr_t addr, DS *ds) {
   assert(ids.find(ds->id) == ids.end() && "Duplicate data structure ID");
   data_structures[addr].push_back(ds);
 }
 
-bool TofinoContext::condition_meets_phv_limit(
-    klee::ref<klee::Expr> expr) const {
-  kutil::SymbolRetriever retriever;
-  retriever.visit(expr);
-
-  const std::vector<klee::ref<klee::ReadExpr>> &chunks =
-      retriever.get_retrieved_packet_chunks();
-
-  return static_cast<int>(chunks.size()) <=
-         properties.at(TNAProperty::MAX_PACKET_BYTES_IN_CONDITION);
-}
-
 const Table *TofinoContext::get_table(int tid) const {
   for (const auto &kv : data_structures) {
-    for (const DataStructure *ds : kv.second) {
+    for (const DS *ds : kv.second) {
       if (ds->type == DSType::SIMPLE_TABLE) {
         const Table *table = static_cast<const Table *>(ds);
         if (table->id == tid) {
@@ -163,12 +101,12 @@ void TofinoContext::parser_select(const EP *ep, const bdd::Node *node,
 
   if (!last_op) {
     // No leaf node found, add the initial parser state.
-    parser.add_select(id, field, values);
+    tna.parser.add_select(id, field, values);
     return;
   }
 
   bdd::node_id_t leaf_id = last_op->get_id();
-  parser.add_select(leaf_id, id, field, values, direction);
+  tna.parser.add_select(leaf_id, id, field, values, direction);
 }
 
 void TofinoContext::parser_transition(const EP *ep, const bdd::Node *node,
@@ -180,12 +118,12 @@ void TofinoContext::parser_transition(const EP *ep, const bdd::Node *node,
 
   if (!last_op) {
     // No leaf node found, add the initial parser state.
-    parser.add_extract(id, hdr);
+    tna.parser.add_extract(id, hdr);
     return;
   }
 
   bdd::node_id_t leaf_id = last_op->get_id();
-  parser.add_extract(leaf_id, id, hdr, direction);
+  tna.parser.add_extract(leaf_id, id, hdr, direction);
 }
 
 void TofinoContext::parser_accept(const EP *ep, const bdd::Node *node) {
@@ -196,7 +134,7 @@ void TofinoContext::parser_accept(const EP *ep, const bdd::Node *node) {
   assert(last_op && "Last borrow node not found");
 
   bdd::node_id_t leaf_id = last_op->get_id();
-  parser.accept(leaf_id, id, direction);
+  tna.parser.accept(leaf_id, id, direction);
 }
 
 void TofinoContext::parser_reject(const EP *ep, const bdd::Node *node) {
@@ -207,7 +145,77 @@ void TofinoContext::parser_reject(const EP *ep, const bdd::Node *node) {
   assert(last_op && "Last borrow node not found");
 
   bdd::node_id_t leaf_id = last_op->get_id();
-  parser.reject(leaf_id, id, direction);
+  tna.parser.reject(leaf_id, id, direction);
+}
+
+std::unordered_set<const DS *> TofinoContext::get_prev_ds(const EP *ep,
+                                                          DSType type) const {
+  std::unordered_set<const DS *> prev_ds;
+  const EPLeaf *active_leaf = ep->get_active_leaf();
+
+  if (!active_leaf || !active_leaf->node) {
+    return prev_ds;
+  }
+
+  const EPNode *node = active_leaf->node;
+  while (node) {
+    const Module *module = node->get_module();
+
+    if (module->get_target() != TargetType::Tofino) {
+      break;
+    }
+
+    switch (type) {
+    case DSType::SIMPLE_TABLE: {
+      if (module->get_type() == ModuleType::Tofino_SimpleTableLookup) {
+        const SimpleTableLookup *table_lookup =
+            static_cast<const SimpleTableLookup *>(module);
+        int table_id = table_lookup->get_table_id();
+        const Table *table = get_table(table_id);
+        assert(table && "Table not found");
+        prev_ds.insert(table);
+      }
+    } break;
+    }
+
+    node = node->get_prev();
+  }
+
+  return prev_ds;
+}
+
+std::unordered_set<DS_ID>
+TofinoContext::get_table_dependencies(const EP *ep) const {
+  std::unordered_set<const DS *> prev_tables =
+      get_prev_ds(ep, DSType::SIMPLE_TABLE);
+
+  std::unordered_set<DS_ID> dependencies;
+  for (const DS *ds : prev_tables) {
+    dependencies.insert(ds->id);
+  }
+
+  return dependencies;
+}
+
+void TofinoContext::save_table(EP *ep, addr_t obj, Table *table,
+                               const std::unordered_set<DS_ID> &dependencies) {
+  save_ds(obj, table);
+  tna.place_table(table, dependencies);
+  tna.log_debug_placement();
+}
+
+bool TofinoContext::check_table_placement(
+    const EP *ep, const Table *table,
+    const std::unordered_set<DS_ID> &dependencies) const {
+  PlacementStatus status = tna.can_place_table(table, dependencies);
+
+  if (status != PlacementStatus::SUCCESS) {
+    TargetType target = ep->get_current_platform();
+    Log::dbg() << "[" << target << "] Cannot place table (" << status << ")\n";
+    table->log_debug();
+  }
+
+  return status == PlacementStatus::SUCCESS;
 }
 
 } // namespace tofino

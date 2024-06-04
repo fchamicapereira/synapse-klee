@@ -47,7 +47,8 @@ protected:
     klee::ref<klee::Expr> condition = branch_node->get_condition();
 
     const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
-    if (!tofino_ctx->condition_meets_phv_limit(condition)) {
+    const TNA &tna = tofino_ctx->get_tna();
+    if (!tna.condition_meets_phv_limit(condition)) {
       return new_eps;
     }
 

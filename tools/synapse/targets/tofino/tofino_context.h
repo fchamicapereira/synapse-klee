@@ -11,13 +11,9 @@ namespace tofino {
 
 class TofinoContext : public TargetContext {
 private:
-  const TNAVersion version;
-  const std::unordered_map<TNAProperty, int> properties;
-
-  std::unordered_map<addr_t, std::vector<DataStructure *>> data_structures;
-  std::unordered_set<DataStructureID> ids;
-
-  Parser parser;
+  TNA tna;
+  std::unordered_map<addr_t, std::vector<DS *>> data_structures;
+  std::unordered_set<DS_ID> ids;
 
 public:
   TofinoContext(TNAVersion version);
@@ -29,13 +25,14 @@ public:
     return new TofinoContext(*this);
   }
 
-  const std::vector<DataStructure *> &get_data_structures(addr_t addr) const;
-  void add_data_structure(addr_t addr, DataStructure *ds);
-  const Table *get_table(int tid) const;
+  const TNA &get_tna() const { return tna; }
+  TNA &get_mutable_tna() { return tna; }
 
-  // Tofino compiler complains if we access more than 4 bytes of the packet on
-  // the same if statement.
-  bool condition_meets_phv_limit(klee::ref<klee::Expr> expr) const;
+  const std::vector<DS *> &get_ds(addr_t addr) const;
+  std::unordered_set<const DS *> get_prev_ds(const EP *ep, DSType type) const;
+  void save_ds(addr_t addr, DS *ds);
+
+  const Table *get_table(int tid) const;
 
   void parser_transition(const EP *ep, const bdd::Node *node,
                          klee::ref<klee::Expr> hdr);
@@ -46,6 +43,12 @@ public:
 
   void parser_accept(const EP *ep, const bdd::Node *node);
   void parser_reject(const EP *ep, const bdd::Node *node);
+
+  std::unordered_set<DS_ID> get_table_dependencies(const EP *ep) const;
+  void save_table(EP *ep, addr_t obj, Table *table,
+                  const std::unordered_set<DS_ID> &deps);
+  bool check_table_placement(const EP *ep, const Table *table,
+                             const std::unordered_set<DS_ID> &deps) const;
 };
 
 } // namespace tofino

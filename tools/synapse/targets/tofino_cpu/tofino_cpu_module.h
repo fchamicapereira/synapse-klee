@@ -39,6 +39,16 @@ protected:
         ctx.get_mutable_target_ctx<tofino::TofinoContext>();
     return tofino_ctx;
   }
+
+  tofino::TNA &get_mutable_tna(EP *ep) const {
+    tofino::TofinoContext *ctx = get_mutable_tofino_ctx(ep);
+    return ctx->get_mutable_tna();
+  }
+
+  const tofino::TNA &get_tna(const EP *ep) const {
+    const tofino::TofinoContext *ctx = get_tofino_ctx(ep);
+    return ctx->get_tna();
+  }
 };
 
 } // namespace tofino_cpu
