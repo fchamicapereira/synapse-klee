@@ -64,7 +64,7 @@ bool is_parser_drop(const bdd::Node *root);
 // A branch condition is considered a parsing condition if:
 //   - Has pending chunks to be borrowed in the future
 //   - Only looks at the packet
-bool is_parser_condition(const bdd::Node *node);
+bool is_parser_condition(const bdd::Branch *node);
 
 std::vector<const Module *>
 get_prev_modules(const EP *ep, const std::vector<ModuleType> &types);

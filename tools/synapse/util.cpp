@@ -766,21 +766,15 @@ get_map_coalescing_data(const bdd::BDD *bdd, addr_t obj) {
   return data;
 }
 
-bool is_parser_condition(const bdd::Node *node) {
-  if (node->get_type() != bdd::NodeType::BRANCH) {
-    return false;
-  }
-
-  const bdd::Branch *branch_node = static_cast<const bdd::Branch *>(node);
-
+bool is_parser_condition(const bdd::Branch *branch) {
   std::vector<const bdd::Node *> future_borrows =
-      get_all_functions_after_node(node, {"packet_borrow_next_chunk"});
+      get_all_functions_after_node(branch, {"packet_borrow_next_chunk"});
 
   if (future_borrows.size() == 0) {
     return false;
   }
 
-  klee::ref<klee::Expr> condition = branch_node->get_condition();
+  klee::ref<klee::Expr> condition = branch->get_condition();
   bool only_looks_at_packet = is_expr_only_packet_dependent(condition);
 
   return only_looks_at_packet;

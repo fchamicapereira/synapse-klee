@@ -53,7 +53,7 @@ protected:
 
     const bdd::Branch *branch_node = static_cast<const bdd::Branch *>(node);
 
-    if (!is_parser_condition(node)) {
+    if (!is_parser_condition(branch_node)) {
       return new_eps;
     }
 
