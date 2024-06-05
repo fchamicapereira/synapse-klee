@@ -81,21 +81,36 @@ bool query_contains_map_has_key(const bdd::Branch *node) {
   return true;
 }
 
-klee::ref<klee::Expr> get_original_chunk(const EP *ep, const bdd::Node *node) {
-  std::vector<const bdd::Node *> prev_borrows =
-      get_prev_functions(ep, node, {"packet_borrow_next_chunk"});
+klee::ref<klee::Expr>
+chunk_borrow_from_return(const EP *ep, const bdd::Node *target_packet_return) {
+  assert(target_packet_return->get_type() == bdd::NodeType::CALL);
+
+  const bdd::Call *target_packet_return_call =
+      static_cast<const bdd::Call *>(target_packet_return);
+  assert(target_packet_return_call->get_call().function_name ==
+         "packet_return_chunk");
+
+  klee::ref<klee::Expr> chunk_returned =
+      target_packet_return_call->get_call().args.at("the_chunk").in;
+
+  std::vector<const bdd::Node *> prev_borrows = get_prev_functions(
+      ep, target_packet_return, {"packet_borrow_next_chunk"});
+
   std::vector<const bdd::Node *> prev_returns =
-      get_prev_functions(ep, node, {"packet_return_chunk"});
+      get_prev_functions(ep, target_packet_return, {"packet_return_chunk"});
 
   assert(prev_borrows.size());
   assert(prev_borrows.size() > prev_returns.size());
 
-  const bdd::Node *target = prev_borrows[prev_returns.size()];
-
+  const bdd::Node *target =
+      prev_borrows[prev_borrows.size() - 1 - prev_returns.size()];
   const bdd::Call *call_node = static_cast<const bdd::Call *>(target);
   const call_t &call = call_node->get_call();
 
-  return call.extra_vars.at("the_chunk").second;
+  klee::ref<klee::Expr> chunk_borrowed = call.extra_vars.at("the_chunk").second;
+  assert(chunk_borrowed->getWidth() == chunk_returned->getWidth());
+
+  return chunk_borrowed;
 }
 
 std::vector<const bdd::Node *>
@@ -118,7 +133,7 @@ get_prev_functions(const EP *ep, const bdd::Node *node,
 
       auto found_it = std::find(fnames.begin(), fnames.end(), fname);
       if (found_it != fnames.end()) {
-        prev_functions.push_back(node);
+        prev_functions.insert(prev_functions.begin(), node);
       }
     }
 

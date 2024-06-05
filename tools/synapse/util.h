@@ -40,7 +40,8 @@ ignore_checksum_modifications(const std::vector<modification_t> &modifications);
 
 bool query_contains_map_has_key(const bdd::Branch *node);
 
-klee::ref<klee::Expr> get_original_chunk(const EP *ep, const bdd::Node *node);
+klee::ref<klee::Expr> chunk_borrow_from_return(const EP *ep,
+                                               const bdd::Node *node);
 
 std::vector<const bdd::Node *>
 get_prev_functions(const EP *ep, const bdd::Node *node,

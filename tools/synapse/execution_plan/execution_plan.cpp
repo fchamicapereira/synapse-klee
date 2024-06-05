@@ -233,7 +233,16 @@ void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves,
   for (const EPLeaf &new_leaf : new_leaves) {
     if (!new_leaf.next)
       continue;
-    leaves.insert(leaves.begin(), new_leaf);
+
+    const Module *module = new_leaf.node->get_module();
+    TargetType next_target = module->get_next_target();
+
+    // Prioritize leaves that don't change the current target.
+    if (next_target != current_target) {
+      leaves.push_back(new_leaf);
+    } else {
+      leaves.insert(leaves.begin(), new_leaf);
+    }
   }
 }
 

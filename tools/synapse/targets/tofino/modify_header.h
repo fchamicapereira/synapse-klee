@@ -58,7 +58,7 @@ protected:
 
     klee::ref<klee::Expr> hdr = call.args.at("the_chunk").expr;
     klee::ref<klee::Expr> current_hdr = call.args.at("the_chunk").in;
-    klee::ref<klee::Expr> original_hdr = get_original_chunk(ep, node);
+    klee::ref<klee::Expr> original_hdr = chunk_borrow_from_return(ep, node);
 
     addr_t hdr_addr = kutil::expr_addr_to_obj_addr(hdr);
 

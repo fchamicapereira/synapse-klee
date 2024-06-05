@@ -70,20 +70,14 @@ protected:
 
     const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
 
-    if (!can_place_in_simple_table(ep, call_node)) {
+    if (!is_simple_table(ep, call_node)) {
       return new_eps;
     }
 
     addr_t obj;
-    size_t num_entries;
     std::vector<klee::ref<klee::Expr>> keys;
     std::vector<klee::ref<klee::Expr>> values;
-    get_table_update_data(ep, call_node, obj, num_entries, keys, values);
-
-    Table table_mock = Table(0, num_entries, keys, values, std::nullopt);
-    if (!can_place_table(ep, &table_mock)) {
-      return new_eps;
-    }
+    get_table_update_data(call_node, obj, keys, values);
 
     Module *module = new SimpleTableUpdate(node, obj, keys, values);
     EPNode *ep_node = new EPNode(module);
@@ -94,27 +88,11 @@ protected:
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
 
-    // Optimistically place the table as a Tofino SimpleTable, even if we are on
-    // the CPU.
-    // This allows other portions of the BDD (yet to be explored) to used the
-    // Tofino SimpleTable implementation.
-    // However, don't save the table just yet. That job belongs to the Tofino
-    // modules.
-    place(new_ep, obj, PlacementDecision::TofinoSimpleTable);
-
     return new_eps;
   }
 
 private:
-  bool can_place_table(const EP *ep, const Table *table) const {
-    const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
-    std::unordered_set<DS_ID> dependencies =
-        tofino_ctx->get_table_dependencies(ep);
-    return tofino_ctx->check_table_placement(ep, table, dependencies);
-  }
-
-  bool can_place_in_simple_table(const EP *ep,
-                                 const bdd::Call *call_node) const {
+  bool is_simple_table(const EP *ep, const bdd::Call *call_node) const {
     const call_t &call = call_node->get_call();
 
     std::string obj_arg;
@@ -128,32 +106,29 @@ private:
       return false;
     }
 
-    return can_place(ep, call_node, obj_arg,
-                     PlacementDecision::TofinoSimpleTable);
+    return check_placement(ep, call_node, obj_arg,
+                           PlacementDecision::TofinoSimpleTable);
   }
 
-  void get_table_update_data(const EP *ep, const bdd::Call *call_node,
-                             addr_t &obj, size_t &num_entries,
+  void get_table_update_data(const bdd::Call *call_node, addr_t &obj,
                              std::vector<klee::ref<klee::Expr>> &keys,
                              std::vector<klee::ref<klee::Expr>> &values) const {
     const call_t &call = call_node->get_call();
 
     if (call.function_name == "map_put") {
-      table_update_data_from_map_op(ep, call_node, obj, num_entries, keys,
-                                    values);
+      table_update_data_from_map_op(call_node, obj, keys, values);
     } else if (call.function_name == "vector_return") {
-      table_update_data_from_vector_op(ep, call_node, obj, num_entries, keys,
-                                       values);
+      table_update_data_from_vector_op(call_node, obj, keys, values);
     } else if (call.function_name == "dchain_allocate_new_index") {
-      table_data_from_dchain_op(ep, call_node, obj, num_entries, keys, values);
+      table_data_from_dchain_op(call_node, obj, keys, values);
     } else {
       assert(false && "Unknown call");
     }
   }
 
   void table_update_data_from_map_op(
-      const EP *ep, const bdd::Call *call_node, addr_t &obj,
-      size_t &num_entries, std::vector<klee::ref<klee::Expr>> &keys,
+      const bdd::Call *call_node, addr_t &obj,
+      std::vector<klee::ref<klee::Expr>> &keys,
       std::vector<klee::ref<klee::Expr>> &values) const {
     const call_t &call = call_node->get_call();
     assert(call.function_name == "map_put");
@@ -165,15 +140,11 @@ private:
     obj = kutil::expr_addr_to_obj_addr(map_addr_expr);
     keys = Table::build_keys(key);
     values = {value};
-
-    const Context &ctx = ep->get_ctx();
-    const bdd::map_config_t &cfg = ctx.get_map_config(obj);
-    num_entries = cfg.capacity;
   }
 
   void table_update_data_from_vector_op(
-      const EP *ep, const bdd::Call *call_node, addr_t &obj,
-      size_t &num_entries, std::vector<klee::ref<klee::Expr>> &keys,
+      const bdd::Call *call_node, addr_t &obj,
+      std::vector<klee::ref<klee::Expr>> &keys,
       std::vector<klee::ref<klee::Expr>> &values) const {
     const call_t &call = call_node->get_call();
     assert(call.function_name == "vector_return");
@@ -185,15 +156,10 @@ private:
     obj = kutil::expr_addr_to_obj_addr(vector_addr_expr);
     keys = {index};
     values = {value};
-
-    const Context &ctx = ep->get_ctx();
-    const bdd::vector_config_t &cfg = ctx.get_vector_config(obj);
-    num_entries = cfg.capacity;
   }
 
   void
-  table_data_from_dchain_op(const EP *ep, const bdd::Call *call_node,
-                            addr_t &obj, size_t &num_entries,
+  table_data_from_dchain_op(const bdd::Call *call_node, addr_t &obj,
                             std::vector<klee::ref<klee::Expr>> &keys,
                             std::vector<klee::ref<klee::Expr>> &values) const {
     const call_t &call = call_node->get_call();
@@ -207,10 +173,6 @@ private:
     obj = dchain_addr;
     keys = {index_out};
     // No value, the index is actually the table key
-
-    const Context &ctx = ep->get_ctx();
-    const bdd::dchain_config_t &cfg = ctx.get_dchain_config(obj);
-    num_entries = cfg.index_range;
   }
 };
 

@@ -31,7 +31,9 @@ public:
   }
 
   addr_t get_chunk_addr() const { return chunk_addr; }
-  klee::ref<klee::Expr> get_original_chunk() const { return original_chunk; }
+  klee::ref<klee::Expr> chunk_borrow_from_return() const {
+    return original_chunk;
+  }
   const std::vector<modification_t> &get_changes() const { return changes; }
 };
 
@@ -58,7 +60,7 @@ protected:
 
     klee::ref<klee::Expr> chunk = call.args.at("the_chunk").expr;
     klee::ref<klee::Expr> current_chunk = call.args.at("the_chunk").in;
-    klee::ref<klee::Expr> original_chunk = get_original_chunk(ep, node);
+    klee::ref<klee::Expr> original_chunk = chunk_borrow_from_return(ep, node);
 
     addr_t chunk_addr = kutil::expr_addr_to_obj_addr(chunk);
 

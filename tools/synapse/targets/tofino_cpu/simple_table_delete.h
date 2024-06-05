@@ -67,19 +67,13 @@ protected:
 
     const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
 
-    if (!can_place_in_simple_table(ep, call_node)) {
+    if (!is_simple_table(ep, call_node)) {
       return new_eps;
     }
 
     addr_t obj;
-    size_t num_entries;
     std::vector<klee::ref<klee::Expr>> keys;
-    get_table_delete_data(ep, call_node, obj, num_entries, keys);
-
-    Table table_mock = Table(0, num_entries, keys, {}, std::nullopt);
-    if (!can_place_table(ep, &table_mock)) {
-      return new_eps;
-    }
+    get_table_delete_data(call_node, obj, keys);
 
     Module *module = new SimpleTableDelete(node, obj, keys);
     EPNode *ep_node = new EPNode(module);
@@ -89,14 +83,6 @@ protected:
 
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
-
-    // Optimistically place the table as a Tofino SimpleTable, even if we are on
-    // the CPU.
-    // This allows other portions of the BDD (yet to be explored) to used the
-    // Tofino SimpleTable implementation.
-    // However, don't save the table just yet. That job belongs to the Tofino
-    // modules.
-    place(new_ep, obj, PlacementDecision::TofinoSimpleTable);
 
     return new_eps;
   }
@@ -109,8 +95,7 @@ private:
     return tofino_ctx->check_table_placement(ep, table, dependencies);
   }
 
-  bool can_place_in_simple_table(const EP *ep,
-                                 const bdd::Call *call_node) const {
+  bool is_simple_table(const EP *ep, const bdd::Call *call_node) const {
     const call_t &call = call_node->get_call();
 
     std::string obj_arg;
@@ -122,27 +107,26 @@ private:
       return false;
     }
 
-    return can_place(ep, call_node, obj_arg,
-                     PlacementDecision::TofinoSimpleTable);
+    return check_placement(ep, call_node, obj_arg,
+                           PlacementDecision::TofinoSimpleTable);
   }
 
-  void get_table_delete_data(const EP *ep, const bdd::Call *call_node,
-                             addr_t &obj, size_t &num_entries,
+  void get_table_delete_data(const bdd::Call *call_node, addr_t &obj,
                              std::vector<klee::ref<klee::Expr>> &keys) const {
     const call_t &call = call_node->get_call();
 
     if (call.function_name == "map_erase") {
-      table_delete_data_from_map_op(ep, call_node, obj, num_entries, keys);
+      table_delete_data_from_map_op(call_node, obj, keys);
     } else if (call.function_name == "dchain_free_index") {
-      table_delete_data_from_dchain_op(ep, call_node, obj, num_entries, keys);
+      table_delete_data_from_dchain_op(call_node, obj, keys);
     } else {
       assert(false && "Unknown call");
     }
   }
 
   void table_delete_data_from_map_op(
-      const EP *ep, const bdd::Call *call_node, addr_t &obj,
-      size_t &num_entries, std::vector<klee::ref<klee::Expr>> &keys) const {
+      const bdd::Call *call_node, addr_t &obj,
+      std::vector<klee::ref<klee::Expr>> &keys) const {
     const call_t &call = call_node->get_call();
     assert(call.function_name == "map_erase");
 
@@ -151,15 +135,11 @@ private:
 
     obj = kutil::expr_addr_to_obj_addr(map_addr_expr);
     keys = Table::build_keys(key);
-
-    const Context &ctx = ep->get_ctx();
-    const bdd::map_config_t &cfg = ctx.get_map_config(obj);
-    num_entries = cfg.capacity;
   }
 
   void table_delete_data_from_dchain_op(
-      const EP *ep, const bdd::Call *call_node, addr_t &obj,
-      size_t &num_entries, std::vector<klee::ref<klee::Expr>> &keys) const {
+      const bdd::Call *call_node, addr_t &obj,
+      std::vector<klee::ref<klee::Expr>> &keys) const {
     const call_t &call = call_node->get_call();
     assert(call.function_name == "dchain_free_index");
 
@@ -170,10 +150,6 @@ private:
 
     obj = dchain_addr;
     keys.push_back(index);
-
-    const Context &ctx = ep->get_ctx();
-    const bdd::dchain_config_t &cfg = ctx.get_dchain_config(obj);
-    num_entries = cfg.index_range;
   }
 };
 
