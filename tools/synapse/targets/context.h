@@ -16,6 +16,7 @@ enum class TargetType;
 
 enum class PlacementDecision {
   TofinoSimpleTable,
+  TofinoRegister,
   TofinoCPUMap,
   TofinoCPUVector,
   TofinoCPUDchain,

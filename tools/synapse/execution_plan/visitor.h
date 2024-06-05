@@ -26,6 +26,7 @@ class Broadcast;
 class ParserExtraction;
 class ModifyHeader;
 class SimpleTableLookup;
+class VectorRegisterLookup;
 } // namespace tofino
 
 namespace tofino_cpu {
@@ -58,6 +59,8 @@ class SketchFetch;
 class SketchRefresh;
 class SketchTouchBuckets;
 class SimpleTableDelete;
+class VectorRegisterLookup;
+class VectorRegisterUpdate;
 } // namespace tofino_cpu
 
 namespace x86 {
@@ -114,6 +117,7 @@ public:
   VISIT_TODO(tofino::ParserExtraction)
   VISIT_TODO(tofino::ModifyHeader)
   VISIT_TODO(tofino::SimpleTableLookup)
+  VISIT_TODO(tofino::VectorRegisterLookup)
 
   /*************************************
    *
@@ -150,6 +154,8 @@ public:
   VISIT_TODO(tofino_cpu::SketchFetch)
   VISIT_TODO(tofino_cpu::SketchRefresh)
   VISIT_TODO(tofino_cpu::SketchTouchBuckets)
+  VISIT_TODO(tofino_cpu::VectorRegisterLookup)
+  VISIT_TODO(tofino_cpu::VectorRegisterUpdate)
 
   /*************************************
    *

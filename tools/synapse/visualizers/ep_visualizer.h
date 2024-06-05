@@ -40,6 +40,7 @@ public:
   DECLARE_VISIT(tofino::ParserExtraction)
   DECLARE_VISIT(tofino::ModifyHeader)
   DECLARE_VISIT(tofino::SimpleTableLookup)
+  DECLARE_VISIT(tofino::VectorRegisterLookup)
 
   /********************************************
    *
@@ -76,6 +77,8 @@ public:
   DECLARE_VISIT(tofino_cpu::SketchRefresh)
   DECLARE_VISIT(tofino_cpu::SketchFetch)
   DECLARE_VISIT(tofino_cpu::SketchTouchBuckets)
+  DECLARE_VISIT(tofino_cpu::VectorRegisterLookup)
+  DECLARE_VISIT(tofino_cpu::VectorRegisterUpdate)
 
   /********************************************
    *

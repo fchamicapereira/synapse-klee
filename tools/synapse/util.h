@@ -99,6 +99,7 @@ klee::ref<klee::Expr> get_original_vector_value(const EP *ep,
 
 bool is_vector_return_without_modifications(const EP *ep,
                                             const bdd::Node *node);
+bool is_vector_read(const bdd::Call *vector_borrow);
 
 const bdd::Node *get_future_vector_return(const bdd::Node *root,
                                           addr_t target_addr);

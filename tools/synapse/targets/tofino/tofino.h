@@ -14,6 +14,7 @@
 #include "parser_condition.h"
 #include "modify_header.h"
 #include "simple_table_lookup.h"
+#include "vector_register_lookup.h"
 
 #include "tofino_context.h"
 
@@ -36,6 +37,7 @@ struct TofinoTarget : public Target {
                    new ParserExtractionGenerator(),
                    new ModifyHeaderGenerator(),
                    new SimpleTableLookupGenerator(),
+                   new VectorRegisterLookupGenerator(),
                },
                new TofinoContext(version)) {}
 };

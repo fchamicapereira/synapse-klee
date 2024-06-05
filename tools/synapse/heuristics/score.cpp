@@ -193,6 +193,7 @@ int Score::get_nr_switch_data_structures(const EP *ep) const {
 
   std::unordered_set<PlacementDecision> switch_placements{
       PlacementDecision::TofinoSimpleTable,
+      PlacementDecision::TofinoRegister,
   };
 
   for (const auto &[obj, decision] : placements) {

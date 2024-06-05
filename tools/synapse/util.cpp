@@ -858,4 +858,34 @@ bool is_vector_return_without_modifications(const EP *ep,
   return changes.empty();
 }
 
+bool is_vector_read(const bdd::Call *vector_borrow) {
+  const call_t &vb = vector_borrow->get_call();
+  assert(vb.function_name == "vector_borrow");
+
+  klee::ref<klee::Expr> vb_obj_expr = vb.args.at("vector").expr;
+  klee::ref<klee::Expr> vb_index = vb.args.at("index").expr;
+  klee::ref<klee::Expr> vb_value = vb.extra_vars.at("borrowed_cell").second;
+
+  addr_t vb_obj = kutil::expr_addr_to_obj_addr(vb_obj_expr);
+
+  const bdd::Node *vector_return =
+      get_future_vector_return(vector_borrow, vb_obj);
+  assert(vector_return && "Vector return not found");
+  assert(vector_return->get_type() == bdd::NodeType::CALL);
+
+  const bdd::Call *vr_call = static_cast<const bdd::Call *>(vector_return);
+  const call_t &vr = vr_call->get_call();
+  assert(vr.function_name == "vector_return");
+
+  klee::ref<klee::Expr> vr_obj_expr = vr.args.at("vector").expr;
+  klee::ref<klee::Expr> vr_index = vr.args.at("index").expr;
+  klee::ref<klee::Expr> vr_value = vr.args.at("value").in;
+
+  addr_t vr_obj = kutil::expr_addr_to_obj_addr(vr_obj_expr);
+  assert(vb_obj == vr_obj);
+  assert(kutil::solver_toolbox.are_exprs_always_equal(vb_index, vr_index));
+
+  return kutil::solver_toolbox.are_exprs_always_equal(vb_value, vr_value);
+}
+
 } // namespace synapse

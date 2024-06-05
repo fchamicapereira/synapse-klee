@@ -31,6 +31,8 @@
 #include "sketch_fetch.h"
 #include "sketch_refresh.h"
 #include "sketch_touch_buckets.h"
+#include "vector_register_lookup.h"
+#include "vector_register_update.h"
 
 #include "tofino_cpu_context.h"
 
@@ -70,6 +72,8 @@ struct TofinoCPUTarget : public Target {
                    new SketchFetchGenerator(),
                    new SketchRefreshGenerator(),
                    new SketchTouchBucketsGenerator(),
+                   new VectorRegisterLookupGenerator(),
+                   new VectorRegisterUpdateGenerator(),
                },
                new TofinoCPUContext()) {}
 };

@@ -11,49 +11,46 @@ namespace tofino {
 
 TofinoContext::TofinoContext(TNAVersion _version) : tna(_version) {}
 
-TofinoContext::TofinoContext(const TofinoContext &other)
-    : tna(other.tna), ids(other.ids) {
-  for (const auto &kv : other.data_structures) {
-    std::vector<DS *> new_data_structures;
+TofinoContext::TofinoContext(const TofinoContext &other) : tna(other.tna) {
+  for (const auto &kv : other.obj_to_ds) {
+    std::vector<DS *> new_ds;
     for (const auto &ds : kv.second) {
-      new_data_structures.push_back(ds->clone());
+      DS *clone = ds->clone();
+      new_ds.push_back(clone);
+      id_to_ds[clone->id] = clone;
     }
-    data_structures[kv.first] = new_data_structures;
+    obj_to_ds[kv.first] = new_ds;
   }
 }
 
 TofinoContext::~TofinoContext() {
-  for (auto &kv : data_structures) {
+  for (auto &kv : obj_to_ds) {
     for (auto &ds : kv.second) {
       delete ds;
     }
     kv.second.clear();
   }
-  data_structures.clear();
+  obj_to_ds.clear();
+  id_to_ds.clear();
 }
 
 const std::vector<DS *> &TofinoContext::get_ds(addr_t addr) const {
-  return data_structures.at(addr);
+  return obj_to_ds.at(addr);
 }
 
 void TofinoContext::save_ds(addr_t addr, DS *ds) {
-  assert(ids.find(ds->id) == ids.end() && "Duplicate data structure ID");
-  data_structures[addr].push_back(ds);
+  assert(id_to_ds.find(ds->id) == id_to_ds.end() &&
+         "Duplicate data structure ID");
+  obj_to_ds[addr].push_back(ds);
+  id_to_ds[ds->id] = ds;
 }
 
-const Table *TofinoContext::get_table(int tid) const {
-  for (const auto &kv : data_structures) {
-    for (const DS *ds : kv.second) {
-      if (ds->type == DSType::SIMPLE_TABLE) {
-        const Table *table = static_cast<const Table *>(ds);
-        if (table->id == tid) {
-          return table;
-        }
-      }
-    }
+const DS *TofinoContext::get_ds_from_id(DS_ID id) const {
+  auto it = id_to_ds.find(id);
+  if (it == id_to_ds.end()) {
+    return nullptr;
   }
-
-  return nullptr;
+  return it->second;
 }
 
 static const bdd::Node *
@@ -148,13 +145,12 @@ void TofinoContext::parser_reject(const EP *ep, const bdd::Node *node) {
   tna.parser.reject(leaf_id, id, direction);
 }
 
-std::unordered_set<const DS *> TofinoContext::get_prev_ds(const EP *ep,
-                                                          DSType type) const {
-  std::unordered_set<const DS *> prev_ds;
-  const EPLeaf *active_leaf = ep->get_active_leaf();
+std::unordered_set<DS_ID> TofinoContext::get_stateful_deps(const EP *ep) const {
+  std::unordered_set<DS_ID> deps;
 
+  const EPLeaf *active_leaf = ep->get_active_leaf();
   if (!active_leaf || !active_leaf->node) {
-    return prev_ds;
+    return deps;
   }
 
   const EPNode *node = active_leaf->node;
@@ -165,54 +161,56 @@ std::unordered_set<const DS *> TofinoContext::get_prev_ds(const EP *ep,
       break;
     }
 
-    switch (type) {
-    case DSType::SIMPLE_TABLE: {
-      if (module->get_type() == ModuleType::Tofino_SimpleTableLookup) {
-        const SimpleTableLookup *table_lookup =
-            static_cast<const SimpleTableLookup *>(module);
-        int table_id = table_lookup->get_table_id();
-        const Table *table = get_table(table_id);
-        assert(table && "Table not found");
-        prev_ds.insert(table);
-      }
-    } break;
-    }
+    const TofinoModule *tofino_module =
+        static_cast<const TofinoModule *>(module);
+    const std::unordered_set<DS_ID> &generated_ds =
+        tofino_module->get_generated_ds();
+    deps.insert(generated_ds.begin(), generated_ds.end());
 
     node = node->get_prev();
   }
 
-  return prev_ds;
-}
-
-std::unordered_set<DS_ID>
-TofinoContext::get_table_dependencies(const EP *ep) const {
-  std::unordered_set<const DS *> prev_tables =
-      get_prev_ds(ep, DSType::SIMPLE_TABLE);
-
-  std::unordered_set<DS_ID> dependencies;
-  for (const DS *ds : prev_tables) {
-    dependencies.insert(ds->id);
-  }
-
-  return dependencies;
+  return deps;
 }
 
 void TofinoContext::save_table(EP *ep, addr_t obj, Table *table,
-                               const std::unordered_set<DS_ID> &dependencies) {
+                               const std::unordered_set<DS_ID> &deps) {
   save_ds(obj, table);
-  tna.place_table(table, dependencies);
+  tna.place_table(table, deps);
   tna.log_debug_placement();
 }
 
 bool TofinoContext::check_table_placement(
     const EP *ep, const Table *table,
-    const std::unordered_set<DS_ID> &dependencies) const {
-  PlacementStatus status = tna.can_place_table(table, dependencies);
+    const std::unordered_set<DS_ID> &deps) const {
+  PlacementStatus status = tna.can_place_table(table, deps);
 
   if (status != PlacementStatus::SUCCESS) {
     TargetType target = ep->get_current_platform();
     Log::dbg() << "[" << target << "] Cannot place table (" << status << ")\n";
     table->log_debug();
+  }
+
+  return status == PlacementStatus::SUCCESS;
+}
+
+void TofinoContext::save_register(EP *ep, addr_t obj, Register *reg,
+                                  const std::unordered_set<DS_ID> &deps) {
+  save_ds(obj, reg);
+  tna.place_register(reg, deps);
+  tna.log_debug_placement();
+}
+
+bool TofinoContext::check_register_placement(
+    const EP *ep, const Register *reg,
+    const std::unordered_set<DS_ID> &deps) const {
+  PlacementStatus status = tna.can_place_register(reg, deps);
+
+  if (status != PlacementStatus::SUCCESS) {
+    TargetType target = ep->get_current_platform();
+    Log::dbg() << "[" << target << "] Cannot place register (" << status
+               << ")\n";
+    reg->log_debug();
   }
 
   return status == PlacementStatus::SUCCESS;

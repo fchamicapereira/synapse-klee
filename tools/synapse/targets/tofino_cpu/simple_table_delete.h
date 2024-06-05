@@ -40,7 +40,7 @@ public:
 
     std::vector<const tofino::Table *> tables;
     for (const tofino::DS *data_structure : data_structures) {
-      assert(data_structure->type == tofino::DSType::SIMPLE_TABLE);
+      assert(data_structure->type == tofino::DSType::TABLE);
       const tofino::Table *table =
           static_cast<const tofino::Table *>(data_structure);
       tables.push_back(table);
@@ -90,9 +90,8 @@ protected:
 private:
   bool can_place_table(const EP *ep, const Table *table) const {
     const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
-    std::unordered_set<DS_ID> dependencies =
-        tofino_ctx->get_table_dependencies(ep);
-    return tofino_ctx->check_table_placement(ep, table, dependencies);
+    std::unordered_set<DS_ID> deps = tofino_ctx->get_stateful_deps(ep);
+    return tofino_ctx->check_table_placement(ep, table, deps);
   }
 
   bool is_simple_table(const EP *ep, const bdd::Call *call_node) const {

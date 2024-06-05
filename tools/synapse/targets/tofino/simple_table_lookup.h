@@ -7,11 +7,11 @@ namespace tofino {
 
 class SimpleTableLookup : public TofinoModule {
 private:
-  int table_id;
+  DS_ID table_id;
   addr_t obj;
 
 public:
-  SimpleTableLookup(const bdd::Node *node, int _table_id, addr_t _obj)
+  SimpleTableLookup(const bdd::Node *node, DS_ID _table_id, addr_t _obj)
       : TofinoModule(ModuleType::Tofino_SimpleTableLookup, "SimpleTableLookup",
                      node),
         table_id(_table_id), obj(_obj) {}
@@ -26,8 +26,12 @@ public:
     return cloned;
   }
 
-  int get_table_id() const { return table_id; }
+  DS_ID get_table_id() const { return table_id; }
   addr_t get_obj() const { return obj; }
+
+  virtual std::unordered_set<DS_ID> get_generated_ds() const override {
+    return {table_id};
+  }
 };
 
 class SimpleTableLookupGenerator : public TofinoModuleGenerator {
@@ -52,7 +56,7 @@ protected:
     }
 
     addr_t obj;
-    size_t num_entries;
+    int num_entries;
     std::vector<klee::ref<klee::Expr>> keys;
     std::vector<klee::ref<klee::Expr>> values;
     std::optional<symbol_t> hit;
@@ -65,10 +69,9 @@ protected:
     Table *table = new Table(table_id, num_entries, keys, values, hit);
 
     const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
-    std::unordered_set<DS_ID> dependencies =
-        tofino_ctx->get_table_dependencies(ep);
+    std::unordered_set<DS_ID> deps = tofino_ctx->get_stateful_deps(ep);
 
-    if (!tofino_ctx->check_table_placement(ep, table, dependencies)) {
+    if (!tofino_ctx->check_table_placement(ep, table, deps)) {
       delete table;
       return new_eps;
     }
@@ -82,17 +85,17 @@ protected:
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
 
-    place_table(new_ep, obj, table, dependencies);
+    place_table(new_ep, obj, table, deps);
 
     return new_eps;
   }
 
 private:
   void place_table(EP *ep, addr_t obj, Table *table,
-                   const std::unordered_set<DS_ID> &dependencies) const {
+                   const std::unordered_set<DS_ID> &deps) const {
     TofinoContext *tofino_ctx = get_mutable_tofino_ctx(ep);
     place(ep, obj, PlacementDecision::TofinoSimpleTable);
-    tofino_ctx->save_table(ep, obj, table, dependencies);
+    tofino_ctx->save_table(ep, obj, table, deps);
   }
 
   bool can_place_in_simple_table(const EP *ep,
@@ -116,7 +119,7 @@ private:
   }
 
   bool get_table_data(const EP *ep, const bdd::Call *call_node, addr_t &obj,
-                      size_t &num_entries,
+                      int &num_entries,
                       std::vector<klee::ref<klee::Expr>> &keys,
                       std::vector<klee::ref<klee::Expr>> &values,
                       std::optional<symbol_t> &hit) const {
@@ -142,7 +145,7 @@ private:
   }
 
   bool table_data_from_map_op(const EP *ep, const bdd::Call *call_node,
-                              addr_t &obj, size_t &num_entries,
+                              addr_t &obj, int &num_entries,
                               std::vector<klee::ref<klee::Expr>> &keys,
                               std::vector<klee::ref<klee::Expr>> &values,
                               std::optional<symbol_t> &hit) const {
@@ -171,38 +174,8 @@ private:
     return true;
   }
 
-  bool is_vector_read(const bdd::Call *vector_borrow) const {
-    const call_t &vb = vector_borrow->get_call();
-    assert(vb.function_name == "vector_borrow");
-
-    klee::ref<klee::Expr> vb_obj_expr = vb.args.at("vector").expr;
-    klee::ref<klee::Expr> vb_index = vb.args.at("index").expr;
-    klee::ref<klee::Expr> vb_value = vb.extra_vars.at("borrowed_cell").second;
-
-    addr_t vb_obj = kutil::expr_addr_to_obj_addr(vb_obj_expr);
-
-    const bdd::Node *vector_return =
-        get_future_vector_return(vector_borrow, vb_obj);
-    assert(vector_return && "Vector return not found");
-    assert(vector_return->get_type() == bdd::NodeType::CALL);
-
-    const bdd::Call *vr_call = static_cast<const bdd::Call *>(vector_return);
-    const call_t &vr = vr_call->get_call();
-    assert(vr.function_name == "vector_return");
-
-    klee::ref<klee::Expr> vr_obj_expr = vr.args.at("vector").expr;
-    klee::ref<klee::Expr> vr_index = vr.args.at("index").expr;
-    klee::ref<klee::Expr> vr_value = vr.args.at("value").in;
-
-    addr_t vr_obj = kutil::expr_addr_to_obj_addr(vr_obj_expr);
-    assert(vb_obj == vr_obj);
-    assert(kutil::solver_toolbox.are_exprs_always_equal(vb_index, vr_index));
-
-    return kutil::solver_toolbox.are_exprs_always_equal(vb_value, vr_value);
-  }
-
   bool table_data_from_vector_op(const EP *ep, const bdd::Call *call_node,
-                                 addr_t &obj, size_t &num_entries,
+                                 addr_t &obj, int &num_entries,
                                  std::vector<klee::ref<klee::Expr>> &keys,
                                  std::vector<klee::ref<klee::Expr>> &values,
                                  std::optional<symbol_t> &hit) const {
@@ -229,7 +202,7 @@ private:
   }
 
   bool table_data_from_dchain_op(const EP *ep, const bdd::Call *call_node,
-                                 addr_t &obj, size_t &num_entries,
+                                 addr_t &obj, int &num_entries,
                                  std::vector<klee::ref<klee::Expr>> &keys,
                                  std::vector<klee::ref<klee::Expr>> &values,
                                  std::optional<symbol_t> &hit) const {

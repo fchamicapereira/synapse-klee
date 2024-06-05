@@ -43,7 +43,7 @@ public:
 
     std::vector<const tofino::Table *> tables;
     for (const tofino::DS *data_structure : data_structures) {
-      assert(data_structure->type == tofino::DSType::SIMPLE_TABLE);
+      assert(data_structure->type == tofino::DSType::TABLE);
       const tofino::Table *table =
           static_cast<const tofino::Table *>(data_structure);
       tables.push_back(table);

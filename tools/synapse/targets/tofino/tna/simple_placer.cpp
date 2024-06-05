@@ -11,11 +11,11 @@ std::ostream &operator<<(std::ostream &os, const PlacementStatus &status) {
   case PlacementStatus::SUCCESS:
     os << "SUCCESS";
     break;
-  case PlacementStatus::TABLE_TOO_LARGE:
-    os << "TABLE_TOO_LARGE";
+  case PlacementStatus::TOO_LARGE:
+    os << "TOO_LARGE";
     break;
-  case PlacementStatus::NO_AVAILABLE_TABLES:
-    os << "NO_AVAILABLE_TABLES";
+  case PlacementStatus::NO_LOGICAL_TABLES_AVAILABLE:
+    os << "NO_LOGICAL_TABLES_AVAILABLE";
     break;
   case PlacementStatus::TOO_MANY_KEYS:
     os << "TOO_MANY_KEYS";
@@ -38,6 +38,7 @@ static std::vector<Stage> create_stages(const TNAConstraints *constraints) {
         .stage_id = stage_id,
         .available_sram = constraints->sram_per_stage,
         .available_tcam = constraints->tcam_per_stage,
+        .available_exact_match_xbar = constraints->exact_match_xbar_per_stage,
         .tables = {},
     };
 
@@ -49,22 +50,21 @@ static std::vector<Stage> create_stages(const TNAConstraints *constraints) {
 
 SimplePlacer::SimplePlacer(const TNAConstraints *_constraints)
     : constraints(_constraints), stages(create_stages(_constraints)),
-      total_tables(0) {}
+      total_logical_tables(0) {}
 
 SimplePlacer::SimplePlacer(const SimplePlacer &other)
     : constraints(other.constraints), stages(other.stages),
-      total_tables(other.total_tables) {}
+      total_logical_tables(other.total_logical_tables) {}
 
-static int
-get_soonest_available_stage(const std::vector<Stage> &stages,
-                            const std::unordered_set<DS_ID> &dependencies) {
+static int get_soonest_available_stage(const std::vector<Stage> &stages,
+                                       const std::unordered_set<DS_ID> &deps) {
   const Stage *soonest_stage = nullptr;
 
   for (auto it = stages.rbegin(); it != stages.rend(); it++) {
     const Stage *stage = &(*it);
 
     bool can_place = true;
-    for (DS_ID dependency : dependencies) {
+    for (DS_ID dependency : deps) {
       if (stage->tables.find(dependency) != stage->tables.end()) {
         can_place = false;
         break;
@@ -86,13 +86,15 @@ get_soonest_available_stage(const std::vector<Stage> &stages,
 struct SimplePlacer::table_placement_t {
   int stage_id;
   bits_t sram;
+  bits_t xbar;
 };
 
 PlacementStatus SimplePlacer::find_placements(
-    const Table *table, const std::unordered_set<DS_ID> &dependencies,
+    const Table *table, const std::unordered_set<DS_ID> &deps,
     std::vector<table_placement_t> &placements) const {
-  if (total_tables == constraints->max_logical_sram_and_tcam_tables) {
-    return PlacementStatus::NO_AVAILABLE_TABLES;
+  if (total_logical_tables + 1 >
+      constraints->max_logical_sram_and_tcam_tables) {
+    return PlacementStatus::NO_LOGICAL_TABLES_AVAILABLE;
   }
 
   if (static_cast<int>(table->keys.size()) >
@@ -100,11 +102,12 @@ PlacementStatus SimplePlacer::find_placements(
     return PlacementStatus::TOO_MANY_KEYS;
   }
 
-  if (table->get_match_xbar_consume() > constraints->exact_match_xbar) {
+  if (table->get_match_xbar_consume() >
+      constraints->exact_match_xbar_per_stage) {
     return PlacementStatus::XBAR_CONSUME_EXCEEDS_LIMIT;
   }
 
-  int soonest_stage_id = get_soonest_available_stage(stages, dependencies);
+  int soonest_stage_id = get_soonest_available_stage(stages, deps);
   assert(soonest_stage_id < static_cast<int>(stages.size()));
 
   if (soonest_stage_id < 0) {
@@ -112,8 +115,9 @@ PlacementStatus SimplePlacer::find_placements(
   }
 
   bits_t requested_sram = table->get_consumed_sram();
-  int total_stages = stages.size();
+  bits_t requested_xbar = table->get_match_xbar_consume();
 
+  int total_stages = stages.size();
   for (int stage_id = soonest_stage_id; stage_id < total_stages; stage_id++) {
     const Stage *stage = &stages[stage_id];
 
@@ -121,10 +125,14 @@ PlacementStatus SimplePlacer::find_placements(
       continue;
     }
 
+    if (requested_xbar > stage->available_exact_match_xbar) {
+      continue;
+    }
+
     // This is not actually how it happens, but this is a VERY simple placer.
     bits_t amount_placed = std::min(requested_sram, stage->available_sram);
     requested_sram -= amount_placed;
-    placements.push_back({stage_id, amount_placed});
+    placements.push_back({stage_id, amount_placed, requested_xbar});
 
     if (requested_sram == 0) {
       break;
@@ -132,17 +140,64 @@ PlacementStatus SimplePlacer::find_placements(
   }
 
   if (requested_sram > 0) {
-    return PlacementStatus::TABLE_TOO_LARGE;
+    return PlacementStatus::TOO_LARGE;
+  }
+
+  return PlacementStatus::SUCCESS;
+}
+
+PlacementStatus SimplePlacer::find_placements(
+    const Register *reg, const std::unordered_set<DS_ID> &deps,
+    std::vector<table_placement_t> &placements) const {
+  if (total_logical_tables + reg->num_actions >
+      constraints->max_logical_sram_and_tcam_tables) {
+    return PlacementStatus::NO_LOGICAL_TABLES_AVAILABLE;
+  }
+
+  int soonest_stage_id = get_soonest_available_stage(stages, deps);
+  assert(soonest_stage_id < static_cast<int>(stages.size()));
+
+  if (soonest_stage_id < 0) {
+    return PlacementStatus::NO_AVAILABLE_STAGE;
+  }
+
+  bits_t requested_sram = reg->get_consumed_sram();
+  bits_t requested_xbar = reg->index_size;
+
+  int total_stages = stages.size();
+  for (int stage_id = soonest_stage_id; stage_id < total_stages; stage_id++) {
+    const Stage *stage = &stages[stage_id];
+
+    if (stage->available_sram == 0) {
+      continue;
+    }
+
+    if (requested_xbar > stage->available_exact_match_xbar) {
+      continue;
+    }
+
+    // This is not actually how it happens, but this is a VERY simple placer.
+    bits_t amount_placed = std::min(requested_sram, stage->available_sram);
+    requested_sram -= amount_placed;
+    placements.push_back({stage_id, amount_placed, requested_xbar});
+
+    if (requested_sram == 0) {
+      break;
+    }
+  }
+
+  if (requested_sram > 0) {
+    return PlacementStatus::TOO_LARGE;
   }
 
   return PlacementStatus::SUCCESS;
 }
 
 void SimplePlacer::place_table(const Table *table,
-                               const std::unordered_set<DS_ID> &dependencies) {
+                               const std::unordered_set<DS_ID> &deps) {
   std::vector<table_placement_t> placements;
 
-  PlacementStatus status = find_placements(table, dependencies, placements);
+  PlacementStatus status = find_placements(table, deps, placements);
   assert(status == PlacementStatus::SUCCESS && "Cannot place table");
 
   for (const table_placement_t &placement : placements) {
@@ -150,17 +205,50 @@ void SimplePlacer::place_table(const Table *table,
     Stage *stage = &stages[placement.stage_id];
 
     stage->available_sram -= placement.sram;
+    stage->available_exact_match_xbar -= placement.xbar;
     stage->tables.insert(table->id);
   }
+
+  total_logical_tables++;
 
   table->log_debug();
   log_debug();
 }
 
-PlacementStatus SimplePlacer::can_place_table(
-    const Table *table, const std::unordered_set<DS_ID> &dependencies) const {
+void SimplePlacer::place_register(const Register *reg,
+                                  const std::unordered_set<DS_ID> &deps) {
   std::vector<table_placement_t> placements;
-  return find_placements(table, dependencies, placements);
+
+  PlacementStatus status = find_placements(reg, deps, placements);
+  assert(status == PlacementStatus::SUCCESS && "Cannot place register");
+
+  for (const table_placement_t &placement : placements) {
+    assert(placement.stage_id < static_cast<int>(stages.size()));
+    Stage *stage = &stages[placement.stage_id];
+
+    stage->available_sram -= placement.sram;
+    stage->available_exact_match_xbar -= placement.xbar;
+    stage->tables.insert(reg->id);
+  }
+
+  total_logical_tables += reg->num_actions;
+
+  reg->log_debug();
+  log_debug();
+}
+
+PlacementStatus
+SimplePlacer::can_place_table(const Table *table,
+                              const std::unordered_set<DS_ID> &deps) const {
+  std::vector<table_placement_t> placements;
+  return find_placements(table, deps, placements);
+}
+
+PlacementStatus
+SimplePlacer::can_place_register(const Register *reg,
+                                 const std::unordered_set<DS_ID> &deps) const {
+  std::vector<table_placement_t> placements;
+  return find_placements(reg, deps, placements);
 }
 
 void SimplePlacer::log_debug() const {
@@ -178,12 +266,16 @@ void SimplePlacer::log_debug() const {
         100.0 - (stage.available_sram * 100.0) / constraints->sram_per_stage;
     float tcam_usage =
         100.0 - (stage.available_tcam * 100.0) / constraints->tcam_per_stage;
+    float xbar_usage = 100.0 - (stage.available_exact_match_xbar * 100.0) /
+                                   constraints->exact_match_xbar_per_stage;
 
     ss << "Stage " << stage.stage_id << ": ";
     ss << "SRAM=" << stage.available_sram / 8 << "B ";
     ss << "(" << sram_usage << "%) ";
     ss << "TCAM=" << stage.available_tcam / 8 << "B ";
     ss << "(" << tcam_usage << "%) ";
+    ss << "ExactMatchXBar=" << stage.available_exact_match_xbar / 8 << "B ";
+    ss << "(" << xbar_usage << "%) ";
     ss << "Tables=[";
     bool first = true;
     for (DS_ID table_id : stage.tables) {

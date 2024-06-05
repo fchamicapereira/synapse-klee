@@ -11,7 +11,8 @@ namespace tofino {
 typedef int DS_ID;
 
 enum class DSType {
-  SIMPLE_TABLE,
+  TABLE,
+  REGISTER,
 };
 
 struct DS {

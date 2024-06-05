@@ -22,7 +22,7 @@ struct TNAConstraints {
   int phv_16bit_containers;
   int phv_32bit_containers;
   bits_t packet_buffer_size;
-  bits_t exact_match_xbar;
+  bits_t exact_match_xbar_per_stage;
   int max_exact_match_keys;
   bits_t ternary_match_xbar;
   int max_ternary_match_keys;
@@ -45,12 +45,15 @@ public:
   // the same if statement.
   bool condition_meets_phv_limit(klee::ref<klee::Expr> expr) const;
 
-  void place_table(const Table *table,
-                   const std::unordered_set<DS_ID> &dependencies);
+  void place_table(const Table *table, const std::unordered_set<DS_ID> &deps);
+  PlacementStatus can_place_table(const Table *table,
+                                  const std::unordered_set<DS_ID> &deps) const;
 
+  void place_register(const Register *reg,
+                      const std::unordered_set<DS_ID> &deps);
   PlacementStatus
-  can_place_table(const Table *table,
-                  const std::unordered_set<DS_ID> &dependencies) const;
+  can_place_register(const Register *reg,
+                     const std::unordered_set<DS_ID> &deps) const;
 
   void log_debug_placement() const;
 };

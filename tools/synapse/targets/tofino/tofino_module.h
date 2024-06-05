@@ -16,6 +16,8 @@ public:
   TofinoModule(ModuleType _type, TargetType _next_type,
                const std::string &_name, const bdd::Node *node)
       : Module(_type, TargetType::Tofino, _next_type, _name, node) {}
+
+  virtual std::unordered_set<DS_ID> get_generated_ds() const { return {}; }
 };
 
 class TofinoModuleGenerator : public ModuleGenerator {

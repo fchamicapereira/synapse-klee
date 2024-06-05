@@ -266,6 +266,9 @@ std::ostream &operator<<(std::ostream &os, PlacementDecision decision) {
   case PlacementDecision::TofinoSimpleTable:
     os << "Tofino::SimpleTable";
     break;
+  case PlacementDecision::TofinoRegister:
+    os << "Tofino::Register";
+    break;
   case PlacementDecision::TofinoCPUDchain:
     os << "TofinoCPU::Dchain";
     break;

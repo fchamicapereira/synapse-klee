@@ -60,5 +60,7 @@ SHOW_MODULE_NAME(tofino_cpu::SketchExpire)
 SHOW_MODULE_NAME(tofino_cpu::SketchFetch)
 SHOW_MODULE_NAME(tofino_cpu::SketchRefresh)
 SHOW_MODULE_NAME(tofino_cpu::SketchTouchBuckets)
+SHOW_MODULE_NAME(tofino_cpu::VectorRegisterLookup)
+SHOW_MODULE_NAME(tofino_cpu::VectorRegisterUpdate)
 
 } // namespace synapse

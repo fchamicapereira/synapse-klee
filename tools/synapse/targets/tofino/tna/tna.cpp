@@ -20,7 +20,7 @@ static TNAConstraints constraints_from_version(TNAVersion version) {
         .phv_16bit_containers = 96,
         .phv_32bit_containers = 64,
         .packet_buffer_size = static_cast<bits_t>(20e6 * 8),
-        .exact_match_xbar = 128 * 8,
+        .exact_match_xbar_per_stage = 128 * 8,
         .max_exact_match_keys = 16,
         .ternary_match_xbar = 66 * 8,
         .max_ternary_match_keys = 8,
@@ -39,7 +39,7 @@ static TNAConstraints constraints_from_version(TNAVersion version) {
         .phv_16bit_containers = 120,
         .phv_32bit_containers = 80,
         .packet_buffer_size = static_cast<bits_t>(64e6 * 8),
-        .exact_match_xbar = 128 * 8,
+        .exact_match_xbar_per_stage = 128 * 8,
         .max_exact_match_keys = 16,
         .ternary_match_xbar = 66 * 8,
         .max_ternary_match_keys = 8,
@@ -70,14 +70,25 @@ bool TNA::condition_meets_phv_limit(klee::ref<klee::Expr> expr) const {
 }
 
 void TNA::place_table(const Table *table,
-                      const std::unordered_set<DS_ID> &dependencies) {
-  simple_placer.place_table(table, dependencies);
+                      const std::unordered_set<DS_ID> &deps) {
+  simple_placer.place_table(table, deps);
+}
+
+void TNA::place_register(const Register *reg,
+                         const std::unordered_set<DS_ID> &deps) {
+  simple_placer.place_register(reg, deps);
 }
 
 PlacementStatus
 TNA::can_place_table(const Table *table,
-                     const std::unordered_set<DS_ID> &dependencies) const {
-  return simple_placer.can_place_table(table, dependencies);
+                     const std::unordered_set<DS_ID> &deps) const {
+  return simple_placer.can_place_table(table, deps);
+}
+
+PlacementStatus
+TNA::can_place_register(const Register *reg,
+                        const std::unordered_set<DS_ID> &deps) const {
+  return simple_placer.can_place_register(reg, deps);
 }
 
 void TNA::log_debug_placement() const { simple_placer.log_debug(); }
