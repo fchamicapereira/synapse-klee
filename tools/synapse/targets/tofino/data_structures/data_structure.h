@@ -8,7 +8,7 @@
 namespace synapse {
 namespace tofino {
 
-typedef int DS_ID;
+typedef std::string DS_ID;
 
 enum class DSType {
   TABLE,
@@ -23,6 +23,7 @@ struct DS {
 
   virtual ~DS() {}
   virtual DS *clone() const = 0;
+  virtual void log_debug() const = 0;
 };
 
 } // namespace tofino

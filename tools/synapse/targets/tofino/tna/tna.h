@@ -15,8 +15,9 @@ struct TNAConstraints {
   int stages;
   bits_t sram_per_stage;
   bits_t tcam_per_stage;
-  int max_logical_tcam_tables;
-  int max_logical_sram_and_tcam_tables;
+  bits_t map_ram_per_stage;
+  int max_logical_tcam_tables_per_stage;
+  int max_logical_sram_and_tcam_tables_per_stage;
   bits_t phv_size;
   int phv_8bit_containers;
   int phv_16bit_containers;
@@ -26,6 +27,7 @@ struct TNAConstraints {
   int max_exact_match_keys;
   bits_t ternary_match_xbar;
   int max_ternary_match_keys;
+  bits_t max_salu_size;
 };
 
 class TNA {
@@ -41,19 +43,21 @@ public:
   TNA(TNAVersion version);
   TNA(const TNA &other);
 
+  TNAVersion get_version() const { return version; }
+  const TNAConstraints &get_constraints() const { return constraints; }
+
   // Tofino compiler complains if we access more than 4 bytes of the packet on
   // the same if statement.
   bool condition_meets_phv_limit(klee::ref<klee::Expr> expr) const;
 
-  void place_table(const Table *table, const std::unordered_set<DS_ID> &deps);
-  PlacementStatus can_place_table(const Table *table,
-                                  const std::unordered_set<DS_ID> &deps) const;
+  void place(const DS *ds, const std::unordered_set<DS_ID> &deps);
+  void place_many(const std::vector<std::vector<DS *>> &ds,
+                  const std::unordered_set<DS_ID> &deps);
 
-  void place_register(const Register *reg,
-                      const std::unordered_set<DS_ID> &deps);
-  PlacementStatus
-  can_place_register(const Register *reg,
-                     const std::unordered_set<DS_ID> &deps) const;
+  PlacementStatus can_place(const DS *ds,
+                            const std::unordered_set<DS_ID> &deps) const;
+  PlacementStatus can_place_many(const std::vector<std::vector<DS *>> &ds,
+                                 const std::unordered_set<DS_ID> &deps) const;
 
   void log_debug_placement() const;
 };

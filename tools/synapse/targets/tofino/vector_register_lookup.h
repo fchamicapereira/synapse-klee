@@ -7,14 +7,15 @@ namespace tofino {
 
 class VectorRegisterLookup : public TofinoModule {
 private:
-  DS_ID register_id;
+  std::unordered_set<DS_ID> rids;
   addr_t obj;
 
 public:
-  VectorRegisterLookup(const bdd::Node *node, DS_ID _register_id, addr_t _obj)
+  VectorRegisterLookup(const bdd::Node *node,
+                       const std::unordered_set<DS_ID> &_rids, addr_t _obj)
       : TofinoModule(ModuleType::Tofino_VectorRegisterLookup,
                      "VectorRegisterLookup", node),
-        register_id(_register_id), obj(_obj) {}
+        rids(_rids), obj(_obj) {}
 
   virtual void visit(EPVisitor &visitor, const EP *ep,
                      const EPNode *ep_node) const override {
@@ -22,15 +23,15 @@ public:
   }
 
   virtual Module *clone() const override {
-    Module *cloned = new VectorRegisterLookup(node, register_id, obj);
+    Module *cloned = new VectorRegisterLookup(node, rids, obj);
     return cloned;
   }
 
-  int get_register_id() const { return register_id; }
+  const std::unordered_set<DS_ID> &get_rids() const { return rids; }
   addr_t get_obj() const { return obj; }
 
   virtual std::unordered_set<DS_ID> get_generated_ds() const override {
-    return {register_id};
+    return rids;
   }
 };
 
@@ -76,20 +77,22 @@ protected:
 
     int num_entries = cfg.capacity;
     int index_size = index->getWidth();
+    std::unordered_set<DS_ID> rids;
 
-    DS_ID register_id = static_cast<DS_ID>(node->get_id());
-    Register *reg =
-        new Register(register_id, num_entries, 1, index_size, value);
+    std::vector<DS *> regs =
+        build_registers(ep, node, num_entries, index_size, value, rids);
 
     const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
     std::unordered_set<DS_ID> deps = tofino_ctx->get_stateful_deps(ep);
 
-    if (!tofino_ctx->check_register_placement(ep, reg, deps)) {
-      delete reg;
+    if (!tofino_ctx->check_many_placements(ep, {regs}, deps)) {
+      for (DS *reg : regs) {
+        delete reg;
+      }
       return new_eps;
     }
 
-    Module *module = new VectorRegisterLookup(node, register_id, vector_addr);
+    Module *module = new VectorRegisterLookup(node, rids, vector_addr);
     EPNode *ep_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
@@ -98,18 +101,66 @@ protected:
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
 
-    place_register(new_ep, vector_addr, reg, deps);
+    place_regs(new_ep, vector_addr, regs, deps);
 
     return new_eps;
   }
 
 private:
-  void place_register(EP *ep, addr_t obj, Register *reg,
-                      const std::unordered_set<DS_ID> &deps) const {
+  void place_regs(EP *ep, addr_t obj, const std::vector<DS *> &regs,
+                  const std::unordered_set<DS_ID> &deps) const {
     TofinoContext *tofino_ctx = get_mutable_tofino_ctx(ep);
     place(ep, obj, PlacementDecision::TofinoRegister);
-    tofino_ctx->save_register(ep, obj, reg, deps);
-    DEBUG_PAUSE
+    tofino_ctx->place_many(ep, obj, {regs}, deps);
+  }
+
+  std::vector<DS *> build_registers(const EP *ep, const bdd::Node *node,
+                                    int num_entries, int index_size,
+                                    klee::ref<klee::Expr> value,
+                                    std::unordered_set<DS_ID> &rids) const {
+    std::vector<DS *> registers;
+
+    const TNA &tna = get_tna(ep);
+    const TNAConstraints &tna_constr = tna.get_constraints();
+
+    std::vector<klee::ref<klee::Expr>> partitions =
+        partition_value(tna_constr, value);
+
+    for (klee::ref<klee::Expr> partition : partitions) {
+      DS_ID rid = "vector_" + std::to_string(node->get_id()) + "_" +
+                  std::to_string(rids.size());
+      Register *reg =
+          new Register(tna_constr, rid, num_entries, 1, index_size, partition);
+      registers.push_back(reg);
+      rids.insert(rid);
+    }
+
+    return registers;
+  }
+
+  std::vector<klee::ref<klee::Expr>>
+  partition_value(const TNAConstraints &tna_constr,
+                  klee::ref<klee::Expr> value) const {
+    std::vector<klee::ref<klee::Expr>> partitions;
+
+    bits_t value_width = value->getWidth();
+    bits_t partition_width = tna_constr.max_salu_size;
+
+    bits_t offset = 0;
+    while (offset < value_width) {
+      if (offset + partition_width > value_width) {
+        partition_width = value_width - offset;
+      }
+
+      klee::ref<klee::Expr> partition =
+          kutil::solver_toolbox.exprBuilder->Extract(value, offset,
+                                                     partition_width);
+      partitions.push_back(partition);
+
+      offset += partition_width;
+    }
+
+    return partitions;
   }
 };
 

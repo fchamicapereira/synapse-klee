@@ -29,6 +29,8 @@
 
 namespace synapse {
 
+using namespace tofino;
+
 IGNORE_MODULE(tofino::Ignore)
 
 VISIT_BRANCH(tofino::If)
@@ -65,7 +67,7 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
 
   const bdd::Node *bdd_node = node->get_node();
   TargetType target = node->get_target();
-  int tid = node->get_table_id();
+  DS_ID tid = node->get_table_id();
   addr_t obj = node->get_obj();
 
   label_builder << "SimpleTable lookup\n";
@@ -87,13 +89,25 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
 
   const bdd::Node *bdd_node = node->get_node();
   TargetType target = node->get_target();
-  int rid = node->get_register_id();
+  const std::unordered_set<DS_ID> &rids = node->get_rids();
   addr_t obj = node->get_obj();
 
   label_builder << "Register lookup\n";
-  label_builder << "(tid=";
-  label_builder << rid;
-  label_builder << ", obj=";
+  label_builder << "(rids=[";
+
+  int i = 0;
+  for (const auto &rid : rids) {
+    label_builder << rid;
+    i++;
+    if (i < (int)rids.size()) {
+      label_builder << ",";
+      if (i % 3 == 0) {
+        label_builder << "\\n";
+      }
+    }
+  }
+
+  label_builder << "], obj=";
   label_builder << obj;
   label_builder << ")";
 

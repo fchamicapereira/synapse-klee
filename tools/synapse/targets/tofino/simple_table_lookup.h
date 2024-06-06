@@ -60,23 +60,24 @@ protected:
     std::vector<klee::ref<klee::Expr>> keys;
     std::vector<klee::ref<klee::Expr>> values;
     std::optional<symbol_t> hit;
+    DS_ID id;
 
-    if (!get_table_data(ep, call_node, obj, num_entries, keys, values, hit)) {
+    if (!get_table_data(ep, call_node, obj, num_entries, keys, values, hit,
+                        id)) {
       return new_eps;
     }
 
-    DS_ID table_id = static_cast<DS_ID>(node->get_id());
-    Table *table = new Table(table_id, num_entries, keys, values, hit);
+    Table *table = new Table(id, num_entries, keys, values, hit);
 
     const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
     std::unordered_set<DS_ID> deps = tofino_ctx->get_stateful_deps(ep);
 
-    if (!tofino_ctx->check_table_placement(ep, table, deps)) {
+    if (!tofino_ctx->check_placement(ep, table, deps)) {
       delete table;
       return new_eps;
     }
 
-    Module *module = new SimpleTableLookup(node, table_id, obj);
+    Module *module = new SimpleTableLookup(node, id, obj);
     EPNode *ep_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
@@ -85,17 +86,17 @@ protected:
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
 
-    place_table(new_ep, obj, table, deps);
+    place_simple_table(new_ep, obj, table, deps);
 
     return new_eps;
   }
 
 private:
-  void place_table(EP *ep, addr_t obj, Table *table,
-                   const std::unordered_set<DS_ID> &deps) const {
+  void place_simple_table(EP *ep, addr_t obj, Table *table,
+                          const std::unordered_set<DS_ID> &deps) const {
     TofinoContext *tofino_ctx = get_mutable_tofino_ctx(ep);
     place(ep, obj, PlacementDecision::TofinoSimpleTable);
-    tofino_ctx->save_table(ep, obj, table, deps);
+    tofino_ctx->place(ep, obj, table, deps);
   }
 
   bool can_place_in_simple_table(const EP *ep,
@@ -122,23 +123,23 @@ private:
                       int &num_entries,
                       std::vector<klee::ref<klee::Expr>> &keys,
                       std::vector<klee::ref<klee::Expr>> &values,
-                      std::optional<symbol_t> &hit) const {
+                      std::optional<symbol_t> &hit, DS_ID &id) const {
     const call_t &call = call_node->get_call();
 
     if (call.function_name == "map_get") {
       return table_data_from_map_op(ep, call_node, obj, num_entries, keys,
-                                    values, hit);
+                                    values, hit, id);
     }
 
     if (call.function_name == "vector_borrow") {
       return table_data_from_vector_op(ep, call_node, obj, num_entries, keys,
-                                       values, hit);
+                                       values, hit, id);
     }
 
     if (call.function_name == "dchain_is_index_allocated" ||
         call.function_name == "dchain_rejuvenate_index") {
       return table_data_from_dchain_op(ep, call_node, obj, num_entries, keys,
-                                       values, hit);
+                                       values, hit, id);
     }
 
     return false;
@@ -148,7 +149,7 @@ private:
                               addr_t &obj, int &num_entries,
                               std::vector<klee::ref<klee::Expr>> &keys,
                               std::vector<klee::ref<klee::Expr>> &values,
-                              std::optional<symbol_t> &hit) const {
+                              std::optional<symbol_t> &hit, DS_ID &id) const {
     const call_t &call = call_node->get_call();
     assert(call.function_name == "map_get");
 
@@ -166,6 +167,7 @@ private:
     keys = Table::build_keys(key);
     values = {value_out};
     hit = map_has_this_key;
+    id = "map_" + std::to_string(call_node->get_id());
 
     const Context &ctx = ep->get_ctx();
     const bdd::map_config_t &cfg = ctx.get_map_config(obj);
@@ -178,7 +180,8 @@ private:
                                  addr_t &obj, int &num_entries,
                                  std::vector<klee::ref<klee::Expr>> &keys,
                                  std::vector<klee::ref<klee::Expr>> &values,
-                                 std::optional<symbol_t> &hit) const {
+                                 std::optional<symbol_t> &hit,
+                                 DS_ID &id) const {
     if (!is_vector_read(call_node)) {
       return false;
     }
@@ -193,6 +196,7 @@ private:
     obj = kutil::expr_addr_to_obj_addr(vector_addr_expr);
     keys = {index};
     values = {cell};
+    id = "vector_" + std::to_string(call_node->get_id());
 
     const Context &ctx = ep->get_ctx();
     const bdd::vector_config_t &cfg = ctx.get_vector_config(obj);
@@ -205,7 +209,8 @@ private:
                                  addr_t &obj, int &num_entries,
                                  std::vector<klee::ref<klee::Expr>> &keys,
                                  std::vector<klee::ref<klee::Expr>> &values,
-                                 std::optional<symbol_t> &hit) const {
+                                 std::optional<symbol_t> &hit,
+                                 DS_ID &id) const {
     const call_t &call = call_node->get_call();
     assert(call.function_name == "dchain_is_index_allocated" ||
            call.function_name == "dchain_rejuvenate_index");
@@ -227,6 +232,8 @@ private:
 
       hit = is_allocated;
     }
+
+    id = "dchain_" + std::to_string(call_node->get_id());
 
     const Context &ctx = ep->get_ctx();
     const bdd::dchain_config_t &cfg = ctx.get_dchain_config(obj);

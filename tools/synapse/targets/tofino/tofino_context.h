@@ -30,6 +30,7 @@ public:
 
   const std::vector<DS *> &get_ds(addr_t addr) const;
   const DS *get_ds_from_id(DS_ID id) const;
+
   void save_ds(addr_t addr, DS *ds);
 
   void parser_transition(const EP *ep, const bdd::Node *node,
@@ -44,15 +45,15 @@ public:
 
   std::unordered_set<DS_ID> get_stateful_deps(const EP *ep) const;
 
-  void save_table(EP *ep, addr_t obj, Table *table,
+  void place(EP *ep, addr_t obj, DS *ds, const std::unordered_set<DS_ID> &deps);
+  void place_many(EP *ep, addr_t obj, const std::vector<std::vector<DS *>> &ds,
                   const std::unordered_set<DS_ID> &deps);
-  bool check_table_placement(const EP *ep, const Table *table,
-                             const std::unordered_set<DS_ID> &deps) const;
 
-  void save_register(EP *ep, addr_t obj, Register *reg,
-                     const std::unordered_set<DS_ID> &deps);
-  bool check_register_placement(const EP *ep, const Register *reg,
-                                const std::unordered_set<DS_ID> &deps) const;
+  bool check_placement(const EP *ep, const DS *ds,
+                       const std::unordered_set<DS_ID> &deps) const;
+  bool check_many_placements(const EP *ep,
+                             const std::vector<std::vector<DS *>> &ds,
+                             const std::unordered_set<DS_ID> &deps) const;
 };
 
 } // namespace tofino

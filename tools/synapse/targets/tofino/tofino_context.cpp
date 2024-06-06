@@ -173,44 +173,57 @@ std::unordered_set<DS_ID> TofinoContext::get_stateful_deps(const EP *ep) const {
   return deps;
 }
 
-void TofinoContext::save_table(EP *ep, addr_t obj, Table *table,
-                               const std::unordered_set<DS_ID> &deps) {
-  save_ds(obj, table);
-  tna.place_table(table, deps);
+void TofinoContext::place(EP *ep, addr_t obj, DS *ds,
+                          const std::unordered_set<DS_ID> &deps) {
+  save_ds(obj, ds);
+  tna.place(ds, deps);
   tna.log_debug_placement();
 }
 
-bool TofinoContext::check_table_placement(
-    const EP *ep, const Table *table,
-    const std::unordered_set<DS_ID> &deps) const {
-  PlacementStatus status = tna.can_place_table(table, deps);
+void TofinoContext::place_many(EP *ep, addr_t obj,
+                               const std::vector<std::vector<DS *>> &ds,
+                               const std::unordered_set<DS_ID> &_deps) {
+  std::unordered_set<DS_ID> deps = _deps;
+
+  for (const auto &ds_list : ds) {
+    for (const auto &ds : ds_list) {
+      save_ds(obj, ds);
+    }
+  }
+
+  tna.place_many(ds, deps);
+  tna.log_debug_placement();
+}
+
+bool TofinoContext::check_placement(
+    const EP *ep, const DS *ds, const std::unordered_set<DS_ID> &deps) const {
+  PlacementStatus status = tna.can_place(ds, deps);
 
   if (status != PlacementStatus::SUCCESS) {
     TargetType target = ep->get_current_platform();
-    Log::dbg() << "[" << target << "] Cannot place table (" << status << ")\n";
-    table->log_debug();
+    Log::dbg() << "[" << target << "] Cannot place obj (" << status << ")\n";
+    ds->log_debug();
   }
 
   return status == PlacementStatus::SUCCESS;
 }
 
-void TofinoContext::save_register(EP *ep, addr_t obj, Register *reg,
-                                  const std::unordered_set<DS_ID> &deps) {
-  save_ds(obj, reg);
-  tna.place_register(reg, deps);
-  tna.log_debug_placement();
-}
-
-bool TofinoContext::check_register_placement(
-    const EP *ep, const Register *reg,
+bool TofinoContext::check_many_placements(
+    const EP *ep, const std::vector<std::vector<DS *>> &ds,
     const std::unordered_set<DS_ID> &deps) const {
-  PlacementStatus status = tna.can_place_register(reg, deps);
+  PlacementStatus status = tna.can_place_many(ds, deps);
 
   if (status != PlacementStatus::SUCCESS) {
     TargetType target = ep->get_current_platform();
-    Log::dbg() << "[" << target << "] Cannot place register (" << status
-               << ")\n";
-    reg->log_debug();
+    Log::dbg() << "[" << target << "] Cannot place objs (" << status << ")\n";
+
+    for (const auto &ds_list : ds) {
+      Log::dbg() << "~~~~~~~ Independent DS List: ~~~~~~~\n";
+      for (const auto &ds : ds_list) {
+        ds->log_debug();
+      }
+      Log::dbg() << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
+    }
   }
 
   return status == PlacementStatus::SUCCESS;

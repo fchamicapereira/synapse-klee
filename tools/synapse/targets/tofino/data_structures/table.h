@@ -23,11 +23,10 @@ struct Table : public DS {
   Table(const Table &other);
 
   DS *clone() const override;
+  void log_debug() const override;
 
   bits_t get_match_xbar_consume() const;
   bits_t get_consumed_sram() const;
-
-  void log_debug() const;
 
   static std::vector<klee::ref<klee::Expr>>
   build_keys(klee::ref<klee::Expr> key);
