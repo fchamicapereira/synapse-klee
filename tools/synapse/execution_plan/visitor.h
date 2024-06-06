@@ -27,6 +27,7 @@ class ParserExtraction;
 class ModifyHeader;
 class SimpleTableLookup;
 class VectorRegisterLookup;
+class VectorRegisterUpdate;
 } // namespace tofino
 
 namespace tofino_cpu {
@@ -118,6 +119,7 @@ public:
   VISIT_TODO(tofino::ModifyHeader)
   VISIT_TODO(tofino::SimpleTableLookup)
   VISIT_TODO(tofino::VectorRegisterLookup)
+  VISIT_TODO(tofino::VectorRegisterUpdate)
 
   /*************************************
    *

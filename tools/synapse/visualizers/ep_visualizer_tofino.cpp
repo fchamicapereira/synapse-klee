@@ -118,6 +118,40 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
 }
 
 void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
+                         const tofino::VectorRegisterUpdate *node) {
+  std::stringstream label_builder;
+
+  const bdd::Node *bdd_node = node->get_node();
+  TargetType target = node->get_target();
+  const std::unordered_set<DS_ID> &rids = node->get_rids();
+  addr_t obj = node->get_obj();
+
+  label_builder << "Register update\n";
+  label_builder << "(rids=[";
+
+  int i = 0;
+  for (const auto &rid : rids) {
+    label_builder << rid;
+    i++;
+    if (i < (int)rids.size()) {
+      label_builder << ",";
+      if (i % 3 == 0) {
+        label_builder << "\\n";
+      }
+    }
+  }
+
+  label_builder << "], obj=";
+  label_builder << obj;
+  label_builder << ")";
+
+  std::string label = label_builder.str();
+  function_call(ep_node, bdd_node, target, label);
+
+  find_and_replace(label, {{"\n", "\\n"}});
+}
+
+void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
                          const tofino::ParserExtraction *node) {
   std::stringstream label_builder;
 

@@ -11,14 +11,21 @@ namespace tofino {
 
 struct TNAConstraints;
 
+enum class RegisterAction {
+  READ,  // No modification
+  WRITE, // Overwrites the current value
+  SWAP,  // Returns the old value
+};
+
 struct Register : public DS {
   int num_entries;
-  int num_actions;
   bits_t index_size;
   klee::ref<klee::Expr> value;
+  std::unordered_set<RegisterAction> actions;
 
   Register(const TNAConstraints &constraints, DS_ID id, int num_entries,
-           int num_actions, int index_size, klee::ref<klee::Expr> value);
+           int index_size, klee::ref<klee::Expr> value,
+           const std::unordered_set<RegisterAction> &actions);
 
   Register(const Register &other);
 
@@ -26,6 +33,7 @@ struct Register : public DS {
   void log_debug() const override;
 
   bits_t get_consumed_sram() const;
+  int get_num_logical_ids() const;
 
   static std::vector<klee::ref<klee::Expr>>
   build_keys(klee::ref<klee::Expr> key);

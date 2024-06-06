@@ -190,6 +190,7 @@ SimplePlacer::find_placements(const Register *reg,
   bits_t requested_sram = reg->get_consumed_sram();
   bits_t requested_map_ram = requested_sram;
   bits_t requested_xbar = reg->index_size;
+  int requested_logical_ids = reg->get_num_logical_ids();
 
   int total_stages = stages.size();
   for (int stage_id = soonest_stage_id; stage_id < total_stages; stage_id++) {
@@ -209,7 +210,7 @@ SimplePlacer::find_placements(const Register *reg,
       continue;
     }
 
-    if (stage->available_logical_ids < reg->num_actions) {
+    if (stage->available_logical_ids < requested_logical_ids) {
       continue;
     }
 
@@ -218,7 +219,7 @@ SimplePlacer::find_placements(const Register *reg,
         .sram = requested_sram,
         .map_ram = requested_map_ram,
         .xbar = requested_xbar,
-        .logical_ids = reg->num_actions,
+        .logical_ids = requested_logical_ids,
         .obj = reg->id,
     };
 

@@ -30,6 +30,7 @@ enum class ModuleType {
   Tofino_ModifyHeader,
   Tofino_SimpleTableLookup,
   Tofino_VectorRegisterLookup,
+  Tofino_VectorRegisterUpdate,
   TofinoCPU_Ignore,
   TofinoCPU_ParseHeader,
   TofinoCPU_ModifyHeader,

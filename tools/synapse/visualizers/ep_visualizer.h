@@ -41,6 +41,7 @@ public:
   DECLARE_VISIT(tofino::ModifyHeader)
   DECLARE_VISIT(tofino::SimpleTableLookup)
   DECLARE_VISIT(tofino::VectorRegisterLookup)
+  DECLARE_VISIT(tofino::VectorRegisterUpdate)
 
   /********************************************
    *
