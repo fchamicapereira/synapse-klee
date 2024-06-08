@@ -95,8 +95,11 @@ private:
       return false;
     }
 
+    // These are the data structures that can perform rejuvenations.
     if (!ctx.check_placement(coalescing_data->map,
-                             PlacementDecision::TofinoSimpleTable)) {
+                             PlacementDecision::Tofino_SimpleTable) &&
+        !ctx.check_placement(coalescing_data->map,
+                             PlacementDecision::Tofino_CachedTable)) {
       return false;
     }
 

@@ -42,6 +42,10 @@ public:
   DECLARE_VISIT(tofino::SimpleTableLookup)
   DECLARE_VISIT(tofino::VectorRegisterLookup)
   DECLARE_VISIT(tofino::VectorRegisterUpdate)
+  DECLARE_VISIT(tofino::CachedTableRead)
+  DECLARE_VISIT(tofino::CachedTableConditionalWrite)
+  DECLARE_VISIT(tofino::CachedTableWrite)
+  DECLARE_VISIT(tofino::CachedTableDelete)
 
   /********************************************
    *
@@ -80,6 +84,9 @@ public:
   DECLARE_VISIT(tofino_cpu::SketchTouchBuckets)
   DECLARE_VISIT(tofino_cpu::VectorRegisterLookup)
   DECLARE_VISIT(tofino_cpu::VectorRegisterUpdate)
+  DECLARE_VISIT(tofino_cpu::CachedTableRead)
+  DECLARE_VISIT(tofino_cpu::CachedTableWrite)
+  DECLARE_VISIT(tofino_cpu::CachedTableDelete)
 
   /********************************************
    *

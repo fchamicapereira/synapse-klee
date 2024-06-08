@@ -11,14 +11,11 @@ namespace tofino {
 
 struct Table : public DS {
   int num_entries;
-  std::vector<klee::ref<klee::Expr>> keys;
-  std::vector<klee::ref<klee::Expr>> params;
-  std::optional<symbol_t> hit;
+  std::vector<bits_t> keys;
+  std::vector<bits_t> params;
 
-  Table(DS_ID id, int num_entries,
-        const std::vector<klee::ref<klee::Expr>> &keys,
-        const std::vector<klee::ref<klee::Expr>> &params,
-        const std::optional<symbol_t> &hit);
+  Table(DS_ID id, int num_entries, const std::vector<bits_t> &keys,
+        const std::vector<bits_t> &params);
 
   Table(const Table &other);
 

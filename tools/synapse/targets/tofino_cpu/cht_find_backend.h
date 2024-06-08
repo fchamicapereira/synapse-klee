@@ -68,7 +68,7 @@ protected:
       return new_eps;
     }
 
-    if (!can_place(ep, call_node, "cht", PlacementDecision::TofinoCPUCht)) {
+    if (!can_place(ep, call_node, "cht", PlacementDecision::TofinoCPU_Cht)) {
       return new_eps;
     }
 
@@ -98,7 +98,7 @@ protected:
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
 
-    place(new_ep, cht_addr, PlacementDecision::TofinoCPUCht);
+    place(new_ep, cht_addr, PlacementDecision::TofinoCPU_Cht);
 
     return new_eps;
   }

@@ -612,15 +612,28 @@ klee::ref<klee::Expr> get_expr_from_addr(const EP *ep, addr_t addr) {
   -> vector_return(vector_n, index, value_n)
 */
 
+struct obj_op_t {
+  addr_t obj;
+  const bdd::Call *call_node;
+
+  bool operator==(const obj_op_t &other) const { return obj == other.obj; }
+};
+
+struct obj_op_hash_t {
+  size_t operator()(const obj_op_t &obj_op) const { return obj_op.obj; }
+};
+
+typedef std::unordered_set<obj_op_t, obj_op_hash_t> objs_ops_t;
+
 struct next_t {
-  objs_t maps;
-  objs_t vectors;
-  objs_t dchains;
+  objs_ops_t maps;
+  objs_ops_t vectors;
+  objs_ops_t dchains;
 
   int size() const { return maps.size() + vectors.size(); }
 
   void intersect(const next_t &other) {
-    auto intersector = [](objs_t &a, const objs_t &b) {
+    auto intersector = [](objs_ops_t &a, const objs_ops_t &b) {
       for (auto it = a.begin(); it != a.end();) {
         if (b.find(*it) == b.end()) {
           it = a.erase(it);
@@ -635,16 +648,17 @@ struct next_t {
     intersector(dchains, other.dchains);
   }
 
-  bool has_obj(addr_t obj) const {
-    if (maps.find(obj) != maps.end()) {
+  bool has_obj(const addr_t &obj) const {
+    obj_op_t mock{obj, nullptr};
+    if (maps.find(mock) != maps.end()) {
       return true;
     }
 
-    if (vectors.find(obj) != vectors.end()) {
+    if (vectors.find(mock) != vectors.end()) {
       return true;
     }
 
-    if (dchains.find(obj) != dchains.end()) {
+    if (dchains.find(mock) != dchains.end()) {
       return true;
     }
 
@@ -673,7 +687,7 @@ static next_t get_next_maps_and_vectors(const bdd::Node *root,
           kutil::solver_toolbox.are_exprs_always_equal(index, value);
 
       if (same_index) {
-        candidates.maps.insert(map_addr);
+        candidates.maps.insert({map_addr, call_node});
       }
     }
 
@@ -686,7 +700,7 @@ static next_t get_next_maps_and_vectors(const bdd::Node *root,
           kutil::solver_toolbox.are_exprs_always_equal(index, value);
 
       if (same_index) {
-        candidates.vectors.insert(vector_addr);
+        candidates.vectors.insert({vector_addr, call_node});
       }
     }
 
@@ -717,7 +731,7 @@ get_allowed_coalescing_objs(std::vector<const bdd::Node *> index_allocators,
 
     next_t new_candidates =
         get_next_maps_and_vectors(allocator, allocated_index);
-    new_candidates.dchains.insert(dchain_addr);
+    new_candidates.dchains.insert({dchain_addr, allocator_node});
 
     if (!new_candidates.has_obj(obj)) {
       continue;
@@ -736,6 +750,54 @@ get_allowed_coalescing_objs(std::vector<const bdd::Node *> index_allocators,
   }
 
   return candidates;
+}
+
+static void differentiate_vectors(const next_t &candidates, addr_t &vector_key,
+                                  objs_t &vectors_values) {
+  addr_t key_addr = 0;
+  vector_key = 0;
+
+  for (const obj_op_t &map_op : candidates.maps) {
+    const bdd::Call *map_op_call = map_op.call_node;
+    const call_t &call = map_op_call->get_call();
+
+    if (call.function_name != "map_put") {
+      continue;
+    }
+
+    klee::ref<klee::Expr> key = call.args.at("key").expr;
+    key_addr = kutil::expr_addr_to_obj_addr(key);
+  }
+
+  assert(key_addr != 0);
+
+  for (const obj_op_t &vector_op : candidates.vectors) {
+    const bdd::Call *vector_borrow = vector_op.call_node;
+    const call_t &call = vector_borrow->get_call();
+
+    klee::ref<klee::Expr> vector_addr_expr = call.args.at("vector").expr;
+    klee::ref<klee::Expr> value;
+
+    if (call.function_name == "vector_borrow") {
+      value = call.args.at("val_out").out;
+    } else {
+      assert(call.function_name == "vector_return");
+      value = call.args.at("value").expr;
+    }
+
+    addr_t vector_addr = kutil::expr_addr_to_obj_addr(vector_addr_expr);
+    addr_t value_addr = kutil::expr_addr_to_obj_addr(value);
+
+    if (value_addr == key_addr) {
+      assert(vector_key == 0);
+      vector_key = vector_addr;
+    } else {
+      vectors_values.insert(vector_addr);
+    }
+  }
+
+  assert(vector_key != 0);
+  assert(candidates.vectors.size() == vectors_values.size() + 1);
 }
 
 std::optional<map_coalescing_data_t>
@@ -759,9 +821,9 @@ get_map_coalescing_data(const bdd::BDD *bdd, addr_t obj) {
   assert(candidates.dchains.size() == 1);
 
   map_coalescing_data_t data;
-  data.map = *candidates.maps.begin();
-  data.dchain = *candidates.dchains.begin();
-  data.vectors = candidates.vectors;
+  data.map = candidates.maps.begin()->obj;
+  data.dchain = candidates.dchains.begin()->obj;
+  differentiate_vectors(candidates, data.vector_key, data.vectors_values);
 
   return data;
 }
@@ -886,6 +948,407 @@ bool is_vector_read(const bdd::Call *vector_borrow) {
   assert(kutil::solver_toolbox.are_exprs_always_equal(vb_index, vr_index));
 
   return kutil::solver_toolbox.are_exprs_always_equal(vb_value, vr_value);
+}
+
+bool is_map_get_followed_by_map_puts_on_miss(
+    const bdd::BDD *bdd, const bdd::Call *map_get,
+    std::vector<const bdd::Call *> &map_puts) {
+  const call_t &mg_call = map_get->get_call();
+
+  if (mg_call.function_name != "map_get") {
+    return false;
+  }
+
+  klee::ref<klee::Expr> obj_expr = mg_call.args.at("map").expr;
+  klee::ref<klee::Expr> key = mg_call.args.at("key").in;
+
+  addr_t obj = kutil::expr_addr_to_obj_addr(obj_expr);
+
+  symbols_t symbols = map_get->get_locally_generated_symbols();
+  symbol_t map_has_this_key;
+  bool found = get_symbol(symbols, "map_has_this_key", map_has_this_key);
+  assert(found && "Symbol map_has_this_key not found");
+
+  klee::ref<klee::Expr> failed_map_get = kutil::solver_toolbox.exprBuilder->Eq(
+      map_has_this_key.expr, kutil::solver_toolbox.exprBuilder->Constant(
+                                 0, map_has_this_key.expr->getWidth()));
+
+  std::vector<const bdd::Node *> future_map_puts =
+      get_all_functions_after_node(map_get, {"map_put"});
+
+  bool map_put_found = false;
+  klee::ref<klee::Expr> value;
+
+  for (const bdd::Node *node : future_map_puts) {
+    const bdd::Call *map_put = static_cast<const bdd::Call *>(node);
+    const call_t &mp_call = map_put->get_call();
+    assert(mp_call.function_name == "map_put");
+
+    klee::ref<klee::Expr> map_expr = mp_call.args.at("map").expr;
+    klee::ref<klee::Expr> mp_key = mp_call.args.at("key").in;
+    klee::ref<klee::Expr> mp_value = mp_call.args.at("value").expr;
+
+    addr_t map = kutil::expr_addr_to_obj_addr(map_expr);
+
+    if (map != obj) {
+      continue;
+    }
+
+    if (!kutil::solver_toolbox.are_exprs_always_equal(key, mp_key)) {
+      return false;
+    }
+
+    if (value.isNull()) {
+      value = mp_value;
+    } else if (!kutil::solver_toolbox.are_exprs_always_equal(value, mp_value)) {
+      return false;
+    }
+
+    map_put_found = true;
+
+    klee::ConstraintManager constraints = map_put->get_constraints();
+    if (!kutil::solver_toolbox.is_expr_always_true(constraints,
+                                                   failed_map_get)) {
+      // Found map_put that happens even if map_get was successful.
+      return false;
+    }
+
+    map_puts.push_back(map_put);
+  }
+
+  if (!map_put_found) {
+    return false;
+  }
+
+  return true;
+}
+
+void add_non_branch_nodes_to_bdd(
+    const EP *ep, bdd::BDD *bdd, const bdd::Node *current,
+    const std::vector<const bdd::Node *> &new_nodes, bdd::Node *&new_current) {
+  if (new_nodes.empty()) {
+    return;
+  }
+
+  bdd::node_id_t &id = bdd->get_mutable_id();
+  bdd::NodeManager &manager = bdd->get_mutable_manager();
+
+  const bdd::Node *prev = current->get_prev();
+  assert(prev);
+
+  bdd::node_id_t anchor_id = prev->get_id();
+  bdd::Node *anchor = bdd->get_mutable_node_by_id(anchor_id);
+  bdd::Node *anchor_next = bdd->get_mutable_node_by_id(current->get_id());
+
+  bool set_new_current = false;
+
+  for (const bdd::Node *new_node : new_nodes) {
+    assert(new_node->get_type() != bdd::NodeType::BRANCH);
+
+    bdd::Node *clone = new_node->clone(manager, false);
+    clone->recursive_update_ids(id);
+
+    if (!set_new_current) {
+      new_current = clone;
+      set_new_current = true;
+    }
+
+    switch (anchor->get_type()) {
+    case bdd::NodeType::CALL:
+    case bdd::NodeType::ROUTE: {
+      anchor->set_next(clone);
+    } break;
+    case bdd::NodeType::BRANCH: {
+      bdd::Branch *branch = static_cast<bdd::Branch *>(anchor);
+
+      const bdd::Node *on_true = branch->get_on_true();
+      const bdd::Node *on_false = branch->get_on_false();
+
+      assert(on_true == anchor_next || on_false == anchor_next);
+
+      if (on_true == anchor_next) {
+        branch->set_on_true(clone);
+      } else {
+        branch->set_on_false(clone);
+      }
+
+    } break;
+    }
+
+    clone->set_prev(anchor);
+    clone->set_next(anchor_next);
+    anchor = clone;
+  }
+}
+
+static bdd::Branch *create_new_branch(bdd::BDD *bdd, const bdd::Node *current,
+                                      klee::ref<klee::Expr> condition) {
+  bdd::node_id_t &id = bdd->get_mutable_id();
+  bdd::NodeManager &manager = bdd->get_mutable_manager();
+  klee::ConstraintManager constraints = current->get_constraints();
+  bdd::Branch *new_branch = new bdd::Branch(id++, constraints, condition);
+  manager.add_node(new_branch);
+  return new_branch;
+}
+
+static klee::ref<klee::Expr>
+constraint_from_condition(klee::ref<klee::Expr> condition) {
+  klee::ref<klee::Expr> constraint;
+
+  switch (condition->getKind()) {
+  // Comparisons
+  case klee::Expr::Eq:
+  case klee::Expr::Ne:
+  case klee::Expr::Ult:
+  case klee::Expr::Ule:
+  case klee::Expr::Ugt:
+  case klee::Expr::Uge:
+  case klee::Expr::Slt:
+  case klee::Expr::Sle:
+  case klee::Expr::Sgt:
+  case klee::Expr::Sge:
+    constraint = condition;
+    break;
+  // Constant
+  case klee::Expr::Constant:
+  // Reads
+  case klee::Expr::Read:
+  case klee::Expr::Select:
+  case klee::Expr::Concat:
+  case klee::Expr::Extract:
+  // Bit
+  case klee::Expr::Not:
+  case klee::Expr::And:
+  case klee::Expr::Or:
+  case klee::Expr::Xor:
+  case klee::Expr::Shl:
+  case klee::Expr::LShr:
+  case klee::Expr::AShr:
+  // Casting
+  case klee::Expr::ZExt:
+  case klee::Expr::SExt:
+  // Arithmetic
+  case klee::Expr::Add:
+  case klee::Expr::Sub:
+  case klee::Expr::Mul:
+  case klee::Expr::UDiv:
+  case klee::Expr::SDiv:
+  case klee::Expr::URem:
+  case klee::Expr::SRem:
+    constraint = kutil::solver_toolbox.exprBuilder->Ne(
+        condition,
+        kutil::solver_toolbox.exprBuilder->Constant(0, condition->getWidth()));
+    break;
+  default:
+    assert(false && "TODO");
+  }
+
+  return constraint;
+}
+
+void add_branch_to_bdd(const EP *ep, bdd::BDD *bdd, const bdd::Node *current,
+                       klee::ref<klee::Expr> condition,
+                       bdd::Branch *&new_branch) {
+  bdd::node_id_t &id = bdd->get_mutable_id();
+  bdd::NodeManager &manager = bdd->get_mutable_manager();
+
+  const bdd::Node *prev = current->get_prev();
+  assert(prev);
+
+  bdd::node_id_t anchor_id = prev->get_id();
+  bdd::Node *anchor = bdd->get_mutable_node_by_id(anchor_id);
+  bdd::Node *anchor_next = bdd->get_mutable_node_by_id(current->get_id());
+
+  klee::ref<klee::Expr> constraint = constraint_from_condition(condition);
+
+  bdd::Node *on_true_cond = anchor_next;
+  bdd::Node *on_false_cond = anchor_next->clone(manager, true);
+  on_false_cond->recursive_update_ids(id);
+
+  on_true_cond->recursive_add_constraint(constraint);
+  on_false_cond->recursive_add_constraint(
+      kutil::solver_toolbox.exprBuilder->Not(constraint));
+
+  new_branch = create_new_branch(bdd, current, condition);
+
+  new_branch->set_on_true(on_true_cond);
+  new_branch->set_on_false(on_false_cond);
+
+  on_true_cond->set_prev(new_branch);
+  on_false_cond->set_prev(new_branch);
+
+  switch (anchor->get_type()) {
+  case bdd::NodeType::CALL:
+  case bdd::NodeType::ROUTE: {
+    anchor->set_next(new_branch);
+  } break;
+  case bdd::NodeType::BRANCH: {
+    bdd::Branch *branch = static_cast<bdd::Branch *>(anchor);
+
+    const bdd::Node *on_true = branch->get_on_true();
+    const bdd::Node *on_false = branch->get_on_false();
+
+    assert(on_true == anchor_next || on_false == anchor_next);
+
+    if (on_true == anchor_next) {
+      branch->set_on_true(new_branch);
+    } else {
+      branch->set_on_false(new_branch);
+    }
+
+  } break;
+  }
+
+  new_branch->set_prev(anchor);
+}
+
+void delete_non_branch_node_from_bdd(const EP *ep, bdd::BDD *bdd,
+                                     const bdd::Node *target,
+                                     bdd::Node *&new_current) {
+  assert(target->get_type() != bdd::NodeType::BRANCH);
+
+  bdd::NodeManager &manager = bdd->get_mutable_manager();
+
+  const bdd::Node *prev = target->get_prev();
+  assert(prev);
+
+  bdd::node_id_t anchor_id = prev->get_id();
+  bdd::Node *anchor = bdd->get_mutable_node_by_id(anchor_id);
+  bdd::Node *anchor_next = bdd->get_mutable_node_by_id(target->get_id());
+  new_current = anchor_next->get_mutable_next();
+
+  switch (anchor->get_type()) {
+  case bdd::NodeType::CALL:
+  case bdd::NodeType::ROUTE: {
+    anchor->set_next(new_current);
+  } break;
+  case bdd::NodeType::BRANCH: {
+    bdd::Branch *branch = static_cast<bdd::Branch *>(anchor);
+
+    const bdd::Node *on_true = branch->get_on_true();
+    const bdd::Node *on_false = branch->get_on_false();
+
+    assert(on_true == anchor_next || on_false == anchor_next);
+
+    if (on_true == anchor_next) {
+      branch->set_on_true(new_current);
+    } else {
+      branch->set_on_false(new_current);
+    }
+
+  } break;
+  }
+
+  new_current->set_prev(anchor);
+  manager.free_node(anchor_next);
+}
+
+void delete_branch_node_from_bdd(const EP *ep, bdd::BDD *bdd,
+                                 const bdd::Branch *target,
+                                 bool direction_to_keep,
+                                 bdd::Node *&new_current) {
+  bdd::NodeManager &manager = bdd->get_mutable_manager();
+
+  const bdd::Node *prev = target->get_prev();
+  assert(prev);
+
+  bdd::node_id_t anchor_id = prev->get_id();
+  bdd::Node *anchor = bdd->get_mutable_node_by_id(anchor_id);
+  bdd::Branch *anchor_next =
+      static_cast<bdd::Branch *>(bdd->get_mutable_node_by_id(target->get_id()));
+
+  bdd::Node *target_on_true = anchor_next->get_mutable_on_true();
+  bdd::Node *target_on_false = anchor_next->get_mutable_on_false();
+
+  if (direction_to_keep) {
+    new_current = target_on_true;
+    target_on_false->recursive_free_children(manager);
+    manager.free_node(target_on_false);
+  } else {
+    new_current = target_on_false;
+    target_on_true->recursive_free_children(manager);
+    manager.free_node(target_on_true);
+  }
+
+  switch (anchor->get_type()) {
+  case bdd::NodeType::CALL:
+  case bdd::NodeType::ROUTE: {
+    anchor->set_next(new_current);
+  } break;
+  case bdd::NodeType::BRANCH: {
+    bdd::Branch *branch = static_cast<bdd::Branch *>(anchor);
+
+    const bdd::Node *on_true = branch->get_on_true();
+    const bdd::Node *on_false = branch->get_on_false();
+
+    assert(on_true == anchor_next || on_false == anchor_next);
+
+    if (on_true == anchor_next) {
+      branch->set_on_true(new_current);
+    } else {
+      branch->set_on_false(new_current);
+    }
+
+  } break;
+  }
+
+  new_current->set_prev(anchor);
+  manager.free_node(anchor_next);
+}
+
+static std::unordered_set<std::string>
+get_allowed_symbols_for_index_alloc_checking(
+    const symbol_t &out_of_space,
+    const std::optional<expiration_data_t> &expiration_data) {
+  std::unordered_set<std::string> allowed_symbols;
+
+  allowed_symbols.insert(out_of_space.array->name);
+
+  if (expiration_data.has_value()) {
+    allowed_symbols.insert(expiration_data->number_of_freed_flows.array->name);
+  }
+
+  return allowed_symbols;
+}
+
+const bdd::Branch *
+find_branch_checking_index_alloc(const EP *ep, const bdd::Node *node,
+                                 const symbol_t &out_of_space) {
+  const Context &ctx = ep->get_ctx();
+  const std::optional<expiration_data_t> expiration_data =
+      ctx.get_expiration_data();
+
+  std::unordered_set<std::string> target_symbols =
+      get_allowed_symbols_for_index_alloc_checking(out_of_space,
+                                                   expiration_data);
+
+  const bdd::Branch *target_branch = nullptr;
+
+  node->visit_nodes([&target_symbols, &target_branch](const bdd::Node *node) {
+    if (node->get_type() != bdd::NodeType::BRANCH) {
+      return bdd::NodeVisitAction::VISIT_CHILDREN;
+    }
+
+    const bdd::Branch *branch = static_cast<const bdd::Branch *>(node);
+    klee::ref<klee::Expr> condition = branch->get_condition();
+
+    kutil::SymbolRetriever retriever;
+    retriever.visit(condition);
+
+    const std::unordered_set<std::string> &used_symbols =
+        retriever.get_retrieved_strings();
+
+    for (const std::string &symbol : used_symbols) {
+      if (target_symbols.find(symbol) == target_symbols.end()) {
+        return bdd::NodeVisitAction::VISIT_CHILDREN;
+      }
+    }
+
+    target_branch = branch;
+    return bdd::NodeVisitAction::STOP;
+  });
+
+  return target_branch;
 }
 
 } // namespace synapse

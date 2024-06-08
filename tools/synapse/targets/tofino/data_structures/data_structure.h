@@ -13,6 +13,7 @@ typedef std::string DS_ID;
 enum class DSType {
   TABLE,
   REGISTER,
+  CACHED_TABLE,
 };
 
 struct DS {

@@ -51,7 +51,7 @@ protected:
       return new_eps;
     }
 
-    if (!can_place(ep, call_node, "sketch", PlacementDecision::x86Sketch)) {
+    if (!can_place(ep, call_node, "sketch", PlacementDecision::x86_Sketch)) {
       return new_eps;
     }
 
@@ -69,7 +69,7 @@ protected:
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
 
-    place(new_ep, sketch_addr, PlacementDecision::x86Sketch);
+    place(new_ep, sketch_addr, PlacementDecision::x86_Sketch);
 
     return new_eps;
   }

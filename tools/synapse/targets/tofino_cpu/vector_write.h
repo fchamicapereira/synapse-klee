@@ -65,7 +65,7 @@ protected:
     // We don't need to place the vector, we will never get a vector_return
     // before a vector_borrow.
     if (!check_placement(ep, call_node, "vector",
-                         PlacementDecision::TofinoCPUVector)) {
+                         PlacementDecision::TofinoCPU_Vector)) {
       return new_eps;
     }
 

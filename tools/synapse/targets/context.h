@@ -15,33 +15,26 @@ class Target;
 enum class TargetType;
 
 enum class PlacementDecision {
-  TofinoSimpleTable,
-  TofinoRegister,
-  TofinoCPUMap,
-  TofinoCPUVector,
-  TofinoCPUDchain,
-  TofinoCPUCht,
-  TofinoCPUSketch,
-  x86Map,
-  x86Vector,
-  x86Dchain,
-  x86Cht,
-  x86Sketch,
+  Tofino_SimpleTable,
+  Tofino_VectorRegister,
+  Tofino_CachedTable,
+  TofinoCPU_Map,
+  TofinoCPU_Vector,
+  TofinoCPU_Dchain,
+  TofinoCPU_Cht,
+  TofinoCPU_Sketch,
+  x86_Map,
+  x86_Vector,
+  x86_Dchain,
+  x86_Cht,
+  x86_Sketch,
 };
 
 std::ostream &operator<<(std::ostream &os, PlacementDecision decision);
 
 struct expiration_data_t {
-  bool valid;
   time_ns_t expiration_time;
   symbol_t number_of_freed_flows;
-
-  expiration_data_t() : valid(false) {}
-
-  expiration_data_t(time_ns_t _expiration_time,
-                    const symbol_t &_number_of_freed_flows)
-      : valid(true), expiration_time(_expiration_time),
-        number_of_freed_flows(_number_of_freed_flows) {}
 };
 
 class TargetContext {
@@ -59,7 +52,7 @@ private:
   std::unordered_map<addr_t, bdd::sketch_config_t> sketch_configs;
   std::unordered_map<addr_t, bdd::cht_config_t> cht_configs;
   std::vector<map_coalescing_data_t> coalescing_candidates;
-  expiration_data_t expiration_data;
+  std::optional<expiration_data_t> expiration_data;
 
   std::vector<bdd::reorder_op_t> reorder_ops;
   std::unordered_map<addr_t, PlacementDecision> placement_decisions;
@@ -81,7 +74,7 @@ public:
   const bdd::cht_config_t &get_cht_config(addr_t addr) const;
 
   std::optional<map_coalescing_data_t> get_coalescing_data(addr_t obj) const;
-  const expiration_data_t &get_expiration_data() const;
+  const std::optional<expiration_data_t> &get_expiration_data() const;
 
   const std::unordered_map<addr_t, PlacementDecision> &get_placements() const;
 

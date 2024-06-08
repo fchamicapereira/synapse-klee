@@ -189,7 +189,7 @@ SimplePlacer::find_placements(const Register *reg,
 
   bits_t requested_sram = reg->get_consumed_sram();
   bits_t requested_map_ram = requested_sram;
-  bits_t requested_xbar = reg->index_size;
+  bits_t requested_xbar = reg->index;
   int requested_logical_ids = reg->get_num_logical_ids();
 
   int total_stages = stages.size();
@@ -249,6 +249,7 @@ void SimplePlacer::place(const Table *table,
     concretize_placement(stage, placement);
   }
 
+  Log::dbg() << "-> ~~~ New placement ~~~ <-\n";
   table->log_debug();
   log_debug();
 }
@@ -266,7 +267,36 @@ void SimplePlacer::place(const Register *reg,
     concretize_placement(stage, placement);
   }
 
+  Log::dbg() << "-> ~~~ New placement ~~~ <-\n";
   reg->log_debug();
+  log_debug();
+}
+
+void SimplePlacer::place(const CachedTable *cached_table,
+                         const std::unordered_set<DS_ID> &_deps) {
+  std::vector<placement_t> placements;
+
+  std::unordered_set<DS_ID> deps = _deps;
+  std::vector<std::unordered_set<const DS *>> ds_to_place =
+      cached_table->get_internal_ds();
+
+  for (const std::unordered_set<const DS *> &indep_ds : ds_to_place) {
+    std::unordered_set<DS_ID> new_deps;
+
+    for (const DS *ds : indep_ds) {
+      place(ds, deps);
+      new_deps.insert(ds->id);
+    }
+
+    deps.insert(new_deps.begin(), new_deps.end());
+  }
+
+  Log::dbg() << "\n";
+  Log::dbg() << "-> ~~~~~~~~~~~~~~~~~~~~~~~~~~~ <-\n";
+  Log::dbg() << "-> ~~~~~~ NEW PLACEMENT ~~~~~~ <-\n";
+  Log::dbg() << "-> ~~~~~~~~~~~~~~~~~~~~~~~~~~~ <-\n";
+
+  cached_table->log_debug();
   log_debug();
 }
 
@@ -278,10 +308,10 @@ void SimplePlacer::place(const DS *ds, const std::unordered_set<DS_ID> &deps) {
   case DSType::REGISTER:
     place(static_cast<const Register *>(ds), deps);
     break;
+  case DSType::CACHED_TABLE:
+    place(static_cast<const CachedTable *>(ds), deps);
+    break;
   }
-
-  // std::cerr << "PLACEMENT!\n";
-  // DEBUG_PAUSE
 }
 
 PlacementStatus
@@ -299,6 +329,35 @@ SimplePlacer::can_place(const Register *reg,
 }
 
 PlacementStatus
+SimplePlacer::can_place(const CachedTable *cached_table,
+                        const std::unordered_set<DS_ID> &_deps) const {
+  SimplePlacer snapshot(*this);
+
+  std::unordered_set<DS_ID> deps = _deps;
+  std::vector<std::unordered_set<const DS *>> candidates =
+      cached_table->get_internal_ds();
+
+  for (const std::unordered_set<const DS *> &indep_ds : candidates) {
+    std::unordered_set<DS_ID> new_deps;
+
+    for (const DS *ds : indep_ds) {
+      PlacementStatus status = snapshot.can_place(ds, deps);
+
+      if (status != PlacementStatus::SUCCESS) {
+        return status;
+      }
+
+      snapshot.place(ds, deps);
+      new_deps.insert(ds->id);
+    }
+
+    deps.insert(new_deps.begin(), new_deps.end());
+  }
+
+  return PlacementStatus::SUCCESS;
+}
+
+PlacementStatus
 SimplePlacer::can_place(const DS *ds,
                         const std::unordered_set<DS_ID> &deps) const {
   PlacementStatus status = PlacementStatus::UNKNOWN;
@@ -309,6 +368,9 @@ SimplePlacer::can_place(const DS *ds,
     break;
   case DSType::REGISTER:
     status = can_place(static_cast<const Register *>(ds), deps);
+    break;
+  case DSType::CACHED_TABLE:
+    status = can_place(static_cast<const CachedTable *>(ds), deps);
     break;
   }
 

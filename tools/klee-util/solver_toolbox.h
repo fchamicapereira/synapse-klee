@@ -29,6 +29,9 @@ struct solver_toolbox_t {
   klee::ref<klee::Expr> create_new_symbol(const klee::Array *array) const;
   klee::ref<klee::Expr> create_new_symbol(const std::string &symbol_name,
                                           klee::Expr::Width width) const;
+  klee::ref<klee::Expr> create_new_symbol(const std::string &symbol_name,
+                                          klee::Expr::Width width,
+                                          const klee::Array *&array) const;
 
   klee::ConstraintManager
   merge_symbols(const klee::ConstraintManager &constraints,

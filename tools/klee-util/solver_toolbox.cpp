@@ -29,16 +29,24 @@ solver_toolbox_t::create_new_symbol(const klee::Array *array) const {
 klee::ref<klee::Expr>
 solver_toolbox_t::create_new_symbol(const std::string &symbol_name,
                                     klee::Expr::Width width) const {
+  const klee::Array *root;
+  return create_new_symbol(symbol_name, width, root);
+}
+
+klee::ref<klee::Expr>
+solver_toolbox_t::create_new_symbol(const std::string &symbol_name,
+                                    klee::Expr::Width width,
+                                    const klee::Array *&array) const {
   assert(symbol_name.size());
   assert(width >= 8);
 
   auto domain = klee::Expr::Int32;
   auto range = klee::Expr::Int8;
 
-  auto root = solver_toolbox.arr_cache.CreateArray(
-      symbol_name, width / 8, nullptr, nullptr, domain, range);
+  array = solver_toolbox.arr_cache.CreateArray(symbol_name, width / 8, nullptr,
+                                               nullptr, domain, range);
 
-  auto updates = klee::UpdateList(root, nullptr);
+  auto updates = klee::UpdateList(array, nullptr);
   auto read_entire_symbol = klee::ref<klee::Expr>();
 
   for (auto i = 0u; i < width / 8; i++) {

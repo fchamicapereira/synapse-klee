@@ -63,7 +63,7 @@ protected:
       return new_eps;
     }
 
-    if (!can_place(ep, call_node, "map", PlacementDecision::TofinoCPUMap)) {
+    if (!can_place(ep, call_node, "map", PlacementDecision::TofinoCPU_Map)) {
       return new_eps;
     }
 
@@ -92,7 +92,7 @@ protected:
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
 
-    place(new_ep, map_addr, PlacementDecision::TofinoCPUMap);
+    place(new_ep, map_addr, PlacementDecision::TofinoCPU_Map);
 
     return new_eps;
   }

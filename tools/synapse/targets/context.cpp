@@ -11,11 +11,17 @@ static void log_bdd_pre_processing(
   Log::dbg() << "***** BDD pre-processing: *****\n";
   for (const map_coalescing_data_t &candidate : coalescing_candidates) {
     std::stringstream ss;
-    ss << "Coalescing candidate: map=" << candidate.map
-       << ", dchain=" << candidate.dchain << ", vectors=[";
+    ss << "Coalescing candidate:";
+    ss << " map=" << candidate.map;
+    ss << ", ";
+    ss << "dchain=" << candidate.dchain;
+    ss << ", ";
+    ss << "vector_key=" << candidate.vector_key;
+    ss << ", ";
+    ss << "vectors_values=[";
 
     size_t i = 0;
-    for (addr_t vector : candidate.vectors) {
+    for (addr_t vector : candidate.vectors_values) {
       if (i++ > 0) {
         ss << ", ";
       }
@@ -26,6 +32,65 @@ static void log_bdd_pre_processing(
     Log::dbg() << ss.str();
   }
   Log::dbg() << "*******************************\n";
+}
+
+static time_ns_t
+exp_time_from_expire_items_single_map_time(const bdd::BDD *bdd,
+                                           klee::ref<klee::Expr> time) {
+  assert(time->getKind() == klee::Expr::Kind::Add);
+
+  klee::ref<klee::Expr> lhs = time->getKid(0);
+  klee::ref<klee::Expr> rhs = time->getKid(1);
+
+  assert(lhs->getKind() == klee::Expr::Kind::Constant);
+
+  const symbol_t &time_symbol = bdd->get_time();
+  assert(kutil::solver_toolbox.are_exprs_always_equal(rhs, time_symbol.expr));
+
+  uint64_t unsigned_exp_time = kutil::solver_toolbox.value_from_expr(lhs);
+  time_ns_t exp_time = ~unsigned_exp_time + 1;
+
+  return exp_time;
+}
+
+static std::optional<expiration_data_t>
+build_expiration_data(const bdd::BDD *bdd) {
+  std::optional<expiration_data_t> expiration_data;
+
+  const bdd::Node *root = bdd->get_root();
+
+  root->visit_nodes([&bdd, &expiration_data](const bdd::Node *node) {
+    if (node->get_type() != bdd::NodeType::CALL) {
+      return bdd::NodeVisitAction::VISIT_CHILDREN;
+    }
+
+    const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
+    const call_t &call = call_node->get_call();
+
+    if (call.function_name != "expire_items_single_map") {
+      return bdd::NodeVisitAction::VISIT_CHILDREN;
+    }
+
+    klee::ref<klee::Expr> time = call.args.at("time").expr;
+    time_ns_t exp_time = exp_time_from_expire_items_single_map_time(bdd, time);
+
+    symbols_t symbols = call_node->get_locally_generated_symbols();
+    symbol_t number_of_freed_flows;
+    bool found =
+        get_symbol(symbols, "number_of_freed_flows", number_of_freed_flows);
+    assert(found && "Symbol number_of_freed_flows not found");
+
+    expiration_data_t data = {
+        .expiration_time = exp_time,
+        .number_of_freed_flows = number_of_freed_flows,
+    };
+
+    expiration_data = data;
+
+    return bdd::NodeVisitAction::STOP;
+  });
+
+  return expiration_data;
 }
 
 Context::Context(const bdd::BDD *bdd,
@@ -87,7 +152,7 @@ Context::Context(const bdd::BDD *bdd,
     assert(false && "Unknown init call");
   }
 
-  // FIXME: full up expiration_data
+  expiration_data = build_expiration_data(bdd);
 
   log_bdd_pre_processing(coalescing_candidates);
 }
@@ -184,7 +249,8 @@ std::optional<map_coalescing_data_t>
 Context::get_coalescing_data(addr_t obj) const {
   for (const map_coalescing_data_t &candidate : coalescing_candidates) {
     if (candidate.map == obj || candidate.dchain == obj ||
-        candidate.vectors.find(obj) != candidate.vectors.end()) {
+        candidate.vector_key == obj ||
+        candidate.vectors_values.find(obj) != candidate.vectors_values.end()) {
       return candidate;
     }
   }
@@ -192,16 +258,9 @@ Context::get_coalescing_data(addr_t obj) const {
   return std::nullopt;
 }
 
-const expiration_data_t &Context::get_expiration_data() const {
+const std::optional<expiration_data_t> &Context::get_expiration_data() const {
   return expiration_data;
 }
-
-// template <class TCtx> const TCtx *Context::get_target_ctx() const {
-//   return nullptr;
-// }
-// template <class TCtx> TCtx *Context::get_mutable_target_ctx() {
-//   return nullptr;
-// }
 
 template <>
 const tofino::TofinoContext *
@@ -263,40 +322,43 @@ Context::get_placements() const {
 
 std::ostream &operator<<(std::ostream &os, PlacementDecision decision) {
   switch (decision) {
-  case PlacementDecision::TofinoSimpleTable:
+  case PlacementDecision::Tofino_SimpleTable:
     os << "Tofino::SimpleTable";
     break;
-  case PlacementDecision::TofinoRegister:
+  case PlacementDecision::Tofino_VectorRegister:
     os << "Tofino::Register";
     break;
-  case PlacementDecision::TofinoCPUDchain:
+  case PlacementDecision::Tofino_CachedTable:
+    os << "Tofino::CachedTable";
+    break;
+  case PlacementDecision::TofinoCPU_Dchain:
     os << "TofinoCPU::Dchain";
     break;
-  case PlacementDecision::TofinoCPUVector:
+  case PlacementDecision::TofinoCPU_Vector:
     os << "TofinoCPU::Vector";
     break;
-  case PlacementDecision::TofinoCPUSketch:
+  case PlacementDecision::TofinoCPU_Sketch:
     os << "TofinoCPU::Sketch";
     break;
-  case PlacementDecision::TofinoCPUMap:
+  case PlacementDecision::TofinoCPU_Map:
     os << "TofinoCPU::Map";
     break;
-  case PlacementDecision::TofinoCPUCht:
+  case PlacementDecision::TofinoCPU_Cht:
     os << "TofinoCPU::Cht";
     break;
-  case PlacementDecision::x86Map:
+  case PlacementDecision::x86_Map:
     os << "x86::Map";
     break;
-  case PlacementDecision::x86Vector:
+  case PlacementDecision::x86_Vector:
     os << "x86::Vector";
     break;
-  case PlacementDecision::x86Dchain:
+  case PlacementDecision::x86_Dchain:
     os << "x86::Dchain";
     break;
-  case PlacementDecision::x86Sketch:
+  case PlacementDecision::x86_Sketch:
     os << "x86::Sketch";
     break;
-  case PlacementDecision::x86Cht:
+  case PlacementDecision::x86_Cht:
     os << "x86::Cht";
     break;
   }

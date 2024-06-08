@@ -75,14 +75,14 @@ bool TNA::condition_meets_phv_limit(klee::ref<klee::Expr> expr) const {
 }
 
 void TNA::place(const DS *ds, const std::unordered_set<DS_ID> &deps) {
-  simple_placer.can_place(ds, deps);
+  simple_placer.place(ds, deps);
 }
 
-void TNA::place_many(const std::vector<std::vector<DS *>> &all_ds,
+void TNA::place_many(const std::vector<std::unordered_set<DS *>> &all_ds,
                      const std::unordered_set<DS_ID> &_deps) {
   std::unordered_set<DS_ID> deps = _deps;
 
-  for (const std::vector<DS *> &indep_ds : all_ds) {
+  for (const std::unordered_set<DS *> &indep_ds : all_ds) {
     std::unordered_set<DS_ID> new_deps;
 
     for (const DS *ds : indep_ds) {
@@ -100,12 +100,12 @@ PlacementStatus TNA::can_place(const DS *ds,
 }
 
 PlacementStatus
-TNA::can_place_many(const std::vector<std::vector<DS *>> &candidates,
+TNA::can_place_many(const std::vector<std::unordered_set<DS *>> &candidates,
                     const std::unordered_set<DS_ID> &_deps) const {
   SimplePlacer snapshot(simple_placer);
   std::unordered_set<DS_ID> deps = _deps;
 
-  for (const std::vector<DS *> &indep_ds : candidates) {
+  for (const std::unordered_set<DS *> &indep_ds : candidates) {
     std::unordered_set<DS_ID> new_deps;
 
     for (const DS *ds : indep_ds) {

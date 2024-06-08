@@ -61,7 +61,7 @@ protected:
       return new_eps;
     }
 
-    if (!can_place(ep, call_node, "vector", PlacementDecision::x86Vector)) {
+    if (!can_place(ep, call_node, "vector", PlacementDecision::x86_Vector)) {
       return new_eps;
     }
 
@@ -93,7 +93,7 @@ protected:
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
 
-    place(new_ep, vector_addr, PlacementDecision::x86Vector);
+    place(new_ep, vector_addr, PlacementDecision::x86_Vector);
 
     return new_eps;
   }

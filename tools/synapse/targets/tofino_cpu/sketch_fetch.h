@@ -52,7 +52,7 @@ protected:
     }
 
     if (!can_place(ep, call_node, "sketch",
-                   PlacementDecision::TofinoCPUSketch)) {
+                   PlacementDecision::TofinoCPU_Sketch)) {
       return new_eps;
     }
 
@@ -73,7 +73,7 @@ protected:
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
 
-    place(new_ep, sketch_addr, PlacementDecision::TofinoCPUSketch);
+    place(new_ep, sketch_addr, PlacementDecision::TofinoCPU_Sketch);
 
     return new_eps;
   }

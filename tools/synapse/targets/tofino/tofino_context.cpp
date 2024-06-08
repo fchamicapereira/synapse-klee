@@ -177,22 +177,20 @@ void TofinoContext::place(EP *ep, addr_t obj, DS *ds,
                           const std::unordered_set<DS_ID> &deps) {
   save_ds(obj, ds);
   tna.place(ds, deps);
-  tna.log_debug_placement();
 }
 
 void TofinoContext::place_many(EP *ep, addr_t obj,
-                               const std::vector<std::vector<DS *>> &ds,
+                               const std::vector<std::unordered_set<DS *>> &ds,
                                const std::unordered_set<DS_ID> &_deps) {
   std::unordered_set<DS_ID> deps = _deps;
 
-  for (const auto &ds_list : ds) {
-    for (const auto &ds : ds_list) {
+  for (const std::unordered_set<DS *> &ds_list : ds) {
+    for (DS *ds : ds_list) {
       save_ds(obj, ds);
     }
   }
 
   tna.place_many(ds, deps);
-  tna.log_debug_placement();
 }
 
 bool TofinoContext::check_placement(
@@ -202,28 +200,19 @@ bool TofinoContext::check_placement(
   if (status != PlacementStatus::SUCCESS) {
     TargetType target = ep->get_current_platform();
     Log::dbg() << "[" << target << "] Cannot place obj (" << status << ")\n";
-    ds->log_debug();
   }
 
   return status == PlacementStatus::SUCCESS;
 }
 
 bool TofinoContext::check_many_placements(
-    const EP *ep, const std::vector<std::vector<DS *>> &ds,
+    const EP *ep, const std::vector<std::unordered_set<DS *>> &ds,
     const std::unordered_set<DS_ID> &deps) const {
   PlacementStatus status = tna.can_place_many(ds, deps);
 
   if (status != PlacementStatus::SUCCESS) {
     TargetType target = ep->get_current_platform();
     Log::dbg() << "[" << target << "] Cannot place objs (" << status << ")\n";
-
-    for (const auto &ds_list : ds) {
-      Log::dbg() << "~~~~~~~ Independent DS List: ~~~~~~~\n";
-      for (const auto &ds : ds_list) {
-        ds->log_debug();
-      }
-      Log::dbg() << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
-    }
   }
 
   return status == PlacementStatus::SUCCESS;

@@ -19,12 +19,12 @@ enum class RegisterAction {
 
 struct Register : public DS {
   int num_entries;
-  bits_t index_size;
-  klee::ref<klee::Expr> value;
+  bits_t index;
+  bits_t value;
   std::unordered_set<RegisterAction> actions;
 
   Register(const TNAConstraints &constraints, DS_ID id, int num_entries,
-           int index_size, klee::ref<klee::Expr> value,
+           bits_t index, bits_t value,
            const std::unordered_set<RegisterAction> &actions);
 
   Register(const Register &other);
@@ -36,7 +36,8 @@ struct Register : public DS {
   int get_num_logical_ids() const;
 
   static std::vector<klee::ref<klee::Expr>>
-  build_keys(klee::ref<klee::Expr> key);
+  partition_value(const TNAConstraints &tna_constr,
+                  klee::ref<klee::Expr> value);
 };
 
 } // namespace tofino

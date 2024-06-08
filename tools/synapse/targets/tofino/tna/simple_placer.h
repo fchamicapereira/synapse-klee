@@ -50,10 +50,14 @@ private:
 
   void place(const Table *table, const std::unordered_set<DS_ID> &deps);
   void place(const Register *reg, const std::unordered_set<DS_ID> &deps);
+  void place(const CachedTable *cached_table,
+             const std::unordered_set<DS_ID> &deps);
 
   PlacementStatus can_place(const Table *table,
                             const std::unordered_set<DS_ID> &deps) const;
   PlacementStatus can_place(const Register *reg,
+                            const std::unordered_set<DS_ID> &deps) const;
+  PlacementStatus can_place(const CachedTable *cached_table,
                             const std::unordered_set<DS_ID> &deps) const;
 
   PlacementStatus find_placements(const Table *table,

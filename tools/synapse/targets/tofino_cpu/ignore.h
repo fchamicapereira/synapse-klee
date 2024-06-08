@@ -96,7 +96,7 @@ private:
     }
 
     if (!ctx.check_placement(coalescing_data->map,
-                             PlacementDecision::TofinoSimpleTable)) {
+                             PlacementDecision::Tofino_SimpleTable)) {
       return false;
     }
 

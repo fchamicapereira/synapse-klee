@@ -66,7 +66,7 @@ protected:
       return new_eps;
     }
 
-    if (!can_place(ep, call_node, "cht", PlacementDecision::x86Cht)) {
+    if (!can_place(ep, call_node, "cht", PlacementDecision::x86_Cht)) {
       return new_eps;
     }
 
@@ -96,7 +96,7 @@ protected:
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
 
-    place(new_ep, cht_addr, PlacementDecision::x86Cht);
+    place(new_ep, cht_addr, PlacementDecision::x86_Cht);
 
     return new_eps;
   }

@@ -3,32 +3,30 @@
 namespace synapse {
 namespace tofino {
 
-Table::Table(DS_ID _id, int _num_entries,
-             const std::vector<klee::ref<klee::Expr>> &_keys,
-             const std::vector<klee::ref<klee::Expr>> &_params,
-             const std::optional<symbol_t> &_hit)
+Table::Table(DS_ID _id, int _num_entries, const std::vector<bits_t> &_keys,
+             const std::vector<bits_t> &_params)
     : DS(DSType::TABLE, _id), num_entries(_num_entries), keys(_keys),
-      params(_params), hit(_hit) {}
+      params(_params) {}
 
 Table::Table(const Table &other)
     : DS(DSType::TABLE, other.id), num_entries(other.num_entries),
-      keys(other.keys), params(other.params), hit(other.hit) {}
+      keys(other.keys), params(other.params) {}
 
 DS *Table::clone() const { return new Table(*this); }
 
 bits_t Table::get_match_xbar_consume() const {
   bits_t consumed = 0;
-  for (klee::ref<klee::Expr> key : keys)
-    consumed += key->getWidth();
+  for (bits_t key_size : keys)
+    consumed += key_size;
   return consumed;
 }
 
 bits_t Table::get_consumed_sram() const {
   bits_t consumed = 0;
-  for (klee::ref<klee::Expr> key : keys)
-    consumed += key->getWidth();
-  for (klee::ref<klee::Expr> param : params)
-    consumed += param->getWidth();
+  for (bits_t key_size : keys)
+    consumed += key_size;
+  for (bits_t param_size : params)
+    consumed += param_size;
   return consumed * num_entries;
 }
 

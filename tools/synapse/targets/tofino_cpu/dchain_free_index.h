@@ -54,7 +54,7 @@ protected:
     }
 
     if (!can_place(ep, call_node, "chain",
-                   PlacementDecision::TofinoCPUDchain)) {
+                   PlacementDecision::TofinoCPU_Dchain)) {
       return new_eps;
     }
 
@@ -72,7 +72,7 @@ protected:
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
 
-    place(new_ep, dchain_addr, PlacementDecision::TofinoCPUDchain);
+    place(new_ep, dchain_addr, PlacementDecision::TofinoCPU_Dchain);
 
     return new_eps;
   }

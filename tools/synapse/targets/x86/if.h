@@ -57,6 +57,10 @@ protected:
     EPNode *then_node = new EPNode(then_module);
     EPNode *else_node = new EPNode(else_module);
 
+    if_node->set_children({then_node, else_node});
+    then_node->set_prev(if_node);
+    else_node->set_prev(if_node);
+
     EPLeaf then_leaf(then_node, branch_node->get_on_true());
     EPLeaf else_leaf(else_node, branch_node->get_on_false());
 

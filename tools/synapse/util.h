@@ -110,7 +110,8 @@ klee::ref<klee::Expr> get_expr_from_addr(const EP *ep, addr_t addr);
 struct map_coalescing_data_t {
   addr_t map;
   addr_t dchain;
-  objs_t vectors;
+  addr_t vector_key;
+  objs_t vectors_values;
 };
 
 std::optional<map_coalescing_data_t>
@@ -121,5 +122,43 @@ bool borrow_has_var_len(const bdd::Node *node);
 
 symbols_t get_prev_symbols(const bdd::Node *node,
                            const bdd::nodes_t &stop_nodes = bdd::nodes_t());
+
+// Tries to find the pattern of a map_get followed by map_puts, but only when
+// the map_get is not successful (i.e. the key is not found).
+// Conditions to meet:
+// (1) Has at least 1 future map_put
+// (2) All map_put happen if the map_get was not successful
+// (3) All map_puts with the target obj also have the same key as the map_get
+// (4) All map_puts with the target obj update with the same value
+bool is_map_get_followed_by_map_puts_on_miss(
+    const bdd::BDD *bdd, const bdd::Call *map_get,
+    std::vector<const bdd::Call *> &map_puts);
+
+// Appends new non-branch nodes to the BDD in place of the provided current
+// node.
+// Clones all new_nodes and appends them to the BDD.
+void add_non_branch_nodes_to_bdd(
+    const EP *ep, bdd::BDD *bdd, const bdd::Node *current,
+    const std::vector<const bdd::Node *> &new_nodes, bdd::Node *&new_current);
+
+// Appends a single new branch node to the BDD in place of the provided current
+// node. This duplicates the BDD portion starting from the current node, and
+// appends the cloned portion to one of the branches.
+void add_branch_to_bdd(const EP *ep, bdd::BDD *bdd, const bdd::Node *current,
+                       klee::ref<klee::Expr> condition,
+                       bdd::Branch *&new_branch);
+
+void delete_non_branch_node_from_bdd(const EP *ep, bdd::BDD *bdd,
+                                     const bdd::Node *target,
+                                     bdd::Node *&new_current);
+
+void delete_branch_node_from_bdd(const EP *ep, bdd::BDD *bdd,
+                                 const bdd::Branch *target,
+                                 bool direction_to_keep,
+                                 bdd::Node *&new_current);
+
+const bdd::Branch *
+find_branch_checking_index_alloc(const EP *ep, const bdd::Node *node,
+                                 const symbol_t &out_of_space);
 
 } // namespace synapse

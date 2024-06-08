@@ -101,7 +101,7 @@ private:
     }
 
     return check_placement(ep, call_node, obj_arg,
-                           PlacementDecision::TofinoSimpleTable);
+                           PlacementDecision::Tofino_SimpleTable);
   }
 
   void get_table_delete_data(const bdd::Call *call_node, addr_t &obj,

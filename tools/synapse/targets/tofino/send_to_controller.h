@@ -52,8 +52,7 @@ protected:
     bdd::BDD *new_bdd = nullptr;
     const bdd::Node *next = node;
 
-    bool replicated_bdd =
-        replicate_parsing_operations(ep, node, &new_bdd, &next);
+    bool replicated_bdd = replicate_hdr_parsing_ops(ep, node, new_bdd, next);
 
     // Note that we don't point to the next BDD node, as it was not actually
     // implemented.
@@ -71,14 +70,9 @@ protected:
   }
 
 private:
-  symbols_t get_dataplane_state(const EP *ep, const bdd::Node *node) const {
-    const bdd::nodes_t &roots = ep->get_target_roots(TargetType::Tofino);
-    return get_prev_symbols(node, roots);
-  }
-
-  bool replicate_parsing_operations(const EP *ep, const bdd::Node *node,
-                                    bdd::BDD **new_bdd,
-                                    const bdd::Node **next) const {
+  bool replicate_hdr_parsing_ops(const EP *ep, const bdd::Node *node,
+                                 bdd::BDD *&new_bdd,
+                                 const bdd::Node *&next) const {
     std::vector<const bdd::Node *> prev_borrows =
         get_prev_functions(ep, node, {"packet_borrow_next_chunk"});
 
@@ -88,56 +82,11 @@ private:
 
     const bdd::BDD *old_bdd = ep->get_bdd();
 
-    bdd::BDD *bdd = new bdd::BDD(*old_bdd);
-    *new_bdd = bdd;
+    new_bdd = new bdd::BDD(*old_bdd);
+    bdd::Node *new_next;
+    add_non_branch_nodes_to_bdd(ep, new_bdd, node, prev_borrows, new_next);
 
-    bdd::node_id_t &id = bdd->get_mutable_id();
-    bdd::NodeManager &manager = bdd->get_mutable_manager();
-
-    const bdd::Node *prev = node->get_prev();
-    assert(prev);
-
-    bdd::node_id_t anchor_id = prev->get_id();
-    bdd::Node *anchor = bdd->get_mutable_node_by_id(anchor_id);
-    bdd::Node *anchor_next = bdd->get_mutable_node_by_id(node->get_id());
-
-    bool set_next = false;
-
-    for (const bdd::Node *borrow : prev_borrows) {
-      bdd::Node *clone = borrow->clone(manager, false);
-      clone->recursive_update_ids(id);
-
-      if (!set_next) {
-        *next = clone;
-        set_next = true;
-      }
-
-      switch (anchor->get_type()) {
-      case bdd::NodeType::CALL:
-      case bdd::NodeType::ROUTE: {
-        anchor->set_next(clone);
-      } break;
-      case bdd::NodeType::BRANCH: {
-        bdd::Branch *branch = static_cast<bdd::Branch *>(anchor);
-
-        const bdd::Node *on_true = branch->get_on_true();
-        const bdd::Node *on_false = branch->get_on_false();
-
-        assert(on_true == anchor_next || on_false == anchor_next);
-
-        if (on_true == anchor_next) {
-          branch->set_on_true(clone);
-        } else {
-          branch->set_on_false(clone);
-        }
-
-      } break;
-      }
-
-      clone->set_prev(anchor);
-      clone->set_next(anchor_next);
-      anchor = clone;
-    }
+    next = new_next;
 
     return true;
   }

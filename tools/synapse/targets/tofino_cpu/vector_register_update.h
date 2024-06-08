@@ -64,7 +64,7 @@ protected:
     }
 
     if (!check_placement(ep, call_node, "vector",
-                         PlacementDecision::TofinoRegister)) {
+                         PlacementDecision::Tofino_VectorRegister)) {
       return new_eps;
     }
 

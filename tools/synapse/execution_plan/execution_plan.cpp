@@ -222,11 +222,6 @@ void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves,
     if (next_target != current_target) {
       targets_roots[next_target].insert(next_node_id);
     }
-
-    if (new_leaf.node != new_node) {
-      new_leaf.node->set_prev(new_node);
-      new_node->add_child(new_leaf.node);
-    }
   }
 
   leaves.erase(leaves.begin());

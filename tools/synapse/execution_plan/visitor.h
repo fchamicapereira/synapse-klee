@@ -28,6 +28,10 @@ class ModifyHeader;
 class SimpleTableLookup;
 class VectorRegisterLookup;
 class VectorRegisterUpdate;
+class CachedTableRead;
+class CachedTableConditionalWrite;
+class CachedTableWrite;
+class CachedTableDelete;
 } // namespace tofino
 
 namespace tofino_cpu {
@@ -62,6 +66,9 @@ class SketchTouchBuckets;
 class SimpleTableDelete;
 class VectorRegisterLookup;
 class VectorRegisterUpdate;
+class CachedTableRead;
+class CachedTableWrite;
+class CachedTableDelete;
 } // namespace tofino_cpu
 
 namespace x86 {
@@ -120,6 +127,10 @@ public:
   VISIT_TODO(tofino::SimpleTableLookup)
   VISIT_TODO(tofino::VectorRegisterLookup)
   VISIT_TODO(tofino::VectorRegisterUpdate)
+  VISIT_TODO(tofino::CachedTableRead)
+  VISIT_TODO(tofino::CachedTableConditionalWrite)
+  VISIT_TODO(tofino::CachedTableWrite)
+  VISIT_TODO(tofino::CachedTableDelete)
 
   /*************************************
    *
@@ -158,6 +169,9 @@ public:
   VISIT_TODO(tofino_cpu::SketchTouchBuckets)
   VISIT_TODO(tofino_cpu::VectorRegisterLookup)
   VISIT_TODO(tofino_cpu::VectorRegisterUpdate)
+  VISIT_TODO(tofino_cpu::CachedTableRead)
+  VISIT_TODO(tofino_cpu::CachedTableWrite)
+  VISIT_TODO(tofino_cpu::CachedTableDelete)
 
   /*************************************
    *

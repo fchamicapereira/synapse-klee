@@ -9,12 +9,19 @@ class SimpleTableLookup : public TofinoModule {
 private:
   DS_ID table_id;
   addr_t obj;
+  std::vector<klee::ref<klee::Expr>> keys;
+  std::vector<klee::ref<klee::Expr>> values;
+  std::optional<symbol_t> hit;
 
 public:
-  SimpleTableLookup(const bdd::Node *node, DS_ID _table_id, addr_t _obj)
+  SimpleTableLookup(const bdd::Node *node, DS_ID _table_id, addr_t _obj,
+                    const std::vector<klee::ref<klee::Expr>> &_keys,
+                    const std::vector<klee::ref<klee::Expr>> &_values,
+                    const std::optional<symbol_t> &_hit)
       : TofinoModule(ModuleType::Tofino_SimpleTableLookup, "SimpleTableLookup",
                      node),
-        table_id(_table_id), obj(_obj) {}
+        table_id(_table_id), obj(_obj), keys(_keys), values(_values),
+        hit(_hit) {}
 
   virtual void visit(EPVisitor &visitor, const EP *ep,
                      const EPNode *ep_node) const override {
@@ -22,12 +29,18 @@ public:
   }
 
   virtual Module *clone() const override {
-    Module *cloned = new SimpleTableLookup(node, table_id, obj);
+    Module *cloned =
+        new SimpleTableLookup(node, table_id, obj, keys, values, hit);
     return cloned;
   }
 
   DS_ID get_table_id() const { return table_id; }
   addr_t get_obj() const { return obj; }
+  const std::vector<klee::ref<klee::Expr>> &get_keys() const { return keys; }
+  const std::vector<klee::ref<klee::Expr>> &get_values() const {
+    return values;
+  }
+  const std::optional<symbol_t> &get_hit() const { return hit; }
 
   virtual std::unordered_set<DS_ID> get_generated_ds() const override {
     return {table_id};
@@ -67,17 +80,14 @@ protected:
       return new_eps;
     }
 
-    Table *table = new Table(id, num_entries, keys, values, hit);
+    std::unordered_set<DS_ID> deps;
+    Table *table = build_table(ep, id, num_entries, keys, values, hit, deps);
 
-    const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
-    std::unordered_set<DS_ID> deps = tofino_ctx->get_stateful_deps(ep);
-
-    if (!tofino_ctx->check_placement(ep, table, deps)) {
-      delete table;
+    if (!table) {
       return new_eps;
     }
 
-    Module *module = new SimpleTableLookup(node, id, obj);
+    Module *module = new SimpleTableLookup(node, id, obj, keys, values, hit);
     EPNode *ep_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
@@ -92,10 +102,38 @@ protected:
   }
 
 private:
+  Table *build_table(const EP *ep, DS_ID id, int num_entries,
+                     const std::vector<klee::ref<klee::Expr>> &keys,
+                     const std::vector<klee::ref<klee::Expr>> &values,
+                     const std::optional<symbol_t> &hit,
+                     std::unordered_set<DS_ID> &deps) const {
+    std::vector<bits_t> keys_size;
+    for (klee::ref<klee::Expr> key : keys) {
+      keys_size.push_back(key->getWidth());
+    }
+
+    std::vector<bits_t> params_size;
+    for (klee::ref<klee::Expr> value : values) {
+      params_size.push_back(value->getWidth());
+    }
+
+    Table *table = new Table(id, num_entries, keys_size, params_size);
+
+    const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
+    deps = tofino_ctx->get_stateful_deps(ep);
+
+    if (!tofino_ctx->check_placement(ep, table, deps)) {
+      delete table;
+      return nullptr;
+    }
+
+    return table;
+  }
+
   void place_simple_table(EP *ep, addr_t obj, Table *table,
                           const std::unordered_set<DS_ID> &deps) const {
     TofinoContext *tofino_ctx = get_mutable_tofino_ctx(ep);
-    place(ep, obj, PlacementDecision::TofinoSimpleTable);
+    place(ep, obj, PlacementDecision::Tofino_SimpleTable);
     tofino_ctx->place(ep, obj, table, deps);
   }
 
@@ -116,7 +154,7 @@ private:
     }
 
     return can_place(ep, call_node, obj_arg,
-                     PlacementDecision::TofinoSimpleTable);
+                     PlacementDecision::Tofino_SimpleTable);
   }
 
   bool get_table_data(const EP *ep, const bdd::Call *call_node, addr_t &obj,

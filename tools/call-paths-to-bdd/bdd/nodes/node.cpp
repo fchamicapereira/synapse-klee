@@ -276,4 +276,35 @@ void Node::visit_mutable_nodes(std::function<NodeVisitAction(Node *)> fn) {
   }
 }
 
+void Node::recursive_free_children(NodeManager &manager) {
+  switch (type) {
+  case NodeType::BRANCH: {
+    Branch *branch_node = static_cast<Branch *>(this);
+
+    Node *on_true = branch_node->get_mutable_on_true();
+    Node *on_false = branch_node->get_mutable_on_false();
+
+    if (on_true) {
+      on_true->recursive_free_children(manager);
+      manager.free_node(on_true);
+      on_true = nullptr;
+    }
+
+    if (on_false) {
+      on_false->recursive_free_children(manager);
+      manager.free_node(on_false);
+      on_false = nullptr;
+    }
+  } break;
+  case NodeType::CALL:
+  case NodeType::ROUTE: {
+    if (next) {
+      next->recursive_free_children(manager);
+      manager.free_node(next);
+      next = nullptr;
+    }
+  } break;
+  }
+}
+
 } // namespace bdd
