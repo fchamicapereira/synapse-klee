@@ -160,7 +160,7 @@ private:
     }
 
     std::vector<const bdd::Node *> ops =
-        get_all_functions_after_node(dchain_free_index, {"map_erase"});
+        get_future_functions(dchain_free_index, {"map_erase"});
 
     if (ops.empty()) {
       return nullptr;
@@ -217,8 +217,8 @@ private:
     assert(data.has_value());
 
     std::vector<const bdd::Node *> ops =
-        get_all_functions_after_node(node, {"vector_borrow", "vector_return",
-                                            "dchain_free_index", "map_put"});
+        get_future_functions(node, {"vector_borrow", "vector_return",
+                                    "dchain_free_index", "map_put"});
 
     for (const bdd::Node *op : ops) {
       assert(op->get_type() == bdd::NodeType::CALL);

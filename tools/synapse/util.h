@@ -48,9 +48,9 @@ get_prev_functions(const EP *ep, const bdd::Node *node,
                    const std::vector<std::string> &functions_names);
 
 std::vector<const bdd::Node *>
-get_all_functions_after_node(const bdd::Node *root,
-                             const std::vector<std::string> &functions,
-                             bool stop_on_branches = false);
+get_future_functions(const bdd::Node *root,
+                     const std::vector<std::string> &functions,
+                     bool stop_on_branches = false);
 
 bool is_parser_drop(const bdd::Node *root);
 
@@ -116,6 +116,11 @@ struct map_coalescing_data_t {
 
 std::optional<map_coalescing_data_t>
 get_map_coalescing_data(const bdd::BDD *bdd, addr_t map_addr);
+
+std::vector<const bdd::Node *>
+get_coalescing_nodes_from_key(const bdd::BDD *bdd, const bdd::Node *node,
+                              klee::ref<klee::Expr> key,
+                              const map_coalescing_data_t &data);
 
 klee::ref<klee::Expr> get_chunk_from_borrow(const bdd::Node *node);
 bool borrow_has_var_len(const bdd::Node *node);

@@ -195,8 +195,7 @@ int main(int argc, char **argv) {
 
   // list_candidates(bdd, {16, false});
   apply_reordering_ops(bdd, {
-                                {{16, false}, 23},
-                                {{23, false}, 24},
+                                {{6, false}, 10},
                             });
   // test_reorder(bdd, {
   //                       {{1, true}, 10},

@@ -124,7 +124,7 @@ protected:
     bdd::Node *on_cache_delete_success;
     bdd::Node *on_cache_delete_failed;
     bdd::BDD *new_bdd = branch_bdd_on_cache_delete_success(
-        new_ep, node, data.obj, cache_delete_success_condition, coalescing_data,
+        new_ep, node, data, cache_delete_success_condition, coalescing_data,
         on_cache_delete_success, on_cache_delete_failed);
 
     symbols_t symbols = get_dataplane_state(ep, node);
@@ -232,105 +232,6 @@ private:
     return cache_delete_failed;
   }
 
-  void delete_dchain_ops_on_cache_delete_success(
-      const EP *ep, bdd::BDD *bdd, const map_coalescing_data_t &coalescing_data,
-      bdd::Node *on_cache_delete_success) const {
-    std::vector<const bdd::Node *> dchain_ops_to_remove =
-        get_all_functions_after_node(on_cache_delete_success,
-                                     {
-                                         "dchain_allocate_new_index",
-                                         "dchain_rejuvenate_index",
-                                         "dchain_free_index",
-                                         "dchain_expire_one_index",
-                                         "dchain_is_index_allocated",
-                                     });
-
-    for (const bdd::Node *dchain_op : dchain_ops_to_remove) {
-      assert(dchain_op->get_type() == bdd::NodeType::CALL);
-
-      const bdd::Call *dchain_call = static_cast<const bdd::Call *>(dchain_op);
-      const call_t &call = dchain_call->get_call();
-
-      klee::ref<klee::Expr> chain = call.args.at("chain").expr;
-      addr_t chain_addr = kutil::expr_addr_to_obj_addr(chain);
-
-      if (chain_addr != coalescing_data.dchain) {
-        continue;
-      }
-
-      if (call.function_name == "dchain_allocate_new_index") {
-        symbols_t symbols = dchain_call->get_locally_generated_symbols();
-
-        symbol_t out_of_space;
-        bool found = get_symbol(symbols, "out_of_space", out_of_space);
-        assert(found && "Symbol out_of_space not found");
-
-        const bdd::Branch *index_alloc_check = find_branch_checking_index_alloc(
-            ep, on_cache_delete_success, out_of_space);
-        assert(index_alloc_check && "Index allocation check not found");
-
-        bdd::Node *trash;
-        delete_branch_node_from_bdd(ep, bdd, index_alloc_check, true, trash);
-      }
-
-      bdd::Node *trash;
-      delete_non_branch_node_from_bdd(ep, bdd, dchain_op, trash);
-    }
-  }
-
-  void delete_map_erases_on_cache_delete_success(
-      const EP *ep, bdd::BDD *bdd, addr_t target_map,
-      bdd::Node *on_cache_delete_success) const {
-    std::vector<const bdd::Node *> map_erases_to_remove =
-        get_all_functions_after_node(on_cache_delete_success, {"map_erase"});
-
-    for (const bdd::Node *map_erase : map_erases_to_remove) {
-      assert(map_erase->get_type() == bdd::NodeType::CALL);
-
-      const bdd::Call *map_erase_call =
-          static_cast<const bdd::Call *>(map_erase);
-      const call_t &call = map_erase_call->get_call();
-
-      klee::ref<klee::Expr> map = call.args.at("map").expr;
-      addr_t map_addr = kutil::expr_addr_to_obj_addr(map);
-
-      if (map_addr != target_map) {
-        continue;
-      }
-
-      bdd::Node *trash;
-      delete_non_branch_node_from_bdd(ep, bdd, map_erase, trash);
-    }
-  }
-
-  void delete_vector_key_ops_on_cache_delete_success(
-      const EP *ep, bdd::BDD *bdd, const map_coalescing_data_t &coalescing_data,
-      bdd::Node *on_cache_delete_success) const {
-    std::vector<const bdd::Node *> vector_ops = get_all_functions_after_node(
-        on_cache_delete_success, {"vector_borrow", "vector_return"});
-
-    if (vector_ops.empty()) {
-      return;
-    }
-
-    for (const bdd::Node *vector_op : vector_ops) {
-      assert(vector_op->get_type() == bdd::NodeType::CALL);
-
-      const bdd::Call *vector_call = static_cast<const bdd::Call *>(vector_op);
-      const call_t &call = vector_call->get_call();
-
-      klee::ref<klee::Expr> vector = call.args.at("vector").expr;
-      addr_t vector_addr = kutil::expr_addr_to_obj_addr(vector);
-
-      if (vector_addr != coalescing_data.vector_key) {
-        continue;
-      }
-
-      bdd::Node *trash;
-      delete_non_branch_node_from_bdd(ep, bdd, vector_op, trash);
-    }
-  }
-
   void add_map_get_clone_on_cache_delete_failed(
       const EP *ep, bdd::BDD *bdd, const bdd::Node *map_get,
       const bdd::Branch *cache_delete_branch,
@@ -362,8 +263,21 @@ private:
                                 new_on_cache_delete_failed);
   }
 
+  void delete_coalescing_nodes_on_success(
+      const EP *ep, bdd::BDD *bdd, bdd::Node *on_success,
+      const map_coalescing_data_t &coalescing_data,
+      klee::ref<klee::Expr> key) const {
+    const std::vector<const bdd::Node *> targets =
+        get_coalescing_nodes_from_key(bdd, on_success, key, coalescing_data);
+
+    for (const bdd::Node *target : targets) {
+      bdd::Node *trash;
+      delete_non_branch_node_from_bdd(ep, bdd, target, trash);
+    }
+  }
+
   bdd::BDD *branch_bdd_on_cache_delete_success(
-      const EP *ep, const bdd::Node *map_get, addr_t map_obj,
+      const EP *ep, const bdd::Node *map_get, const cached_table_data_t &data,
       klee::ref<klee::Expr> cache_delete_success_condition,
       const map_coalescing_data_t &coalescing_data,
       bdd::Node *&on_cache_delete_success,
@@ -384,12 +298,8 @@ private:
     replicate_hdr_parsing_ops_on_cache_delete_failed(
         ep, new_bdd, cache_delete_branch, on_cache_delete_failed);
 
-    delete_map_erases_on_cache_delete_success(ep, new_bdd, map_obj,
-                                              on_cache_delete_success);
-    delete_dchain_ops_on_cache_delete_success(ep, new_bdd, coalescing_data,
-                                              on_cache_delete_success);
-    delete_vector_key_ops_on_cache_delete_success(ep, new_bdd, coalescing_data,
-                                                  on_cache_delete_success);
+    delete_coalescing_nodes_on_success(ep, new_bdd, on_cache_delete_success,
+                                       coalescing_data, data.key);
 
     return new_bdd;
   }

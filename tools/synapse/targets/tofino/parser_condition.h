@@ -68,11 +68,9 @@ protected:
     assert(on_false);
 
     std::vector<const bdd::Node *> on_true_borrows =
-        get_all_functions_after_node(on_true, {"packet_borrow_next_chunk"},
-                                     true);
+        get_future_functions(on_true, {"packet_borrow_next_chunk"}, true);
     std::vector<const bdd::Node *> on_false_borrows =
-        get_all_functions_after_node(on_false, {"packet_borrow_next_chunk"},
-                                     true);
+        get_future_functions(on_false, {"packet_borrow_next_chunk"}, true);
 
     // We are working under the assumption that before parsing a header we
     // always perform some kind of checking. Thus, we will never encounter

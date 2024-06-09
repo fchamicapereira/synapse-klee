@@ -606,11 +606,11 @@ concretize_reordering_candidate(const BDD *bdd, const vector_t &anchor,
 
   const Node *proposed_candidate = bdd->get_node_by_id(proposed_candidate_id);
 
-  if (proposed_candidate->get_type() == NodeType::BRANCH) {
-    // FIXME: allow branch reordering.
-    candidate_info.status = ReorderingCandidateStatus::NOT_ALLOWED;
-    return candidate_info;
-  }
+  // if (proposed_candidate->get_type() == NodeType::BRANCH) {
+  //   // FIXME: allow branch reordering.
+  //   candidate_info.status = ReorderingCandidateStatus::NOT_ALLOWED;
+  //   return candidate_info;
+  // }
 
   if (!anchor_reaches_candidate(anchor, proposed_candidate)) {
     candidate_info.status = ReorderingCandidateStatus::UNREACHABLE_CANDIDATE;

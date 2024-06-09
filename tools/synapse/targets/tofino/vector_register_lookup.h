@@ -156,7 +156,7 @@ private:
     }
 
     std::vector<const bdd::Node *> ops =
-        get_all_functions_after_node(node, {"vector_return"});
+        get_future_functions(node, {"vector_return"});
 
     for (const bdd::Node *op : ops) {
       assert(op->get_type() == bdd::NodeType::CALL);

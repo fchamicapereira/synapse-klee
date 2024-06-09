@@ -180,7 +180,7 @@ private:
     }
 
     std::vector<const bdd::Node *> vector_ops =
-        get_all_functions_after_node(node, {"vector_borrow", "vector_return"});
+        get_future_functions(node, {"vector_borrow", "vector_return"});
 
     for (const bdd::Node *vector_op : vector_ops) {
       assert(vector_op->get_type() == bdd::NodeType::CALL);
