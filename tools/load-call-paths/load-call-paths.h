@@ -40,15 +40,11 @@ struct symbol_t {
 };
 
 struct symbol_hash_t {
-  std::size_t operator()(const symbol_t &s) const noexcept {
-    return s.array->hash();
-  }
+  std::size_t operator()(const symbol_t &s) const noexcept;
 };
 
 struct symbol_equal_t {
-  bool operator()(const symbol_t &a, const symbol_t &b) const noexcept {
-    return a.array->name == b.array->name;
-  }
+  bool operator()(const symbol_t &a, const symbol_t &b) const noexcept;
 };
 
 typedef std::unordered_set<symbol_t, symbol_hash_t, symbol_equal_t> symbols_t;

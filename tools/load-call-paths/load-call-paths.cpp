@@ -26,6 +26,15 @@
 
 #include "../klee-util/klee-util.h"
 
+std::size_t symbol_hash_t::operator()(const symbol_t &s) const noexcept {
+  return s.array->hash();
+}
+
+bool symbol_equal_t::operator()(const symbol_t &a,
+                                const symbol_t &b) const noexcept {
+  return kutil::solver_toolbox.are_exprs_always_equal(a.expr, b.expr);
+}
+
 klee::ref<klee::Expr> parse_expr(const std::set<std::string> &declared_arrays,
                                  const std::string &expr_str) {
   std::stringstream kQuery_builder;

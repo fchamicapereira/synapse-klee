@@ -194,16 +194,12 @@ int main(int argc, char **argv) {
   BDD *bdd = new BDD(InputBDDFile);
 
   // list_candidates(bdd, {16, false});
-  apply_reordering_ops(bdd, {
-                                {{6, false}, 10},
-                            });
-  // test_reorder(bdd, {
-  //                       {{1, true}, 10},
-  //                       {{1, true}, 12},
-  //                       {{1, true}, 122},
-  //                   });
+  // apply_reordering_ops(bdd, {
+  //                               {{5, false}, 8},
+  //                               {{8, true}, 9},
+  //                           });
   // test_reorder(bdd, 3);
-  // estimate(bdd);
+  estimate(bdd);
 
   delete bdd;
 

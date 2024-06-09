@@ -1,4 +1,5 @@
 #include "bdd-reorderer.h"
+#include "bdd-visualizer.h"
 
 #include <iomanip>
 
@@ -291,11 +292,13 @@ static bool io_check(const Node *node, const symbols_t &anchor_symbols) {
       klee::ref<klee::Expr> expr = arg.expr;
       klee::ref<klee::Expr> in = arg.in;
 
-      if (!expr.isNull())
+      if (!expr.isNull()) {
         met &= are_all_symbols_known(expr, anchor_symbols);
+      }
 
-      if (!in.isNull())
+      if (!in.isNull()) {
         met &= are_all_symbols_known(in, anchor_symbols);
+      }
     }
   } break;
   case NodeType::ROUTE:
@@ -606,11 +609,11 @@ concretize_reordering_candidate(const BDD *bdd, const vector_t &anchor,
 
   const Node *proposed_candidate = bdd->get_node_by_id(proposed_candidate_id);
 
-  // if (proposed_candidate->get_type() == NodeType::BRANCH) {
-  //   // FIXME: allow branch reordering.
-  //   candidate_info.status = ReorderingCandidateStatus::NOT_ALLOWED;
-  //   return candidate_info;
-  // }
+  // Uncomment/comment this to allow/disallow reordering of branches.
+  if (proposed_candidate->get_type() == NodeType::BRANCH) {
+    candidate_info.status = ReorderingCandidateStatus::NOT_ALLOWED;
+    return candidate_info;
+  }
 
   if (!anchor_reaches_candidate(anchor, proposed_candidate)) {
     candidate_info.status = ReorderingCandidateStatus::UNREACHABLE_CANDIDATE;
@@ -800,6 +803,7 @@ static directions_t get_directions(const Node *anchor, Node *candidate) {
 
   while (candidate != anchor) {
     Node *prev = candidate->get_mutable_prev();
+    assert(prev);
 
     if (prev == anchor) {
       break;
@@ -1024,21 +1028,21 @@ static void pull_branch(BDD *bdd, const mutable_vector_t &anchor,
   std::unordered_map<Branch *, directions_t> branch_candidates =
       get_branch_candidates(anchor, candidate, siblings);
 
-  BDD *new_bdd = new BDD(*bdd);
   leaves_t leaves = get_leaves_from_candidates(branch_candidates);
   dangling_t dangling = disconnect(candidate, branch_candidates);
 
   Node *anchor_old_next = link(anchor, candidate);
   assert(anchor_old_next && "Anchor has no next node");
+
   Node *anchor_next_clone = clone_and_update_nodes(
-      new_bdd, candidate, siblings, anchor_old_next, dangling, leaves);
+      bdd, candidate, siblings, anchor_old_next, dangling, leaves);
 
   assert(leaves.size() == dangling.size());
 
   link({candidate, true}, anchor_old_next);
   link({candidate, false}, anchor_next_clone);
 
-  stitch_dangling(new_bdd, candidate, dangling, leaves);
+  stitch_dangling(bdd, candidate, dangling, leaves);
 }
 
 static symbol_t get_collision_free_symbol(const symbols_t &symbols,
@@ -1321,6 +1325,10 @@ static double estimate_reorder(const BDD *bdd, const Node *anchor) {
 
   cache[hash] = total;
   total_max = std::max(total_max, total);
+
+  for (const reordered_bdd_t &reordered_bdd : bdds) {
+    delete reordered_bdd.bdd;
+  }
 
   return total;
 }
