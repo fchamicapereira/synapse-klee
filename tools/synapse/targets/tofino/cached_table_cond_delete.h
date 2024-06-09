@@ -10,7 +10,7 @@
 namespace synapse {
 namespace tofino {
 
-class CachedTableConditionalWrite : public TofinoModule {
+class CachedTableConditionalDelete : public TofinoModule {
 private:
   DS_ID cached_table_id;
   std::unordered_set<DS_ID> cached_table_byproducts;
@@ -18,24 +18,21 @@ private:
   addr_t obj;
   klee::ref<klee::Expr> key;
   klee::ref<klee::Expr> read_value;
-  klee::ref<klee::Expr> write_value;
   symbol_t map_has_this_key;
-  symbol_t cache_write_failed;
+  symbol_t cache_delete_failed;
 
 public:
-  CachedTableConditionalWrite(
+  CachedTableConditionalDelete(
       const bdd::Node *node, DS_ID _cached_table_id,
       const std::unordered_set<DS_ID> &_cached_table_byproducts, addr_t _obj,
       klee::ref<klee::Expr> _key, klee::ref<klee::Expr> _read_value,
-      klee::ref<klee::Expr> _write_value, const symbol_t &_map_has_this_key,
-      const symbol_t &_cache_write_failed)
-      : TofinoModule(ModuleType::Tofino_CachedTableConditionalWrite,
-                     "CachedTableConditionalWrite", node),
+      const symbol_t &_map_has_this_key, const symbol_t &_cache_delete_failed)
+      : TofinoModule(ModuleType::Tofino_CachedTableConditionalDelete,
+                     "CachedTableConditionalDelete", node),
         cached_table_id(_cached_table_id),
         cached_table_byproducts(_cached_table_byproducts), obj(_obj), key(_key),
-        read_value(_read_value), write_value(_write_value),
-        map_has_this_key(_map_has_this_key),
-        cache_write_failed(_cache_write_failed) {}
+        read_value(_read_value), map_has_this_key(_map_has_this_key),
+        cache_delete_failed(_cache_delete_failed) {}
 
   virtual void visit(EPVisitor &visitor, const EP *ep,
                      const EPNode *ep_node) const override {
@@ -43,9 +40,9 @@ public:
   }
 
   virtual Module *clone() const override {
-    Module *cloned = new CachedTableConditionalWrite(
+    Module *cloned = new CachedTableConditionalDelete(
         node, cached_table_id, cached_table_byproducts, obj, key, read_value,
-        write_value, map_has_this_key, cache_write_failed);
+        map_has_this_key, cache_delete_failed);
     return cloned;
   }
 
@@ -53,20 +50,21 @@ public:
   addr_t get_obj() const { return obj; }
   klee::ref<klee::Expr> get_key() const { return key; }
   klee::ref<klee::Expr> get_read_value() const { return read_value; }
-  klee::ref<klee::Expr> get_write_value() const { return write_value; }
   const symbol_t &get_map_has_this_key() const { return map_has_this_key; }
-  const symbol_t &get_cache_write_failed() const { return cache_write_failed; }
+  const symbol_t &get_cache_delete_failed() const {
+    return cache_delete_failed;
+  }
 
   virtual std::unordered_set<DS_ID> get_generated_ds() const override {
     return cached_table_byproducts;
   }
 };
 
-class CachedTableConditionalWriteGenerator : public TofinoModuleGenerator {
+class CachedTableConditionalDeleteGenerator : public TofinoModuleGenerator {
 public:
-  CachedTableConditionalWriteGenerator()
-      : TofinoModuleGenerator(ModuleType::Tofino_CachedTableConditionalWrite,
-                              "CachedTableConditionalWrite") {}
+  CachedTableConditionalDeleteGenerator()
+      : TofinoModuleGenerator(ModuleType::Tofino_CachedTableConditionalDelete,
+                              "CachedTableConditionalDelete") {}
 
 protected:
   virtual std::vector<const EP *>
@@ -89,15 +87,13 @@ protected:
       return new_eps;
     }
 
-    std::vector<const bdd::Call *> future_map_puts;
-    if (!is_map_get_followed_by_map_puts_on_miss(ep->get_bdd(), call_node,
-                                                 future_map_puts)) {
-      // The cached table read should deal with these cases.
+    std::vector<const bdd::Call *> future_map_erases;
+    if (!is_map_get_followed_by_map_erases_on_hit(ep->get_bdd(), call_node,
+                                                  future_map_erases)) {
       return new_eps;
     }
 
-    cached_table_data_t data =
-        get_cached_table_data(ep, call_node, future_map_puts);
+    cached_table_data_t data = get_cached_table_data(ep, call_node);
 
     std::unordered_set<DS_ID> deps;
     int cache_capacity = 1024;
@@ -109,35 +105,35 @@ protected:
       return new_eps;
     }
 
-    symbol_t cache_write_failed = create_cache_write_failed_symbol();
+    symbol_t cache_delete_failed = create_cache_delete_failed_symbol();
 
     std::unordered_set<DS_ID> byproducts =
         get_cached_table_byproducts(cached_table);
 
-    Module *module = new CachedTableConditionalWrite(
+    Module *module = new CachedTableConditionalDelete(
         node, cached_table->id, byproducts, data.obj, data.key, data.read_value,
-        data.write_value, data.map_has_this_key, cache_write_failed);
+        data.map_has_this_key, cache_delete_failed);
     EPNode *cached_table_cond_write_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
     new_eps.push_back(new_ep);
 
-    klee::ref<klee::Expr> cache_write_success_condition =
-        build_cache_write_success_condition(cache_write_failed);
+    klee::ref<klee::Expr> cache_delete_success_condition =
+        build_cache_delete_success_condition(cache_delete_failed);
 
-    bdd::Node *on_cache_write_success;
-    bdd::Node *on_cache_write_failed;
-    bdd::BDD *new_bdd = branch_bdd_on_cache_write_success(
-        new_ep, node, data.obj, cache_write_success_condition, coalescing_data,
-        on_cache_write_success, on_cache_write_failed);
+    bdd::Node *on_cache_delete_success;
+    bdd::Node *on_cache_delete_failed;
+    bdd::BDD *new_bdd = branch_bdd_on_cache_delete_success(
+        new_ep, node, data.obj, cache_delete_success_condition, coalescing_data,
+        on_cache_delete_success, on_cache_delete_failed);
 
     symbols_t symbols = get_dataplane_state(ep, node);
 
-    Module *if_module = new If(node, {cache_write_success_condition});
+    Module *if_module = new If(node, {cache_delete_success_condition});
     Module *then_module = new Then(node);
     Module *else_module = new Else(node);
     Module *send_to_controller_module =
-        new SendToController(on_cache_write_failed, symbols);
+        new SendToController(on_cache_delete_failed, symbols);
 
     EPNode *if_node = new EPNode(if_module);
     EPNode *then_node = new EPNode(then_module);
@@ -154,13 +150,13 @@ protected:
     else_node->set_children({send_to_controller_node});
     send_to_controller_node->set_prev(else_node);
 
-    EPLeaf on_cache_write_success_leaf(then_node, on_cache_write_success);
-    EPLeaf on_cache_write_failed_leaf(send_to_controller_node,
-                                      on_cache_write_failed);
+    EPLeaf on_cache_delete_success_leaf(then_node, on_cache_delete_success);
+    EPLeaf on_cache_delete_failed_leaf(send_to_controller_node,
+                                       on_cache_delete_failed);
 
     new_ep->process_leaf(
         cached_table_cond_write_node,
-        {on_cache_write_success_leaf, on_cache_write_failed_leaf});
+        {on_cache_delete_success_leaf, on_cache_delete_failed_leaf});
     new_ep->replace_bdd(new_bdd);
 
     new_ep->inspect();
@@ -188,16 +184,11 @@ private:
     return byproducts;
   }
 
-  cached_table_data_t
-  get_cached_table_data(const EP *ep, const bdd::Call *map_get,
-                        std::vector<const bdd::Call *> future_map_puts) const {
+  cached_table_data_t get_cached_table_data(const EP *ep,
+                                            const bdd::Call *map_get) const {
     cached_table_data_t data;
 
-    assert(!future_map_puts.empty());
-    const bdd::Call *map_put = future_map_puts.front();
-
     const call_t &get_call = map_get->get_call();
-    const call_t &put_call = map_put->get_call();
 
     symbols_t symbols = map_get->get_locally_generated_symbols();
     klee::ref<klee::Expr> obj_expr = get_call.args.at("map").expr;
@@ -205,7 +196,6 @@ private:
     data.obj = kutil::expr_addr_to_obj_addr(obj_expr);
     data.key = get_call.args.at("key").in;
     data.read_value = get_call.args.at("value_out").out;
-    data.write_value = put_call.args.at("value").expr;
 
     bool found = get_symbol(symbols, "map_has_this_key", data.map_has_this_key);
     assert(found && "Symbol map_has_this_key not found");
@@ -217,35 +207,36 @@ private:
     return data;
   }
 
-  klee::ref<klee::Expr> build_cache_write_success_condition(
-      const symbol_t &cache_write_failed) const {
+  klee::ref<klee::Expr> build_cache_delete_success_condition(
+      const symbol_t &cache_delete_failed) const {
     klee::ref<klee::Expr> zero = kutil::solver_toolbox.exprBuilder->Constant(
-        0, cache_write_failed.expr->getWidth());
-    return kutil::solver_toolbox.exprBuilder->Eq(cache_write_failed.expr, zero);
+        0, cache_delete_failed.expr->getWidth());
+    return kutil::solver_toolbox.exprBuilder->Eq(cache_delete_failed.expr,
+                                                 zero);
   }
 
-  symbol_t create_cache_write_failed_symbol() const {
+  symbol_t create_cache_delete_failed_symbol() const {
     const klee::Array *array;
-    std::string label = "cache_write_failed";
+    std::string label = "cache_delete_failed";
     bits_t size = 32;
 
     klee::ref<klee::Expr> expr =
         kutil::solver_toolbox.create_new_symbol(label, size, array);
 
-    symbol_t cache_write_failed = {
+    symbol_t cache_delete_failed = {
         .base = label,
         .array = array,
         .expr = expr,
     };
 
-    return cache_write_failed;
+    return cache_delete_failed;
   }
 
-  void delete_dchain_ops_on_cache_write_success(
+  void delete_dchain_ops_on_cache_delete_success(
       const EP *ep, bdd::BDD *bdd, const map_coalescing_data_t &coalescing_data,
-      bdd::Node *on_cache_write_success) const {
+      bdd::Node *on_cache_delete_success) const {
     std::vector<const bdd::Node *> dchain_ops_to_remove =
-        get_all_functions_after_node(on_cache_write_success,
+        get_all_functions_after_node(on_cache_delete_success,
                                      {
                                          "dchain_allocate_new_index",
                                          "dchain_rejuvenate_index",
@@ -275,7 +266,7 @@ private:
         assert(found && "Symbol out_of_space not found");
 
         const bdd::Branch *index_alloc_check = find_branch_checking_index_alloc(
-            ep, on_cache_write_success, out_of_space);
+            ep, on_cache_delete_success, out_of_space);
         assert(index_alloc_check && "Index allocation check not found");
 
         bdd::Node *trash;
@@ -287,17 +278,18 @@ private:
     }
   }
 
-  void delete_map_puts_on_cache_write_success(
+  void delete_map_erases_on_cache_delete_success(
       const EP *ep, bdd::BDD *bdd, addr_t target_map,
-      bdd::Node *on_cache_write_success) const {
-    std::vector<const bdd::Node *> map_puts_to_remove =
-        get_all_functions_after_node(on_cache_write_success, {"map_put"});
+      bdd::Node *on_cache_delete_success) const {
+    std::vector<const bdd::Node *> map_erases_to_remove =
+        get_all_functions_after_node(on_cache_delete_success, {"map_erase"});
 
-    for (const bdd::Node *map_put : map_puts_to_remove) {
-      assert(map_put->get_type() == bdd::NodeType::CALL);
+    for (const bdd::Node *map_erase : map_erases_to_remove) {
+      assert(map_erase->get_type() == bdd::NodeType::CALL);
 
-      const bdd::Call *map_put_call = static_cast<const bdd::Call *>(map_put);
-      const call_t &call = map_put_call->get_call();
+      const bdd::Call *map_erase_call =
+          static_cast<const bdd::Call *>(map_erase);
+      const call_t &call = map_erase_call->get_call();
 
       klee::ref<klee::Expr> map = call.args.at("map").expr;
       addr_t map_addr = kutil::expr_addr_to_obj_addr(map);
@@ -307,15 +299,15 @@ private:
       }
 
       bdd::Node *trash;
-      delete_non_branch_node_from_bdd(ep, bdd, map_put, trash);
+      delete_non_branch_node_from_bdd(ep, bdd, map_erase, trash);
     }
   }
 
-  void delete_vector_key_ops_on_cache_write_success(
+  void delete_vector_key_ops_on_cache_delete_success(
       const EP *ep, bdd::BDD *bdd, const map_coalescing_data_t &coalescing_data,
-      bdd::Node *on_cache_write_success) const {
+      bdd::Node *on_cache_delete_success) const {
     std::vector<const bdd::Node *> vector_ops = get_all_functions_after_node(
-        on_cache_write_success, {"vector_borrow", "vector_return"});
+        on_cache_delete_success, {"vector_borrow", "vector_return"});
 
     if (vector_ops.empty()) {
       return;
@@ -339,64 +331,65 @@ private:
     }
   }
 
-  void add_map_get_clone_on_cache_write_failed(
+  void add_map_get_clone_on_cache_delete_failed(
       const EP *ep, bdd::BDD *bdd, const bdd::Node *map_get,
-      const bdd::Branch *cache_write_branch,
-      bdd::Node *&new_on_cache_write_failed) const {
+      const bdd::Branch *cache_delete_branch,
+      bdd::Node *&new_on_cache_delete_failed) const {
     bdd::node_id_t &id = bdd->get_mutable_id();
     bdd::NodeManager &manager = bdd->get_mutable_manager();
-    bdd::Node *map_get_on_cache_write_failed = map_get->clone(manager, false);
-    map_get_on_cache_write_failed->recursive_update_ids(id);
+    bdd::Node *map_get_on_cache_delete_failed = map_get->clone(manager, false);
+    map_get_on_cache_delete_failed->recursive_update_ids(id);
 
-    add_non_branch_nodes_to_bdd(ep, bdd, cache_write_branch->get_on_false(),
-                                {map_get_on_cache_write_failed},
-                                new_on_cache_write_failed);
+    add_non_branch_nodes_to_bdd(ep, bdd, cache_delete_branch->get_on_false(),
+                                {map_get_on_cache_delete_failed},
+                                new_on_cache_delete_failed);
   }
 
-  void replicate_hdr_parsing_ops_on_cache_write_failed(
-      const EP *ep, bdd::BDD *bdd, const bdd::Branch *cache_write_branch,
-      bdd::Node *&new_on_cache_write_failed) const {
-    const bdd::Node *on_cache_write_failed = cache_write_branch->get_on_false();
+  void replicate_hdr_parsing_ops_on_cache_delete_failed(
+      const EP *ep, bdd::BDD *bdd, const bdd::Branch *cache_delete_branch,
+      bdd::Node *&new_on_cache_delete_failed) const {
+    const bdd::Node *on_cache_delete_failed =
+        cache_delete_branch->get_on_false();
 
     std::vector<const bdd::Node *> prev_borrows = get_prev_functions(
-        ep, on_cache_write_failed, {"packet_borrow_next_chunk"});
+        ep, on_cache_delete_failed, {"packet_borrow_next_chunk"});
 
     if (prev_borrows.empty()) {
       return;
     }
 
-    add_non_branch_nodes_to_bdd(ep, bdd, on_cache_write_failed, prev_borrows,
-                                new_on_cache_write_failed);
+    add_non_branch_nodes_to_bdd(ep, bdd, on_cache_delete_failed, prev_borrows,
+                                new_on_cache_delete_failed);
   }
 
-  bdd::BDD *branch_bdd_on_cache_write_success(
+  bdd::BDD *branch_bdd_on_cache_delete_success(
       const EP *ep, const bdd::Node *map_get, addr_t map_obj,
-      klee::ref<klee::Expr> cache_write_success_condition,
+      klee::ref<klee::Expr> cache_delete_success_condition,
       const map_coalescing_data_t &coalescing_data,
-      bdd::Node *&on_cache_write_success,
-      bdd::Node *&on_cache_write_failed) const {
+      bdd::Node *&on_cache_delete_success,
+      bdd::Node *&on_cache_delete_failed) const {
     const bdd::BDD *old_bdd = ep->get_bdd();
     bdd::BDD *new_bdd = new bdd::BDD(*old_bdd);
 
     const bdd::Node *next = map_get->get_next();
     assert(next);
 
-    bdd::Branch *cache_write_branch;
-    add_branch_to_bdd(ep, new_bdd, next, cache_write_success_condition,
-                      cache_write_branch);
-    on_cache_write_success = cache_write_branch->get_mutable_on_true();
+    bdd::Branch *cache_delete_branch;
+    add_branch_to_bdd(ep, new_bdd, next, cache_delete_success_condition,
+                      cache_delete_branch);
+    on_cache_delete_success = cache_delete_branch->get_mutable_on_true();
 
-    add_map_get_clone_on_cache_write_failed(
-        ep, new_bdd, map_get, cache_write_branch, on_cache_write_failed);
-    replicate_hdr_parsing_ops_on_cache_write_failed(
-        ep, new_bdd, cache_write_branch, on_cache_write_failed);
+    add_map_get_clone_on_cache_delete_failed(
+        ep, new_bdd, map_get, cache_delete_branch, on_cache_delete_failed);
+    replicate_hdr_parsing_ops_on_cache_delete_failed(
+        ep, new_bdd, cache_delete_branch, on_cache_delete_failed);
 
-    delete_map_puts_on_cache_write_success(ep, new_bdd, map_obj,
-                                           on_cache_write_success);
-    delete_dchain_ops_on_cache_write_success(ep, new_bdd, coalescing_data,
-                                             on_cache_write_success);
-    delete_vector_key_ops_on_cache_write_success(ep, new_bdd, coalescing_data,
-                                                 on_cache_write_success);
+    delete_map_erases_on_cache_delete_success(ep, new_bdd, map_obj,
+                                              on_cache_delete_success);
+    delete_dchain_ops_on_cache_delete_success(ep, new_bdd, coalescing_data,
+                                              on_cache_delete_success);
+    delete_vector_key_ops_on_cache_delete_success(ep, new_bdd, coalescing_data,
+                                                  on_cache_delete_success);
 
     return new_bdd;
   }

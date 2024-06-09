@@ -31,6 +31,7 @@ class VectorRegisterUpdate;
 class CachedTableRead;
 class CachedTableConditionalWrite;
 class CachedTableWrite;
+class CachedTableConditionalDelete;
 class CachedTableDelete;
 } // namespace tofino
 
@@ -130,6 +131,7 @@ public:
   VISIT_TODO(tofino::CachedTableRead)
   VISIT_TODO(tofino::CachedTableConditionalWrite)
   VISIT_TODO(tofino::CachedTableWrite)
+  VISIT_TODO(tofino::CachedTableConditionalDelete)
   VISIT_TODO(tofino::CachedTableDelete)
 
   /*************************************

@@ -13,6 +13,8 @@ enum class PlacementStatus {
   TOO_MANY_KEYS,
   XBAR_CONSUME_EXCEEDS_LIMIT,
   NO_AVAILABLE_STAGE,
+  INCONSISTENT_PLACEMENT,
+  SELF_DEPENDENCE,
   UNKNOWN,
 };
 
@@ -52,6 +54,12 @@ private:
   void place(const Register *reg, const std::unordered_set<DS_ID> &deps);
   void place(const CachedTable *cached_table,
              const std::unordered_set<DS_ID> &deps);
+
+  bool is_already_placed(DS_ID ds_id) const;
+  bool is_self_dependent(DS_ID ds_id,
+                         const std::unordered_set<DS_ID> &deps) const;
+  PlacementStatus is_consistent(DS_ID ds_id,
+                                const std::unordered_set<DS_ID> &deps) const;
 
   PlacementStatus can_place(const Table *table,
                             const std::unordered_set<DS_ID> &deps) const;

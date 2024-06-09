@@ -62,13 +62,14 @@ std::unordered_set<DS *> TofinoModuleGenerator::get_registers(
   return regs;
 }
 
-DS *TofinoModuleGenerator::build_cached_table(
+CachedTable *TofinoModuleGenerator::build_cached_table(
     const EP *ep, const bdd::Node *node, const cached_table_data_t &data,
     int cache_capacity, std::unordered_set<DS_ID> &deps) const {
   const TNA &tna = get_tna(ep);
   const TNAConstraints &tna_constr = tna.get_constraints();
 
-  DS_ID id = "cached_table_" + std::to_string(node->get_id());
+  DS_ID id = "cached_table_" + std::to_string(node->get_id()) + "_" +
+             std::to_string(cache_capacity);
 
   std::vector<klee::ref<klee::Expr>> keys =
       Register::partition_value(tna_constr, data.key);
@@ -95,9 +96,10 @@ DS *TofinoModuleGenerator::build_cached_table(
   return cached_table;
 }
 
-DS *TofinoModuleGenerator::get_cached_table(
-    const EP *ep, const cached_table_data_t &data,
-    std::unordered_set<DS_ID> &deps) const {
+CachedTable *
+TofinoModuleGenerator::get_cached_table(const EP *ep,
+                                        const cached_table_data_t &data,
+                                        std::unordered_set<DS_ID> &deps) const {
   const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
   const std::vector<DS *> &ds = tofino_ctx->get_ds(data.obj);
 
@@ -114,11 +116,11 @@ DS *TofinoModuleGenerator::get_cached_table(
   return cached_table;
 }
 
-DS *TofinoModuleGenerator::get_or_build_cached_table(
+CachedTable *TofinoModuleGenerator::get_or_build_cached_table(
     const EP *ep, const bdd::Node *node, const cached_table_data_t &data,
     int cache_capacity, bool &already_exists,
     std::unordered_set<DS_ID> &deps) const {
-  DS *cached_table = nullptr;
+  CachedTable *cached_table = nullptr;
 
   const Context &ctx = ep->get_ctx();
   bool already_placed =
@@ -169,7 +171,7 @@ bool TofinoModuleGenerator::can_place_cached_table(
 }
 
 void TofinoModuleGenerator::place_cached_table(
-    EP *ep, const map_coalescing_data_t &coalescing_data, DS *ds,
+    EP *ep, const map_coalescing_data_t &coalescing_data, CachedTable *ds,
     const std::unordered_set<DS_ID> &deps) const {
   assert(ds->type == DSType::CACHED_TABLE);
   CachedTable *cached_table = static_cast<CachedTable *>(ds);

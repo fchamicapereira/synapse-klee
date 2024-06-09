@@ -25,17 +25,17 @@ public:
   PrinterDebug(bool _traverse) : traverse(_traverse) {}
   PrinterDebug() : PrinterDebug(true) {}
 
-  void visit(const BDD &bdd) override {
-    const Node *root = bdd.get_root();
+  void visit(const BDD *bdd) override {
+    const Node *root = bdd->get_root();
     assert(root);
 
-    klee::ref<klee::Expr> device = bdd.get_device().expr;
-    klee::ref<klee::Expr> packet_len = bdd.get_packet_len().expr;
-    klee::ref<klee::Expr> time = bdd.get_time().expr;
+    klee::ref<klee::Expr> device = bdd->get_device().expr;
+    klee::ref<klee::Expr> packet_len = bdd->get_packet_len().expr;
+    klee::ref<klee::Expr> time = bdd->get_time().expr;
 
     std::cerr << "===========================================\n";
     std::cerr << "Init calls:\n";
-    for (const call_t &call : bdd.get_init()) {
+    for (const call_t &call : bdd->get_init()) {
       std::cerr << "\t" << call << "\n";
     }
     std::cerr << "===========================================\n";

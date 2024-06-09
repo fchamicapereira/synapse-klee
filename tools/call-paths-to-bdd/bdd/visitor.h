@@ -15,7 +15,7 @@ enum class BDDVisitorAction { VISIT_CHILDREN, STOP };
 
 class BDDVisitor {
 public:
-  virtual void visit(const BDD &bdd);
+  virtual void visit(const BDD *bdd);
 
   void visit(const Branch *node);
   void visit(const Call *node);

@@ -53,7 +53,6 @@ public:
   EP(EP &&other) = delete;
   EP &operator=(const EP *other) = delete;
 
-  void process_future_non_branch_node(const bdd::Node *future);
   void process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves,
                     bool process_node = true);
   void process_leaf(const bdd::Node *next_node);
@@ -88,6 +87,7 @@ public:
   void visit(EPVisitor &visitor) const;
 
   void log_debug_placements() const;
+  void inspect() const;
 
 private:
   EPLeaf *get_mutable_active_leaf();

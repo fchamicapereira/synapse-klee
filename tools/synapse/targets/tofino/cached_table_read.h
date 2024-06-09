@@ -7,20 +7,25 @@ namespace tofino {
 
 class CachedTableRead : public TofinoModule {
 private:
-  DS_ID id;
+  DS_ID cached_table_id;
+  std::unordered_set<DS_ID> cached_table_byproducts;
+
   addr_t obj;
   klee::ref<klee::Expr> key;
   klee::ref<klee::Expr> value;
   symbol_t map_has_this_key;
 
 public:
-  CachedTableRead(const bdd::Node *node, DS_ID _id, addr_t _obj,
-                  klee::ref<klee::Expr> _key, klee::ref<klee::Expr> _value,
+  CachedTableRead(const bdd::Node *node, DS_ID _cached_table_id,
+                  const std::unordered_set<DS_ID> &_cached_table_byproducts,
+                  addr_t _obj, klee::ref<klee::Expr> _key,
+                  klee::ref<klee::Expr> _value,
                   const symbol_t &_map_has_this_key)
       : TofinoModule(ModuleType::Tofino_CachedTableRead, "CachedTableRead",
                      node),
-        id(_id), obj(_obj), key(_key), value(_value),
-        map_has_this_key(_map_has_this_key) {}
+        cached_table_id(_cached_table_id),
+        cached_table_byproducts(_cached_table_byproducts), obj(_obj), key(_key),
+        value(_value), map_has_this_key(_map_has_this_key) {}
 
   virtual void visit(EPVisitor &visitor, const EP *ep,
                      const EPNode *ep_node) const override {
@@ -29,18 +34,19 @@ public:
 
   virtual Module *clone() const override {
     Module *cloned =
-        new CachedTableRead(node, id, obj, key, value, map_has_this_key);
+        new CachedTableRead(node, cached_table_id, cached_table_byproducts, obj,
+                            key, value, map_has_this_key);
     return cloned;
   }
 
-  DS_ID get_id() const { return id; }
+  DS_ID get_id() const { return cached_table_id; }
   addr_t get_obj() const { return obj; }
   klee::ref<klee::Expr> get_key() const { return key; }
   klee::ref<klee::Expr> get_value() const { return value; }
   const symbol_t &get_map_has_this_key() const { return map_has_this_key; }
 
   virtual std::unordered_set<DS_ID> get_generated_ds() const override {
-    return {id};
+    return cached_table_byproducts;
   }
 };
 
@@ -83,25 +89,33 @@ protected:
     std::unordered_set<DS_ID> deps;
     int cache_capacity = 1024;
     bool already_exists;
-    DS *cached_table = get_or_build_cached_table(ep, node, data, cache_capacity,
-                                                 already_exists, deps);
+    CachedTable *cached_table = get_or_build_cached_table(
+        ep, node, data, cache_capacity, already_exists, deps);
 
     if (!cached_table) {
       return new_eps;
     }
 
+    std::unordered_set<DS_ID> byproducts =
+        get_cached_table_byproducts(cached_table);
+
     Module *module =
-        new CachedTableRead(node, cached_table->id, data.obj, data.key,
-                            data.read_value, data.map_has_this_key);
+        new CachedTableRead(node, cached_table->id, byproducts, data.obj,
+                            data.key, data.read_value, data.map_has_this_key);
     EPNode *ep_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
     new_eps.push_back(new_ep);
 
-    EPLeaf leaf(ep_node, node->get_next());
-    new_ep->process_leaf(ep_node, {leaf});
+    const bdd::Node *new_next;
+    bdd::BDD *bdd = delete_future_vector_key_ops(new_ep, node, data,
+                                                 coalescing_data, new_next);
 
-    mark_future_vector_key_ops_as_processed(new_ep, node, coalescing_data);
+    EPLeaf leaf(ep_node, new_next);
+    new_ep->process_leaf(ep_node, {leaf});
+    new_ep->replace_bdd(bdd);
+
+    new_ep->inspect();
 
     if (!already_exists) {
       place_cached_table(new_ep, coalescing_data, cached_table, deps);
@@ -111,6 +125,21 @@ protected:
   }
 
 private:
+  std::unordered_set<DS_ID>
+  get_cached_table_byproducts(CachedTable *cached_table) const {
+    std::unordered_set<DS_ID> byproducts;
+
+    std::vector<std::unordered_set<const DS *>> internal_ds =
+        cached_table->get_internal_ds();
+    for (const std::unordered_set<const DS *> &ds_set : internal_ds) {
+      for (const DS *ds : ds_set) {
+        byproducts.insert(ds->id);
+      }
+    }
+
+    return byproducts;
+  }
+
   cached_table_data_t get_cached_table_data(const EP *ep,
                                             const bdd::Call *map_get) const {
     cached_table_data_t data;
@@ -134,9 +163,22 @@ private:
     return data;
   }
 
-  void mark_future_vector_key_ops_as_processed(
-      EP *ep, const bdd::Node *node,
-      const map_coalescing_data_t &coalescing_data) const {
+  bdd::BDD *
+  delete_future_vector_key_ops(EP *ep, const bdd::Node *node,
+                               const cached_table_data_t &cached_table_data,
+                               const map_coalescing_data_t &coalescing_data,
+                               const bdd::Node *&new_next) const {
+    const bdd::BDD *old_bdd = ep->get_bdd();
+    bdd::BDD *new_bdd = new bdd::BDD(*old_bdd);
+
+    const bdd::Node *next = node->get_next();
+
+    if (next) {
+      new_next = new_bdd->get_node_by_id(next->get_id());
+    } else {
+      new_next = nullptr;
+    }
+
     std::vector<const bdd::Node *> vector_ops =
         get_all_functions_after_node(node, {"vector_borrow", "vector_return"});
 
@@ -147,14 +189,29 @@ private:
       const call_t &call = vector_call->get_call();
 
       klee::ref<klee::Expr> vector = call.args.at("vector").expr;
+      klee::ref<klee::Expr> index = call.args.at("index").expr;
+
       addr_t vector_addr = kutil::expr_addr_to_obj_addr(vector);
 
       if (vector_addr != coalescing_data.vector_key) {
         continue;
       }
 
-      ep->process_future_non_branch_node(vector_op);
+      if (!kutil::solver_toolbox.are_exprs_always_equal(
+              index, cached_table_data.read_value)) {
+        continue;
+      }
+
+      bool replace_next = (vector_op == next);
+      bdd::Node *replacement;
+      delete_non_branch_node_from_bdd(ep, new_bdd, vector_op, replacement);
+
+      if (replace_next) {
+        new_next = replacement;
+      }
     }
+
+    return new_bdd;
   }
 };
 

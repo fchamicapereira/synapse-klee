@@ -40,10 +40,10 @@ public:
 
   std::string get_color(const Node *node) const;
 
-  static void visualize(const BDD &bdd, bool interrupt,
+  static void visualize(const BDD *bdd, bool interrupt,
                         bdd_visualizer_opts_t opts = {});
 
-  void visit(const BDD &bdd) override;
+  void visit(const BDD *bdd) override;
   void visitRoot(const Node *root) override;
 
   BDDVisitorAction visitBranch(const Branch *node) override;

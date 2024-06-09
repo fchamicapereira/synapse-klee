@@ -535,10 +535,18 @@ klee::ref<klee::Expr> get_original_vector_value(const EP *ep,
   return borrowed_cell;
 }
 
-const bdd::Node *get_future_vector_return(const bdd::Node *root,
-                                          addr_t target_addr) {
+std::vector<const bdd::Node *>
+get_future_vector_return(const bdd::Call *vector_borrow) {
+  std::vector<const bdd::Node *> found;
+
+  const call_t &vb_call = vector_borrow->get_call();
+  klee::ref<klee::Expr> target_addr_expr = vb_call.args.at("vector").expr;
+
+  addr_t target_addr = kutil::expr_addr_to_obj_addr(target_addr_expr);
+  klee::ref<klee::Expr> target_index = vb_call.args.at("index").expr;
+
   std::vector<const bdd::Node *> vector_returns =
-      get_all_functions_after_node(root, {"vector_return"});
+      get_all_functions_after_node(vector_borrow, {"vector_return"});
 
   for (const bdd::Node *vector_return : vector_returns) {
     assert(vector_return->get_type() == bdd::NodeType::CALL);
@@ -546,16 +554,22 @@ const bdd::Node *get_future_vector_return(const bdd::Node *root,
     const call_t &call = call_node->get_call();
 
     klee::ref<klee::Expr> vector_addr_expr = call.args.at("vector").expr;
+    klee::ref<klee::Expr> index = call.args.at("index").expr;
+
     addr_t obj = kutil::expr_addr_to_obj_addr(vector_addr_expr);
 
     if (obj != target_addr) {
       continue;
     }
 
-    return vector_return;
+    if (!kutil::solver_toolbox.are_exprs_always_equal(index, target_index)) {
+      continue;
+    }
+
+    found.push_back(vector_return);
   }
 
-  return nullptr;
+  return found;
 }
 
 klee::ref<klee::Expr> get_expr_from_addr(const EP *ep, addr_t addr) {
@@ -930,9 +944,15 @@ bool is_vector_read(const bdd::Call *vector_borrow) {
 
   addr_t vb_obj = kutil::expr_addr_to_obj_addr(vb_obj_expr);
 
-  const bdd::Node *vector_return =
-      get_future_vector_return(vector_borrow, vb_obj);
-  assert(vector_return && "Vector return not found");
+  std::vector<const bdd::Node *> vector_returns =
+      get_future_vector_return(vector_borrow);
+  assert(!vector_returns.empty() && "Vector return not found");
+
+  if (vector_returns.size() > 1) {
+    return false;
+  }
+
+  const bdd::Node *vector_return = vector_returns[0];
   assert(vector_return->get_type() == bdd::NodeType::CALL);
 
   const bdd::Call *vr_call = static_cast<const bdd::Call *>(vector_return);
@@ -976,7 +996,6 @@ bool is_map_get_followed_by_map_puts_on_miss(
   std::vector<const bdd::Node *> future_map_puts =
       get_all_functions_after_node(map_get, {"map_put"});
 
-  bool map_put_found = false;
   klee::ref<klee::Expr> value;
 
   for (const bdd::Node *node : future_map_puts) {
@@ -1004,8 +1023,6 @@ bool is_map_get_followed_by_map_puts_on_miss(
       return false;
     }
 
-    map_put_found = true;
-
     klee::ConstraintManager constraints = map_put->get_constraints();
     if (!kutil::solver_toolbox.is_expr_always_true(constraints,
                                                    failed_map_get)) {
@@ -1016,7 +1033,69 @@ bool is_map_get_followed_by_map_puts_on_miss(
     map_puts.push_back(map_put);
   }
 
-  if (!map_put_found) {
+  if (map_puts.empty()) {
+    return false;
+  }
+
+  return true;
+}
+
+bool is_map_get_followed_by_map_erases_on_hit(
+    const bdd::BDD *bdd, const bdd::Call *map_get,
+    std::vector<const bdd::Call *> &map_erases) {
+  const call_t &mg_call = map_get->get_call();
+
+  if (mg_call.function_name != "map_get") {
+    return false;
+  }
+
+  klee::ref<klee::Expr> obj_expr = mg_call.args.at("map").expr;
+  klee::ref<klee::Expr> key = mg_call.args.at("key").in;
+
+  addr_t obj = kutil::expr_addr_to_obj_addr(obj_expr);
+
+  symbols_t symbols = map_get->get_locally_generated_symbols();
+  symbol_t map_has_this_key;
+  bool found = get_symbol(symbols, "map_has_this_key", map_has_this_key);
+  assert(found && "Symbol map_has_this_key not found");
+
+  klee::ref<klee::Expr> successful_map_get =
+      kutil::solver_toolbox.exprBuilder->Ne(
+          map_has_this_key.expr, kutil::solver_toolbox.exprBuilder->Constant(
+                                     0, map_has_this_key.expr->getWidth()));
+
+  std::vector<const bdd::Node *> future_map_erases =
+      get_all_functions_after_node(map_get, {"map_erase"});
+
+  for (const bdd::Node *node : future_map_erases) {
+    const bdd::Call *map_erase = static_cast<const bdd::Call *>(node);
+    const call_t &me_call = map_erase->get_call();
+    assert(me_call.function_name == "map_erase");
+
+    klee::ref<klee::Expr> map_expr = me_call.args.at("map").expr;
+    klee::ref<klee::Expr> me_key = me_call.args.at("key").in;
+
+    addr_t map = kutil::expr_addr_to_obj_addr(map_expr);
+
+    if (map != obj) {
+      continue;
+    }
+
+    if (!kutil::solver_toolbox.are_exprs_always_equal(key, me_key)) {
+      return false;
+    }
+
+    klee::ConstraintManager constraints = map_erase->get_constraints();
+    if (!kutil::solver_toolbox.is_expr_always_true(constraints,
+                                                   successful_map_get)) {
+      // Found map_put that happens even if map_get was successful.
+      return false;
+    }
+
+    map_erases.push_back(map_erase);
+  }
+
+  if (map_erases.empty()) {
     return false;
   }
 

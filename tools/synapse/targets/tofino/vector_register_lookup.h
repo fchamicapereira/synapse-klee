@@ -100,8 +100,14 @@ protected:
     EP *new_ep = new EP(*ep);
     new_eps.push_back(new_ep);
 
-    EPLeaf leaf(ep_node, node->get_next());
+    const bdd::Node *new_next;
+    bdd::BDD *bdd = delete_future_vector_return(new_ep, node, obj, new_next);
+
+    EPLeaf leaf(ep_node, new_next);
     new_ep->process_leaf(ep_node, {leaf});
+    new_ep->replace_bdd(bdd);
+
+    new_ep->inspect();
 
     if (!regs_already_placed) {
       place_regs(new_ep, obj, regs, deps);
@@ -133,6 +139,49 @@ private:
     TofinoContext *tofino_ctx = get_mutable_tofino_ctx(ep);
     place(ep, obj, PlacementDecision::Tofino_VectorRegister);
     tofino_ctx->place_many(ep, obj, {regs}, deps);
+  }
+
+  bdd::BDD *delete_future_vector_return(EP *ep, const bdd::Node *node,
+                                        addr_t vector,
+                                        const bdd::Node *&new_next) const {
+    const bdd::BDD *old_bdd = ep->get_bdd();
+    bdd::BDD *new_bdd = new bdd::BDD(*old_bdd);
+
+    const bdd::Node *next = node->get_next();
+
+    if (next) {
+      new_next = new_bdd->get_node_by_id(next->get_id());
+    } else {
+      new_next = nullptr;
+    }
+
+    std::vector<const bdd::Node *> ops =
+        get_all_functions_after_node(node, {"vector_return"});
+
+    for (const bdd::Node *op : ops) {
+      assert(op->get_type() == bdd::NodeType::CALL);
+
+      const bdd::Call *call_node = static_cast<const bdd::Call *>(op);
+      const call_t &call = call_node->get_call();
+      assert(call.function_name == "vector_return");
+
+      klee::ref<klee::Expr> obj_expr = call.args.at("vector").expr;
+      addr_t obj = kutil::expr_addr_to_obj_addr(obj_expr);
+
+      if (obj != vector) {
+        continue;
+      }
+
+      bool replace_next = (op == next);
+      bdd::Node *replacement;
+      delete_non_branch_node_from_bdd(ep, new_bdd, op, replacement);
+
+      if (replace_next) {
+        new_next = replacement;
+      }
+    }
+
+    return new_bdd;
   }
 };
 

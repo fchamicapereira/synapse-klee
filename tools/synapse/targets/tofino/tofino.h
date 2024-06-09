@@ -19,6 +19,7 @@
 #include "cached_table_read.h"
 #include "cached_table_cond_write.h"
 #include "cached_table_write.h"
+#include "cached_table_cond_delete.h"
 #include "cached_table_delete.h"
 
 #include "tofino_context.h"
@@ -47,6 +48,7 @@ struct TofinoTarget : public Target {
                    new CachedTableReadGenerator(),
                    new CachedTableConditionalWriteGenerator(),
                    new CachedTableWriteGenerator(),
+                   new CachedTableConditionalDeleteGenerator(),
                    new CachedTableDeleteGenerator(),
                },
                new TofinoContext(version)) {}

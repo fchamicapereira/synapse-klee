@@ -215,6 +215,26 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
 }
 
 void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
+                         const tofino::CachedTableConditionalDelete *node) {
+  std::stringstream label_builder;
+
+  const bdd::Node *bdd_node = node->get_node();
+  TargetType target = node->get_target();
+  addr_t obj = node->get_obj();
+
+  label_builder << "Cached Table Conditional Delete\n";
+  label_builder << "(";
+  label_builder << "obj=";
+  label_builder << obj;
+  label_builder << ")";
+
+  std::string label = label_builder.str();
+  function_call(ep_node, bdd_node, target, label);
+
+  find_and_replace(label, {{"\n", "\\n"}});
+}
+
+void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
                          const tofino::CachedTableDelete *node) {
   std::stringstream label_builder;
 

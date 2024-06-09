@@ -12,7 +12,9 @@ namespace tofino {
 
 class CachedTableWrite : public TofinoModule {
 private:
-  DS_ID id;
+  DS_ID cached_table_id;
+  std::unordered_set<DS_ID> cached_table_byproducts;
+
   addr_t obj;
   klee::ref<klee::Expr> key;
   klee::ref<klee::Expr> read_value;
@@ -21,16 +23,19 @@ private:
   symbol_t cache_update_failed;
 
 public:
-  CachedTableWrite(const bdd::Node *node, DS_ID _id, addr_t _obj,
-                   klee::ref<klee::Expr> _key,
+  CachedTableWrite(const bdd::Node *node, DS_ID _cached_table_id,
+                   const std::unordered_set<DS_ID> &_cached_table_byproducts,
+                   addr_t _obj, klee::ref<klee::Expr> _key,
                    klee::ref<klee::Expr> _read_value,
                    klee::ref<klee::Expr> _write_value,
                    const symbol_t &_map_has_this_key,
                    const symbol_t &_cache_update_failed)
       : TofinoModule(ModuleType::Tofino_CachedTableWrite, "CachedTableWrite",
                      node),
-        id(_id), obj(_obj), key(_key), read_value(_read_value),
-        write_value(_write_value), map_has_this_key(_map_has_this_key),
+        cached_table_id(_cached_table_id),
+        cached_table_byproducts(_cached_table_byproducts), obj(_obj), key(_key),
+        read_value(_read_value), write_value(_write_value),
+        map_has_this_key(_map_has_this_key),
         cache_update_failed(_cache_update_failed) {}
 
   virtual void visit(EPVisitor &visitor, const EP *ep,
@@ -39,13 +44,13 @@ public:
   }
 
   virtual Module *clone() const override {
-    Module *cloned =
-        new CachedTableWrite(node, id, obj, key, read_value, write_value,
-                             map_has_this_key, cache_update_failed);
+    Module *cloned = new CachedTableWrite(
+        node, cached_table_id, cached_table_byproducts, obj, key, read_value,
+        write_value, map_has_this_key, cache_update_failed);
     return cloned;
   }
 
-  DS_ID get_id() const { return id; }
+  DS_ID get_id() const { return cached_table_id; }
   addr_t get_obj() const { return obj; }
   klee::ref<klee::Expr> get_key() const { return key; }
   klee::ref<klee::Expr> get_read_value() const { return read_value; }
@@ -56,7 +61,7 @@ public:
   }
 
   virtual std::unordered_set<DS_ID> get_generated_ds() const override {
-    return {id};
+    return cached_table_byproducts;
   }
 };
 

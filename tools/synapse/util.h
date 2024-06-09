@@ -101,8 +101,8 @@ bool is_vector_return_without_modifications(const EP *ep,
                                             const bdd::Node *node);
 bool is_vector_read(const bdd::Call *vector_borrow);
 
-const bdd::Node *get_future_vector_return(const bdd::Node *root,
-                                          addr_t target_addr);
+std::vector<const bdd::Node *>
+get_future_vector_return(const bdd::Call *vector_borrow);
 
 // Get the data associated with this address.
 klee::ref<klee::Expr> get_expr_from_addr(const EP *ep, addr_t addr);
@@ -133,6 +133,16 @@ symbols_t get_prev_symbols(const bdd::Node *node,
 bool is_map_get_followed_by_map_puts_on_miss(
     const bdd::BDD *bdd, const bdd::Call *map_get,
     std::vector<const bdd::Call *> &map_puts);
+
+// Tries to find the pattern of a map_get followed by map_erases, but only when
+// the map_get is successful (i.e. the key is found).
+// Conditions to meet:
+// (1) Has at least 1 future map_erase
+// (2) All map_erase happen if the map_get was successful
+// (3) All map_erases with the target obj also have the same key as the map_get
+bool is_map_get_followed_by_map_erases_on_hit(
+    const bdd::BDD *bdd, const bdd::Call *map_get,
+    std::vector<const bdd::Call *> &map_erases);
 
 // Appends new non-branch nodes to the BDD in place of the provided current
 // node.

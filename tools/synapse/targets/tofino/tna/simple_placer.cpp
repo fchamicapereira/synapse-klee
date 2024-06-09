@@ -23,6 +23,12 @@ std::ostream &operator<<(std::ostream &os, const PlacementStatus &status) {
   case PlacementStatus::NO_AVAILABLE_STAGE:
     os << "NO_AVAILABLE_STAGE";
     break;
+  case PlacementStatus::INCONSISTENT_PLACEMENT:
+    os << "INCONSISTENT_PLACEMENT";
+    break;
+  case PlacementStatus::SELF_DEPENDENCE:
+    os << "SELF_DEPENDENCE";
+    break;
   case PlacementStatus::UNKNOWN:
     os << "UNKNOWN";
     break;
@@ -109,10 +115,53 @@ void SimplePlacer::concretize_placement(
   stage->tables.insert(placement.obj);
 }
 
+bool SimplePlacer::is_already_placed(DS_ID ds_id) const {
+  for (const Stage &stage : stages) {
+    if (stage.tables.find(ds_id) != stage.tables.end()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+PlacementStatus
+SimplePlacer::is_consistent(DS_ID ds_id,
+                            const std::unordered_set<DS_ID> &deps) const {
+  int soonest_stage_id = get_soonest_available_stage(stages, deps);
+
+  int total_stages = stages.size();
+  for (int stage_id = soonest_stage_id; stage_id < total_stages; stage_id++) {
+    const Stage *stage = &stages[stage_id];
+
+    if (stage->tables.find(ds_id) != stage->tables.end()) {
+      return PlacementStatus::SUCCESS;
+    }
+  }
+
+  return PlacementStatus::INCONSISTENT_PLACEMENT;
+}
+
+bool SimplePlacer::is_self_dependent(
+    DS_ID ds_id, const std::unordered_set<DS_ID> &deps) const {
+
+  bool self_dependent = deps.find(ds_id) != deps.end();
+
+  if (self_dependent) {
+    Log::dbg() << "Self dependent: " << ds_id << "\n";
+    log_debug();
+    DEBUG_PAUSE
+  }
+
+  return self_dependent;
+}
+
 PlacementStatus
 SimplePlacer::find_placements(const Table *table,
                               const std::unordered_set<DS_ID> &deps,
                               std::vector<placement_t> &placements) const {
+  assert(!is_already_placed(table->id));
+
   if (static_cast<int>(table->keys.size()) >
       constraints->max_exact_match_keys) {
     return PlacementStatus::TOO_MANY_KEYS;
@@ -180,6 +229,8 @@ PlacementStatus
 SimplePlacer::find_placements(const Register *reg,
                               const std::unordered_set<DS_ID> &deps,
                               std::vector<placement_t> &placements) const {
+  assert(!is_already_placed(reg->id));
+
   int soonest_stage_id = get_soonest_available_stage(stages, deps);
   assert(soonest_stage_id < static_cast<int>(stages.size()));
 
@@ -238,8 +289,11 @@ SimplePlacer::find_placements(const Register *reg,
 
 void SimplePlacer::place(const Table *table,
                          const std::unordered_set<DS_ID> &deps) {
-  std::vector<placement_t> placements;
+  if (is_already_placed(table->id)) {
+    return;
+  }
 
+  std::vector<placement_t> placements;
   PlacementStatus status = find_placements(table, deps, placements);
   assert(status == PlacementStatus::SUCCESS && "Cannot place table");
 
@@ -256,8 +310,11 @@ void SimplePlacer::place(const Table *table,
 
 void SimplePlacer::place(const Register *reg,
                          const std::unordered_set<DS_ID> &deps) {
-  std::vector<placement_t> placements;
+  if (is_already_placed(reg->id)) {
+    return;
+  }
 
+  std::vector<placement_t> placements;
   PlacementStatus status = find_placements(reg, deps, placements);
   assert(status == PlacementStatus::SUCCESS && "Cannot place register");
 
@@ -284,6 +341,10 @@ void SimplePlacer::place(const CachedTable *cached_table,
     std::unordered_set<DS_ID> new_deps;
 
     for (const DS *ds : indep_ds) {
+      if (is_already_placed(ds->id)) {
+        continue;
+      }
+
       place(ds, deps);
       new_deps.insert(ds->id);
     }
@@ -318,6 +379,15 @@ PlacementStatus
 SimplePlacer::can_place(const Table *table,
                         const std::unordered_set<DS_ID> &deps) const {
   std::vector<placement_t> placements;
+
+  if (is_self_dependent(table->id, deps)) {
+    return PlacementStatus::SELF_DEPENDENCE;
+  }
+
+  if (is_already_placed(table->id)) {
+    return is_consistent(table->id, deps);
+  }
+
   return find_placements(table, deps, placements);
 }
 
@@ -325,6 +395,15 @@ PlacementStatus
 SimplePlacer::can_place(const Register *reg,
                         const std::unordered_set<DS_ID> &deps) const {
   std::vector<placement_t> placements;
+
+  if (is_self_dependent(reg->id, deps)) {
+    return PlacementStatus::SELF_DEPENDENCE;
+  }
+
+  if (is_already_placed(reg->id)) {
+    return is_consistent(reg->id, deps);
+  }
+
   return find_placements(reg, deps, placements);
 }
 
@@ -333,9 +412,10 @@ SimplePlacer::can_place(const CachedTable *cached_table,
                         const std::unordered_set<DS_ID> &_deps) const {
   SimplePlacer snapshot(*this);
 
-  std::unordered_set<DS_ID> deps = _deps;
   std::vector<std::unordered_set<const DS *>> candidates =
       cached_table->get_internal_ds();
+
+  std::unordered_set<DS_ID> deps = _deps;
 
   for (const std::unordered_set<const DS *> &indep_ds : candidates) {
     std::unordered_set<DS_ID> new_deps;

@@ -282,17 +282,54 @@ void EP::replace_bdd(
 
 void EP::visit(EPVisitor &visitor) const { visitor.visit(this); }
 
-void EP::process_future_non_branch_node(const bdd::Node *future) {
-  assert(future->get_type() != bdd::NodeType::BRANCH);
-  meta.processed_nodes.insert(future->get_id());
-}
-
 void EP::log_debug_placements() const {
   Log::dbg() << "Placements:\n";
   const std::unordered_map<addr_t, PlacementDecision> &placements =
       ctx.get_placements();
   for (const auto &[obj, decision] : placements) {
     Log::dbg() << "  " << obj << " -> " << decision << "\n";
+  }
+}
+
+void EP::inspect() const {
+  std::vector<const EPNode *> nodes{root};
+  while (nodes.size()) {
+    const EPNode *node = nodes.back();
+    nodes.pop_back();
+
+    assert(node);
+    assert(node->get_module());
+
+    const Module *module = node->get_module();
+    const bdd::Node *bdd_node = module->get_node();
+    assert(bdd_node);
+
+    const bdd::Node *found_bdd_node = bdd->get_node_by_id(bdd_node->get_id());
+    assert(bdd_node == found_bdd_node);
+
+    for (const EPNode *child : node->get_children()) {
+      assert(child);
+      assert(child->get_prev() == node);
+      nodes.push_back(child);
+    }
+  }
+
+  for (const auto &[target, roots] : targets_roots) {
+    for (const bdd::node_id_t root_id : roots) {
+      const bdd::Node *bdd_node = bdd->get_node_by_id(root_id);
+      assert(bdd_node);
+
+      const bdd::Node *found_bdd_node = bdd->get_node_by_id(bdd_node->get_id());
+      assert(bdd_node == found_bdd_node);
+    }
+  }
+
+  for (const EPLeaf &leaf : leaves) {
+    const bdd::Node *next = leaf.next;
+    assert(next);
+
+    const bdd::Node *found_next = bdd->get_node_by_id(next->get_id());
+    assert(next == found_next);
   }
 }
 

@@ -64,15 +64,15 @@ std::string BDDVisualizer::get_color(const Node *node) const {
   return color;
 }
 
-static void log_visualization(const BDD &bdd, const std::string &fname) {
+static void log_visualization(const BDD *bdd, const std::string &fname) {
   std::cerr << "Visualizing BDD";
-  std::cerr << " id=" << bdd.get_id();
-  std::cerr << " hash=" << bdd.hash();
+  std::cerr << " id=" << bdd->get_id();
+  std::cerr << " hash=" << bdd->hash();
   std::cerr << " file=" << fname;
   std::cerr << "\n";
 }
 
-void BDDVisualizer::visualize(const BDD &bdd, bool interrupt,
+void BDDVisualizer::visualize(const BDD *bdd, bool interrupt,
                               bdd_visualizer_opts_t opts) {
   BDDVisualizer visualizer(opts);
   visualizer.visit(bdd);
@@ -80,8 +80,8 @@ void BDDVisualizer::visualize(const BDD &bdd, bool interrupt,
   visualizer.show(interrupt);
 }
 
-void BDDVisualizer::visit(const BDD &bdd) {
-  const Node *root = bdd.get_root();
+void BDDVisualizer::visit(const BDD *bdd) {
+  const Node *root = bdd->get_root();
 
   ss << "digraph mygraph {\n";
   ss << "\tnode [shape=box, style=\"rounded,filled\", border=0];\n";

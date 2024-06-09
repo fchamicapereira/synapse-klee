@@ -73,19 +73,22 @@ protected:
     int num_entries;
   };
 
-  DS *build_cached_table(const EP *ep, const bdd::Node *node,
-                         const cached_table_data_t &data, int cache_capacity,
-                         std::unordered_set<DS_ID> &deps) const;
-  DS *get_cached_table(const EP *ep, const cached_table_data_t &data,
-                       std::unordered_set<DS_ID> &deps) const;
-  DS *get_or_build_cached_table(const EP *ep, const bdd::Node *node,
-                                const cached_table_data_t &data,
-                                int cache_capacity, bool &already_exists,
+  CachedTable *build_cached_table(const EP *ep, const bdd::Node *node,
+                                  const cached_table_data_t &data,
+                                  int cache_capacity,
+                                  std::unordered_set<DS_ID> &deps) const;
+  CachedTable *get_cached_table(const EP *ep, const cached_table_data_t &data,
                                 std::unordered_set<DS_ID> &deps) const;
+  CachedTable *get_or_build_cached_table(const EP *ep, const bdd::Node *node,
+                                         const cached_table_data_t &data,
+                                         int cache_capacity,
+                                         bool &already_exists,
+                                         std::unordered_set<DS_ID> &deps) const;
   bool can_place_cached_table(const EP *ep, const bdd::Call *map_get,
                               map_coalescing_data_t &coalescing_data) const;
   void place_cached_table(EP *ep, const map_coalescing_data_t &coalescing_data,
-                          DS *ds, const std::unordered_set<DS_ID> &deps) const;
+                          CachedTable *ds,
+                          const std::unordered_set<DS_ID> &deps) const;
 };
 
 } // namespace tofino

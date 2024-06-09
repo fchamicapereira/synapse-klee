@@ -26,7 +26,7 @@ llvm::cl::opt<bool> Show("show", llvm::cl::desc("Render dot file."),
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv);
 
-  bdd::BDD bdd = bdd::BDD(InputBDDFile);
+  bdd::BDD *bdd = new bdd::BDD(InputBDDFile);
 
   if (BDDAnalyzerReport.size()) {
     bdd_analyzer_report_t report =
@@ -54,6 +54,8 @@ int main(int argc, char **argv) {
       bdd::BDDVisualizer::visualize(bdd, false);
     }
   }
+
+  delete bdd;
 
   return 0;
 }

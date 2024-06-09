@@ -74,6 +74,11 @@ protected:
       return new_eps;
     }
 
+    const bdd::Node *vector_return;
+    if (is_conditional_write(call_node, vector_return)) {
+      return new_eps;
+    }
+
     if (!can_place(ep, call_node, "vector",
                    PlacementDecision::Tofino_VectorRegister)) {
       return new_eps;
@@ -82,12 +87,11 @@ protected:
     addr_t obj;
     klee::ref<klee::Expr> index;
     klee::ref<klee::Expr> value;
-    const bdd::Node *vector_return;
     std::vector<modification_t> changes;
     int num_entries;
     int index_size;
 
-    get_data(ep, call_node, obj, index, value, vector_return, changes,
+    get_data(ep, call_node, vector_return, obj, index, value, changes,
              num_entries, index_size);
 
     // Check the Ignore module.
@@ -122,12 +126,15 @@ protected:
     EP *new_ep = new EP(*ep);
     new_eps.push_back(new_ep);
 
-    EPLeaf leaf(ep_node, node->get_next());
-    new_ep->process_leaf(ep_node, {leaf});
+    const bdd::Node *new_next;
+    bdd::BDD *bdd =
+        delete_future_vector_return(new_ep, node, vector_return, new_next);
 
-    // No need to process the future vector_return, we already did the
-    // modifications.
-    new_ep->process_future_non_branch_node(vector_return);
+    EPLeaf leaf(ep_node, new_next);
+    new_ep->process_leaf(ep_node, {leaf});
+    new_ep->replace_bdd(bdd);
+
+    new_ep->inspect();
 
     if (!regs_already_placed) {
       place_regs(new_ep, obj, regs, deps);
@@ -137,9 +144,20 @@ protected:
   }
 
 private:
-  void get_data(const EP *ep, const bdd::Call *node, addr_t &obj,
+  bool is_conditional_write(const bdd::Call *node,
+                            const bdd::Node *&vector_return) const {
+    std::vector<const bdd::Node *> vector_returns =
+        get_future_vector_return(node);
+    if (vector_returns.size() != 1) {
+      return true;
+    }
+
+    vector_return = vector_returns.at(0);
+    return false;
+  }
+  void get_data(const EP *ep, const bdd::Call *node,
+                const bdd::Node *vector_return, addr_t &obj,
                 klee::ref<klee::Expr> &index, klee::ref<klee::Expr> &value,
-                const bdd::Node *&vector_return,
                 std::vector<modification_t> &changes, int &num_entries,
                 int &index_size) const {
     const call_t &call = node->get_call();
@@ -148,7 +166,6 @@ private:
     obj = kutil::expr_addr_to_obj_addr(obj_expr);
     index = call.args.at("index").expr;
     value = call.extra_vars.at("borrowed_cell").second;
-    vector_return = get_future_vector_return(node, obj);
     changes = get_modifications(node, vector_return);
 
     assert(vector_return && "vector_return not found");
@@ -187,6 +204,31 @@ private:
     TofinoContext *tofino_ctx = get_mutable_tofino_ctx(ep);
     place(ep, obj, PlacementDecision::Tofino_VectorRegister);
     tofino_ctx->place_many(ep, obj, {regs}, deps);
+  }
+
+  bdd::BDD *delete_future_vector_return(EP *ep, const bdd::Node *node,
+                                        const bdd::Node *vector_return,
+                                        const bdd::Node *&new_next) const {
+    const bdd::BDD *old_bdd = ep->get_bdd();
+    bdd::BDD *new_bdd = new bdd::BDD(*old_bdd);
+
+    const bdd::Node *next = node->get_next();
+
+    if (next) {
+      new_next = new_bdd->get_node_by_id(next->get_id());
+    } else {
+      new_next = nullptr;
+    }
+
+    bool replace_next = (vector_return == next);
+    bdd::Node *replacement;
+    delete_non_branch_node_from_bdd(ep, new_bdd, vector_return, replacement);
+
+    if (replace_next) {
+      new_next = replacement;
+    }
+
+    return new_bdd;
   }
 };
 

@@ -65,12 +65,12 @@ std::string status_to_string(ReorderingCandidateStatus status) {
   return str;
 }
 
-void print(const BDD &bdd, const reorder_op_t &op) {
+void print(const BDD *bdd, const reorder_op_t &op) {
   const anchor_info_t &anchor_info = op.anchor_info;
   const candidate_info_t &candidate_info = op.candidate_info;
 
-  const Node *anchor = bdd.get_node_by_id(anchor_info.id);
-  const Node *candidate = bdd.get_node_by_id(candidate_info.id);
+  const Node *anchor = bdd->get_node_by_id(anchor_info.id);
+  const Node *candidate = bdd->get_node_by_id(candidate_info.id);
 
   assert(anchor && "Anchor node not found");
   assert(candidate && "Proposed candidate not found");
@@ -99,15 +99,8 @@ void print(const BDD &bdd, const reorder_op_t &op) {
   std::cerr << "==================================\n";
 }
 
-void test_get_all_ops(const BDD &bdd, node_id_t anchor_id) {
-  std::vector<reorder_op_t> ops = get_reorder_ops(bdd, {anchor_id, true});
-
-  const Node *anchor = bdd.get_node_by_id(anchor_id);
-  if (anchor->get_type() == NodeType::BRANCH) {
-    std::vector<reorder_op_t> rhs_ops =
-        get_reorder_ops(bdd, {anchor_id, false});
-    ops.insert(ops.end(), rhs_ops.begin(), rhs_ops.end());
-  }
+void list_candidates(const BDD *bdd, const anchor_info_t &anchor_info) {
+  std::vector<reorder_op_t> ops = get_reorder_ops(bdd, anchor_info);
 
   std::cerr << "Available reordering operations: " << ops.size() << "\n";
   for (const reorder_op_t &op : ops) {
@@ -115,34 +108,43 @@ void test_get_all_ops(const BDD &bdd, node_id_t anchor_id) {
   }
 }
 
-void test_reorder(const BDD &original_bdd,
-                  const std::vector<std::pair<anchor_info_t, node_id_t>>
-                      &anchor_candidate_pairs) {
-  // BDD bdd = original_bdd;
+void apply_reordering_ops(
+    const BDD *bdd,
+    const std::vector<std::pair<anchor_info_t, node_id_t>> &ops) {
+  std::vector<BDD *> created_bdds;
 
-  // for (const std::pair<anchor_info_t, node_id_t> &anchor_candidate_pair :
-  //      anchor_candidate_pairs) {
-  //   const anchor_info_t &anchor_info = anchor_candidate_pair.first;
-  //   node_id_t candidate_id = anchor_candidate_pair.second;
+  for (const std::pair<anchor_info_t, node_id_t> &op : ops) {
+    anchor_info_t anchor_info = op.first;
+    node_id_t candidate_id = op.second;
 
-  //   candidate_info_t candidate_info =
-  //       concretize_reordering_candidate(bdd, anchor_info, candidate_id);
+    std::cerr << "-> Reordering op:";
+    std::cerr << " anchor=" << anchor_info.id;
+    std::cerr << " candidate=" << candidate_id;
+    std::cerr << "\n";
 
-  //   if (candidate_info.status != ReorderingCandidateStatus::VALID) {
-  //     std::cerr << "Failed to concretize reordering candidate " <<
-  //     candidate_id
-  //               << ": " << status_to_string(candidate_info.status) << "\n";
-  //     return;
-  //   }
+    reordered_bdd_t reordered_bdd = try_reorder(bdd, anchor_info, candidate_id);
 
-  //   print(bdd, anchor_info, candidate_info);
-  //   bdd = reorder(bdd, anchor_info, candidate_info);
-  // }
+    if (reordered_bdd.op.candidate_info.status !=
+        ReorderingCandidateStatus::VALID) {
+      std::cerr << "Reordering failed: "
+                << status_to_string(reordered_bdd.op.candidate_info.status)
+                << "\n";
+      break;
+    } else {
+      assert(reordered_bdd.bdd);
+      BDDVisualizer::visualize(reordered_bdd.bdd, true);
 
-  // BDDVisualizer::visualize(bdd, false);
+      created_bdds.push_back(reordered_bdd.bdd);
+      bdd = reordered_bdd.bdd;
+    }
+  }
+
+  for (BDD *created_bdd : created_bdds) {
+    delete created_bdd;
+  }
 }
 
-void test_reorder(const BDD &bdd, node_id_t anchor_id) {
+void apply_all_candidates(const BDD *bdd, node_id_t anchor_id) {
   auto start = std::chrono::steady_clock::now();
 
   std::vector<reordered_bdd_t> bdds = reorder(bdd, anchor_id);
@@ -166,9 +168,13 @@ void test_reorder(const BDD &bdd, node_id_t anchor_id) {
 
     // BDDVisualizer::visualize(reordered_bdd.bdd, true);
   }
+
+  for (reordered_bdd_t &reordered_bdd : bdds) {
+    delete reordered_bdd.bdd;
+  }
 }
 
-void estimate(const BDD &bdd) {
+void estimate(const BDD *bdd) {
   auto start = std::chrono::steady_clock::now();
 
   double approximation = estimate_reorder(bdd);
@@ -185,16 +191,22 @@ void estimate(const BDD &bdd) {
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv);
 
-  BDD bdd(InputBDDFile);
+  BDD *bdd = new BDD(InputBDDFile);
 
-  // test_get_all_ops(bdd, 3);
+  // list_candidates(bdd, {16, false});
+  apply_reordering_ops(bdd, {
+                                {{16, false}, 23},
+                                {{23, false}, 24},
+                            });
   // test_reorder(bdd, {
   //                       {{1, true}, 10},
   //                       {{1, true}, 12},
   //                       {{1, true}, 122},
   //                   });
   // test_reorder(bdd, 3);
-  estimate(bdd);
+  // estimate(bdd);
+
+  delete bdd;
 
   return 0;
 }

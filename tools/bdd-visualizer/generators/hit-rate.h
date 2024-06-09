@@ -25,7 +25,7 @@ public:
     opts.default_color.second = hit_rate_to_color(0);
   }
 
-  static void visualize(const BDD &bdd, const bdd_node_counters &counters,
+  static void visualize(const BDD *bdd, const bdd_node_counters &counters,
                         bool interrupt) {
     bdd_visualizer_opts_t opts;
 

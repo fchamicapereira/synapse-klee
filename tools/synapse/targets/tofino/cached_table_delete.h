@@ -7,20 +7,25 @@ namespace tofino {
 
 class CachedTableDelete : public TofinoModule {
 private:
-  DS_ID id;
+  DS_ID cached_table_id;
+  std::unordered_set<DS_ID> cached_table_byproducts;
+
   addr_t obj;
   klee::ref<klee::Expr> key;
   klee::ref<klee::Expr> value;
   symbol_t map_has_this_key;
 
 public:
-  CachedTableDelete(const bdd::Node *node, DS_ID _id, addr_t _obj,
-                    klee::ref<klee::Expr> _key, klee::ref<klee::Expr> _value,
+  CachedTableDelete(const bdd::Node *node, DS_ID _cached_table_id,
+                    const std::unordered_set<DS_ID> &_cached_table_byproducts,
+                    addr_t _obj, klee::ref<klee::Expr> _key,
+                    klee::ref<klee::Expr> _value,
                     const symbol_t &_map_has_this_key)
       : TofinoModule(ModuleType::Tofino_CachedTableDelete, "CachedTableDelete",
                      node),
-        id(_id), obj(_obj), key(_key), value(_value),
-        map_has_this_key(_map_has_this_key) {}
+        cached_table_id(_cached_table_id),
+        cached_table_byproducts(_cached_table_byproducts), obj(_obj), key(_key),
+        value(_value), map_has_this_key(_map_has_this_key) {}
 
   virtual void visit(EPVisitor &visitor, const EP *ep,
                      const EPNode *ep_node) const override {
@@ -29,18 +34,19 @@ public:
 
   virtual Module *clone() const override {
     Module *cloned =
-        new CachedTableDelete(node, id, obj, key, value, map_has_this_key);
+        new CachedTableDelete(node, cached_table_id, cached_table_byproducts,
+                              obj, key, value, map_has_this_key);
     return cloned;
   }
 
-  DS_ID get_id() const { return id; }
+  DS_ID get_id() const { return cached_table_id; }
   addr_t get_obj() const { return obj; }
   klee::ref<klee::Expr> get_key() const { return key; }
   klee::ref<klee::Expr> get_value() const { return value; }
   const symbol_t &get_map_has_this_key() const { return map_has_this_key; }
 
   virtual std::unordered_set<DS_ID> get_generated_ds() const override {
-    return {id};
+    return cached_table_byproducts;
   }
 };
 
@@ -89,26 +95,49 @@ protected:
     cached_table_data_t data = get_cached_table_data(ep, map_erase);
 
     std::unordered_set<DS_ID> deps;
-    DS *cached_table = get_cached_table(ep, data, deps);
+    CachedTable *cached_table = get_cached_table(ep, data, deps);
     assert(cached_table);
 
+    std::unordered_set<DS_ID> byproducts =
+        get_cached_table_byproducts(cached_table);
+
     Module *module =
-        new CachedTableDelete(node, cached_table->id, data.obj, data.key,
-                              data.read_value, data.map_has_this_key);
+        new CachedTableDelete(node, cached_table->id, byproducts, data.obj,
+                              data.key, data.read_value, data.map_has_this_key);
     EPNode *ep_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
     new_eps.push_back(new_ep);
 
-    EPLeaf leaf(ep_node, node->get_next());
-    new_ep->process_leaf(ep_node, {leaf});
+    const bdd::Node *new_next;
+    bdd::BDD *bdd =
+        delete_future_related_nodes(new_ep, node, data.obj, new_next);
 
-    mark_future_ops_as_processed(new_ep, node, data.obj);
+    EPLeaf leaf(ep_node, new_next);
+    new_ep->process_leaf(ep_node, {leaf});
+    new_ep->replace_bdd(bdd);
+
+    new_ep->inspect();
 
     return new_eps;
   }
 
 private:
+  std::unordered_set<DS_ID>
+  get_cached_table_byproducts(CachedTable *cached_table) const {
+    std::unordered_set<DS_ID> byproducts;
+
+    std::vector<std::unordered_set<const DS *>> internal_ds =
+        cached_table->get_internal_ds();
+    for (const std::unordered_set<const DS *> &ds_set : internal_ds) {
+      for (const DS *ds : ds_set) {
+        byproducts.insert(ds->id);
+      }
+    }
+
+    return byproducts;
+  }
+
   const bdd::Call *
   get_map_erase_after_dchain_free(const EP *ep,
                                   const bdd::Call *dchain_free_index) const {
@@ -170,8 +199,15 @@ private:
     return data;
   }
 
-  void mark_future_ops_as_processed(EP *ep, const bdd::Node *node,
-                                    addr_t map_obj) const {
+  bdd::BDD *delete_future_related_nodes(const EP *ep, const bdd::Node *node,
+                                        addr_t map_obj,
+                                        const bdd::Node *&new_next) const {
+    const bdd::BDD *old_bdd = ep->get_bdd();
+    bdd::BDD *new_bdd = new bdd::BDD(*old_bdd);
+
+    const bdd::Node *next = node->get_next();
+    new_next = next;
+
     const Context &ctx = ep->get_ctx();
     std::optional<map_coalescing_data_t> data =
         ctx.get_coalescing_data(map_obj);
@@ -210,8 +246,16 @@ private:
         }
       }
 
-      ep->process_future_non_branch_node(op);
+      bool replace_next = (op == next);
+      bdd::Node *replacement;
+      delete_non_branch_node_from_bdd(ep, new_bdd, op, replacement);
+
+      if (replace_next) {
+        new_next = replacement;
+      }
     }
+
+    return new_bdd;
   }
 };
 

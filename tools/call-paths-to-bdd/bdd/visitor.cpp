@@ -45,8 +45,8 @@ void BDDVisitor::visitRoot(const Node *root) {
   root->visit(*this);
 }
 
-void BDDVisitor::visit(const BDD &bdd) {
-  const Node *root = bdd.get_root();
+void BDDVisitor::visit(const BDD *bdd) {
+  const Node *root = bdd->get_root();
   assert(root);
   visitRoot(root);
 }
