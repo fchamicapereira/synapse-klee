@@ -12,14 +12,26 @@ constexpr char AST::CHUNK_TCP_LABEL[];
 constexpr char AST::CHUNK_UDP_LABEL[];
 constexpr char AST::CHUNK_L5_LABEL[];
 
+bool has_symbol(const std::string &wanted, const symbols_t &symbols) {
+  for (const symbol_t &symbol : symbols) {
+    if (symbol.base == wanted) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 std::string get_symbol_label(const std::string &wanted,
                              const symbols_t &symbols) {
   std::string target;
+
   for (const symbol_t &symbol : symbols) {
     if (symbol.base == wanted)
       target = symbol.array->name;
   }
-  assert(target.size() && "Symbol not found");
+
+  assert(!target.empty() && "Symbol not found");
   return target;
 }
 
@@ -985,10 +997,10 @@ static void parse_hdr(const bdd::Call *call, klee::ref<klee::Expr> hdr_expr,
 }
 
 Node_ptr AST::node_from_call(const bdd::Call *bdd_call, TargetOption target) {
-  auto call = bdd_call->get_call();
-  auto symbols = bdd_call->get_locally_generated_symbols();
+  call_t call = bdd_call->get_call();
+  symbols_t symbols = bdd_call->get_locally_generated_symbols();
 
-  auto fname = call.function_name;
+  std::string fname = call.function_name;
 
   std::vector<Expr_ptr> exprs;
   std::vector<Expr_ptr> after_call_exprs;
@@ -1285,10 +1297,15 @@ Node_ptr AST::node_from_call(const bdd::Call *bdd_call, TargetOption target) {
 
     args = std::vector<ExpressionType_ptr>{chain, AddressOf::build(index_out),
                                            now};
-    ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::INT);
-    ret_symbol = get_symbol_label("out_of_space", symbols);
 
-    ret_expr = call.ret;
+    if (has_symbol("out_of_space", symbols)) {
+      ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::INT);
+      ret_symbol = get_symbol_label("out_of_space", symbols);
+      ret_expr = call.ret;
+    } else {
+      ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::VOID);
+    }
+
     counter_begins = -1;
   } else if (fname == "vector_borrow") {
     assert(!call.args["val_out"].out.isNull());
