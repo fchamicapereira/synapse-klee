@@ -96,7 +96,10 @@ protected:
 
     std::unordered_set<DS_ID> deps;
     CachedTable *cached_table = get_cached_table(ep, data, deps);
-    assert(cached_table);
+
+    if (!cached_table) {
+      return new_eps;
+    }
 
     std::unordered_set<DS_ID> byproducts =
         get_cached_table_byproducts(cached_table);

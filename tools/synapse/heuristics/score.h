@@ -13,6 +13,7 @@ namespace synapse {
 
 enum class ScoreCategory {
   SendToControllerNodes,
+  Recirculations,
   ReorderedNodes,
   SwitchNodes,
   SwitchLeaves,
@@ -53,6 +54,10 @@ public:
         {
             ScoreCategory::SendToControllerNodes,
             &Score::get_nr_send_to_controller,
+        },
+        {
+            ScoreCategory::Recirculations,
+            &Score::get_nr_recirculations,
         },
         {
             ScoreCategory::ReorderedNodes,
@@ -196,6 +201,7 @@ private:
   int get_percentage_of_processed_bdd(const EP *ep) const;
   int get_nr_send_to_controller(const EP *ep) const;
   int get_nr_switch_data_structures(const EP *ep) const;
+  int get_nr_recirculations(const EP *ep) const;
 };
 
 std::ostream &operator<<(std::ostream &os, const Score &score);

@@ -128,10 +128,14 @@ void TofinoContext::parser_accept(const EP *ep, const bdd::Node *node) {
 
   std::optional<bool> direction;
   const bdd::Node *last_op = get_last_parser_state_op(ep, direction);
-  assert(last_op && "Last borrow node not found");
 
-  bdd::node_id_t leaf_id = last_op->get_id();
-  tna.parser.accept(leaf_id, id, direction);
+  if (!last_op) {
+    // No leaf node found, add the initial parser state.
+    tna.parser.accept(id);
+  } else {
+    bdd::node_id_t leaf_id = last_op->get_id();
+    tna.parser.accept(leaf_id, id, direction);
+  }
 }
 
 void TofinoContext::parser_reject(const EP *ep, const bdd::Node *node) {
@@ -139,10 +143,14 @@ void TofinoContext::parser_reject(const EP *ep, const bdd::Node *node) {
 
   std::optional<bool> direction;
   const bdd::Node *last_op = get_last_parser_state_op(ep, direction);
-  assert(last_op && "Last borrow node not found");
 
-  bdd::node_id_t leaf_id = last_op->get_id();
-  tna.parser.reject(leaf_id, id, direction);
+  if (!last_op) {
+    // No leaf node found, add the initial parser state.
+    tna.parser.reject(id);
+  } else {
+    bdd::node_id_t leaf_id = last_op->get_id();
+    tna.parser.reject(leaf_id, id, direction);
+  }
 }
 
 std::unordered_set<DS_ID> TofinoContext::get_stateful_deps(const EP *ep) const {

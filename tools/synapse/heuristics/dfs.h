@@ -17,4 +17,5 @@ struct DFSComparator : public HeuristicCfg {
 };
 
 using DFS = Heuristic<DFSComparator>;
+
 } // namespace synapse

@@ -105,7 +105,7 @@ protected:
     CachedTable *cached_table = get_or_build_cached_table(
         ep, node, data, cache_capacity, already_exists, deps);
 
-    if (cached_table == nullptr) {
+    if (!cached_table) {
       return new_eps;
     }
 

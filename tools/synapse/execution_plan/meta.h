@@ -21,6 +21,7 @@ struct EPMeta {
   size_t reordered_nodes;
 
   std::unordered_map<TargetType, size_t> nodes_per_target;
+  std::unordered_map<TargetType, size_t> bdd_nodes_per_target;
   std::unordered_set<ep_node_id_t> visited_ep_nodes;
   bdd::nodes_t processed_nodes;
 
@@ -31,12 +32,14 @@ struct EPMeta {
       : total_bdd_nodes(other.total_bdd_nodes), depth(other.depth),
         nodes(other.nodes), reordered_nodes(other.reordered_nodes),
         nodes_per_target(other.nodes_per_target),
+        bdd_nodes_per_target(other.bdd_nodes_per_target),
         processed_nodes(other.processed_nodes) {}
 
   EPMeta(EPMeta &&other)
       : total_bdd_nodes(other.total_bdd_nodes), depth(other.depth),
         nodes(other.nodes), reordered_nodes(other.reordered_nodes),
         nodes_per_target(std::move(other.nodes_per_target)),
+        bdd_nodes_per_target(std::move(other.bdd_nodes_per_target)),
         processed_nodes(std::move(other.processed_nodes)) {}
 
   EPMeta &operator=(const EPMeta &other) {
@@ -48,13 +51,14 @@ struct EPMeta {
     nodes = other.nodes;
     reordered_nodes = other.reordered_nodes;
     nodes_per_target = other.nodes_per_target;
+    bdd_nodes_per_target = other.bdd_nodes_per_target;
     processed_nodes = other.processed_nodes;
 
     return *this;
   }
 
   float get_bdd_progress() const;
-  void process_node(const bdd::Node *node);
+  void process_node(const bdd::Node *node, TargetType target);
   void update_total_bdd_nodes(const bdd::BDD *bdd);
 
   bool is_processed_node(const bdd::Node *node) const;

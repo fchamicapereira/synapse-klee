@@ -42,15 +42,11 @@ int Score::get_nr_switch_nodes(const EP *ep) const {
   int switch_nodes = 0;
 
   const EPMeta &meta = ep->get_meta();
-  auto tofino_nodes_it = meta.nodes_per_target.find(TargetType::Tofino);
+  auto tofino_nodes_it = meta.bdd_nodes_per_target.find(TargetType::Tofino);
 
-  if (tofino_nodes_it != meta.nodes_per_target.end()) {
+  if (tofino_nodes_it != meta.bdd_nodes_per_target.end()) {
     switch_nodes += tofino_nodes_it->second;
   }
-
-  // Take away the controller nodes.
-  int controller_nodes = get_nr_send_to_controller(ep);
-  switch_nodes -= controller_nodes;
 
   return switch_nodes;
 }
@@ -193,6 +189,7 @@ int Score::get_nr_switch_data_structures(const EP *ep) const {
 
   std::unordered_set<PlacementDecision> switch_placements{
       PlacementDecision::Tofino_SimpleTable,
+      PlacementDecision::Tofino_CachedTable,
       PlacementDecision::Tofino_VectorRegister,
   };
 
@@ -203,6 +200,12 @@ int Score::get_nr_switch_data_structures(const EP *ep) const {
   }
 
   return switch_data_structures;
+}
+
+int Score::get_nr_recirculations(const EP *ep) const {
+  std::vector<const EPNode *> recirculate =
+      get_nodes_with_type(ep, {ModuleType::Tofino_Recirculate});
+  return recirculate.size();
 }
 
 std::ostream &operator<<(std::ostream &os, const Score &score) {
@@ -240,6 +243,9 @@ std::ostream &operator<<(std::ostream &os, ScoreCategory score_category) {
   switch (score_category) {
   case ScoreCategory::SendToControllerNodes:
     os << "#SendToController";
+    break;
+  case ScoreCategory::Recirculations:
+    os << "#Recirculations";
     break;
   case ScoreCategory::ReorderedNodes:
     os << "#Reordered";

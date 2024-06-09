@@ -184,8 +184,10 @@ void EP::process_leaf(const bdd::Node *next_node) {
   EPLeaf *active_leaf = get_mutable_active_leaf();
   assert(active_leaf && "No active leaf");
 
+  TargetType current_target = get_current_platform();
+
   if (next_node) {
-    meta.process_node(active_leaf->next);
+    meta.process_node(active_leaf->next, current_target);
     active_leaf->next = next_node;
   } else {
     leaves.erase(leaves.begin());

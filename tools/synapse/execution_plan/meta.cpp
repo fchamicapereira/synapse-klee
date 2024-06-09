@@ -5,8 +5,11 @@
 
 namespace synapse {
 
-void EPMeta::process_node(const bdd::Node *node) {
-  processed_nodes.insert(node->get_id());
+void EPMeta::process_node(const bdd::Node *node, TargetType target) {
+  if (processed_nodes.find(node->get_id()) == processed_nodes.end()) {
+    processed_nodes.insert(node->get_id());
+    bdd_nodes_per_target[target]++;
+  }
 }
 
 void EPMeta::update(const EPLeaf *leaf, const EPNode *new_node,
@@ -22,7 +25,7 @@ void EPMeta::update(const EPLeaf *leaf, const EPNode *new_node,
   TargetType target = module->get_target();
 
   if (should_process_node) {
-    process_node(leaf->next);
+    process_node(leaf->next, target);
   }
 
   nodes++;

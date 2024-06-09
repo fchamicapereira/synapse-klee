@@ -220,6 +220,24 @@ public:
     add_state(new_state);
   }
 
+  void accept(bdd::node_id_t id) {
+    if (already_terminated(id, true)) {
+      return;
+    }
+
+    ParserState *new_state = new ParserStateTerminate(id, true);
+    add_state(new_state);
+  }
+
+  void reject(bdd::node_id_t id) {
+    if (already_terminated(id, false)) {
+      return;
+    }
+
+    ParserState *new_state = new ParserStateTerminate(id, false);
+    add_state(new_state);
+  }
+
   void accept(bdd::node_id_t leaf_id, bdd::node_id_t id,
               std::optional<bool> direction) {
     if (already_terminated(leaf_id, id, direction, true)) {
@@ -250,6 +268,19 @@ public:
   }
 
 private:
+  bool already_terminated(bdd::node_id_t id, bool accepted) {
+    if (!initial_state) {
+      return false;
+    }
+
+    assert(initial_state->type == ParserStateType::TERMINATE);
+    ParserStateTerminate *terminate =
+        static_cast<ParserStateTerminate *>(initial_state);
+    assert(terminate->accept == accepted);
+
+    return true;
+  }
+
   bool already_terminated(bdd::node_id_t leaf_id, bdd::node_id_t id,
                           std::optional<bool> direction, bool accepted) {
     assert(initial_state);

@@ -72,19 +72,19 @@ llvm::cl::opt<bool> Verbose("v", llvm::cl::desc("Verbose mode."),
 search_product_t search(const bdd::BDD &bdd) {
   unsigned seed = Seed ? Seed : std::random_device()();
 
-  // Biggest biggest(seed);
-  // DFS dfs(seed);
-  // MostCompact most_compact(seed);
-  // LeastReordered least_reordered(seed);
-  // MaximizeSwitchNodes maximize_switch_nodes(seed);
-  Gallium gallium(seed);
+  // BFS heuristic(seed);
+  // DFS heuristic(seed);
+  // MostCompact heuristic(seed);
+  // LeastReordered heuristic(seed);
+  // MaximizeSwitchNodes heuristic(seed);
+  Gallium heuristic(seed);
 
   std::unordered_set<ep_id_t> peek;
   for (ep_id_t ep_id : Peek) {
     peek.insert(ep_id);
   }
 
-  SearchEngine engine(bdd, gallium, BDDReorder, peek);
+  SearchEngine engine(bdd, heuristic, BDDReorder, peek);
   search_product_t result = engine.search();
 
   return result;
