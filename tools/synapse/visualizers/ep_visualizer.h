@@ -29,6 +29,7 @@ public:
    ********************************************/
 
   DECLARE_VISIT(tofino::SendToController)
+  DECLARE_VISIT(tofino::Recirculate)
   DECLARE_VISIT(tofino::Ignore)
   DECLARE_VISIT(tofino::If)
   DECLARE_VISIT(tofino::ParserCondition)

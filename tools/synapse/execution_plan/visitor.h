@@ -15,6 +15,7 @@ class EPNode;
 
 namespace tofino {
 class SendToController;
+class Recirculate;
 class Ignore;
 class If;
 class ParserCondition;
@@ -133,6 +134,7 @@ public:
   VISIT_TODO(tofino::CachedTableWrite)
   VISIT_TODO(tofino::CachedTableConditionalDelete)
   VISIT_TODO(tofino::CachedTableDelete)
+  VISIT_TODO(tofino::Recirculate)
 
   /*************************************
    *

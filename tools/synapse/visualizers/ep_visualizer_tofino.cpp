@@ -37,6 +37,7 @@ VISIT_BRANCH(tofino::If)
 VISIT_BRANCH(tofino::ParserCondition)
 
 SHOW_MODULE_NAME(tofino::SendToController)
+SHOW_MODULE_NAME(tofino::Recirculate)
 SHOW_MODULE_NAME(tofino::Drop)
 SHOW_MODULE_NAME(tofino::Broadcast)
 SHOW_MODULE_NAME(tofino::ModifyHeader)

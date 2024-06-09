@@ -161,6 +161,10 @@ std::unordered_set<DS_ID> TofinoContext::get_stateful_deps(const EP *ep) const {
       break;
     }
 
+    if (module->get_type() == ModuleType::Tofino_Recirculate) {
+      break;
+    }
+
     const TofinoModule *tofino_module =
         static_cast<const TofinoModule *>(module);
     const std::unordered_set<DS_ID> &generated_ds =

@@ -36,6 +36,7 @@ enum class ModuleType {
   Tofino_CachedTableWrite,
   Tofino_CachedTableConditionalDelete,
   Tofino_CachedTableDelete,
+  Tofino_Recirculate,
   TofinoCPU_Ignore,
   TofinoCPU_ParseHeader,
   TofinoCPU_ModifyHeader,

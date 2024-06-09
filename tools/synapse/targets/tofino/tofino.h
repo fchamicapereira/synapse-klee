@@ -3,6 +3,7 @@
 #include "../target.h"
 
 #include "send_to_controller.h"
+#include "recirculate.h"
 #include "ignore.h"
 #include "if.h"
 #include "then.h"
@@ -32,6 +33,7 @@ struct TofinoTarget : public Target {
       : Target(TargetType::Tofino,
                {
                    new SendToControllerGenerator(),
+                   new RecirculateGenerator(),
                    new IgnoreGenerator(),
                    new IfGenerator(),
                    new ParserConditionGenerator(),

@@ -144,16 +144,7 @@ SimplePlacer::is_consistent(DS_ID ds_id,
 
 bool SimplePlacer::is_self_dependent(
     DS_ID ds_id, const std::unordered_set<DS_ID> &deps) const {
-
-  bool self_dependent = deps.find(ds_id) != deps.end();
-
-  if (self_dependent) {
-    Log::dbg() << "Self dependent: " << ds_id << "\n";
-    log_debug();
-    DEBUG_PAUSE
-  }
-
-  return self_dependent;
+  return deps.find(ds_id) != deps.end();
 }
 
 PlacementStatus
