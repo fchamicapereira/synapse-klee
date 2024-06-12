@@ -73,14 +73,35 @@ protected:
     return new_eps;
   }
 
+private:
   void update_fraction_of_traffic_recirculated_metric(EP *ep) const {
     TofinoContext *ctx = get_mutable_tofino_ctx(ep);
     float fraction_recirculated = ep->get_active_leaf_hit_rate();
-    if (ep->get_id() == 9) {
-      printf("fraction_recirculated: %f\n", fraction_recirculated);
-      DEBUG_PAUSE
+
+    if (is_surplus(ep)) {
+      ctx->inc_recirculation_surplus(fraction_recirculated);
+    } else {
+      ctx->inc_fraction_of_traffic_recirculated(fraction_recirculated);
     }
-    ctx->inc_fraction_of_traffic_recirculated(fraction_recirculated);
+  }
+
+  bool is_surplus(EP *ep) const {
+    const EPLeaf *active_leaf = ep->get_active_leaf();
+    const EPNode *node = active_leaf->node;
+
+    while ((node = node->get_prev())) {
+      const Module *module = node->get_module();
+
+      if (!module) {
+        break;
+      }
+
+      if (module->get_type() == ModuleType::Tofino_Recirculate) {
+        return true;
+      }
+    }
+
+    return false;
   }
 };
 

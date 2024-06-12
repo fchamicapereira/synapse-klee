@@ -15,6 +15,7 @@ private:
   std::unordered_map<addr_t, std::vector<DS *>> obj_to_ds;
   std::unordered_map<DS_ID, DS *> id_to_ds;
   float fraction_of_traffic_recirculated;
+  float recirculation_surplus;
 
 public:
   TofinoContext(TNAVersion version);
@@ -37,6 +38,10 @@ public:
 
   int inc_fraction_of_traffic_recirculated(float new_fraction) {
     return fraction_of_traffic_recirculated += new_fraction;
+  }
+
+  int inc_recirculation_surplus(float surplus) {
+    return recirculation_surplus += surplus;
   }
 
   void parser_transition(const EP *ep, const bdd::Node *node,

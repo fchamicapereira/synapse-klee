@@ -6,15 +6,19 @@
 
 #include "../../visualizers/ep_visualizer.h"
 
+#include <algorithm>
+
 namespace synapse {
 namespace tofino {
 
 TofinoContext::TofinoContext(TNAVersion _version)
-    : tna(_version), fraction_of_traffic_recirculated(0) {}
+    : tna(_version), fraction_of_traffic_recirculated(0),
+      recirculation_surplus(0) {}
 
 TofinoContext::TofinoContext(const TofinoContext &other)
     : tna(other.tna),
-      fraction_of_traffic_recirculated(other.fraction_of_traffic_recirculated) {
+      fraction_of_traffic_recirculated(other.fraction_of_traffic_recirculated),
+      recirculation_surplus(other.recirculation_surplus) {
   for (const auto &kv : other.obj_to_ds) {
     std::vector<DS *> new_ds;
     for (const auto &ds : kv.second) {
@@ -235,11 +239,26 @@ bool TofinoContext::check_many_placements(
 
 int TofinoContext::estimate_throughput_kpps() const {
   const TNAProperties &properties = tna.get_properties();
-  uint64_t total_capacity =
-      properties.port_capacity_pps * properties.total_ports;
-  float estimation_pps = static_cast<float>(total_capacity) /
-                         (fraction_of_traffic_recirculated + 1);
-  return estimation_pps / 1'000;
+
+  float r = fraction_of_traffic_recirculated;
+  float rs = recirculation_surplus;
+  float Ts = properties.port_capacity_pps * properties.total_ports;
+  float Tr = properties.port_capacity_pps *
+             properties.total_recirculation_ports_per_pipe * properties.pipes;
+  float r_load = Ts * r;
+  float r_cap = Tr / (1 + rs);
+  float throughput_estimation_pps = Ts * (1 - r) + std::min(r_load, r_cap);
+
+  // printf("\n");
+  // printf("Ts:    %f Mpps\n", Ts / 1'000'000);
+  // printf("r:     %f\n", r);
+  // printf("rs:    %f\n", rs);
+  // printf("Tr:    %f Mpps\n", Tr / 1'000'000);
+  // printf("rload: %f Mpps\n", r_load / 1'000'000);
+  // printf("rcap:  %f Mpps\n", r_cap / 1'000'000);
+  // printf("est:   %f Mpps\n", throughput_estimation_pps / 1'000'000);
+
+  return throughput_estimation_pps / 1'000;
 }
 
 } // namespace tofino

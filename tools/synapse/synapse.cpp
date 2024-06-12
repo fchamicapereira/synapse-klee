@@ -83,8 +83,8 @@ search_product_t search(const bdd::BDD *bdd, HitRateTree *hit_rate_tree) {
   // MostCompact heuristic(seed);
   // LeastReordered heuristic(seed);
   // MaximizeSwitchNodes heuristic(seed);
-  Gallium heuristic(seed);
-  // MaxThroughput heuristic(seed);
+  // Gallium heuristic(seed);
+  MaxThroughput heuristic(seed);
 
   std::unordered_set<ep_id_t> peek;
   for (ep_id_t ep_id : Peek) {
