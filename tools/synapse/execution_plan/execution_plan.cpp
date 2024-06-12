@@ -349,21 +349,6 @@ float EP::get_active_leaf_hit_rate() const {
     return 1.0;
   }
 
-  // std::cerr << "ep: " << id << "\n";
-  // std::cerr << "Active leaf node: "
-  //           << get_active_leaf()->node->get_module()->get_node()->dump(true)
-  //           << "\n";
-  // std::cerr << "Getting rate for constraints:\n";
-  // for (const klee::ref<klee::Expr> &constraint : constraints) {
-  //   std::cerr << "   " << kutil::expr_to_string(constraint, true) << "\n";
-  // }
-  // std::cerr << "\n";
-
-  // std::cerr << "\n";
-  // std::cerr << "Hit rate:\n";
-  // hit_rate_tree->dump();
-  // std::cerr << "\n";
-
   std::optional<float> fraction = hit_rate_tree->get_fraction(constraints);
   assert(fraction.has_value());
 
@@ -377,22 +362,17 @@ void EP::add_hit_rate_estimation(klee::ref<klee::Expr> new_constraint,
 
   constraints_t constraints = get_active_leaf_constraints();
 
-  // std::cerr << "Adding hit rate estimation " << estimation_rel << "!\n";
-  // for (const klee::ref<klee::Expr> &constraint : constraints) {
-  //   std::cerr << "   " << kutil::expr_to_string(constraint, true) << "\n";
-  // }
-  // std::cerr << "\n";
-  // std::cerr << "\n";
-  // std::cerr << "Hit rate:\n";
-  // hit_rate_tree->dump();
-  // std::cerr << "\n";
+  Log::dbg() << "Adding hit rate estimation " << estimation_rel << "\n";
+  for (const klee::ref<klee::Expr> &constraint : constraints) {
+    Log::dbg() << "   " << kutil::expr_to_string(constraint, true) << "\n";
+  }
 
   hit_rate_tree->insert_relative(constraints, new_constraint, estimation_rel);
 
-  //   std::cerr << "\n";
-  //   std::cerr << "Resulting Hit rate:\n";
-  //   hit_rate_tree->dump();
-  //   std::cerr << "\n";
+  Log::dbg() << "\n";
+  Log::dbg() << "Resulting Hit rate:\n";
+  hit_rate_tree->dump();
+  Log::dbg() << "\n";
 }
 
 void EP::update_node_constraints(const EPNode *on_true_node,

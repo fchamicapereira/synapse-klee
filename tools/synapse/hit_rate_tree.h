@@ -53,6 +53,7 @@ private:
   HitRateNode *get_node(const constraints_t &constraints) const;
   void append(HitRateNode *node, klee::ref<klee::Expr> constraint,
               float fraction);
+  void replace_root(klee::ref<klee::Expr> constraint, float fraction);
 };
 
 } // namespace synapse

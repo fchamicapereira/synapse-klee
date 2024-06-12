@@ -2,6 +2,7 @@
 #include "klee-util.h"
 #include "bdd-analyzer-report.h"
 #include "random_engine.h"
+#include "log.h"
 
 #include <iomanip>
 
@@ -49,32 +50,32 @@ HitRateNode *HitRateNode::clone() const {
 }
 
 void HitRateNode::dump(int lvl) const {
-  std::cerr << "<";
-  std::cerr << "fraction=" << fraction;
+  Log::dbg() << "<";
+  Log::dbg() << "fraction=" << fraction;
   if (bdd_node_id) {
-    std::cerr << ", ";
-    std::cerr << "bdd_node=" << *bdd_node_id;
+    Log::dbg() << ", ";
+    Log::dbg() << "bdd_node=" << *bdd_node_id;
   } else {
     if (!constraint.isNull()) {
-      std::cerr << ", ";
-      std::cerr << "cond=" << kutil::expr_to_string(constraint, true);
+      Log::dbg() << ", ";
+      Log::dbg() << "cond=" << kutil::expr_to_string(constraint, true);
     }
   }
-  std::cerr << ">";
-  std::cout << "\n";
+  Log::dbg() << ">";
+  Log::dbg() << "\n";
 
   if (on_true) {
     lvl++;
-    std::cerr << std::string(2 * lvl, ' ');
-    std::cout << "[T] ";
+    Log::dbg() << std::string(2 * lvl, ' ');
+    Log::dbg() << "[T] ";
     on_true->dump(lvl);
     lvl--;
   }
 
   if (on_false) {
     lvl++;
-    std::cerr << std::string(2 * lvl, ' ');
-    std::cout << "[F] ";
+    Log::dbg() << std::string(2 * lvl, ' ');
+    Log::dbg() << "[F] ";
     on_false->dump(lvl);
     lvl--;
   }
@@ -288,12 +289,41 @@ static void recursive_update_fractions(HitRateNode *node,
   recursive_update_fractions(node->on_false, old_fraction, new_fraction);
 }
 
+void HitRateTree::replace_root(klee::ref<klee::Expr> constraint,
+                               float fraction) {
+  HitRateNode *new_node = new HitRateNode(constraint, 1.0);
+
+  HitRateNode *node = root;
+  root = new_node;
+
+  new_node->on_true = node;
+  new_node->on_false = node->clone();
+
+  float fraction_on_true = fraction;
+  float fraction_on_false = new_node->fraction - fraction;
+
+  assert(fraction_on_true <= 1.0);
+  assert(fraction_on_false <= 1.0);
+
+  assert(fraction_on_true <= new_node->fraction);
+  assert(fraction_on_false <= new_node->fraction);
+
+  recursive_update_fractions(new_node->on_true, new_node->fraction,
+                             fraction_on_true);
+  recursive_update_fractions(new_node->on_false, new_node->fraction,
+                             fraction_on_false);
+}
+
 void HitRateTree::append(HitRateNode *node, klee::ref<klee::Expr> constraint,
                          float fraction) {
   assert(node);
 
   HitRateNode *parent = node->prev;
-  assert(parent);
+
+  if (!parent) {
+    replace_root(constraint, fraction);
+    return;
+  }
 
   HitRateNode *new_node = new HitRateNode(constraint, node->fraction);
 
