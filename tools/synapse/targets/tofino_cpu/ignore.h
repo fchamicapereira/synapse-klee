@@ -25,7 +25,6 @@ class IgnoreGenerator : public TofinoCPUModuleGenerator {
 private:
   std::unordered_set<std::string> functions_to_always_ignore = {
       "expire_items_single_map",
-      "nf_set_rte_ipv4_udptcp_checksum",
   };
 
 public:

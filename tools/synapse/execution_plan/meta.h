@@ -80,7 +80,6 @@ struct EPMeta {
   float get_bdd_progress() const;
   void process_node(const bdd::Node *node, TargetType target);
   void update_total_bdd_nodes(const bdd::BDD *bdd);
-  bool is_processed_node(const bdd::Node *node) const;
   void update(const EPLeaf *leaf, const EPNode *new_node,
               const HitRateTree *hit_rate_tree, bool process_node);
   void transfer_traffic(TargetType old_target, TargetType new_target,

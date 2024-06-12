@@ -28,6 +28,7 @@ protected:
   HCfg configuration;
 
   RandomEngine random_engine;
+  typename std::set<const EP *, HCfg>::iterator best_it;
 
 public:
   Heuristic(unsigned _rand_seed) : random_engine(_rand_seed, 0, 1) {}
@@ -43,7 +44,10 @@ public:
 
   bool finished() { return get_next_it() == execution_plans.end(); }
 
-  const EP *get() { return *get_best_it(); }
+  const EP *get() {
+    get_best_it();
+    return *best_it;
+  }
 
   const EP *get(ep_id_t id) const {
     for (const EP *ep : execution_plans) {
@@ -70,6 +74,8 @@ public:
     const EP *ep = *it;
     execution_plans.erase(it);
 
+    reset_best_it();
+
     return ep;
   }
 
@@ -77,6 +83,8 @@ public:
     for (const EP *ep : next_eps) {
       execution_plans.insert(ep);
     }
+
+    reset_best_it();
   }
 
   size_t size() const { return execution_plans.size(); }
@@ -89,26 +97,31 @@ public:
   }
 
 private:
-  typename std::set<const EP *, HCfg>::iterator get_best_it() {
+  void get_best_it() {
     assert(execution_plans.size());
 
-    auto it = execution_plans.begin();
-    Score best_score = get_score(*it);
+    if (best_it != execution_plans.end()) {
+      return;
+    }
+
+    best_it = execution_plans.begin();
+    Score best_score = get_score(*best_it);
 
     while (1) {
-      if (it == execution_plans.end() || get_score(*it) != best_score) {
-        it = execution_plans.begin();
+      if (best_it == execution_plans.end() ||
+          get_score(*best_it) != best_score) {
+        best_it = execution_plans.begin();
       }
 
       if (random_engine.generate()) {
         break;
       }
 
-      it = std::next(it);
+      best_it++;
     }
-
-    return it;
   }
+
+  void reset_best_it() { best_it = execution_plans.end(); }
 
   typename std::set<const EP *, HCfg>::iterator get_next_it() {
     if (execution_plans.size() == 0) {
@@ -116,16 +129,19 @@ private:
       exit(1);
     }
 
-    auto it = get_best_it();
+    get_best_it();
+
+    auto it = best_it;
+    assert(it != execution_plans.end());
 
     const HeuristicCfg *cfg = static_cast<const HeuristicCfg *>(&configuration);
-    while (!cfg->terminate_on_first_solution() && it != execution_plans.end() &&
-           !(*it)->get_next_node()) {
-      ++it;
+
+    if (cfg->terminate_on_first_solution() && !(*it)->get_next_node()) {
+      return execution_plans.end();
     }
 
-    if (it != execution_plans.end() && !(*it)->get_next_node()) {
-      it = execution_plans.end();
+    while (it != execution_plans.end() && !(*it)->get_next_node()) {
+      it++;
     }
 
     return it;

@@ -45,10 +45,6 @@ float EPMeta::get_bdd_progress() const {
   return processed_nodes.size() / static_cast<float>(total_bdd_nodes);
 }
 
-bool EPMeta::is_processed_node(const bdd::Node *node) const {
-  return processed_nodes.find(node->get_id()) != processed_nodes.end();
-}
-
 void EPMeta::update_total_bdd_nodes(const bdd::BDD *bdd) {
   total_bdd_nodes = bdd->size();
 }

@@ -147,14 +147,7 @@ const bdd::Node *EP::get_next_node() const {
     return nullptr;
   }
 
-  const bdd::Node *next_node = active_leaf->next;
-
-  while (next_node && meta.is_processed_node(next_node)) {
-    assert(next_node->get_type() != bdd::NodeType::BRANCH);
-    next_node = next_node->get_next();
-  }
-
-  return next_node;
+  return active_leaf->next;
 }
 
 const EPLeaf *EP::get_active_leaf() const {
