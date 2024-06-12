@@ -3,13 +3,17 @@
 namespace synapse {
 namespace tofino {
 
-static TNAConstraints constraints_from_version(TNAVersion version) {
-  TNAConstraints constraints;
+static TNAProperties properties_from_version(TNAVersion version) {
+  TNAProperties properties;
 
   switch (version) {
   case TNAVersion::TNA1:
-    constraints = {
+    properties = {
+        .port_capacity_pps = 150'000'000,
+        .total_ports = 32,
+        .total_recirculation_ports_per_pipe = 1,
         .max_packet_bytes_in_condition = 4,
+        .pipes = 2,
         .stages = 12,
         .sram_per_stage = 128 * 1024 * 80,
         .tcam_per_stage = 44 * 512 * 24,
@@ -29,8 +33,12 @@ static TNAConstraints constraints_from_version(TNAVersion version) {
     };
     break;
   case TNAVersion::TNA2:
-    constraints = {
+    properties = {
+        .port_capacity_pps = 150'000'000,
+        .total_ports = 32,
+        .total_recirculation_ports_per_pipe = 1,
         .max_packet_bytes_in_condition = 4,
+        .pipes = 4,
         .stages = 20,
         .sram_per_stage = 128 * 1024 * 80,
         .tcam_per_stage = 44 * 512 * 24,
@@ -52,15 +60,15 @@ static TNAConstraints constraints_from_version(TNAVersion version) {
     break;
   }
 
-  return constraints;
+  return properties;
 }
 
 TNA::TNA(TNAVersion version)
-    : version(version), constraints(constraints_from_version(version)),
-      simple_placer(&constraints) {}
+    : version(version), properties(properties_from_version(version)),
+      simple_placer(&properties) {}
 
 TNA::TNA(const TNA &other)
-    : version(other.version), constraints(other.constraints),
+    : version(other.version), properties(other.properties),
       simple_placer(other.simple_placer), parser(other.parser) {}
 
 bool TNA::condition_meets_phv_limit(klee::ref<klee::Expr> expr) const {
@@ -71,7 +79,7 @@ bool TNA::condition_meets_phv_limit(klee::ref<klee::Expr> expr) const {
       retriever.get_retrieved_packet_chunks();
 
   return static_cast<int>(chunks.size()) <=
-         constraints.max_packet_bytes_in_condition;
+         properties.max_packet_bytes_in_condition;
 }
 
 void TNA::place(const DS *ds, const std::unordered_set<DS_ID> &deps) {

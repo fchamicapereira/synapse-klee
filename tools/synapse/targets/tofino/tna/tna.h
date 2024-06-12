@@ -10,8 +10,12 @@ namespace tofino {
 
 enum class TNAVersion { TNA1, TNA2 };
 
-struct TNAConstraints {
+struct TNAProperties {
+  uint64_t port_capacity_pps;
+  int total_ports;
+  int total_recirculation_ports_per_pipe;
   int max_packet_bytes_in_condition;
+  int pipes;
   int stages;
   bits_t sram_per_stage;
   bits_t tcam_per_stage;
@@ -33,7 +37,7 @@ struct TNAConstraints {
 class TNA {
 private:
   const TNAVersion version;
-  const TNAConstraints constraints;
+  const TNAProperties properties;
 
   SimplePlacer simple_placer;
 
@@ -44,7 +48,7 @@ public:
   TNA(const TNA &other);
 
   TNAVersion get_version() const { return version; }
-  const TNAConstraints &get_constraints() const { return constraints; }
+  const TNAProperties &get_properties() const { return properties; }
 
   // Tofino compiler complains if we access more than 4 bytes of the packet on
   // the same if statement.

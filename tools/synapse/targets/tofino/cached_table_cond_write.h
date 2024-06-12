@@ -114,6 +114,9 @@ protected:
     std::unordered_set<DS_ID> byproducts =
         get_cached_table_byproducts(cached_table);
 
+    klee::ref<klee::Expr> cache_write_success_condition =
+        build_cache_write_success_condition(cache_write_failed);
+
     Module *module = new CachedTableConditionalWrite(
         node, cached_table->id, byproducts, data.obj, data.key, data.read_value,
         data.write_value, data.map_has_this_key, cache_write_failed);
@@ -121,9 +124,6 @@ protected:
 
     EP *new_ep = new EP(*ep);
     new_eps.push_back(new_ep);
-
-    klee::ref<klee::Expr> cache_write_success_condition =
-        build_cache_write_success_condition(cache_write_failed);
 
     bdd::Node *on_cache_write_success;
     bdd::Node *on_cache_write_failed;
@@ -133,7 +133,8 @@ protected:
 
     symbols_t symbols = get_dataplane_state(ep, node);
 
-    Module *if_module = new If(node, {cache_write_success_condition});
+    Module *if_module = new If(node, cache_write_success_condition,
+                               {cache_write_success_condition});
     Module *then_module = new Then(node);
     Module *else_module = new Else(node);
     Module *send_to_controller_module =
@@ -158,6 +159,14 @@ protected:
     EPLeaf on_cache_write_failed_leaf(send_to_controller_node,
                                       on_cache_write_failed);
 
+    float cache_write_success_estimation_rel =
+        get_cache_write_success_estimation_rel(data, cache_capacity);
+
+    new_ep->update_node_constraints(then_node, else_node,
+                                    cache_write_success_condition);
+    new_ep->add_hit_rate_estimation(cache_write_success_condition,
+                                    cache_write_success_estimation_rel);
+
     new_ep->process_leaf(
         cached_table_cond_write_node,
         {on_cache_write_success_leaf, on_cache_write_failed_leaf});
@@ -173,6 +182,11 @@ protected:
   }
 
 private:
+  float get_cache_write_success_estimation_rel(
+      const cached_table_data_t &cached_table_data, int cache_capacity) const {
+    return static_cast<float>(cache_capacity) / cached_table_data.num_entries;
+  }
+
   std::unordered_set<DS_ID>
   get_cached_table_byproducts(CachedTable *cached_table) const {
     std::unordered_set<DS_ID> byproducts;
@@ -279,11 +293,28 @@ private:
         get_coalescing_nodes_from_key(bdd, on_success, key, coalescing_data);
 
     for (const bdd::Node *target : targets) {
+      const bdd::Call *call_target = static_cast<const bdd::Call *>(target);
+      const call_t &call = call_target->get_call();
+
+      if (call.function_name == "dchain_allocate_new_index") {
+        symbol_t out_of_space;
+        bool found = get_symbol(call_target->get_locally_generated_symbols(),
+                                "out_of_space", out_of_space);
+        assert(found && "Symbol out_of_space not found");
+
+        const bdd::Branch *branch =
+            find_branch_checking_index_alloc(ep, on_success, out_of_space);
+
+        if (branch) {
+          bdd::Node *trash;
+          delete_branch_node_from_bdd(ep, bdd, branch, true, trash);
+        }
+      }
+
       bdd::Node *trash;
       delete_non_branch_node_from_bdd(ep, bdd, target, trash);
     }
   }
-
   bdd::BDD *branch_bdd_on_cache_write_success(
       const EP *ep, const bdd::Node *map_get, const cached_table_data_t &data,
       klee::ref<klee::Expr> cache_write_success_condition,

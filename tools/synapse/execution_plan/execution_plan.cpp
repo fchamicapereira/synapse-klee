@@ -27,16 +27,15 @@ get_initial_target(const std::vector<const Target *> &targets) {
 }
 
 EP::EP(std::shared_ptr<const bdd::BDD> _bdd,
-       const std::vector<const Target *> &_targets)
+       const std::vector<const Target *> &_targets,
+       std::shared_ptr<HitRateTree> _hit_rate_tree)
     : id(counter++), bdd(_bdd), root(nullptr),
       initial_target(get_initial_target(_targets)),
-      targets(get_target_types(_targets)), ctx(_bdd.get(), _targets),
-      meta(bdd.get()) {
+      targets(get_target_types(_targets)), hit_rate_tree(_hit_rate_tree),
+      ctx(_bdd.get(), _targets), meta(bdd.get(), targets, initial_target) {
   targets_roots[initial_target] = bdd::nodes_t({bdd->get_root()->get_id()});
 
   for (const Target *target : _targets) {
-    meta.nodes_per_target[target->type] = 0;
-
     if (target->type != initial_target) {
       targets_roots[target->type] = bdd::nodes_t();
     }
@@ -56,7 +55,7 @@ EP::EP(const EP &other)
       root(other.root ? other.root->clone(true) : nullptr),
       initial_target(other.initial_target), targets(other.targets),
       ancestors(update_ancestors(other)), targets_roots(other.targets_roots),
-      ctx(other.ctx), meta(other.meta) {
+      hit_rate_tree(other.hit_rate_tree), ctx(other.ctx), meta(other.meta) {
   if (!root) {
     assert(other.leaves.size() == 1);
     leaves.emplace_back(nullptr, bdd->get_root());
@@ -162,6 +161,8 @@ const EPLeaf *EP::get_active_leaf() const {
   return leaves.size() ? &leaves.at(0) : nullptr;
 }
 
+bool EP::has_active_leaf() const { return !leaves.empty(); }
+
 EPLeaf *EP::get_mutable_active_leaf() {
   return leaves.size() ? &leaves.at(0) : nullptr;
 }
@@ -208,14 +209,14 @@ void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves,
     new_node->set_prev(active_leaf->node);
   }
 
-  meta.update(active_leaf, new_node, process_node);
+  meta.update(active_leaf, new_node, hit_rate_tree.get(), process_node);
   meta.depth++;
 
   for (const EPLeaf &new_leaf : new_leaves) {
     if (!new_leaf.next)
       continue;
 
-    meta.update(active_leaf, new_leaf.node, process_node);
+    meta.update(active_leaf, new_leaf.node, hit_rate_tree.get(), process_node);
 
     const Module *module = new_leaf.node->get_module();
     TargetType next_target = module->get_next_target();
@@ -333,6 +334,99 @@ void EP::inspect() const {
     const bdd::Node *found_next = bdd->get_node_by_id(next->get_id());
     assert(next == found_next);
   }
+}
+
+constraints_t EP::get_active_leaf_constraints() const {
+  const EPLeaf *active_leaf = get_active_leaf();
+  assert(active_leaf && "No active leaf");
+
+  const EPNode *node = active_leaf->node;
+
+  if (!node) {
+    return {};
+  }
+
+  return meta.get_node_constraints(node);
+}
+
+float EP::get_active_leaf_hit_rate() const {
+  constraints_t constraints = get_active_leaf_constraints();
+
+  if (constraints.empty()) {
+    return 1.0;
+  }
+
+  // std::cerr << "ep: " << id << "\n";
+  // std::cerr << "Active leaf node: "
+  //           << get_active_leaf()->node->get_module()->get_node()->dump(true)
+  //           << "\n";
+  // std::cerr << "Getting rate for constraints:\n";
+  // for (const klee::ref<klee::Expr> &constraint : constraints) {
+  //   std::cerr << "   " << kutil::expr_to_string(constraint, true) << "\n";
+  // }
+  // std::cerr << "\n";
+
+  // std::cerr << "\n";
+  // std::cerr << "Hit rate:\n";
+  // hit_rate_tree->dump();
+  // std::cerr << "\n";
+
+  std::optional<float> fraction = hit_rate_tree->get_fraction(constraints);
+  assert(fraction.has_value());
+
+  return *fraction;
+}
+
+void EP::add_hit_rate_estimation(klee::ref<klee::Expr> new_constraint,
+                                 float estimation_rel) {
+  HitRateTree *new_hit_rate_tree = new HitRateTree(*hit_rate_tree);
+  hit_rate_tree.reset(new_hit_rate_tree);
+
+  constraints_t constraints = get_active_leaf_constraints();
+
+  // std::cerr << "Adding hit rate estimation " << estimation_rel << "!\n";
+  // for (const klee::ref<klee::Expr> &constraint : constraints) {
+  //   std::cerr << "   " << kutil::expr_to_string(constraint, true) << "\n";
+  // }
+  // std::cerr << "\n";
+  // std::cerr << "\n";
+  // std::cerr << "Hit rate:\n";
+  // hit_rate_tree->dump();
+  // std::cerr << "\n";
+
+  hit_rate_tree->insert_relative(constraints, new_constraint, estimation_rel);
+
+  //   std::cerr << "\n";
+  //   std::cerr << "Resulting Hit rate:\n";
+  //   hit_rate_tree->dump();
+  //   std::cerr << "\n";
+}
+
+void EP::update_node_constraints(const EPNode *on_true_node,
+                                 const EPNode *on_false_node,
+                                 klee::ref<klee::Expr> new_constraint) {
+  const EPLeaf *active_leaf = get_active_leaf();
+  assert(active_leaf && "No active leaf");
+
+  const EPNode *active_node = active_leaf->node;
+  assert(active_node && "No active node");
+
+  constraints_t constraints = meta.get_node_constraints(active_node);
+
+  klee::ref<klee::Expr> new_constraint_not =
+      kutil::solver_toolbox.exprBuilder->Not(new_constraint);
+
+  constraints_t on_true_constraints = constraints;
+  constraints_t on_false_constraints = constraints;
+
+  on_true_constraints.push_back(new_constraint);
+  on_false_constraints.push_back(new_constraint_not);
+
+  ep_node_id_t on_true_id = on_true_node->get_id();
+  ep_node_id_t on_false_id = on_false_node->get_id();
+
+  meta.update_constraints_per_node(on_true_id, on_true_constraints);
+  meta.update_constraints_per_node(on_false_id, on_false_constraints);
 }
 
 } // namespace synapse

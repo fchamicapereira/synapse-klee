@@ -4,6 +4,7 @@
 
 #include "node.h"
 #include "meta.h"
+#include "../hit_rate_tree.h"
 #include "../targets/target.h"
 #include "../targets/context.h"
 
@@ -38,13 +39,15 @@ private:
   const std::set<ep_id_t> ancestors;
 
   std::unordered_map<TargetType, bdd::nodes_t> targets_roots;
+  std::shared_ptr<HitRateTree> hit_rate_tree;
 
   Context ctx;
   EPMeta meta;
 
 public:
   EP(std::shared_ptr<const bdd::BDD> bdd,
-     const std::vector<const Target *> &targets);
+     const std::vector<const Target *> &targets,
+     std::shared_ptr<HitRateTree> hit_rate_tree);
 
   EP(const EP &other);
 
@@ -81,8 +84,26 @@ public:
   bool has_target(TargetType type) const;
   const bdd::Node *get_next_node() const;
   const EPLeaf *get_active_leaf() const;
+  bool has_active_leaf() const;
   TargetType get_current_platform() const;
   EPNode *get_node_by_id(ep_node_id_t id) const;
+
+  // TODO: Improve the performance of this method.
+  // Currently it goes through all the leaf's parents, extracts the generated
+  // conditions, and traverses the hit rate tree (using the solver).
+  float get_active_leaf_hit_rate() const;
+
+  // Estimation is relative to the parent node.
+  // E.g. if the parent node has a hit rate of 0.5, and the estimation_rel is
+  // 0.1, the hit rate of the current node will be 0.05.
+  // WARNING: this should be called before processing the leaf.
+  void add_hit_rate_estimation(klee::ref<klee::Expr> condition,
+                               float estimation_rel);
+
+  // WARNING: this should be called before processing the leaf.
+  void update_node_constraints(const EPNode *on_true_node,
+                               const EPNode *on_false_node,
+                               klee::ref<klee::Expr> new_constraint);
 
   void visit(EPVisitor &visitor) const;
 
@@ -91,6 +112,7 @@ public:
 
 private:
   EPLeaf *get_mutable_active_leaf();
+  constraints_t get_active_leaf_constraints() const;
 };
 
 } // namespace synapse

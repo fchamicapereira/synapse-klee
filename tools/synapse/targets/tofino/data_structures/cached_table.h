@@ -22,7 +22,7 @@ struct CachedTable : public DS {
   Register cache_expirator;
   std::vector<Register> cache_keys;
 
-  CachedTable(const TNAConstraints &constraints, DS_ID id, int cache_capacity,
+  CachedTable(const TNAProperties &properties, DS_ID id, int cache_capacity,
               int num_entries, const std::vector<bits_t> &keys, bits_t value);
 
   CachedTable(const CachedTable &other);

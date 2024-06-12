@@ -31,7 +31,7 @@ void from_json(const json &j, bdd_node_counters &counters) {
   }
 }
 
-void from_json(const json &j, bdd_analyzer_report_t &report) {
+void from_json(const json &j, bdd_profile_t &report) {
   j.at("config").get_to(report.config);
 
   // Use our parser instead of the default one provided by the library. Their
@@ -41,14 +41,14 @@ void from_json(const json &j, bdd_analyzer_report_t &report) {
   j.at("elapsed").get_to(report.elapsed);
 }
 
-bdd_analyzer_report_t parse_bdd_analyzer_report_t(const std::string &filename) {
+bdd_profile_t parse_bdd_profile(const std::string &filename) {
   std::ifstream file(filename);
   if (!file.is_open()) {
     assert(false && "failed to open file");
   }
 
   json j = json::parse(file);
-  bdd_analyzer_report_t report = j.get<bdd_analyzer_report_t>();
+  bdd_profile_t report = j.get<bdd_profile_t>();
 
   return report;
 }

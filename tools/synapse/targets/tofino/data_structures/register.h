@@ -9,7 +9,7 @@
 namespace synapse {
 namespace tofino {
 
-struct TNAConstraints;
+struct TNAProperties;
 
 enum class RegisterAction {
   READ,  // No modification
@@ -23,7 +23,7 @@ struct Register : public DS {
   bits_t value;
   std::unordered_set<RegisterAction> actions;
 
-  Register(const TNAConstraints &constraints, DS_ID id, int num_entries,
+  Register(const TNAProperties &properties, DS_ID id, int num_entries,
            bits_t index, bits_t value,
            const std::unordered_set<RegisterAction> &actions);
 
@@ -36,8 +36,7 @@ struct Register : public DS {
   int get_num_logical_ids() const;
 
   static std::vector<klee::ref<klee::Expr>>
-  partition_value(const TNAConstraints &tna_constr,
-                  klee::ref<klee::Expr> value);
+  partition_value(const TNAProperties &properties, klee::ref<klee::Expr> value);
 };
 
 } // namespace tofino

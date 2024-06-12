@@ -30,15 +30,15 @@ struct Stage {
   std::unordered_set<DS_ID> tables;
 };
 
-struct TNAConstraints;
+struct TNAProperties;
 
 class SimplePlacer {
 private:
-  const TNAConstraints *constraints;
+  const TNAProperties *properties;
   std::vector<Stage> stages;
 
 public:
-  SimplePlacer(const TNAConstraints *constraints);
+  SimplePlacer(const TNAProperties *properties);
   SimplePlacer(const SimplePlacer &other);
 
   void place(const DS *ds, const std::unordered_set<DS_ID> &deps);

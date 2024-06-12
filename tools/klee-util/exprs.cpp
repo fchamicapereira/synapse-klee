@@ -357,4 +357,57 @@ addr_t expr_addr_to_obj_addr(klee::ref<klee::Expr> obj_addr) {
   return solver_toolbox.value_from_expr(obj_addr);
 }
 
+klee::ref<klee::Expr> constraint_from_expr(klee::ref<klee::Expr> expr) {
+  klee::ref<klee::Expr> constraint;
+
+  switch (expr->getKind()) {
+  // Comparisons
+  case klee::Expr::Eq:
+  case klee::Expr::Ne:
+  case klee::Expr::Ult:
+  case klee::Expr::Ule:
+  case klee::Expr::Ugt:
+  case klee::Expr::Uge:
+  case klee::Expr::Slt:
+  case klee::Expr::Sle:
+  case klee::Expr::Sgt:
+  case klee::Expr::Sge:
+    constraint = expr;
+    break;
+  // Constant
+  case klee::Expr::Constant:
+  // Reads
+  case klee::Expr::Read:
+  case klee::Expr::Select:
+  case klee::Expr::Concat:
+  case klee::Expr::Extract:
+  // Bit
+  case klee::Expr::Not:
+  case klee::Expr::And:
+  case klee::Expr::Or:
+  case klee::Expr::Xor:
+  case klee::Expr::Shl:
+  case klee::Expr::LShr:
+  case klee::Expr::AShr:
+  // Casting
+  case klee::Expr::ZExt:
+  case klee::Expr::SExt:
+  // Arithmetic
+  case klee::Expr::Add:
+  case klee::Expr::Sub:
+  case klee::Expr::Mul:
+  case klee::Expr::UDiv:
+  case klee::Expr::SDiv:
+  case klee::Expr::URem:
+  case klee::Expr::SRem:
+    constraint = kutil::solver_toolbox.exprBuilder->Ne(
+        expr, kutil::solver_toolbox.exprBuilder->Constant(0, expr->getWidth()));
+    break;
+  default:
+    assert(false && "TODO");
+  }
+
+  return constraint;
+}
+
 } // namespace kutil

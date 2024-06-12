@@ -17,6 +17,7 @@ typedef int ss_node_id_t;
 struct module_data_t {
   ModuleType type;
   std::string name;
+  float hit_rate;
 };
 
 struct bdd_node_data_t {
@@ -73,7 +74,8 @@ public:
   ~SearchSpace() { delete root; }
 
   void activate_leaf(const EP *ep);
-  void add_to_active_leaf(const bdd::Node *node, const ModuleGenerator *mogden,
+  void add_to_active_leaf(const EP *ep, const bdd::Node *node,
+                          const ModuleGenerator *mogden,
                           const std::vector<const EP *> &generated_eps);
 
   SSNode *get_root() const;

@@ -7,16 +7,21 @@ namespace tofino {
 
 class ParserCondition : public TofinoModule {
 private:
+  klee::ref<klee::Expr> original_condition;
+
   klee::ref<klee::Expr> conditional_hdr;
   klee::ref<klee::Expr> hdr_field;
   std::vector<int> hdr_values;
 
 public:
-  ParserCondition(const bdd::Node *node, klee::ref<klee::Expr> _conditional_hdr,
+  ParserCondition(const bdd::Node *node,
+                  klee::ref<klee::Expr> _original_condition,
+                  klee::ref<klee::Expr> _conditional_hdr,
                   klee::ref<klee::Expr> _hdr_field,
                   const std::vector<int> &_hdr_values)
       : TofinoModule(ModuleType::Tofino_ParserCondition, "ParserCondition",
                      node),
+        original_condition(_original_condition),
         conditional_hdr(_conditional_hdr), hdr_field(_hdr_field),
         hdr_values(_hdr_values) {}
 
@@ -26,8 +31,8 @@ public:
   }
 
   virtual Module *clone() const {
-    ParserCondition *cloned =
-        new ParserCondition(node, conditional_hdr, hdr_field, hdr_values);
+    ParserCondition *cloned = new ParserCondition(
+        node, original_condition, conditional_hdr, hdr_field, hdr_values);
     return cloned;
   }
 
@@ -57,9 +62,11 @@ protected:
       return new_eps;
     }
 
+    klee::ref<klee::Expr> original_condition = branch_node->get_condition();
+
     klee::ref<klee::Expr> field;
     std::vector<int> values;
-    build_parser_select(branch_node->get_condition(), field, values);
+    build_parser_select(original_condition, field, values);
 
     const bdd::Node *on_true = branch_node->get_on_true();
     const bdd::Node *on_false = branch_node->get_on_false();
@@ -107,8 +114,8 @@ protected:
     EP *new_ep = new EP(*ep);
     new_eps.push_back(new_ep);
 
-    Module *if_module =
-        new ParserCondition(node, conditional_hdr, field, values);
+    Module *if_module = new ParserCondition(node, original_condition,
+                                            conditional_hdr, field, values);
     Module *then_module = new Then(node);
     Module *else_module = new Else(node);
 
@@ -119,6 +126,8 @@ protected:
     if_node->set_children({then_node, else_node});
     then_node->set_prev(if_node);
     else_node->set_prev(if_node);
+
+    new_ep->update_node_constraints(then_node, else_node, original_condition);
 
     EPLeaf then_leaf(then_node, branch_node->get_on_true());
     EPLeaf else_leaf(else_node, branch_node->get_on_false());

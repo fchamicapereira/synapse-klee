@@ -24,6 +24,7 @@ enum class ScoreCategory {
   ConsecutiveObjectOperationsInSwitch,
   HasNextStatefulOperationInSwitch,
   ProcessedBDDPercentage,
+  Throughput,
 };
 
 enum class ScoreObjective { MIN, MAX };
@@ -98,6 +99,10 @@ public:
         {
             ScoreCategory::ProcessedBDDPercentage,
             &Score::get_percentage_of_processed_bdd,
+        },
+        {
+            ScoreCategory::Throughput,
+            &Score::estimate_throughput_kpps,
         },
     };
 
@@ -202,6 +207,7 @@ private:
   int get_nr_send_to_controller(const EP *ep) const;
   int get_nr_switch_data_structures(const EP *ep) const;
   int get_nr_recirculations(const EP *ep) const;
+  int estimate_throughput_kpps(const EP *ep) const;
 };
 
 std::ostream &operator<<(std::ostream &os, const Score &score);

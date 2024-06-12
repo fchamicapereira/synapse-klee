@@ -15,15 +15,15 @@ static Table build_table(DS_ID id, int num_entries,
   return Table(id + "_table", num_entries, keys, {value});
 }
 
-static Register build_cache_expirator(const TNAConstraints &constraints,
-                                      DS_ID id, int cache_capacity) {
+static Register build_cache_expirator(const TNAProperties &properties, DS_ID id,
+                                      int cache_capacity) {
   bits_t hash_size = index_size_from_cache_capacity(cache_capacity);
   bits_t timestamp_size = 32;
-  return Register(constraints, id + "_expirator", cache_capacity, hash_size,
+  return Register(properties, id + "_expirator", cache_capacity, hash_size,
                   timestamp_size, {RegisterAction::WRITE});
 }
 
-static std::vector<Register> build_cache_keys(const TNAConstraints &constraints,
+static std::vector<Register> build_cache_keys(const TNAProperties &properties,
                                               DS_ID id,
                                               const std::vector<bits_t> &keys,
                                               int cache_capacity) {
@@ -34,7 +34,7 @@ static std::vector<Register> build_cache_keys(const TNAConstraints &constraints,
   int i = 0;
   for (bits_t key : keys) {
     bits_t cell_size = key;
-    Register cache_key(constraints, id + "_key_" + std::to_string(i),
+    Register cache_key(properties, id + "_key_" + std::to_string(i),
                        cache_capacity, hash_size, cell_size,
                        {RegisterAction::READ, RegisterAction::SWAP});
     i++;
@@ -44,14 +44,14 @@ static std::vector<Register> build_cache_keys(const TNAConstraints &constraints,
   return cache_keys;
 }
 
-CachedTable::CachedTable(const TNAConstraints &constraints, DS_ID _id,
+CachedTable::CachedTable(const TNAProperties &properties, DS_ID _id,
                          int _cache_capacity, int _num_entries,
                          const std::vector<bits_t> &_keys, bits_t _value)
     : DS(DSType::CACHED_TABLE, _id), cache_capacity(_cache_capacity),
       num_entries(_num_entries), keys(_keys), value(_value),
       table(build_table(id, num_entries, keys, value)),
-      cache_expirator(build_cache_expirator(constraints, _id, cache_capacity)),
-      cache_keys(build_cache_keys(constraints, id, keys, cache_capacity)) {}
+      cache_expirator(build_cache_expirator(properties, _id, cache_capacity)),
+      cache_keys(build_cache_keys(properties, id, keys, cache_capacity)) {}
 
 CachedTable::CachedTable(const CachedTable &other)
     : DS(DSType::CACHED_TABLE, other.id), cache_capacity(other.cache_capacity),

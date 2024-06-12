@@ -129,7 +129,8 @@ protected:
 
     symbols_t symbols = get_dataplane_state(ep, node);
 
-    Module *if_module = new If(node, {cache_delete_success_condition});
+    Module *if_module = new If(node, cache_delete_success_condition,
+                               {cache_delete_success_condition});
     Module *then_module = new Then(node);
     Module *else_module = new Else(node);
     Module *send_to_controller_module =
@@ -154,6 +155,14 @@ protected:
     EPLeaf on_cache_delete_failed_leaf(send_to_controller_node,
                                        on_cache_delete_failed);
 
+    float cache_delete_success_estimation_rel =
+        get_cache_delete_success_estimation_rel(data, cache_capacity);
+
+    new_ep->update_node_constraints(then_node, else_node,
+                                    cache_delete_success_condition);
+    new_ep->add_hit_rate_estimation(cache_delete_success_condition,
+                                    cache_delete_success_estimation_rel);
+
     new_ep->process_leaf(
         cached_table_cond_write_node,
         {on_cache_delete_success_leaf, on_cache_delete_failed_leaf});
@@ -169,6 +178,11 @@ protected:
   }
 
 private:
+  float get_cache_delete_success_estimation_rel(
+      const cached_table_data_t &cached_table_data, int cache_capacity) const {
+    return static_cast<float>(cache_capacity) / cached_table_data.num_entries;
+  }
+
   std::unordered_set<DS_ID>
   get_cached_table_byproducts(CachedTable *cached_table) const {
     std::unordered_set<DS_ID> byproducts;

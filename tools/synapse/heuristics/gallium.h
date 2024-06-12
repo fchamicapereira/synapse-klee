@@ -7,12 +7,12 @@ namespace synapse {
 
 struct GalliumComparator : public HeuristicCfg {
   Score get_score(const EP *ep) const override {
-    Score score(ep,
-                {
-                    {ScoreCategory::SwitchNodes, ScoreObjective::MAX},
-                    {ScoreCategory::SwitchDataStructures, ScoreObjective::MAX},
-                    {ScoreCategory::Recirculations, ScoreObjective::MIN},
-                });
+    Score score(
+        ep, {
+                {ScoreCategory::SwitchNodes, ScoreObjective::MAX},
+                // {ScoreCategory::SwitchDataStructures, ScoreObjective::MAX},
+                // {ScoreCategory::Recirculations, ScoreObjective::MIN},
+            });
 
     return score;
   }

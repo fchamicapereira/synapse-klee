@@ -271,6 +271,15 @@ Context::get_target_ctx<tofino::TofinoContext>() const {
 }
 
 template <>
+const tofino_cpu::TofinoCPUContext *
+Context::get_target_ctx<tofino_cpu::TofinoCPUContext>() const {
+  TargetType type = TargetType::TofinoCPU;
+  assert(target_ctxs.find(type) != target_ctxs.end());
+  return static_cast<const tofino_cpu::TofinoCPUContext *>(
+      target_ctxs.at(type));
+}
+
+template <>
 const x86::x86Context *Context::get_target_ctx<x86::x86Context>() const {
   TargetType type = TargetType::x86;
   assert(target_ctxs.find(type) != target_ctxs.end());
@@ -283,6 +292,14 @@ Context::get_mutable_target_ctx<tofino::TofinoContext>() {
   TargetType type = TargetType::Tofino;
   assert(target_ctxs.find(type) != target_ctxs.end());
   return static_cast<tofino::TofinoContext *>(target_ctxs.at(type));
+}
+
+template <>
+tofino_cpu::TofinoCPUContext *
+Context::get_mutable_target_ctx<tofino_cpu::TofinoCPUContext>() {
+  TargetType type = TargetType::TofinoCPU;
+  assert(target_ctxs.find(type) != target_ctxs.end());
+  return static_cast<tofino_cpu::TofinoCPUContext *>(target_ctxs.at(type));
 }
 
 template <>

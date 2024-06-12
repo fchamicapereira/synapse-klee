@@ -10,6 +10,8 @@ namespace tofino {
 
 class If : public TofinoModule {
 private:
+  klee::ref<klee::Expr> original_condition;
+
   // AND-changed conditions.
   // Every condition must be met to be equivalent to the original condition.
   // This will later be split into multiple branch conditions, each evaluating
@@ -17,10 +19,10 @@ private:
   std::vector<klee::ref<klee::Expr>> conditions;
 
 public:
-  If(const bdd::Node *node,
+  If(const bdd::Node *node, klee::ref<klee::Expr> _original_condition,
      const std::vector<klee::ref<klee::Expr>> &_conditions)
       : TofinoModule(ModuleType::Tofino_If, "If", node),
-        conditions(_conditions) {}
+        original_condition(_original_condition), conditions(_conditions) {}
 
   virtual void visit(EPVisitor &visitor, const EP *ep,
                      const EPNode *ep_node) const override {
@@ -28,7 +30,7 @@ public:
   }
 
   virtual Module *clone() const {
-    If *cloned = new If(node, conditions);
+    If *cloned = new If(node, original_condition, conditions);
     return cloned;
   }
 
@@ -71,7 +73,7 @@ protected:
     assert(branch_node->get_on_true());
     assert(branch_node->get_on_false());
 
-    Module *if_module = new If(node, conditions);
+    Module *if_module = new If(node, condition, conditions);
     Module *then_module = new Then(node);
     Module *else_module = new Else(node);
 
@@ -89,6 +91,7 @@ protected:
     EP *new_ep = new EP(*ep);
     new_eps.push_back(new_ep);
 
+    new_ep->update_node_constraints(then_node, else_node, condition);
     new_ep->process_leaf(if_node, {then_leaf, else_leaf});
 
     return new_eps;

@@ -4,12 +4,12 @@
 namespace synapse {
 namespace tofino {
 
-Register::Register(const TNAConstraints &constraints, DS_ID _id,
-                   int _num_entries, bits_t _index, bits_t _value,
+Register::Register(const TNAProperties &properties, DS_ID _id, int _num_entries,
+                   bits_t _index, bits_t _value,
                    const std::unordered_set<RegisterAction> &_actions)
     : DS(DSType::REGISTER, _id), num_entries(_num_entries), index(_index),
       value(_value), actions(_actions) {
-  assert(value <= constraints.max_salu_size);
+  assert(value <= properties.max_salu_size);
 }
 
 Register::Register(const Register &other)
@@ -62,12 +62,12 @@ void Register::log_debug() const {
 }
 
 std::vector<klee::ref<klee::Expr>>
-Register::partition_value(const TNAConstraints &tna_constr,
+Register::partition_value(const TNAProperties &properties,
                           klee::ref<klee::Expr> value) {
   std::vector<klee::ref<klee::Expr>> partitions;
 
   bits_t value_width = value->getWidth();
-  bits_t partition_width = tna_constr.max_salu_size;
+  bits_t partition_width = properties.max_salu_size;
 
   bits_t offset = 0;
   while (offset < value_width) {

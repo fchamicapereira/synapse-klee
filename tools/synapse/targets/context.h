@@ -40,8 +40,11 @@ struct expiration_data_t {
 class TargetContext {
 public:
   TargetContext() {}
+
   virtual ~TargetContext() {}
+
   virtual TargetContext *clone() const = 0;
+  virtual int estimate_throughput_kpps() const = 0;
 };
 
 class Context {
@@ -97,6 +100,7 @@ public:
   template <> NS::TCTX *Context::get_mutable_target_ctx<NS::TCTX>();
 
 EXPLICIT_TARGET_CONTEXT_INSTANTIATION(tofino, TofinoContext)
+EXPLICIT_TARGET_CONTEXT_INSTANTIATION(tofino_cpu, TofinoCPUContext)
 EXPLICIT_TARGET_CONTEXT_INSTANTIATION(x86, x86Context)
 
 } // namespace synapse

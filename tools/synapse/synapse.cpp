@@ -64,12 +64,18 @@ llvm::cl::list<int>
     Peek("peek", llvm::cl::desc("Peek search space at these Execution Plans."),
          llvm::cl::Positional, llvm::cl::ZeroOrMore, llvm::cl::cat(SyNAPSE));
 
+llvm::cl::opt<std::string> BDDProfile("prof",
+                                      llvm::cl::desc("BDD profile JSON."),
+                                      llvm::cl::ValueRequired,
+                                      llvm::cl::Optional,
+                                      llvm::cl::cat(SyNAPSE));
+
 llvm::cl::opt<bool> Verbose("v", llvm::cl::desc("Verbose mode."),
                             llvm::cl::ValueDisallowed, llvm::cl::init(false),
                             llvm::cl::cat(SyNAPSE));
 } // namespace
 
-search_product_t search(const bdd::BDD &bdd) {
+search_product_t search(const bdd::BDD *bdd, HitRateTree *hit_rate_tree) {
   unsigned seed = Seed ? Seed : std::random_device()();
 
   // BFS heuristic(seed);
@@ -77,14 +83,15 @@ search_product_t search(const bdd::BDD &bdd) {
   // MostCompact heuristic(seed);
   // LeastReordered heuristic(seed);
   // MaximizeSwitchNodes heuristic(seed);
-  Gallium heuristic(seed);
+  // Gallium heuristic(seed);
+  MaxThroughput heuristic(seed);
 
   std::unordered_set<ep_id_t> peek;
   for (ep_id_t ep_id : Peek) {
     peek.insert(ep_id);
   }
 
-  SearchEngine engine(bdd, heuristic, BDDReorder, peek);
+  SearchEngine engine(bdd, &heuristic, hit_rate_tree, BDDReorder, peek);
   search_product_t result = engine.search();
 
   return result;
@@ -111,19 +118,26 @@ int main(int argc, char **argv) {
     Log::MINIMUM_LOG_LEVEL = Log::Level::LOG;
   }
 
-  bdd::BDD bdd(InputBDDFile);
+  bdd::BDD *bdd = new bdd::BDD(InputBDDFile);
+
+  HitRateTree *hit_rate_tree = nullptr;
+  if (!BDDProfile.empty()) {
+    hit_rate_tree = new HitRateTree(bdd, BDDProfile);
+  } else {
+    hit_rate_tree = new HitRateTree(bdd, Seed);
+  }
+
   std::string nf_name = nf_name_from_bdd(InputBDDFile);
 
   auto start_search = std::chrono::steady_clock::now();
-  search_product_t result = search(bdd);
+  search_product_t result = search(bdd, hit_rate_tree);
   auto end_search = std::chrono::steady_clock::now();
 
   auto search_dt = std::chrono::duration_cast<std::chrono::seconds>(
                        end_search - start_search)
                        .count();
 
-  int64_t synthesis_dt = -1;
-
+  // int64_t synthesis_dt = -1;
   // if (Out.size()) {
   //   auto start_synthesis = std::chrono::steady_clock::now();
   //   synthesize(nf_name, search_results.first);
@@ -136,9 +150,9 @@ int main(int argc, char **argv) {
 
   Log::log() << "Search time:     " << search_dt << " sec\n";
 
-  if (synthesis_dt >= 0) {
-    Log::log() << "Generation time: " << synthesis_dt << " sec\n";
-  }
+  // if (synthesis_dt >= 0) {
+  //   Log::log() << "Generation time: " << synthesis_dt << " sec\n";
+  // }
 
   if (ShowEP) {
     EPVisualizer::visualize(result.ep, false);
@@ -147,6 +161,8 @@ int main(int argc, char **argv) {
   if (ShowSS) {
     SSVisualizer::visualize(result.search_space, result.ep, false);
   }
+
+  delete bdd;
 
   return 0;
 }

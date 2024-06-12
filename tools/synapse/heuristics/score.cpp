@@ -3,6 +3,82 @@
 
 namespace synapse {
 
+std::ostream &operator<<(std::ostream &os, const Score &score) {
+  os << "<";
+
+  bool first = true;
+  for (size_t i = 0u; i < score.values.size(); i++) {
+    if (!first)
+      os << ",";
+    first = false;
+
+    ScoreCategory category = score.categories[i].first;
+    ScoreObjective objective = score.categories[i].second;
+    int value = score.values[i];
+
+    switch (objective) {
+    case ScoreObjective::MIN:
+      os << "[-]";
+      value *= -1;
+      break;
+    case ScoreObjective::MAX:
+      os << "[+]";
+      break;
+    }
+    os << category;
+    os << "=";
+    os << value;
+  }
+
+  os << ">";
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os, ScoreCategory score_category) {
+  switch (score_category) {
+  case ScoreCategory::SendToControllerNodes:
+    os << "#SendToController";
+    break;
+  case ScoreCategory::Recirculations:
+    os << "#Recirculations";
+    break;
+  case ScoreCategory::ReorderedNodes:
+    os << "#Reordered";
+    break;
+  case ScoreCategory::SwitchNodes:
+    os << "#SwitchNodes";
+    break;
+  case ScoreCategory::SwitchLeaves:
+    os << "#SwitchLeaves";
+    break;
+  case ScoreCategory::Nodes:
+    os << "#Nodes";
+    break;
+  case ScoreCategory::ControllerNodes:
+    os << "#Controller";
+    break;
+  case ScoreCategory::Depth:
+    os << "Depth";
+    break;
+  case ScoreCategory::ConsecutiveObjectOperationsInSwitch:
+    os << "#ConsecutiveSwitchObjOp";
+    break;
+  case ScoreCategory::HasNextStatefulOperationInSwitch:
+    os << "HasNextStatefulOpInSwitch";
+    break;
+  case ScoreCategory::ProcessedBDDPercentage:
+    os << "BDDProgress";
+    break;
+  case ScoreCategory::SwitchDataStructures:
+    os << "#SwitchDS";
+    break;
+  case ScoreCategory::Throughput:
+    os << "Throughput(Kpps)";
+    break;
+  }
+  return os;
+}
+
 int Score::get_nr_nodes(const EP *ep) const {
   const EPMeta &meta = ep->get_meta();
   return meta.nodes;
@@ -208,77 +284,33 @@ int Score::get_nr_recirculations(const EP *ep) const {
   return recirculate.size();
 }
 
-std::ostream &operator<<(std::ostream &os, const Score &score) {
-  os << "<";
+int Score::estimate_throughput_kpps(const EP *ep) const {
+  int estimation_kpps = 0;
 
-  bool first = true;
-  for (size_t i = 0u; i < score.values.size(); i++) {
-    if (!first)
-      os << ",";
-    first = false;
+  const EPMeta &meta = ep->get_meta();
+  const Context &ctx = ep->get_ctx();
 
-    ScoreCategory category = score.categories[i].first;
-    ScoreObjective objective = score.categories[i].second;
-    int value = score.values[i];
+  for (const auto &[target, traffic_fraction] :
+       meta.traffic_fraction_per_target) {
+    const TargetContext *target_ctx = nullptr;
 
-    switch (objective) {
-    case ScoreObjective::MIN:
-      os << "[-]";
-      value *= -1;
-      break;
-    case ScoreObjective::MAX:
-      os << "[+]";
-      break;
+    switch (target) {
+    case TargetType::Tofino: {
+      target_ctx = ctx.get_target_ctx<tofino::TofinoContext>();
+    } break;
+    case TargetType::TofinoCPU: {
+      target_ctx = ctx.get_target_ctx<tofino_cpu::TofinoCPUContext>();
+    } break;
+    case TargetType::x86: {
+      target_ctx = ctx.get_target_ctx<x86::x86Context>();
+    } break;
     }
-    os << category;
-    os << "=";
-    os << value;
+
+    int target_estimation = target_ctx->estimate_throughput_kpps();
+    estimation_kpps += target_estimation * traffic_fraction;
   }
 
-  os << ">";
-  return os;
-}
-
-std::ostream &operator<<(std::ostream &os, ScoreCategory score_category) {
-  switch (score_category) {
-  case ScoreCategory::SendToControllerNodes:
-    os << "#SendToController";
-    break;
-  case ScoreCategory::Recirculations:
-    os << "#Recirculations";
-    break;
-  case ScoreCategory::ReorderedNodes:
-    os << "#Reordered";
-    break;
-  case ScoreCategory::SwitchNodes:
-    os << "#SwitchNodes";
-    break;
-  case ScoreCategory::SwitchLeaves:
-    os << "#SwitchLeaves";
-    break;
-  case ScoreCategory::Nodes:
-    os << "#Nodes";
-    break;
-  case ScoreCategory::ControllerNodes:
-    os << "#Controller";
-    break;
-  case ScoreCategory::Depth:
-    os << "Depth";
-    break;
-  case ScoreCategory::ConsecutiveObjectOperationsInSwitch:
-    os << "#ConsecutiveSwitchObjOp";
-    break;
-  case ScoreCategory::HasNextStatefulOperationInSwitch:
-    os << "HasNextStatefulOpInSwitch";
-    break;
-  case ScoreCategory::ProcessedBDDPercentage:
-    os << "BDDProgress";
-    break;
-  case ScoreCategory::SwitchDataStructures:
-    os << "#SwitchDS";
-    break;
-  }
-  return os;
+  return estimation_kpps;
 }
 
 } // namespace synapse

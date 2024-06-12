@@ -4,7 +4,8 @@
 #include "score.h"
 
 #include <set>
-#include <random>
+
+#include "../random_engine.h"
 
 namespace synapse {
 
@@ -22,25 +23,14 @@ template <class HCfg> class Heuristic {
   static_assert(std::is_base_of<HeuristicCfg, HCfg>::value,
                 "HCfg must inherit from HeuristicCfg");
 
-  // What a mouth full...
-  // This is the product of the bind expression below.
-  typedef std::_Bind<std::uniform_int_distribution<int>(
-      std::default_random_engine)>
-      CoinTosser;
-
 protected:
   std::multiset<const EP *, HCfg> execution_plans;
   HCfg configuration;
 
-  unsigned rand_seed;
-  std::default_random_engine random_engine;
-  std::uniform_int_distribution<int> random_dist;
-  CoinTosser coin_toss;
+  RandomEngine random_engine;
 
 public:
-  Heuristic(unsigned _rand_seed)
-      : rand_seed(_rand_seed), random_engine(rand_seed), random_dist(0, 1),
-        coin_toss(std::bind(random_dist, random_engine)) {}
+  Heuristic(unsigned _rand_seed) : random_engine(_rand_seed, 0, 1) {}
 
   ~Heuristic() {
     for (const EP *ep : execution_plans) {
@@ -65,7 +55,7 @@ public:
     return nullptr;
   }
 
-  unsigned get_random_seed() const { return rand_seed; }
+  unsigned get_random_seed() const { return random_engine.get_seed(); }
 
   std::vector<const EP *> get_all() const {
     std::vector<const EP *> eps;
@@ -110,7 +100,7 @@ private:
         it = execution_plans.begin();
       }
 
-      if (coin_toss()) {
+      if (random_engine.generate()) {
         break;
       }
 

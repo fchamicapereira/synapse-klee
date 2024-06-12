@@ -25,10 +25,10 @@ struct config_t {
 typedef std::unordered_map<bdd::node_id_t, uint64_t> bdd_node_counters;
 typedef uint64_t time_ns_t;
 
-struct bdd_analyzer_report_t {
+struct bdd_profile_t {
   config_t config;
   bdd_node_counters counters;
   time_ns_t elapsed;
 };
 
-bdd_analyzer_report_t parse_bdd_analyzer_report_t(const std::string &filename);
+bdd_profile_t parse_bdd_profile(const std::string &filename);

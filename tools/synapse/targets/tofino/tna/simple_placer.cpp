@@ -36,18 +36,18 @@ std::ostream &operator<<(std::ostream &os, const PlacementStatus &status) {
   return os;
 }
 
-static std::vector<Stage> create_stages(const TNAConstraints *constraints) {
+static std::vector<Stage> create_stages(const TNAProperties *properties) {
   std::vector<Stage> stages;
 
-  for (int stage_id = 0; stage_id < constraints->stages; stage_id++) {
+  for (int stage_id = 0; stage_id < properties->stages; stage_id++) {
     Stage s = {
         .stage_id = stage_id,
-        .available_sram = constraints->sram_per_stage,
-        .available_tcam = constraints->tcam_per_stage,
-        .available_map_ram = constraints->map_ram_per_stage,
-        .available_exact_match_xbar = constraints->exact_match_xbar_per_stage,
+        .available_sram = properties->sram_per_stage,
+        .available_tcam = properties->tcam_per_stage,
+        .available_map_ram = properties->map_ram_per_stage,
+        .available_exact_match_xbar = properties->exact_match_xbar_per_stage,
         .available_logical_ids =
-            constraints->max_logical_sram_and_tcam_tables_per_stage,
+            properties->max_logical_sram_and_tcam_tables_per_stage,
         .tables = {},
     };
 
@@ -57,11 +57,11 @@ static std::vector<Stage> create_stages(const TNAConstraints *constraints) {
   return stages;
 }
 
-SimplePlacer::SimplePlacer(const TNAConstraints *_constraints)
-    : constraints(_constraints), stages(create_stages(_constraints)) {}
+SimplePlacer::SimplePlacer(const TNAProperties *_properties)
+    : properties(_properties), stages(create_stages(_properties)) {}
 
 SimplePlacer::SimplePlacer(const SimplePlacer &other)
-    : constraints(other.constraints), stages(other.stages) {}
+    : properties(other.properties), stages(other.stages) {}
 
 static int get_soonest_available_stage(const std::vector<Stage> &stages,
                                        const std::unordered_set<DS_ID> &deps) {
@@ -153,13 +153,12 @@ SimplePlacer::find_placements(const Table *table,
                               std::vector<placement_t> &placements) const {
   assert(!is_already_placed(table->id));
 
-  if (static_cast<int>(table->keys.size()) >
-      constraints->max_exact_match_keys) {
+  if (static_cast<int>(table->keys.size()) > properties->max_exact_match_keys) {
     return PlacementStatus::TOO_MANY_KEYS;
   }
 
   if (table->get_match_xbar_consume() >
-      constraints->exact_match_xbar_per_stage) {
+      properties->exact_match_xbar_per_stage) {
     return PlacementStatus::XBAR_CONSUME_EXCEEDS_LIMIT;
   }
 
@@ -460,21 +459,21 @@ void SimplePlacer::log_debug() const {
     std::stringstream ss;
 
     float sram_usage =
-        100.0 - (stage.available_sram * 100.0) / constraints->sram_per_stage;
-    bits_t sram_consumed = constraints->sram_per_stage - stage.available_sram;
+        100.0 - (stage.available_sram * 100.0) / properties->sram_per_stage;
+    bits_t sram_consumed = properties->sram_per_stage - stage.available_sram;
 
     float tcam_usage =
-        100.0 - (stage.available_tcam * 100.0) / constraints->tcam_per_stage;
-    bits_t tcam_consumed = constraints->tcam_per_stage - stage.available_tcam;
+        100.0 - (stage.available_tcam * 100.0) / properties->tcam_per_stage;
+    bits_t tcam_consumed = properties->tcam_per_stage - stage.available_tcam;
 
     float map_ram_usage = 100.0 - (stage.available_map_ram * 100.0) /
-                                      constraints->map_ram_per_stage;
+                                      properties->map_ram_per_stage;
     bits_t map_ram_consumed =
-        constraints->map_ram_per_stage - stage.available_map_ram;
+        properties->map_ram_per_stage - stage.available_map_ram;
 
     float xbar_usage = 100.0 - (stage.available_exact_match_xbar * 100.0) /
-                                   constraints->exact_match_xbar_per_stage;
-    bits_t xbar_consumed = constraints->exact_match_xbar_per_stage -
+                                   properties->exact_match_xbar_per_stage;
+    bits_t xbar_consumed = properties->exact_match_xbar_per_stage -
                            stage.available_exact_match_xbar;
 
     ss << "Stage " << stage.stage_id << ": ";
@@ -482,28 +481,28 @@ void SimplePlacer::log_debug() const {
     ss << "SRAM=";
     ss << sram_consumed / 8;
     ss << "/";
-    ss << constraints->sram_per_stage / 8;
+    ss << properties->sram_per_stage / 8;
     ss << " B ";
     ss << "(" << sram_usage << "%) ";
 
     ss << "TCAM=";
     ss << tcam_consumed / 8;
     ss << "/";
-    ss << constraints->tcam_per_stage / 8;
+    ss << properties->tcam_per_stage / 8;
     ss << " B ";
     ss << "(" << tcam_usage << "%) ";
 
     ss << "MapRAM=";
     ss << map_ram_consumed / 8;
     ss << "/";
-    ss << constraints->map_ram_per_stage / 8;
+    ss << properties->map_ram_per_stage / 8;
     ss << " B ";
     ss << "(" << map_ram_usage << "%) ";
 
     ss << "ExactMatchXBar=";
     ss << xbar_consumed / 8;
     ss << "/";
-    ss << constraints->exact_match_xbar_per_stage / 8;
+    ss << properties->exact_match_xbar_per_stage / 8;
     ss << " B ";
     ss << "(" << xbar_usage << "%) ";
 

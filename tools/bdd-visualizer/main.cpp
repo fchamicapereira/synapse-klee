@@ -29,8 +29,7 @@ int main(int argc, char **argv) {
   bdd::BDD *bdd = new bdd::BDD(InputBDDFile);
 
   if (BDDAnalyzerReport.size()) {
-    bdd_analyzer_report_t report =
-        parse_bdd_analyzer_report_t(BDDAnalyzerReport);
+    bdd_profile_t report = parse_bdd_profile(BDDAnalyzerReport);
 
     if (OutputDot.size()) {
       bdd::HitRateGraphvizGenerator generator(OutputDot, report.counters);

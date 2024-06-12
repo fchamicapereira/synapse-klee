@@ -67,6 +67,7 @@ protected:
     EP *new_ep = new EP(*ep);
     new_eps.push_back(new_ep);
 
+    new_ep->update_node_constraints(then_node, else_node, condition);
     new_ep->process_leaf(if_node, {then_leaf, else_leaf});
 
     return new_eps;

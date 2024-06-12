@@ -82,6 +82,15 @@ static void visit_definitions(std::stringstream &ss,
   indent(3);
   ss << "<tr>\n";
 
+  if (ssnode->module_data) {
+    indent(4);
+    ss << "<td ";
+    ss << "bgcolor=\"" << target_color << "\"";
+    ss << ">";
+    ss << "Fraction: " << ssnode->module_data->hit_rate;
+    ss << "</td>\n";
+  }
+
   indent(4);
   ss << "<td";
   ss << " bgcolor=\"" << target_color << "\"";

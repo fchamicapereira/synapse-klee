@@ -10,20 +10,23 @@
 namespace synapse {
 
 template <class HCfg>
-SearchEngine<HCfg>::SearchEngine(const bdd::BDD &_bdd, Heuristic<HCfg> _h,
+SearchEngine<HCfg>::SearchEngine(const bdd::BDD *_bdd, Heuristic<HCfg> *_h,
+                                 HitRateTree *_hit_rate_tree,
                                  bool _allow_bdd_reordering,
                                  const std::unordered_set<ep_id_t> &_peek)
-    : bdd(std::make_shared<bdd::BDD>(_bdd)),
+    : bdd(new bdd::BDD(*_bdd)),
       targets({
           new tofino::TofinoTarget(tofino::TNAVersion::TNA2),
           new tofino_cpu::TofinoCPUTarget(),
           new x86::x86Target(),
       }),
-      h(_h), allow_bdd_reordering(_allow_bdd_reordering), peek(_peek) {}
+      h(_h), hit_rate_tree(new HitRateTree(*_hit_rate_tree)),
+      allow_bdd_reordering(_allow_bdd_reordering), peek(_peek) {}
 
 template <class HCfg>
-SearchEngine<HCfg>::SearchEngine(const bdd::BDD &_bdd, Heuristic<HCfg> _h)
-    : SearchEngine(_bdd, _h, true, {}) {}
+SearchEngine<HCfg>::SearchEngine(const bdd::BDD *_bdd, Heuristic<HCfg> *_h,
+                                 HitRateTree *_hit_rate_tree)
+    : SearchEngine(_bdd, _h, _hit_rate_tree, true, {}) {}
 
 template <class HCfg> SearchEngine<HCfg>::~SearchEngine() {
   for (const Target *target : targets) {
@@ -128,15 +131,15 @@ static void peek_search_space(const std::vector<const EP *> &eps,
 }
 
 template <class HCfg> search_product_t SearchEngine<HCfg>::search() {
-  SearchSpace *search_space = new SearchSpace(h.get_cfg());
+  SearchSpace *search_space = new SearchSpace(h->get_cfg());
 
-  h.add({new EP(bdd, targets)});
+  h->add({new EP(bdd, targets, hit_rate_tree)});
 
-  while (!h.finished()) {
-    const EP *ep = h.pop();
+  while (!h->finished()) {
+    const EP *ep = h->pop();
     search_space->activate_leaf(ep);
 
-    size_t available = h.size();
+    size_t available = h->size();
     const bdd::Node *node = ep->get_next_node();
     search_it_report_t report(available, ep, node);
 
@@ -148,12 +151,12 @@ template <class HCfg> search_product_t SearchEngine<HCfg>::search() {
             modgen->generate(ep, node, allow_bdd_reordering);
         new_eps.insert(new_eps.end(), modgen_new_eps.begin(),
                        modgen_new_eps.end());
-        search_space->add_to_active_leaf(node, modgen, modgen_new_eps);
+        search_space->add_to_active_leaf(ep, node, modgen, modgen_new_eps);
         report.save(modgen, modgen_new_eps);
       }
     }
 
-    h.add(new_eps);
+    h->add(new_eps);
 
     log_search_iteration(report);
     peek_search_space(new_eps, peek, search_space);
@@ -161,11 +164,11 @@ template <class HCfg> search_product_t SearchEngine<HCfg>::search() {
     delete ep;
   }
 
-  Log::log() << "Random seed:     " << h.get_random_seed() << "\n";
-  Log::log() << "Solutions:       " << h.get_all().size() << "\n";
-  Log::log() << "Winner:          " << h.get_score(h.get()) << "\n";
+  Log::log() << "Random seed:     " << h->get_random_seed() << "\n";
+  Log::log() << "Solutions:       " << h->get_all().size() << "\n";
+  Log::log() << "Winner:          " << h->get_score(h->get()) << "\n";
 
-  EP *winner = new EP(*h.get());
+  EP *winner = new EP(*h->get());
 
   return search_product_t(winner, search_space);
 }

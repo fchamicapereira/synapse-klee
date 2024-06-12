@@ -68,7 +68,19 @@ protected:
     EPLeaf leaf(ep_node, node);
     new_ep->process_leaf(ep_node, {leaf}, false);
 
+    update_fraction_of_traffic_recirculated_metric(new_ep);
+
     return new_eps;
+  }
+
+  void update_fraction_of_traffic_recirculated_metric(EP *ep) const {
+    TofinoContext *ctx = get_mutable_tofino_ctx(ep);
+    float fraction_recirculated = ep->get_active_leaf_hit_rate();
+    if (ep->get_id() == 9) {
+      printf("fraction_recirculated: %f\n", fraction_recirculated);
+      DEBUG_PAUSE
+    }
+    ctx->inc_fraction_of_traffic_recirculated(fraction_recirculated);
   }
 };
 

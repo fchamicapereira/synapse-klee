@@ -11,16 +11,16 @@ std::unordered_set<DS *> TofinoModuleGenerator::build_registers(
   std::unordered_set<DS *> regs;
 
   const TNA &tna = get_tna(ep);
-  const TNAConstraints &tna_constr = tna.get_constraints();
+  const TNAProperties &properties = tna.get_properties();
 
   std::vector<klee::ref<klee::Expr>> partitions =
-      Register::partition_value(tna_constr, value);
+      Register::partition_value(properties, value);
 
   for (klee::ref<klee::Expr> partition : partitions) {
     DS_ID rid = "vector_" + std::to_string(node->get_id()) + "_" +
                 std::to_string(rids.size());
     bits_t partition_size = partition->getWidth();
-    Register *reg = new Register(tna_constr, rid, num_entries, index,
+    Register *reg = new Register(properties, rid, num_entries, index,
                                  partition_size, actions);
     regs.insert(reg);
     rids.insert(rid);
@@ -66,25 +66,25 @@ CachedTable *TofinoModuleGenerator::build_cached_table(
     const EP *ep, const bdd::Node *node, const cached_table_data_t &data,
     int cache_capacity, std::unordered_set<DS_ID> &deps) const {
   const TNA &tna = get_tna(ep);
-  const TNAConstraints &tna_constr = tna.get_constraints();
+  const TNAProperties &properties = tna.get_properties();
 
   DS_ID id = "cached_table_" + std::to_string(node->get_id()) + "_" +
              std::to_string(cache_capacity);
 
   std::vector<klee::ref<klee::Expr>> keys =
-      Register::partition_value(tna_constr, data.key);
+      Register::partition_value(properties, data.key);
   std::vector<bits_t> keys_sizes;
   for (klee::ref<klee::Expr> key : keys) {
     keys_sizes.push_back(key->getWidth());
   }
 
   std::vector<klee::ref<klee::Expr>> values =
-      Register::partition_value(tna_constr, data.read_value);
+      Register::partition_value(properties, data.read_value);
   assert(values.size() == 1);
   bits_t value_size = data.read_value->getWidth();
 
   CachedTable *cached_table = new CachedTable(
-      tna_constr, id, cache_capacity, data.num_entries, keys_sizes, value_size);
+      properties, id, cache_capacity, data.num_entries, keys_sizes, value_size);
 
   const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
   deps = tofino_ctx->get_stateful_deps(ep);

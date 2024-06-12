@@ -1161,61 +1161,6 @@ static bdd::Branch *create_new_branch(bdd::BDD *bdd, const bdd::Node *current,
   return new_branch;
 }
 
-static klee::ref<klee::Expr>
-constraint_from_condition(klee::ref<klee::Expr> condition) {
-  klee::ref<klee::Expr> constraint;
-
-  switch (condition->getKind()) {
-  // Comparisons
-  case klee::Expr::Eq:
-  case klee::Expr::Ne:
-  case klee::Expr::Ult:
-  case klee::Expr::Ule:
-  case klee::Expr::Ugt:
-  case klee::Expr::Uge:
-  case klee::Expr::Slt:
-  case klee::Expr::Sle:
-  case klee::Expr::Sgt:
-  case klee::Expr::Sge:
-    constraint = condition;
-    break;
-  // Constant
-  case klee::Expr::Constant:
-  // Reads
-  case klee::Expr::Read:
-  case klee::Expr::Select:
-  case klee::Expr::Concat:
-  case klee::Expr::Extract:
-  // Bit
-  case klee::Expr::Not:
-  case klee::Expr::And:
-  case klee::Expr::Or:
-  case klee::Expr::Xor:
-  case klee::Expr::Shl:
-  case klee::Expr::LShr:
-  case klee::Expr::AShr:
-  // Casting
-  case klee::Expr::ZExt:
-  case klee::Expr::SExt:
-  // Arithmetic
-  case klee::Expr::Add:
-  case klee::Expr::Sub:
-  case klee::Expr::Mul:
-  case klee::Expr::UDiv:
-  case klee::Expr::SDiv:
-  case klee::Expr::URem:
-  case klee::Expr::SRem:
-    constraint = kutil::solver_toolbox.exprBuilder->Ne(
-        condition,
-        kutil::solver_toolbox.exprBuilder->Constant(0, condition->getWidth()));
-    break;
-  default:
-    assert(false && "TODO");
-  }
-
-  return constraint;
-}
-
 void add_branch_to_bdd(const EP *ep, bdd::BDD *bdd, const bdd::Node *current,
                        klee::ref<klee::Expr> condition,
                        bdd::Branch *&new_branch) {
@@ -1229,7 +1174,7 @@ void add_branch_to_bdd(const EP *ep, bdd::BDD *bdd, const bdd::Node *current,
   bdd::Node *anchor = bdd->get_mutable_node_by_id(anchor_id);
   bdd::Node *anchor_next = bdd->get_mutable_node_by_id(current->get_id());
 
-  klee::ref<klee::Expr> constraint = constraint_from_condition(condition);
+  klee::ref<klee::Expr> constraint = kutil::constraint_from_expr(condition);
 
   bdd::Node *on_true_cond = anchor_next;
   bdd::Node *on_false_cond = anchor_next->clone(manager, true);

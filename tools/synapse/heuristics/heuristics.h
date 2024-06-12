@@ -6,6 +6,7 @@
 #include "maximize_switch_nodes.h"
 #include "most_compact.h"
 #include "gallium.h"
+#include "max_throughput.h"
 
 #define EXPLICIT_HEURISTIC_TEMPLATE_CLASS_INSTANTIATION(C)                     \
   template class C<BFSComparator>;                                             \
@@ -13,4 +14,5 @@
   template class C<GalliumComparator>;                                         \
   template class C<LeastReorderedComparator>;                                  \
   template class C<MaximizeSwitchNodesComparator>;                             \
-  template class C<MostCompactComparator>;
+  template class C<MostCompactComparator>;                                     \
+  template class C<MaxThroughputComparator>;

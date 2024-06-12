@@ -53,5 +53,6 @@ klee::ref<klee::Expr> simplify(klee::ref<klee::Expr> expr);
 klee::ref<klee::Expr> filter(klee::ref<klee::Expr> expr,
                              const std::vector<std::string> &allowed_symbols);
 klee::ref<klee::Expr> swap_packet_endianness(klee::ref<klee::Expr> expr);
+klee::ref<klee::Expr> constraint_from_expr(klee::ref<klee::Expr> expr);
 
 } // namespace kutil

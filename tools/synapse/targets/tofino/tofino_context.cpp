@@ -9,9 +9,12 @@
 namespace synapse {
 namespace tofino {
 
-TofinoContext::TofinoContext(TNAVersion _version) : tna(_version) {}
+TofinoContext::TofinoContext(TNAVersion _version)
+    : tna(_version), fraction_of_traffic_recirculated(0) {}
 
-TofinoContext::TofinoContext(const TofinoContext &other) : tna(other.tna) {
+TofinoContext::TofinoContext(const TofinoContext &other)
+    : tna(other.tna),
+      fraction_of_traffic_recirculated(other.fraction_of_traffic_recirculated) {
   for (const auto &kv : other.obj_to_ds) {
     std::vector<DS *> new_ds;
     for (const auto &ds : kv.second) {
@@ -228,6 +231,15 @@ bool TofinoContext::check_many_placements(
   }
 
   return status == PlacementStatus::SUCCESS;
+}
+
+int TofinoContext::estimate_throughput_kpps() const {
+  const TNAProperties &properties = tna.get_properties();
+  uint64_t total_capacity =
+      properties.port_capacity_pps * properties.total_ports;
+  float estimation_pps = static_cast<float>(total_capacity) /
+                         (fraction_of_traffic_recirculated + 1);
+  return estimation_pps / 1'000;
 }
 
 } // namespace tofino

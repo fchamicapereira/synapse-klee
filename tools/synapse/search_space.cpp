@@ -82,18 +82,26 @@ static std::string get_bdd_node_description(const bdd::Node *node) {
 }
 
 void SearchSpace::add_to_active_leaf(
-    const bdd::Node *node, const ModuleGenerator *modgen,
+    const EP *ep, const bdd::Node *node, const ModuleGenerator *modgen,
     const std::vector<const EP *> &generated_eps) {
   assert(active_leaf && "Active leaf not set");
 
-  for (const EP *ep : generated_eps) {
+  for (const EP *generated_ep : generated_eps) {
     ss_node_id_t id = node_id_counter++;
-    ep_id_t ep_id = ep->get_id();
-    Score score = hcfg->get_score(ep);
+    ep_id_t ep_id = generated_ep->get_id();
+    Score score = hcfg->get_score(generated_ep);
     TargetType target = modgen->get_target();
-    module_data_t module_data = {modgen->get_type(), modgen->get_name()};
-    bdd_node_data_t bdd_node_data = {node->get_id(),
-                                     get_bdd_node_description(node)};
+
+    module_data_t module_data = {
+        .type = modgen->get_type(),
+        .name = modgen->get_name(),
+        .hit_rate = ep->get_active_leaf_hit_rate(),
+    };
+
+    bdd_node_data_t bdd_node_data = {
+        .id = node->get_id(),
+        .description = get_bdd_node_description(node),
+    };
 
     SSNode *new_node =
         new SSNode(id, ep_id, score, target, module_data, bdd_node_data);

@@ -14,6 +14,7 @@ private:
   TNA tna;
   std::unordered_map<addr_t, std::vector<DS *>> obj_to_ds;
   std::unordered_map<DS_ID, DS *> id_to_ds;
+  float fraction_of_traffic_recirculated;
 
 public:
   TofinoContext(TNAVersion version);
@@ -25,13 +26,18 @@ public:
     return new TofinoContext(*this);
   }
 
+  virtual int estimate_throughput_kpps() const override;
+
   const TNA &get_tna() const { return tna; }
   TNA &get_mutable_tna() { return tna; }
 
   const std::vector<DS *> &get_ds(addr_t addr) const;
   const DS *get_ds_from_id(DS_ID id) const;
-
   void save_ds(addr_t addr, DS *ds);
+
+  int inc_fraction_of_traffic_recirculated(float new_fraction) {
+    return fraction_of_traffic_recirculated += new_fraction;
+  }
 
   void parser_transition(const EP *ep, const bdd::Node *node,
                          klee::ref<klee::Expr> hdr);
