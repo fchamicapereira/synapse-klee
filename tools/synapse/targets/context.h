@@ -56,8 +56,6 @@ private:
   std::unordered_map<addr_t, bdd::cht_config_t> cht_configs;
   std::vector<map_coalescing_data_t> coalescing_candidates;
   std::optional<expiration_data_t> expiration_data;
-
-  std::vector<bdd::reorder_op_t> reorder_ops;
   std::unordered_map<addr_t, PlacementDecision> placement_decisions;
   std::unordered_map<TargetType, TargetContext *> target_ctxs;
 
@@ -83,8 +81,6 @@ public:
 
   template <class TCtx> const TCtx *get_target_ctx() const;
   template <class TCtx> TCtx *get_mutable_target_ctx();
-
-  void add_reorder_op(const bdd::reorder_op_t &op);
 
   void save_placement(addr_t obj, PlacementDecision decision);
   bool has_placement(addr_t obj) const;

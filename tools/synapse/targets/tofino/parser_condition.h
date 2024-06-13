@@ -190,8 +190,6 @@ private:
       values.push_back(value);
     } break;
     default: {
-      std::cerr << "Parser condition: "
-                << kutil::expr_to_string(condition, true) << std::endl;
       assert(false && "Not implemented");
     }
     }

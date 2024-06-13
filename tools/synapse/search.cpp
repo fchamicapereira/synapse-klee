@@ -124,6 +124,7 @@ static void peek_search_space(const std::vector<const EP *> &eps,
                               SearchSpace *search_space) {
   for (const EP *ep : eps) {
     if (peek.find(ep->get_id()) != peek.end()) {
+      bdd::BDDVisualizer::visualize(ep->get_bdd(), false);
       EPVisualizer::visualize(ep, false);
       SSVisualizer::visualize(search_space, ep, true);
     }

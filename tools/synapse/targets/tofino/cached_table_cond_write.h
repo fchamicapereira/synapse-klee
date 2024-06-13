@@ -127,9 +127,12 @@ protected:
 
     bdd::Node *on_cache_write_success;
     bdd::Node *on_cache_write_failed;
+    std::optional<constraints_t> deleted_branch_constraints;
+
     bdd::BDD *new_bdd = branch_bdd_on_cache_write_success(
         new_ep, node, data, cache_write_success_condition, coalescing_data,
-        on_cache_write_success, on_cache_write_failed);
+        on_cache_write_success, on_cache_write_failed,
+        deleted_branch_constraints);
 
     symbols_t symbols = get_dataplane_state(ep, node);
 
@@ -165,8 +168,9 @@ protected:
     new_ep->update_node_constraints(then_node, else_node,
                                     cache_write_success_condition);
 
-    new_ep->add_hit_rate_estimation(cache_write_success_condition,
-                                    cache_write_success_estimation_rel);
+    update_hit_rate_tree(new_ep, cache_write_success_condition,
+                         cache_write_success_estimation_rel,
+                         deleted_branch_constraints);
 
     new_ep->process_leaf(
         cached_table_cond_write_node,
@@ -183,6 +187,18 @@ protected:
   }
 
 private:
+  void update_hit_rate_tree(
+      EP *ep, klee::ref<klee::Expr> cache_write_success_condition,
+      float cache_write_success_estimation_rel,
+      const std::optional<constraints_t> &deleted_branch_constraints) const {
+    ep->add_hit_rate_estimation(cache_write_success_condition,
+                                cache_write_success_estimation_rel);
+
+    if (deleted_branch_constraints.has_value()) {
+      ep->remove_hit_rate_node(deleted_branch_constraints.value());
+    }
+  }
+
   float get_cache_write_success_estimation_rel(
       const cached_table_data_t &cached_table_data, int cache_capacity) const {
     return static_cast<float>(cache_capacity) / cached_table_data.num_entries;
@@ -288,8 +304,8 @@ private:
 
   void delete_coalescing_nodes_on_success(
       const EP *ep, bdd::BDD *bdd, bdd::Node *on_success,
-      const map_coalescing_data_t &coalescing_data,
-      klee::ref<klee::Expr> key) const {
+      const map_coalescing_data_t &coalescing_data, klee::ref<klee::Expr> key,
+      std::optional<constraints_t> &deleted_branch_constraints) const {
     const std::vector<const bdd::Node *> targets =
         get_coalescing_nodes_from_key(bdd, on_success, key, coalescing_data);
 
@@ -307,8 +323,24 @@ private:
             find_branch_checking_index_alloc(ep, on_success, out_of_space);
 
         if (branch) {
+          assert(!deleted_branch_constraints.has_value() &&
+                 "Multiple branch checking index allocation detected");
+          deleted_branch_constraints = branch->get_ordered_branch_constraints();
+          bool direction_to_keep = true;
+
+          klee::ref<klee::Expr> extra_constraint = branch->get_condition();
+
+          // If we want to keep the direction on true, we must remove the on
+          // false.
+          if (direction_to_keep) {
+            extra_constraint =
+                kutil::solver_toolbox.exprBuilder->Not(extra_constraint);
+          }
+          deleted_branch_constraints->push_back(extra_constraint);
+
           bdd::Node *trash;
-          delete_branch_node_from_bdd(ep, bdd, branch, true, trash);
+          delete_branch_node_from_bdd(ep, bdd, branch, direction_to_keep,
+                                      trash);
         }
       }
 
@@ -320,8 +352,8 @@ private:
       const EP *ep, const bdd::Node *map_get, const cached_table_data_t &data,
       klee::ref<klee::Expr> cache_write_success_condition,
       const map_coalescing_data_t &coalescing_data,
-      bdd::Node *&on_cache_write_success,
-      bdd::Node *&on_cache_write_failed) const {
+      bdd::Node *&on_cache_write_success, bdd::Node *&on_cache_write_failed,
+      std::optional<constraints_t> &deleted_branch_constraints) const {
     const bdd::BDD *old_bdd = ep->get_bdd();
     bdd::BDD *new_bdd = new bdd::BDD(*old_bdd);
 
@@ -339,7 +371,8 @@ private:
         ep, new_bdd, cache_write_branch, on_cache_write_failed);
 
     delete_coalescing_nodes_on_success(ep, new_bdd, on_cache_write_success,
-                                       coalescing_data, data.key);
+                                       coalescing_data, data.key,
+                                       deleted_branch_constraints);
 
     return new_bdd;
   }

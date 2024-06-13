@@ -45,7 +45,8 @@ klee::ref<klee::Expr> chunk_borrow_from_return(const EP *ep,
 
 std::vector<const bdd::Node *>
 get_prev_functions(const EP *ep, const bdd::Node *node,
-                   const std::vector<std::string> &functions_names);
+                   const std::vector<std::string> &functions_names,
+                   bool ignore_targets = false);
 
 std::vector<const bdd::Node *>
 get_future_functions(const bdd::Node *root,

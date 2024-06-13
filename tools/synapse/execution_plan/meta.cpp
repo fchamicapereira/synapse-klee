@@ -30,6 +30,7 @@ void EPMeta::update(const EPLeaf *leaf, const EPNode *new_node,
     constraints_t constraints = get_node_constraints(new_node);
     std::optional<float> fraction = hit_rate_tree->get_fraction(constraints);
     assert(fraction.has_value());
+
     transfer_traffic(target, next_target, *fraction);
   }
 
@@ -78,17 +79,17 @@ constraints_t EPMeta::get_node_constraints(const EPNode *node) const {
 
 void EPMeta::transfer_traffic(TargetType old_target, TargetType new_target,
                               float fraction) {
-  float &old_fraction = traffic_fraction_per_target[old_target];
-  float &new_fraction = traffic_fraction_per_target[new_target];
+  float &old_target_fraction = traffic_fraction_per_target[old_target];
+  float &new_target_fraction = traffic_fraction_per_target[new_target];
 
-  old_fraction -= fraction;
-  new_fraction += fraction;
+  old_target_fraction -= fraction;
+  new_target_fraction += fraction;
 
-  assert(old_fraction >= 0);
-  assert(old_fraction <= 1);
+  old_target_fraction = std::min(old_target_fraction, 1.0f);
+  old_target_fraction = std::max(old_target_fraction, 0.0f);
 
-  assert(new_fraction <= 1);
-  assert(new_fraction <= 1);
+  new_target_fraction = std::min(new_target_fraction, 1.0f);
+  new_target_fraction = std::max(new_target_fraction, 0.0f);
 }
 
 } // namespace synapse

@@ -337,9 +337,6 @@ private:
 
     initial_state = new_state;
     states[new_state->id] = new_state;
-
-    // std::cerr << "-> NEW PARSER STATE <-\n";
-    // std::cerr << dump() << std::endl;
   }
 
   void add_state(bdd::node_id_t leaf_id, ParserState *new_state,
@@ -374,9 +371,6 @@ private:
       assert(false && "Cannot add state to terminating state");
     } break;
     }
-
-    // std::cerr << "-> NEW PARSER STATE <-\n";
-    // std::cerr << dump() << std::endl;
   }
 };
 

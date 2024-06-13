@@ -162,7 +162,7 @@ Context::Context(const Context &other)
       dchain_configs(other.dchain_configs),
       sketch_configs(other.sketch_configs), cht_configs(other.cht_configs),
       coalescing_candidates(other.coalescing_candidates),
-      expiration_data(other.expiration_data), reorder_ops(other.reorder_ops),
+      expiration_data(other.expiration_data),
       placement_decisions(other.placement_decisions) {
   for (auto &target_ctx_pair : other.target_ctxs) {
     target_ctxs[target_ctx_pair.first] = target_ctx_pair.second->clone();
@@ -177,7 +177,6 @@ Context::Context(Context &&other)
       cht_configs(std::move(other.cht_configs)),
       coalescing_candidates(std::move(other.coalescing_candidates)),
       expiration_data(std::move(other.expiration_data)),
-      reorder_ops(std::move(other.reorder_ops)),
       placement_decisions(std::move(other.placement_decisions)),
       target_ctxs(std::move(other.target_ctxs)) {}
 
@@ -209,8 +208,6 @@ Context &Context::operator=(const Context &other) {
   cht_configs = other.cht_configs;
   coalescing_candidates = other.coalescing_candidates;
   expiration_data = other.expiration_data;
-
-  reorder_ops = other.reorder_ops;
   placement_decisions = other.placement_decisions;
 
   for (auto &target_ctx_pair : other.target_ctxs) {
@@ -307,10 +304,6 @@ x86::x86Context *Context::get_mutable_target_ctx<x86::x86Context>() {
   TargetType type = TargetType::x86;
   assert(target_ctxs.find(type) != target_ctxs.end());
   return static_cast<x86::x86Context *>(target_ctxs.at(type));
-}
-
-void Context::add_reorder_op(const bdd::reorder_op_t &op) {
-  reorder_ops.push_back(op);
 }
 
 void Context::save_placement(addr_t obj, PlacementDecision decision) {

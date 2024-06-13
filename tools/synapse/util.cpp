@@ -115,7 +115,8 @@ chunk_borrow_from_return(const EP *ep, const bdd::Node *target_packet_return) {
 
 std::vector<const bdd::Node *>
 get_prev_functions(const EP *ep, const bdd::Node *node,
-                   const std::vector<std::string> &fnames) {
+                   const std::vector<std::string> &fnames,
+                   bool ignore_targets) {
   std::vector<const bdd::Node *> prev_functions;
 
   TargetType target = ep->get_current_platform();
@@ -137,7 +138,7 @@ get_prev_functions(const EP *ep, const bdd::Node *node,
       }
     }
 
-    if (roots.find(node->get_id()) != roots.end()) {
+    if (!ignore_targets && roots.find(node->get_id()) != roots.end()) {
       break;
     }
   }
@@ -497,7 +498,7 @@ klee::ref<klee::Expr> get_original_vector_value(const EP *ep,
                                                 addr_t target_addr,
                                                 const bdd::Node *&source) {
   std::vector<const bdd::Node *> all_prev_vector_borrow =
-      get_prev_functions(ep, node, {"vector_borrow"});
+      get_prev_functions(ep, node, {"vector_borrow"}, true);
 
   klee::ref<klee::Expr> borrowed_cell;
 
@@ -523,6 +524,7 @@ klee::ref<klee::Expr> get_original_vector_value(const EP *ep,
 
   assert(!borrowed_cell.isNull() &&
          "Expecting a previous vector borrow but not found.");
+
   return borrowed_cell;
 }
 

@@ -49,6 +49,8 @@ public:
 
   const klee::ConstraintManager &get_constraints() const { return constraints; }
 
+  std::vector<klee::ref<klee::Expr>> get_ordered_branch_constraints() const;
+
   Node *get_mutable_next() { return next; }
   Node *get_mutable_prev() { return prev; }
 

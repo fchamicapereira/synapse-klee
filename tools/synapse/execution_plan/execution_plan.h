@@ -17,6 +17,7 @@ namespace synapse {
 class EPVisitor;
 
 typedef uint64_t ep_id_t;
+typedef std::unordered_map<bdd::node_id_t, bdd::node_id_t> translator_t;
 
 struct EPLeaf {
   EPNode *node;
@@ -60,10 +61,10 @@ public:
                     bool process_node = true);
   void process_leaf(const bdd::Node *next_node);
 
-  void replace_bdd(
-      const bdd::BDD *new_bdd,
-      const std::unordered_map<bdd::node_id_t, bdd::node_id_t> &leaves_mapping =
-          std::unordered_map<bdd::node_id_t, bdd::node_id_t>());
+  void
+  replace_bdd(const bdd::BDD *new_bdd,
+              const translator_t &next_nodes_translator = translator_t(),
+              const translator_t &processed_nodes_translator = translator_t());
 
   ep_id_t get_id() const;
   const bdd::BDD *get_bdd() const;
@@ -105,9 +106,12 @@ public:
                                const EPNode *on_false_node,
                                klee::ref<klee::Expr> new_constraint);
 
+  void remove_hit_rate_node(const constraints_t &constraints);
+
   void visit(EPVisitor &visitor) const;
 
   void log_debug_placements() const;
+  void log_debug_hit_rate() const;
   void inspect() const;
 
 private:

@@ -47,9 +47,10 @@ llvm::cl::opt<int> Seed("seed", llvm::cl::desc("Random seed."),
                         llvm::cl::ValueRequired, llvm::cl::Optional,
                         llvm::cl::init(false), llvm::cl::cat(SyNAPSE));
 
-llvm::cl::opt<bool> BDDReorder("r", llvm::cl::desc("Activate BDD reordering."),
-                               llvm::cl::ValueDisallowed, llvm::cl::init(false),
-                               llvm::cl::cat(SyNAPSE));
+llvm::cl::opt<bool> BDDNoReorder("no-reorder",
+                                 llvm::cl::desc("Deactivate BDD reordering."),
+                                 llvm::cl::ValueDisallowed,
+                                 llvm::cl::init(false), llvm::cl::cat(SyNAPSE));
 
 llvm::cl::opt<bool> ShowEP("s", llvm::cl::desc("Show winner Execution Plan."),
                            llvm::cl::ValueDisallowed, llvm::cl::init(false),
@@ -78,20 +79,16 @@ llvm::cl::opt<bool> Verbose("v", llvm::cl::desc("Verbose mode."),
 search_product_t search(const bdd::BDD *bdd, HitRateTree *hit_rate_tree) {
   unsigned seed = Seed ? Seed : std::random_device()();
 
-  // BFS heuristic(seed);
-  // DFS heuristic(seed);
-  // MostCompact heuristic(seed);
-  // LeastReordered heuristic(seed);
-  // MaximizeSwitchNodes heuristic(seed);
+  BFS heuristic(seed);
   // Gallium heuristic(seed);
-  MaxThroughput heuristic(seed);
+  // MaxThroughput heuristic(seed);
 
   std::unordered_set<ep_id_t> peek;
   for (ep_id_t ep_id : Peek) {
     peek.insert(ep_id);
   }
 
-  SearchEngine engine(bdd, &heuristic, hit_rate_tree, BDDReorder, peek);
+  SearchEngine engine(bdd, &heuristic, hit_rate_tree, !BDDNoReorder, peek);
   search_product_t result = engine.search();
 
   return result;

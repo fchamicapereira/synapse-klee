@@ -70,6 +70,7 @@ void print(const BDD *bdd, const reorder_op_t &op) {
   const candidate_info_t &candidate_info = op.candidate_info;
 
   const Node *anchor = bdd->get_node_by_id(anchor_info.id);
+  const Node *evicted = bdd->get_node_by_id(op.evicted_id);
   const Node *candidate = bdd->get_node_by_id(candidate_info.id);
 
   assert(anchor && "Anchor node not found");
@@ -80,6 +81,8 @@ void print(const BDD *bdd, const reorder_op_t &op) {
   std::cerr << "* Anchor:\n";
   std::cerr << "\t" << anchor->dump(true) << " -> " << anchor_info.direction
             << "\n";
+  std::cerr << "* Evicted:\n";
+  std::cerr << "\t" << evicted->dump(true) << "\n";
   std::cerr << "* Candidate:\n";
   std::cerr << "\t" << candidate->dump(true) << "\n";
 
@@ -100,7 +103,7 @@ void print(const BDD *bdd, const reorder_op_t &op) {
 }
 
 void list_candidates(const BDD *bdd, const anchor_info_t &anchor_info) {
-  std::vector<reorder_op_t> ops = get_reorder_ops(bdd, anchor_info);
+  std::vector<reorder_op_t> ops = get_reorder_ops(bdd, anchor_info, false);
 
   std::cerr << "Available reordering operations: " << ops.size() << "\n";
   for (const reorder_op_t &op : ops) {
@@ -193,13 +196,13 @@ int main(int argc, char **argv) {
 
   BDD *bdd = new BDD(InputBDDFile);
 
-  // list_candidates(bdd, {16, false});
+  list_candidates(bdd, {5, true});
   // apply_reordering_ops(bdd, {
   //                               {{5, false}, 8},
   //                               {{8, true}, 9},
   //                           });
   // test_reorder(bdd, 3);
-  estimate(bdd);
+  // estimate(bdd);
 
   delete bdd;
 

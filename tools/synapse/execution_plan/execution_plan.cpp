@@ -237,15 +237,25 @@ void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves,
   }
 }
 
-void EP::replace_bdd(
-    const bdd::BDD *new_bdd,
-    const std::unordered_map<bdd::node_id_t, bdd::node_id_t> &leaves_mapping) {
-  for (EPLeaf &leaf : leaves) {
-    bdd::node_id_t old_id = leaf.next->get_id();
-    auto found_it = leaves_mapping.find(old_id);
-    bdd::node_id_t new_id =
-        (found_it != leaves_mapping.end()) ? found_it->second : old_id;
+void EP::replace_bdd(const bdd::BDD *new_bdd,
+                     const translator_t &next_nodes_translator,
+                     const translator_t &processed_nodes_translator) {
+  auto translate_next_node = [&next_nodes_translator](bdd::node_id_t id) {
+    auto found_it = next_nodes_translator.find(id);
+    return (found_it != next_nodes_translator.end()) ? found_it->second : id;
+  };
 
+  auto translate_processed_node =
+      [&processed_nodes_translator](bdd::node_id_t id) {
+        auto found_it = processed_nodes_translator.find(id);
+        return (found_it != processed_nodes_translator.end()) ? found_it->second
+                                                              : id;
+      };
+
+  for (EPLeaf &leaf : leaves) {
+    assert(leaf.next);
+
+    bdd::node_id_t new_id = translate_next_node(leaf.next->get_id());
     const bdd::Node *new_node = new_bdd->get_node_by_id(new_id);
     assert(new_node && "New node not found in the new BDD.");
 
@@ -256,11 +266,11 @@ void EP::replace_bdd(
     return;
   }
 
-  root->visit_mutable_nodes([&new_bdd](EPNode *node) {
+  root->visit_mutable_nodes([&new_bdd, translate_processed_node](EPNode *node) {
     Module *module = node->get_mutable_module();
 
     const bdd::Node *node_bdd = module->get_node();
-    bdd::node_id_t target_id = node_bdd->get_id();
+    bdd::node_id_t target_id = translate_processed_node(node_bdd->get_id());
 
     const bdd::Node *new_node = new_bdd->get_node_by_id(target_id);
     assert(new_node && "New node not found in the new BDD.");
@@ -287,8 +297,11 @@ void EP::log_debug_placements() const {
   }
 }
 
+void EP::log_debug_hit_rate() const { hit_rate_tree->log_debug(); }
+
 void EP::inspect() const {
   std::vector<const EPNode *> nodes{root};
+
   while (nodes.size()) {
     const EPNode *node = nodes.back();
     nodes.pop_back();
@@ -371,8 +384,12 @@ void EP::add_hit_rate_estimation(klee::ref<klee::Expr> new_constraint,
 
   Log::dbg() << "\n";
   Log::dbg() << "Resulting Hit rate:\n";
-  hit_rate_tree->dump();
+  hit_rate_tree->log_debug();
   Log::dbg() << "\n";
+}
+
+void EP::remove_hit_rate_node(const constraints_t &constraints) {
+  hit_rate_tree->remove(constraints);
 }
 
 void EP::update_node_constraints(const EPNode *on_true_node,

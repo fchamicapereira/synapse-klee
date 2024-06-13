@@ -22,8 +22,8 @@ struct HitRateNode {
               bdd::node_id_t _bdd_node_id);
   ~HitRateNode();
 
-  HitRateNode *clone() const;
-  void dump(int lvl = 0) const;
+  HitRateNode *clone(bool keep_bdd_info) const;
+  void log_debug(int lvl = 0) const;
 };
 
 class HitRateTree {
@@ -44,15 +44,16 @@ public:
   void insert_relative(const constraints_t &constraints,
                        klee::ref<klee::Expr> constraint,
                        float rel_fraction_on_true);
+  void remove(const constraints_t &constraints);
 
-  std::optional<float>
-  get_fraction(const constraints_t &ordered_constraints) const;
-  void dump() const;
+  std::optional<float> get_fraction(const constraints_t &constraints) const;
+  void log_debug() const;
 
 private:
   HitRateNode *get_node(const constraints_t &constraints) const;
   void append(HitRateNode *node, klee::ref<klee::Expr> constraint,
               float fraction);
+  void remove(HitRateNode *node);
   void replace_root(klee::ref<klee::Expr> constraint, float fraction);
 };
 

@@ -75,8 +75,16 @@ private:
                                  const bdd::Node *&next) const {
     std::vector<const bdd::Node *> prev_borrows =
         get_prev_functions(ep, node, {"packet_borrow_next_chunk"});
+    std::vector<const bdd::Node *> prev_returns =
+        get_prev_functions(ep, node, {"packet_return_chunk"});
 
-    if (prev_borrows.empty()) {
+    std::vector<const bdd::Node *> hdr_parsing_ops;
+    hdr_parsing_ops.insert(hdr_parsing_ops.end(), prev_borrows.begin(),
+                           prev_borrows.end());
+    hdr_parsing_ops.insert(hdr_parsing_ops.end(), prev_returns.begin(),
+                           prev_returns.end());
+
+    if (hdr_parsing_ops.empty()) {
       return false;
     }
 
@@ -84,7 +92,7 @@ private:
 
     new_bdd = new bdd::BDD(*old_bdd);
     bdd::Node *new_next;
-    add_non_branch_nodes_to_bdd(ep, new_bdd, node, prev_borrows, new_next);
+    add_non_branch_nodes_to_bdd(ep, new_bdd, node, hdr_parsing_ops, new_next);
 
     next = new_next;
 

@@ -29,27 +29,27 @@ HitRateNode::~HitRateNode() {
   }
 }
 
-HitRateNode *HitRateNode::clone() const {
+HitRateNode *HitRateNode::clone(bool keep_bdd_info) const {
   HitRateNode *new_node = new HitRateNode(constraint, fraction);
 
-  if (bdd_node_id) {
+  if (keep_bdd_info) {
     new_node->bdd_node_id = bdd_node_id;
   }
 
   if (on_true) {
-    new_node->on_true = on_true->clone();
+    new_node->on_true = on_true->clone(keep_bdd_info);
     new_node->on_true->prev = new_node;
   }
 
   if (on_false) {
-    new_node->on_false = on_false->clone();
+    new_node->on_false = on_false->clone(keep_bdd_info);
     new_node->on_false->prev = new_node;
   }
 
   return new_node;
 }
 
-void HitRateNode::dump(int lvl) const {
+void HitRateNode::log_debug(int lvl) const {
   Log::dbg() << "<";
   Log::dbg() << "fraction=" << fraction;
   if (bdd_node_id) {
@@ -66,17 +66,25 @@ void HitRateNode::dump(int lvl) const {
 
   if (on_true) {
     lvl++;
-    Log::dbg() << std::string(2 * lvl, ' ');
+
+    // Log::dbg() << std::string(2 * lvl, '|');
+    for (int i = 0; i < 2 * lvl; i++)
+      Log::dbg() << ((i % 2 != 0) ? "|" : " ");
+
     Log::dbg() << "[T] ";
-    on_true->dump(lvl);
+    on_true->log_debug(lvl);
     lvl--;
   }
 
   if (on_false) {
     lvl++;
-    Log::dbg() << std::string(2 * lvl, ' ');
+
+    for (int i = 0; i < 2 * lvl; i++)
+      Log::dbg() << ((i % 2 != 0) ? "|" : " ");
+    // Log::dbg() << std::string(2 * lvl, '|');
+
     Log::dbg() << "[F] ";
-    on_false->dump(lvl);
+    on_false->log_debug(lvl);
     lvl--;
   }
 }
@@ -145,14 +153,14 @@ static HitRateNode *build_hit_fraction_tree(const bdd::Node *node,
 static HitRateNode *
 build_random_hit_fraction_tree(const bdd::Node *node,
                                RandomEngine &random_percent_engine,
-                               float fraction = 1.0) {
+                               float parent_fraction = 1.0) {
   HitRateNode *result = nullptr;
 
   if (!node) {
     return nullptr;
   }
 
-  node->visit_nodes([&random_percent_engine, fraction,
+  node->visit_nodes([&random_percent_engine, parent_fraction,
                      &result](const bdd::Node *node) {
     if (node->get_type() != bdd::NodeType::BRANCH) {
       return bdd::NodeVisitAction::VISIT_CHILDREN;
@@ -163,7 +171,8 @@ build_random_hit_fraction_tree(const bdd::Node *node,
     klee::ref<klee::Expr> condition = branch->get_condition();
     bdd::node_id_t bdd_node_id = node->get_id();
 
-    HitRateNode *new_node = new HitRateNode(condition, fraction, bdd_node_id);
+    HitRateNode *new_node =
+        new HitRateNode(condition, parent_fraction, bdd_node_id);
 
     const bdd::Node *on_true = branch->get_on_true();
     const bdd::Node *on_false = branch->get_on_false();
@@ -172,8 +181,8 @@ build_random_hit_fraction_tree(const bdd::Node *node,
     float relative_fraction_on_true =
         static_cast<float>(relative_percent_on_true) / 100.0;
 
-    float on_true_fraction = fraction * relative_fraction_on_true;
-    float on_false_fraction = fraction - on_true_fraction;
+    float on_true_fraction = parent_fraction * relative_fraction_on_true;
+    float on_false_fraction = parent_fraction - on_true_fraction;
 
     new_node->on_true = build_random_hit_fraction_tree(
         on_true, random_percent_engine, on_true_fraction);
@@ -182,12 +191,12 @@ build_random_hit_fraction_tree(const bdd::Node *node,
 
     if (!new_node->on_true && on_true) {
       new_node->on_true =
-          new HitRateNode(nullptr, on_true_fraction, bdd_node_id);
+          new HitRateNode(nullptr, on_true_fraction, on_true->get_id());
     }
 
     if (!new_node->on_false && on_false) {
       new_node->on_false =
-          new HitRateNode(nullptr, on_false_fraction, bdd_node_id);
+          new HitRateNode(nullptr, on_false_fraction, on_false->get_id());
     }
 
     if (new_node->on_true) {
@@ -210,6 +219,7 @@ HitRateTree::HitRateTree(const bdd::BDD *bdd, unsigned random_seed)
   const bdd::Node *bdd_root = bdd->get_root();
   RandomEngine random_percent_engine(random_seed, 1, 100);
   root = build_random_hit_fraction_tree(bdd_root, random_percent_engine);
+  log_debug();
 }
 
 HitRateTree::HitRateTree(const bdd::BDD *bdd,
@@ -224,7 +234,7 @@ HitRateTree::HitRateTree(const bdd::BDD *bdd,
 }
 
 HitRateTree::HitRateTree(const HitRateTree &other)
-    : root(other.root ? other.root->clone() : nullptr) {}
+    : root(other.root ? other.root->clone(true) : nullptr) {}
 
 HitRateTree::HitRateTree(HitRateTree &&other) : root(std::move(other.root)) {
   other.root = nullptr;
@@ -273,13 +283,15 @@ static void recursive_update_fractions(HitRateNode *node,
     return;
   }
 
+  assert(parent_old_fraction >= 0.0);
   assert(parent_old_fraction <= 1.0);
+
+  assert(parent_new_fraction >= 0.0);
   assert(parent_new_fraction <= 1.0);
-  assert(parent_new_fraction <= parent_old_fraction);
 
   float old_fraction = node->fraction;
   float new_fraction =
-      parent_old_fraction > 0
+      parent_old_fraction != 0
           ? (parent_new_fraction / parent_old_fraction) * node->fraction
           : 0;
 
@@ -297,7 +309,10 @@ void HitRateTree::replace_root(klee::ref<klee::Expr> constraint,
   root = new_node;
 
   new_node->on_true = node;
-  new_node->on_false = node->clone();
+  new_node->on_false = node->clone(false);
+
+  new_node->on_true->prev = new_node;
+  new_node->on_false->prev = new_node;
 
   float fraction_on_true = fraction;
   float fraction_on_false = new_node->fraction - fraction;
@@ -337,7 +352,7 @@ void HitRateTree::append(HitRateNode *node, klee::ref<klee::Expr> constraint,
   new_node->prev = parent;
 
   new_node->on_true = node;
-  new_node->on_false = node->clone();
+  new_node->on_false = node->clone(false);
 
   float fraction_on_true = fraction;
   float fraction_on_false = new_node->fraction - fraction;
@@ -352,6 +367,59 @@ void HitRateTree::append(HitRateNode *node, klee::ref<klee::Expr> constraint,
                              fraction_on_true);
   recursive_update_fractions(new_node->on_false, new_node->fraction,
                              fraction_on_false);
+}
+
+void HitRateTree::remove(HitRateNode *node) {
+  assert(node);
+
+  HitRateNode *parent = node->prev;
+  assert(parent && "Cannot remove the root node");
+
+  // By removing the current node, the parent is no longer needed (its purpose
+  // was to differentiate between the on_true and on_false nodes, but now only
+  // one side is left).
+
+  HitRateNode *grandparent = parent->prev;
+  HitRateNode *sibling;
+
+  if (parent->on_true == node) {
+    sibling = parent->on_false;
+    parent->on_false = nullptr;
+  } else {
+    sibling = parent->on_true;
+    parent->on_true = nullptr;
+  }
+
+  float parent_fraction = parent->fraction;
+
+  if (!grandparent) {
+    // The parent is the root node.
+    assert(root == parent);
+    root = sibling;
+  } else {
+    if (grandparent->on_true == parent) {
+      grandparent->on_true = sibling;
+    } else {
+      grandparent->on_false = sibling;
+    }
+
+    sibling->prev = grandparent;
+  }
+
+  delete parent;
+
+  float old_fraction = sibling->fraction;
+  float new_fraction = parent_fraction;
+
+  sibling->fraction = new_fraction;
+
+  recursive_update_fractions(sibling->on_true, old_fraction, new_fraction);
+  recursive_update_fractions(sibling->on_false, old_fraction, new_fraction);
+}
+
+void HitRateTree::remove(const constraints_t &constraints) {
+  HitRateNode *node = get_node(constraints);
+  remove(node);
 }
 
 void HitRateTree::insert(const constraints_t &constraints,
@@ -381,10 +449,12 @@ HitRateTree::get_fraction(const constraints_t &constraints) const {
   return node->fraction;
 }
 
-void HitRateTree::dump() const {
+void HitRateTree::log_debug() const {
+  Log::dbg() << "\n============== Hit Rate Tree ==============\n";
   if (root) {
-    root->dump();
+    root->log_debug();
   }
+  Log::dbg() << "===========================================\n\n";
 }
 
 } // namespace synapse

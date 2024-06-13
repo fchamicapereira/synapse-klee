@@ -605,9 +605,12 @@ candidate_info_t
 concretize_reordering_candidate(const BDD *bdd, const vector_t &anchor,
                                 node_id_t proposed_candidate_id) {
   candidate_info_t candidate_info;
-  candidate_info.id = proposed_candidate_id;
 
   const Node *proposed_candidate = bdd->get_node_by_id(proposed_candidate_id);
+
+  candidate_info.is_branch =
+      (proposed_candidate->get_type() == NodeType::BRANCH);
+  candidate_info.id = proposed_candidate_id;
 
   // Uncomment/comment this to allow/disallow reordering of branches.
   // if (proposed_candidate->get_type() == NodeType::BRANCH) {
@@ -676,8 +679,28 @@ concretize_reordering_candidate(const BDD *bdd, const vector_t &anchor,
   return candidate_info;
 }
 
+static node_id_t get_next_branch(const Node *node) {
+  assert(node);
+  node_id_t next_branch_id = -1;
+
+  const Node *next = node->get_next();
+  assert(next);
+
+  next->visit_nodes([&next_branch_id](const Node *node) -> NodeVisitAction {
+    if (node->get_type() == NodeType::BRANCH) {
+      next_branch_id = node->get_id();
+      return NodeVisitAction::STOP;
+    }
+
+    return NodeVisitAction::VISIT_CHILDREN;
+  });
+
+  return next_branch_id;
+}
+
 std::vector<reorder_op_t> get_reorder_ops(const BDD *bdd,
-                                          const anchor_info_t &anchor_info) {
+                                          const anchor_info_t &anchor_info,
+                                          bool allow_shape_altering_ops) {
   std::vector<reorder_op_t> ops;
 
   const Node *anchor_node = bdd->get_node_by_id(anchor_info.id);
@@ -688,17 +711,35 @@ std::vector<reorder_op_t> get_reorder_ops(const BDD *bdd,
     return ops;
   }
 
-  next->visit_nodes(
-      [&ops, &bdd, anchor, anchor_info](const Node *node) -> NodeVisitAction {
-        candidate_info_t proposed_candidate =
-            concretize_reordering_candidate(bdd, anchor, node->get_id());
+  node_id_t next_branch = get_next_branch(anchor_node);
 
-        if (proposed_candidate.status == ReorderingCandidateStatus::VALID) {
-          ops.push_back({anchor_info, proposed_candidate});
-        }
+  auto allow_candidate = [next_branch, allow_shape_altering_ops](
+                             const candidate_info_t &candidate_info) {
+    if (!allow_shape_altering_ops) {
+      bool is_unexpected_branch =
+          (candidate_info.is_branch && (candidate_info.id != next_branch));
+      bool has_condition = !candidate_info.condition.isNull();
 
-        return NodeVisitAction::VISIT_CHILDREN;
-      });
+      if (is_unexpected_branch || has_condition) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  next->visit_nodes([&ops, &bdd, anchor, next, anchor_info,
+                     allow_candidate](const Node *node) -> NodeVisitAction {
+    candidate_info_t proposed_candidate =
+        concretize_reordering_candidate(bdd, anchor, node->get_id());
+
+    if (proposed_candidate.status == ReorderingCandidateStatus::VALID &&
+        allow_candidate(proposed_candidate)) {
+      ops.push_back({anchor_info, next->get_id(), proposed_candidate});
+    }
+
+    return NodeVisitAction::VISIT_CHILDREN;
+  });
 
   return ops;
 }
@@ -1208,23 +1249,28 @@ BDD *reorder(const BDD *original_bdd, const reorder_op_t &op) {
   return bdd;
 }
 
-std::vector<reordered_bdd_t> reorder(const BDD *bdd, node_id_t anchor_id) {
+std::vector<reordered_bdd_t> reorder(const BDD *bdd, node_id_t anchor_id,
+                                     bool allow_shape_altering_ops) {
   std::vector<reordered_bdd_t> bdds;
 
-  std::vector<reorder_op_t> ops = get_reorder_ops(bdd, {anchor_id, true});
+  const Node *anchor = bdd->get_node_by_id(anchor_id);
+  assert(anchor && "Anchor not found in BDD");
+
+  std::vector<reorder_op_t> ops =
+      get_reorder_ops(bdd, {anchor_id, true}, allow_shape_altering_ops);
 
   for (const reorder_op_t &op : ops) {
     BDD *new_bdd = reorder(bdd, op);
     bdds.push_back({new_bdd, op, {}});
   }
 
-  const Node *anchor = bdd->get_node_by_id(anchor_id);
   if (anchor->get_type() != NodeType::BRANCH) {
     return bdds;
   }
 
   const std::vector<reorder_op_t> &lhs_ops = ops;
-  std::vector<reorder_op_t> rhs_ops = get_reorder_ops(bdd, {anchor_id, false});
+  std::vector<reorder_op_t> rhs_ops =
+      get_reorder_ops(bdd, {anchor_id, false}, allow_shape_altering_ops);
 
   // Now let's combine all the possible reordering operations!
   for (size_t rhs_idx = 0; rhs_idx < rhs_ops.size(); rhs_idx++) {
@@ -1252,10 +1298,11 @@ reordered_bdd_t try_reorder(const BDD *bdd, const anchor_info_t &anchor_info,
   assert(anchor && "Anchor not found in BDD");
 
   vector_t anchor_vector = {anchor, anchor_info.direction};
+  const Node *next = get_vector_next(anchor_vector);
 
   candidate_info_t proposed_candidate =
       concretize_reordering_candidate(bdd, anchor_vector, candidate_id);
-  reorder_op_t op = {anchor_info, proposed_candidate};
+  reorder_op_t op = {anchor_info, next->get_id(), proposed_candidate};
 
   reordered_bdd_t result = {
       .bdd = nullptr,
@@ -1303,7 +1350,7 @@ static double estimate_reorder(const BDD *bdd, const Node *anchor) {
 
   fprintf(stderr, "Total ~ %.2e\r", total_max);
 
-  std::vector<reordered_bdd_t> bdds = reorder(bdd, anchor->get_id());
+  std::vector<reordered_bdd_t> bdds = reorder(bdd, anchor->get_id(), false);
   total += bdds.size();
 
   fprintf(stderr, "Total ~ %.2e\r", total_max);

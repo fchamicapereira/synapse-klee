@@ -72,6 +72,33 @@ size_t Node::count_code_paths() const {
   return paths;
 }
 
+std::vector<klee::ref<klee::Expr>>
+Node::get_ordered_branch_constraints() const {
+  std::vector<klee::ref<klee::Expr>> constraints;
+
+  const bdd::Node *node = this;
+  while (node->get_prev()) {
+    const bdd::Node *prev = node->get_prev();
+
+    if (prev->get_type() != NodeType::BRANCH) {
+      node = prev;
+      continue;
+    }
+
+    const Branch *branch = static_cast<const Branch *>(prev);
+    klee::ref<klee::Expr> condition = branch->get_condition();
+
+    if (branch->get_on_false() == node) {
+      condition = kutil::solver_toolbox.exprBuilder->Not(condition);
+    }
+
+    constraints.insert(constraints.begin(), condition);
+    node = prev;
+  }
+
+  return constraints;
+}
+
 std::string Node::recursive_dump(int lvl) const {
   std::stringstream result;
   std::string pad(lvl * 2, ' ');

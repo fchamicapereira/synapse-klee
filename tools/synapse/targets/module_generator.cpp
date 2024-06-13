@@ -10,53 +10,128 @@ static bool can_process_platform(const EP *ep, TargetType target) {
   return current_target == target;
 }
 
+static void build_node_translations(translator_t &next_nodes_translator,
+                                    translator_t &processed_nodes_translator,
+                                    const bdd::BDD *old_bdd,
+                                    const bdd::reorder_op_t &op) {
+  next_nodes_translator[op.evicted_id] = op.candidate_info.id;
+
+  for (bdd::node_id_t sibling_id : op.candidate_info.siblings) {
+    if (sibling_id == op.candidate_info.id) {
+      continue;
+    }
+
+    processed_nodes_translator[sibling_id] = op.candidate_info.id;
+
+    const bdd::Node *sibling = old_bdd->get_node_by_id(sibling_id);
+    assert(sibling->get_type() != bdd::NodeType::BRANCH);
+
+    const bdd::Node *replacement = sibling->get_next();
+
+    if (!replacement) {
+      continue;
+    }
+
+    next_nodes_translator[sibling_id] = replacement->get_id();
+  }
+}
+
 static std::vector<const EP *> get_reordered(const EP *ep) {
   std::vector<const EP *> reordered;
 
-  assert(false && "TODO");
-  // TODO: Don't forget to update the meta information with the new IDs/pointers
-  // (processed nodes).
+  const bdd::Node *next = ep->get_next_node();
 
-  // auto next_node = ep->get_next_node();
+  if (!next) {
+    return reordered;
+  }
 
-  // if (!next_node) {
-  //   return reordered;
-  // }
+  const bdd::Node *node = next->get_prev();
 
-  // auto current_node = next_node->get_prev();
+  if (!node) {
+    return reordered;
+  }
 
-  // if (!current_node) {
-  //   return reordered;
-  // }
+  const bdd::BDD *bdd = ep->get_bdd();
+  bdd::node_id_t anchor_id = node->get_id();
+  bool allow_shape_altering_ops = false;
 
-  // auto current_bdd = ep->get_bdd();
-  // auto current_target = ep->get_current_platform();
+  std::vector<bdd::reordered_bdd_t> new_bdds =
+      bdd::reorder(bdd, anchor_id, allow_shape_altering_ops);
 
-  // const auto &meta = ep->get_meta();
-  // auto roots_per_target = meta.roots_per_target.at(current_target);
+  for (const bdd::reordered_bdd_t &new_bdd : new_bdds) {
+    EP *new_ep = new EP(*ep);
 
-  // auto reordered_bdds =
-  //     bdd::reorder(current_bdd, current_node, roots_per_target);
+    translator_t next_nodes_translator;
+    translator_t processed_nodes_translator;
 
-  // for (auto reordered_bdd : reordered_bdds) {
-  //   auto ep_cloned = ep->clone(reordered_bdd.bdd);
+    // std::cerr << "new ep: " << new_ep->get_id() << "\n";
+    // std::cerr << "new_bdd: " << new_bdd.bdd->hash() << "\n";
 
-  //   if (!reordered_bdd.condition.isNull()) {
-  //     auto ctx = ep_cloned.get_ctx();
-  //     ctx->add_reorder_op(reordered_bdd.candidate->get_id(),
-  //                          reordered_bdd.condition);
-  //   }
+    // auto DEBUG_CONDITION = new_bdd.op.candidate_info.siblings.size() > 1 &&
+    //                        ep->get_leaves().size() > 1;
+    // auto DEBUG_CONDITION = new_bdd.op.candidate_info.is_branch &&
+    //                        new_bdd.op.candidate_info.siblings.size() > 1;
+    // auto DEBUG_CONDITION = (new_ep->get_id() == 26601);
 
-  //   ep_cloned.sync_leaves_nodes(reordered_bdd.candidate, false);
-  //   ep_cloned.inc_reordered_nodes();
+    // if (DEBUG_CONDITION) {
+    //   std::cerr << "\n\n";
+    //   std::cerr << "Anchor: " << anchor_id << "\n";
+    //   std::cerr << "Evicted: " << new_bdd.op.evicted_id << "\n";
+    //   std::cerr << "Candidate: " << new_bdd.op.candidate_info.id << "\n";
+    //   std::cerr << "Siblings: ";
+    //   for (bdd::node_id_t sibling_id : new_bdd.op.candidate_info.siblings) {
+    //     std::cerr << sibling_id << " ";
+    //   }
+    //   std::cerr << "\n";
+    //   if (new_bdd.op2.has_value()) {
+    //     std::cerr << "Evicted2: " << new_bdd.op2->evicted_id << "\n";
+    //     std::cerr << "Candidate2: " << new_bdd.op2->candidate_info.id <<
+    //     "\n"; std::cerr << "Siblings2: "; for (bdd::node_id_t sibling_id :
+    //     new_bdd.op2->candidate_info.siblings) {
+    //       std::cerr << sibling_id << " ";
+    //     }
+    //     std::cerr << "\n";
+    //   }
+    //   std::cerr << "Old leaves:\n";
+    //   for (auto leaf : ep->get_leaves()) {
+    //     std::cerr << "  " << leaf.next->get_id() << "\n";
+    //   }
+    //   bdd::BDDVisualizer::visualize(bdd, false, {.fname = "old"});
+    //   bdd::BDDVisualizer::visualize(new_bdd.bdd, false, {.fname = "new"});
+    //   EPVisualizer::visualize(new_ep, false);
+    // }
 
-  //   // If the next node was a BDD starting point, then actually the starting
-  //   // point becomes the candidate node.
-  //   ep_cloned.replace_roots(next_node->get_id(),
-  //                           reordered_bdd.candidate->get_id());
+    build_node_translations(next_nodes_translator, processed_nodes_translator,
+                            bdd, new_bdd.op);
+    if (new_bdd.op2.has_value()) {
+      build_node_translations(next_nodes_translator, processed_nodes_translator,
+                              bdd, *new_bdd.op2);
+    }
 
-  //   reordered.push_back(ep_cloned);
-  // }
+    // if (DEBUG_CONDITION) {
+    //   std::cerr << "next_nodes_translator:\n";
+    //   for (const auto &kv : next_nodes_translator) {
+    //     std::cerr << "  " << kv.first << " -> " << kv.second << "\n";
+    //   }
+
+    //   std::cerr << "processed_nodes_translator:\n";
+    //   for (const auto &kv : processed_nodes_translator) {
+    //     std::cerr << "  " << kv.first << " -> " << kv.second << "\n";
+    //   }
+    // }
+
+    new_ep->replace_bdd(new_bdd.bdd, next_nodes_translator,
+                        processed_nodes_translator);
+    new_ep->inspect();
+
+    // if (DEBUG_CONDITION) {
+    //   std::cerr << "New leaves:\n";
+    //   for (auto leaf : new_ep->get_leaves()) {
+    //     std::cerr << "  " << leaf.next->get_id() << "\n";
+    //   }
+    //   DEBUG_PAUSE
+    // }
+  }
 
   return reordered;
 }
