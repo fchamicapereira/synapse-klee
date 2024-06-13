@@ -14,8 +14,11 @@ static std::string selected_color = "green";
 
 SSVisualizer::SSVisualizer() {}
 
-SSVisualizer::SSVisualizer(const EP *_highlight)
-    : highlight(_highlight->get_ancestors()) {}
+SSVisualizer::SSVisualizer(const EP *_highlight) {
+  const std::set<ep_id_t> &ancestors = _highlight->get_ancestors();
+  highlight.insert(ancestors.begin(), ancestors.end());
+  highlight.insert(_highlight->get_id());
+}
 
 static std::string stringify_score(const Score &score) {
   std::stringstream score_builder;
@@ -66,6 +69,15 @@ static void visit_definitions(std::stringstream &ss,
   ss << "EP: " << ssnode->ep_id;
   ss << "</td>\n";
 
+  if (ssnode->module_data) {
+    indent(4);
+    ss << "<td ";
+    ss << "bgcolor=\"" << target_color << "\"";
+    ss << ">";
+    ss << "HR: " << ssnode->module_data->hit_rate;
+    ss << "</td>\n";
+  }
+
   indent(4);
   ss << "<td ";
   ss << "bgcolor=\"" << target_color << "\"";
@@ -82,19 +94,10 @@ static void visit_definitions(std::stringstream &ss,
   indent(3);
   ss << "<tr>\n";
 
-  if (ssnode->module_data) {
-    indent(4);
-    ss << "<td ";
-    ss << "bgcolor=\"" << target_color << "\"";
-    ss << ">";
-    ss << "Fraction: " << ssnode->module_data->hit_rate;
-    ss << "</td>\n";
-  }
-
   indent(4);
   ss << "<td";
   ss << " bgcolor=\"" << target_color << "\"";
-  ss << " colspan=\"2\"";
+  ss << " colspan=\"3\"";
   ss << ">";
   if (ssnode->module_data) {
     ss << ssnode->module_data->name;
@@ -114,7 +117,7 @@ static void visit_definitions(std::stringstream &ss,
   indent(4);
   ss << "<td ";
   ss << " bgcolor=\"" << target_color << "\"";
-  ss << " colspan=\"2\"";
+  ss << " colspan=\"3\"";
   ss << ">";
   if (ssnode->bdd_node_data) {
     ss << ssnode->bdd_node_data->description;
@@ -123,6 +126,24 @@ static void visit_definitions(std::stringstream &ss,
 
   indent(3);
   ss << "</tr>\n";
+
+  // Fourth row
+
+  if (ssnode->next_bdd_node_data) {
+    indent(3);
+    ss << "<tr>\n";
+
+    indent(4);
+    ss << "<td ";
+    ss << " bgcolor=\"" << target_color << "\"";
+    ss << " colspan=\"3\"";
+    ss << ">";
+    ss << ssnode->next_bdd_node_data->description;
+    ss << "</td>\n";
+
+    indent(3);
+    ss << "</tr>\n";
+  }
 
   indent(2);
   ss << "</table>\n";

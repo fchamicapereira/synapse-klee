@@ -127,18 +127,9 @@ std::string Node::recursive_dump(int lvl) const {
 
 std::string Node::hash(bool recursive) const {
   std::stringstream input;
-  std::stringstream output;
-  std::vector<const Node *> nodes;
-
-  if (recursive) {
-    nodes.push_back(this);
-  } else {
-    input << id;
-  }
-
-  visit_nodes([&input](const Node *node) -> NodeVisitAction {
+  visit_nodes([&input, recursive](const Node *node) -> NodeVisitAction {
     input << ":" << node->get_id();
-    return NodeVisitAction::VISIT_CHILDREN;
+    return recursive ? NodeVisitAction::VISIT_CHILDREN : NodeVisitAction::STOP;
   });
 
   llvm::MD5 checksum;
@@ -147,6 +138,7 @@ std::string Node::hash(bool recursive) const {
   llvm::MD5::MD5Result result;
   checksum.final(result);
 
+  std::stringstream output;
   output << std::hex << std::setfill('0');
 
   for (uint8_t byte : result) {

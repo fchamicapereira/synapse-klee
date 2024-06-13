@@ -50,7 +50,7 @@ public:
      const std::vector<const Target *> &targets,
      std::shared_ptr<HitRateTree> hit_rate_tree);
 
-  EP(const EP &other);
+  EP(const EP &other, bool is_ancestor = true);
 
   ~EP();
 

@@ -44,18 +44,23 @@ EP::EP(std::shared_ptr<const bdd::BDD> _bdd,
   leaves.emplace_back(nullptr, bdd->get_root());
 }
 
-static std::set<ep_id_t> update_ancestors(const EP &other) {
+static std::set<ep_id_t> update_ancestors(const EP &other, bool is_ancestor) {
   std::set<ep_id_t> ancestors = other.get_ancestors();
-  ancestors.insert(other.get_id());
+
+  if (is_ancestor) {
+    ancestors.insert(other.get_id());
+  }
+
   return ancestors;
 }
 
-EP::EP(const EP &other)
+EP::EP(const EP &other, bool is_ancestor)
     : id(counter++), bdd(other.bdd),
       root(other.root ? other.root->clone(true) : nullptr),
       initial_target(other.initial_target), targets(other.targets),
-      ancestors(update_ancestors(other)), targets_roots(other.targets_roots),
-      hit_rate_tree(other.hit_rate_tree), ctx(other.ctx), meta(other.meta) {
+      ancestors(update_ancestors(other, is_ancestor)),
+      targets_roots(other.targets_roots), hit_rate_tree(other.hit_rate_tree),
+      ctx(other.ctx), meta(other.meta) {
   if (!root) {
     assert(other.leaves.size() == 1);
     leaves.emplace_back(nullptr, bdd->get_root());

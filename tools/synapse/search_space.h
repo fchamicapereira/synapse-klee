@@ -32,18 +32,22 @@ struct SSNode {
   TargetType target;
   std::optional<module_data_t> module_data;
   std::optional<bdd_node_data_t> bdd_node_data;
+  std::optional<bdd_node_data_t> next_bdd_node_data;
   std::vector<SSNode *> children;
 
   SSNode(ss_node_id_t _node_id, ep_id_t _ep_id, const Score &_score,
          TargetType _target, const module_data_t &_module_data,
-         const bdd_node_data_t &_bdd_node_data)
+         const bdd_node_data_t &_bdd_node_data,
+         const std::optional<bdd_node_data_t> &_next_bdd_node_data)
       : node_id(_node_id), ep_id(_ep_id), score(_score), target(_target),
-        module_data(_module_data), bdd_node_data(_bdd_node_data) {}
+        module_data(_module_data), bdd_node_data(_bdd_node_data),
+        next_bdd_node_data(_next_bdd_node_data) {}
 
   SSNode(ss_node_id_t _node_id, ep_id_t _ep_id, const Score &_score,
          TargetType _target)
       : node_id(_node_id), ep_id(_ep_id), score(_score), target(_target),
-        module_data(std::nullopt), bdd_node_data(std::nullopt) {}
+        module_data(std::nullopt), bdd_node_data(std::nullopt),
+        next_bdd_node_data(std::nullopt) {}
 
   ~SSNode() {
     for (SSNode *child : children) {

@@ -91,6 +91,7 @@ void SearchSpace::add_to_active_leaf(
     ep_id_t ep_id = generated_ep->get_id();
     Score score = hcfg->get_score(generated_ep);
     TargetType target = modgen->get_target();
+    const bdd::Node *next = generated_ep->get_next_node();
 
     module_data_t module_data = {
         .type = modgen->get_type(),
@@ -103,8 +104,17 @@ void SearchSpace::add_to_active_leaf(
         .description = get_bdd_node_description(node),
     };
 
-    SSNode *new_node =
-        new SSNode(id, ep_id, score, target, module_data, bdd_node_data);
+    std::optional<bdd_node_data_t> next_bdd_node_data;
+
+    if (next) {
+      next_bdd_node_data = {
+          .id = next->get_id(),
+          .description = get_bdd_node_description(next),
+      };
+    }
+
+    SSNode *new_node = new SSNode(id, ep_id, score, target, module_data,
+                                  bdd_node_data, next_bdd_node_data);
 
     active_leaf->children.push_back(new_node);
     leaves.push_back(new_node);

@@ -939,7 +939,10 @@ bool is_vector_read(const bdd::Call *vector_borrow) {
 
   std::vector<const bdd::Node *> vector_returns =
       get_future_vector_return(vector_borrow);
-  assert(!vector_returns.empty() && "Vector return not found");
+
+  if (vector_returns.empty()) {
+    return true;
+  }
 
   if (vector_returns.size() > 1) {
     return false;

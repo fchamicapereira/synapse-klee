@@ -59,10 +59,8 @@ static std::vector<const EP *> get_reordered(const EP *ep) {
       bdd::reorder(bdd, anchor_id, allow_shape_altering_ops);
 
   for (const bdd::reordered_bdd_t &new_bdd : new_bdds) {
-    EP *new_ep = new EP(*ep);
-
-    translator_t next_nodes_translator;
-    translator_t processed_nodes_translator;
+    bool is_ancestor = false;
+    EP *new_ep = new EP(*ep, is_ancestor);
 
     // std::cerr << "new ep: " << new_ep->get_id() << "\n";
     // std::cerr << "new_bdd: " << new_bdd.bdd->hash() << "\n";
@@ -101,6 +99,9 @@ static std::vector<const EP *> get_reordered(const EP *ep) {
     //   EPVisualizer::visualize(new_ep, false);
     // }
 
+    translator_t next_nodes_translator;
+    translator_t processed_nodes_translator;
+
     build_node_translations(next_nodes_translator, processed_nodes_translator,
                             bdd, new_bdd.op);
     if (new_bdd.op2.has_value()) {
@@ -131,6 +132,8 @@ static std::vector<const EP *> get_reordered(const EP *ep) {
     //   }
     //   DEBUG_PAUSE
     // }
+
+    reordered.push_back(new_ep);
   }
 
   return reordered;
@@ -153,10 +156,6 @@ std::vector<const EP *> ModuleGenerator::generate(const EP *ep,
     for (const EP *ep : new_eps) {
       std::vector<const EP *> ep_reodered = get_reordered(ep);
       reordered.insert(reordered.end(), ep_reodered.begin(), ep_reodered.end());
-    }
-
-    if (reordered.size() > 0) {
-      Log::dbg() << "+ " << reordered.size() << " reordered BDDs\n";
     }
 
     new_eps.insert(new_eps.end(), reordered.begin(), reordered.end());
