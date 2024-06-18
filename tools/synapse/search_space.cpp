@@ -118,9 +118,12 @@ void SearchSpace::add_to_active_leaf(
 
     active_leaf->children.push_back(new_node);
     leaves.push_back(new_node);
+
+    size++;
   }
 }
 
 SSNode *SearchSpace::get_root() const { return root; }
+size_t SearchSpace::get_size() const { return size; }
 
 } // namespace synapse

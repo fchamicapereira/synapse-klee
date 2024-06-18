@@ -80,8 +80,8 @@ search_product_t search(const bdd::BDD *bdd, HitRateTree *hit_rate_tree) {
   unsigned seed = Seed ? Seed : std::random_device()();
 
   // BFS heuristic(seed);
-  // Gallium heuristic(seed);
-  MaxThroughput heuristic(seed);
+  Gallium heuristic(seed);
+  // MaxThroughput heuristic(seed);
 
   std::unordered_set<ep_id_t> peek;
   for (ep_id_t ep_id : Peek) {
@@ -124,6 +124,8 @@ int main(int argc, char **argv) {
     hit_rate_tree = new HitRateTree(bdd, Seed);
   }
 
+  hit_rate_tree->log_debug();
+
   std::string nf_name = nf_name_from_bdd(InputBDDFile);
 
   auto start_search = std::chrono::steady_clock::now();
@@ -145,10 +147,10 @@ int main(int argc, char **argv) {
   //                      .count();
   // }
 
-  Log::log() << "Search time:     " << search_dt << " sec\n";
+  Log::log() << "Search time: " << search_dt << " s\n";
 
   // if (synthesis_dt >= 0) {
-  //   Log::log() << "Generation time: " << synthesis_dt << " sec\n";
+  //   Log::log() << "Generation time: " << synthesis_dt << " s\n";
   // }
 
   if (ShowEP) {

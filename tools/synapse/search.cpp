@@ -165,11 +165,12 @@ template <class HCfg> search_product_t SearchEngine<HCfg>::search() {
     delete ep;
   }
 
-  Log::log() << "Random seed:     " << h->get_random_seed() << "\n";
-  Log::log() << "Solutions:       " << h->get_all().size() << "\n";
-  Log::log() << "Winner:          " << h->get_score(h->get()) << "\n";
-
   EP *winner = new EP(*h->get());
+
+  Log::log() << "Random seed: " << h->get_random_seed() << "\n";
+  Log::log() << "Solutions: " << h->get_all().size() << "\n";
+  Log::log() << "SS size: " << search_space->get_size() << "\n";
+  Log::log() << "Winner: " << h->get_score(winner) << "\n";
 
   return search_product_t(winner, search_space);
 }

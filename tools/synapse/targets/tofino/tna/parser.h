@@ -339,6 +339,41 @@ private:
     states[new_state->id] = new_state;
   }
 
+  void set_next(ParserState *&next_state, ParserState *new_state) {
+    ParserState *old_next_state = next_state;
+
+    next_state = new_state;
+
+    if (!old_next_state) {
+      return;
+    }
+
+    assert(old_next_state->type == ParserStateType::TERMINATE);
+    ParserStateTerminate *terminate =
+        static_cast<ParserStateTerminate *>(old_next_state);
+    assert(terminate->accept == true);
+
+    switch (new_state->type) {
+    case ParserStateType::EXTRACT: {
+      ParserStateExtract *extractor =
+          static_cast<ParserStateExtract *>(new_state);
+      assert(!extractor->next);
+      extractor->next = old_next_state;
+    } break;
+    case ParserStateType::SELECT: {
+      ParserStateSelect *condition =
+          static_cast<ParserStateSelect *>(new_state);
+      assert(!condition->on_true);
+      assert(!condition->on_false);
+      condition->on_true = next_state;
+      condition->on_false = next_state;
+    } break;
+    case ParserStateType::TERMINATE: {
+      assert(false && "Cannot add state to terminating state");
+    } break;
+    }
+  }
+
   void add_state(bdd::node_id_t leaf_id, ParserState *new_state,
                  std::optional<bool> direction) {
     assert(initial_state);
@@ -353,18 +388,15 @@ private:
     case ParserStateType::EXTRACT: {
       assert(!direction.has_value());
       ParserStateExtract *extractor = static_cast<ParserStateExtract *>(leaf);
-      assert(!extractor->next);
-      extractor->next = new_state;
+      set_next(extractor->next, new_state);
     } break;
     case ParserStateType::SELECT: {
       assert(direction.has_value());
       ParserStateSelect *condition = static_cast<ParserStateSelect *>(leaf);
       if (*direction) {
-        assert(!condition->on_true);
-        condition->on_true = new_state;
+        set_next(condition->on_true, new_state);
       } else {
-        assert(!condition->on_false);
-        condition->on_false = new_state;
+        set_next(condition->on_false, new_state);
       }
     } break;
     case ParserStateType::TERMINATE: {

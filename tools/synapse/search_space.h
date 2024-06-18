@@ -64,11 +64,12 @@ private:
   SSNode *root;
   SSNode *active_leaf;
   std::vector<SSNode *> leaves;
+  size_t size;
   const HeuristicCfg *hcfg;
 
 public:
   SearchSpace(const HeuristicCfg *_hcfg)
-      : root(nullptr), active_leaf(nullptr), hcfg(_hcfg) {}
+      : root(nullptr), active_leaf(nullptr), size(0), hcfg(_hcfg) {}
 
   SearchSpace(const SearchSpace &) = delete;
   SearchSpace(SearchSpace &&) = delete;
@@ -83,6 +84,8 @@ public:
                           const std::vector<const EP *> &generated_eps);
 
   SSNode *get_root() const;
+  size_t get_size() const;
+
   bool was_explored(ss_node_id_t node_id) const;
 };
 

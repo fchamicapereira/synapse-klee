@@ -219,7 +219,6 @@ HitRateTree::HitRateTree(const bdd::BDD *bdd, unsigned random_seed)
   const bdd::Node *bdd_root = bdd->get_root();
   RandomEngine random_percent_engine(random_seed, 1, 100);
   root = build_random_hit_fraction_tree(bdd_root, random_percent_engine);
-  log_debug();
 }
 
 HitRateTree::HitRateTree(const bdd::BDD *bdd,
