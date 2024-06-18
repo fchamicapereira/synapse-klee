@@ -13,7 +13,7 @@ enum class TNAVersion { TNA1, TNA2 };
 struct TNAProperties {
   uint64_t port_capacity_pps;
   int total_ports;
-  int total_recirculation_ports_per_pipe;
+  int total_recirculation_ports;
   int max_packet_bytes_in_condition;
   int pipes;
   int stages;

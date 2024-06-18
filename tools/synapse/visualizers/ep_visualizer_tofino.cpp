@@ -37,12 +37,29 @@ VISIT_BRANCH(tofino::If)
 VISIT_BRANCH(tofino::ParserCondition)
 
 SHOW_MODULE_NAME(tofino::SendToController)
-SHOW_MODULE_NAME(tofino::Recirculate)
 SHOW_MODULE_NAME(tofino::Drop)
 SHOW_MODULE_NAME(tofino::Broadcast)
 SHOW_MODULE_NAME(tofino::ModifyHeader)
 SHOW_MODULE_NAME(tofino::Then)
 SHOW_MODULE_NAME(tofino::Else)
+
+void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
+                         const tofino::Recirculate *node) {
+  std::stringstream label_builder;
+
+  const bdd::Node *bdd_node = node->get_node();
+  TargetType target = node->get_target();
+  int port = node->get_recirculation_port();
+
+  label_builder << "Recirculate (";
+  label_builder << port;
+  label_builder << ")";
+
+  std::string label = label_builder.str();
+  function_call(ep_node, bdd_node, target, label);
+
+  find_and_replace(label, {{"\n", "\\n"}});
+}
 
 void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
                          const tofino::Forward *node) {

@@ -11,7 +11,7 @@ static TNAProperties properties_from_version(TNAVersion version) {
     properties = {
         .port_capacity_pps = 150'000'000,
         .total_ports = 32,
-        .total_recirculation_ports_per_pipe = 1,
+        .total_recirculation_ports = 2,
         .max_packet_bytes_in_condition = 4,
         .pipes = 2,
         .stages = 12,
@@ -36,7 +36,7 @@ static TNAProperties properties_from_version(TNAVersion version) {
     properties = {
         .port_capacity_pps = 150'000'000,
         .total_ports = 32,
-        .total_recirculation_ports_per_pipe = 1,
+        .total_recirculation_ports = 4,
         .max_packet_bytes_in_condition = 4,
         .pipes = 4,
         .stages = 20,

@@ -12,13 +12,20 @@ namespace synapse {
 namespace tofino {
 
 TofinoContext::TofinoContext(TNAVersion _version)
-    : tna(_version), fraction_of_traffic_recirculated(0),
-      recirculation_surplus(0) {}
+    : tna(_version),
+      recirc_ports(tna.get_properties().total_recirculation_ports),
+      recirc_fraction_per_recirc_port(new float[recirc_ports]),
+      recirc_surplus_per_recirc_port(new float[recirc_ports]) {
+  for (int i = 0; i < recirc_ports; i++) {
+    recirc_fraction_per_recirc_port[i] = 0;
+    recirc_surplus_per_recirc_port[i] = 0;
+  }
+}
 
 TofinoContext::TofinoContext(const TofinoContext &other)
-    : tna(other.tna),
-      fraction_of_traffic_recirculated(other.fraction_of_traffic_recirculated),
-      recirculation_surplus(other.recirculation_surplus) {
+    : tna(other.tna), recirc_ports(other.recirc_ports),
+      recirc_fraction_per_recirc_port(new float[recirc_ports]),
+      recirc_surplus_per_recirc_port(new float[recirc_ports]) {
   for (const auto &kv : other.obj_to_ds) {
     std::vector<DS *> new_ds;
     for (const auto &ds : kv.second) {
@@ -28,6 +35,14 @@ TofinoContext::TofinoContext(const TofinoContext &other)
     }
     obj_to_ds[kv.first] = new_ds;
   }
+
+  std::copy(recirc_fraction_per_recirc_port,
+            recirc_fraction_per_recirc_port + recirc_ports,
+            other.recirc_fraction_per_recirc_port);
+
+  std::copy(recirc_surplus_per_recirc_port,
+            recirc_surplus_per_recirc_port + recirc_ports,
+            other.recirc_surplus_per_recirc_port);
 }
 
 TofinoContext::~TofinoContext() {
@@ -39,6 +54,9 @@ TofinoContext::~TofinoContext() {
   }
   obj_to_ds.clear();
   id_to_ds.clear();
+
+  delete[] recirc_fraction_per_recirc_port;
+  delete[] recirc_surplus_per_recirc_port;
 }
 
 const std::vector<DS *> &TofinoContext::get_ds(addr_t addr) const {
@@ -240,23 +258,23 @@ bool TofinoContext::check_many_placements(
 int TofinoContext::estimate_throughput_kpps() const {
   const TNAProperties &properties = tna.get_properties();
 
-  float r = fraction_of_traffic_recirculated;
-  float rs = recirculation_surplus;
+  float r = 0;
   float Ts = properties.port_capacity_pps * properties.total_ports;
-  float Tr = properties.port_capacity_pps *
-             properties.total_recirculation_ports_per_pipe * properties.pipes;
-  float r_load = Ts * r;
-  float r_cap = Tr / (1 + rs);
-  float throughput_estimation_pps = Ts * (1 - r) + std::min(r_load, r_cap);
+  float throughput_estimation_pps = 0;
 
-  // printf("\n");
-  // printf("Ts:    %f Mpps\n", Ts / 1'000'000);
-  // printf("r:     %f\n", r);
-  // printf("rs:    %f\n", rs);
-  // printf("Tr:    %f Mpps\n", Tr / 1'000'000);
-  // printf("rload: %f Mpps\n", r_load / 1'000'000);
-  // printf("rcap:  %f Mpps\n", r_cap / 1'000'000);
-  // printf("est:   %f Mpps\n", throughput_estimation_pps / 1'000'000);
+  for (int port = 0; port < recirc_ports; port++) {
+    float ri = recirc_fraction_per_recirc_port[port];
+    float rsi = recirc_surplus_per_recirc_port[port];
+
+    r += ri;
+
+    float r_load = Ts * ri;
+    float r_cap = properties.port_capacity_pps / (rsi + 1);
+
+    throughput_estimation_pps += std::min(r_load, r_cap);
+  }
+
+  throughput_estimation_pps += Ts * (1 - r);
 
   return throughput_estimation_pps / 1'000;
 }

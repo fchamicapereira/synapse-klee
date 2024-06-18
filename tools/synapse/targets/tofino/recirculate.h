@@ -8,11 +8,13 @@ namespace tofino {
 class Recirculate : public TofinoModule {
 private:
   symbols_t symbols;
+  int recirculation_port;
 
 public:
-  Recirculate(const bdd::Node *node, symbols_t _symbols)
+  Recirculate(const bdd::Node *node, symbols_t _symbols,
+              int _recirculation_port)
       : TofinoModule(ModuleType::Tofino_Recirculate, "Recirculate", node),
-        symbols(_symbols) {}
+        symbols(_symbols), recirculation_port(_recirculation_port) {}
 
   virtual void visit(EPVisitor &visitor, const EP *ep,
                      const EPNode *ep_node) const override {
@@ -20,11 +22,12 @@ public:
   }
 
   virtual Module *clone() const {
-    Recirculate *cloned = new Recirculate(node, symbols);
+    Recirculate *cloned = new Recirculate(node, symbols, recirculation_port);
     return cloned;
   }
 
   symbols_t get_symbols() const { return symbols; }
+  int get_recirculation_port() const { return recirculation_port; }
 };
 
 class RecirculateGenerator : public TofinoModuleGenerator {
@@ -54,12 +57,31 @@ protected:
       return new_eps;
     }
 
-    EP *new_ep = new EP(*ep);
-    new_eps.push_back(new_ep);
-
     symbols_t symbols = get_dataplane_state(ep, node);
+    int total_recirculation_ports = get_total_recirculation_ports(ep);
 
-    Module *module = new Recirculate(node, symbols);
+    for (int i = 0; i < total_recirculation_ports; i++) {
+      const EP *new_ep = generate_new_ep(ep, node, symbols, i);
+      new_eps.push_back(new_ep);
+    }
+
+    return new_eps;
+  }
+
+private:
+  int get_total_recirculation_ports(const EP *ep) const {
+    const TofinoContext *ctx = get_tofino_ctx(ep);
+    const TNA &tna = ctx->get_tna();
+    const TNAProperties &properties = tna.get_properties();
+    return properties.total_recirculation_ports;
+  }
+
+  const EP *generate_new_ep(const EP *ep, const bdd::Node *node,
+                            const symbols_t &symbols,
+                            int recirculation_port) const {
+    EP *new_ep = new EP(*ep);
+
+    Module *module = new Recirculate(node, symbols, recirculation_port);
     EPNode *ep_node = new EPNode(module);
 
     // Note that we don't point to the next BDD node, as it was not actually
@@ -68,20 +90,21 @@ protected:
     EPLeaf leaf(ep_node, node);
     new_ep->process_leaf(ep_node, {leaf}, false);
 
-    update_fraction_of_traffic_recirculated_metric(new_ep);
+    update_fraction_of_traffic_recirculated_metric(recirculation_port, new_ep);
 
-    return new_eps;
+    return new_ep;
   }
 
-private:
-  void update_fraction_of_traffic_recirculated_metric(EP *ep) const {
+  void update_fraction_of_traffic_recirculated_metric(int recirculation_port,
+                                                      EP *ep) const {
     TofinoContext *ctx = get_mutable_tofino_ctx(ep);
     float fraction_recirculated = ep->get_active_leaf_hit_rate();
 
     if (is_surplus(ep)) {
-      ctx->inc_recirculation_surplus(fraction_recirculated);
+      ctx->inc_recirculation_surplus(recirculation_port, fraction_recirculated);
     } else {
-      ctx->inc_fraction_of_traffic_recirculated(fraction_recirculated);
+      ctx->inc_fraction_of_traffic_recirculated(recirculation_port,
+                                                fraction_recirculated);
     }
   }
 
