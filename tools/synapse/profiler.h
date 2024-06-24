@@ -8,36 +8,39 @@ namespace synapse {
 
 typedef std::vector<klee::ref<klee::Expr>> constraints_t;
 
-struct HitRateNode {
+struct ProfilerNode {
   klee::ref<klee::Expr> constraint;
   float fraction;
   std::optional<bdd::node_id_t> bdd_node_id;
 
-  HitRateNode *on_true;
-  HitRateNode *on_false;
-  HitRateNode *prev;
+  ProfilerNode *on_true;
+  ProfilerNode *on_false;
+  ProfilerNode *prev;
 
-  HitRateNode(klee::ref<klee::Expr> _constraint, float _fraction);
-  HitRateNode(klee::ref<klee::Expr> _constraint, float _fraction,
-              bdd::node_id_t _bdd_node_id);
-  ~HitRateNode();
+  ProfilerNode(klee::ref<klee::Expr> _constraint, float _fraction);
+  ProfilerNode(klee::ref<klee::Expr> _constraint, float _fraction,
+               bdd::node_id_t _bdd_node_id);
+  ~ProfilerNode();
 
-  HitRateNode *clone(bool keep_bdd_info) const;
+  ProfilerNode *clone(bool keep_bdd_info) const;
   void log_debug(int lvl = 0) const;
 };
 
-class HitRateTree {
+class Profiler {
 private:
-  HitRateNode *root;
+  ProfilerNode *root;
+  int avg_pkt_bytes;
 
 public:
-  HitRateTree(const bdd::BDD *bdd, unsigned random_seed);
-  HitRateTree(const bdd::BDD *bdd, const std::string &bdd_profile_fname);
+  Profiler(const bdd::BDD *bdd, unsigned random_seed);
+  Profiler(const bdd::BDD *bdd, const std::string &bdd_profile_fname);
 
-  HitRateTree(const HitRateTree &other);
-  HitRateTree(HitRateTree &&other);
+  Profiler(const Profiler &other);
+  Profiler(Profiler &&other);
 
-  ~HitRateTree();
+  ~Profiler();
+
+  int get_avg_pkt_bytes() const;
 
   void insert(const constraints_t &constraints,
               klee::ref<klee::Expr> constraint, float fraction_on_true);
@@ -50,10 +53,11 @@ public:
   void log_debug() const;
 
 private:
-  HitRateNode *get_node(const constraints_t &constraints) const;
-  void append(HitRateNode *node, klee::ref<klee::Expr> constraint,
+  ProfilerNode *get_node(const constraints_t &constraints) const;
+
+  void append(ProfilerNode *node, klee::ref<klee::Expr> constraint,
               float fraction);
-  void remove(HitRateNode *node);
+  void remove(ProfilerNode *node);
   void replace_root(klee::ref<klee::Expr> constraint, float fraction);
 };
 

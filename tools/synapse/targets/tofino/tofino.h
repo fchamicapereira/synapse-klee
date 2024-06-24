@@ -24,12 +24,13 @@
 #include "cached_table_delete.h"
 
 #include "tofino_context.h"
+#include "../../profiler.h"
 
 namespace synapse {
 namespace tofino {
 
 struct TofinoTarget : public Target {
-  TofinoTarget(TNAVersion version)
+  TofinoTarget(TNAVersion version, const Profiler *profiler)
       : Target(TargetType::Tofino,
                {
                    new SendToControllerGenerator(),
@@ -53,7 +54,7 @@ struct TofinoTarget : public Target {
                    new CachedTableConditionalDeleteGenerator(),
                    new CachedTableDeleteGenerator(),
                },
-               new TofinoContext(version)) {}
+               new TofinoContext(version, profiler)) {}
 };
 
 } // namespace tofino

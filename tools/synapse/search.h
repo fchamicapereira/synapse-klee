@@ -7,7 +7,7 @@
 #include "execution_plan/execution_plan.h"
 #include "heuristics/heuristic.h"
 #include "search_space.h"
-#include "hit_rate_tree.h"
+#include "profiler.h"
 
 namespace synapse {
 
@@ -36,18 +36,17 @@ private:
   std::shared_ptr<bdd::BDD> bdd;
   std::vector<const Target *> targets;
   Heuristic<HCfg> *h;
-  std::shared_ptr<HitRateTree> hit_rate_tree;
+  std::shared_ptr<Profiler> profiler;
 
   bool allow_bdd_reordering;
   std::unordered_set<ep_id_t> peek;
 
 public:
-  SearchEngine(const bdd::BDD *bdd, Heuristic<HCfg> *h,
-               HitRateTree *hit_rate_tree, bool allow_bdd_reordering,
+  SearchEngine(const bdd::BDD *bdd, Heuristic<HCfg> *h, Profiler *profiler,
+               bool allow_bdd_reordering,
                const std::unordered_set<ep_id_t> &peek);
 
-  SearchEngine(const bdd::BDD *bdd, Heuristic<HCfg> *h,
-               HitRateTree *hit_rate_tree);
+  SearchEngine(const bdd::BDD *bdd, Heuristic<HCfg> *h, Profiler *profiler);
 
   SearchEngine(const SearchEngine &) = delete;
   SearchEngine(SearchEngine &&) = delete;

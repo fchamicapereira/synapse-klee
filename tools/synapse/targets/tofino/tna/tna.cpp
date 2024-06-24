@@ -9,9 +9,10 @@ static TNAProperties properties_from_version(TNAVersion version) {
   switch (version) {
   case TNAVersion::TNA1:
     properties = {
-        .port_capacity_pps = 150'000'000,
+        .port_capacity_bps = 100'000'000'000,
         .total_ports = 32,
-        .total_recirculation_ports = 2,
+        .recirc_port_capacity_bps = 125'000'000'000,
+        .total_recirc_ports = 2,
         .max_packet_bytes_in_condition = 4,
         .pipes = 2,
         .stages = 12,
@@ -34,9 +35,10 @@ static TNAProperties properties_from_version(TNAVersion version) {
     break;
   case TNAVersion::TNA2:
     properties = {
-        .port_capacity_pps = 150'000'000,
+        .port_capacity_bps = 100'000'000'000,
         .total_ports = 32,
-        .total_recirculation_ports = 4,
+        .recirc_port_capacity_bps = 125'000'000'000,
+        .total_recirc_ports = 4,
         .max_packet_bytes_in_condition = 4,
         .pipes = 4,
         .stages = 20,
@@ -63,13 +65,14 @@ static TNAProperties properties_from_version(TNAVersion version) {
   return properties;
 }
 
-TNA::TNA(TNAVersion version)
+TNA::TNA(TNAVersion version, int avg_pkt_bytes)
     : version(version), properties(properties_from_version(version)),
-      simple_placer(&properties) {}
+      simple_placer(&properties), perf_oracle(&properties, avg_pkt_bytes) {}
 
 TNA::TNA(const TNA &other)
     : version(other.version), properties(other.properties),
-      simple_placer(other.simple_placer), parser(other.parser) {}
+      simple_placer(other.simple_placer), perf_oracle(other.perf_oracle),
+      parser(other.parser) {}
 
 bool TNA::condition_meets_phv_limit(klee::ref<klee::Expr> expr) const {
   kutil::SymbolRetriever retriever;
@@ -134,6 +137,9 @@ TNA::can_place_many(const std::vector<std::unordered_set<DS *>> &candidates,
 }
 
 void TNA::log_debug_placement() const { simple_placer.log_debug(); }
+
+const PerfOracle &TNA::get_perf_oracle() const { return perf_oracle; }
+PerfOracle &TNA::get_mutable_perf_oracle() { return perf_oracle; }
 
 } // namespace tofino
 } // namespace synapse

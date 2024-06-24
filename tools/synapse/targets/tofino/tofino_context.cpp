@@ -11,21 +11,10 @@
 namespace synapse {
 namespace tofino {
 
-TofinoContext::TofinoContext(TNAVersion _version)
-    : tna(_version),
-      recirc_ports(tna.get_properties().total_recirculation_ports),
-      recirc_fraction_per_recirc_port(new float[recirc_ports]),
-      recirc_surplus_per_recirc_port(new float[recirc_ports]) {
-  for (int i = 0; i < recirc_ports; i++) {
-    recirc_fraction_per_recirc_port[i] = 0;
-    recirc_surplus_per_recirc_port[i] = 0;
-  }
-}
+TofinoContext::TofinoContext(TNAVersion _version, const Profiler *profiler)
+    : tna(_version, profiler->get_avg_pkt_bytes()) {}
 
-TofinoContext::TofinoContext(const TofinoContext &other)
-    : tna(other.tna), recirc_ports(other.recirc_ports),
-      recirc_fraction_per_recirc_port(new float[recirc_ports]),
-      recirc_surplus_per_recirc_port(new float[recirc_ports]) {
+TofinoContext::TofinoContext(const TofinoContext &other) : tna(other.tna) {
   for (const auto &kv : other.obj_to_ds) {
     std::vector<DS *> new_ds;
     for (const auto &ds : kv.second) {
@@ -35,14 +24,6 @@ TofinoContext::TofinoContext(const TofinoContext &other)
     }
     obj_to_ds[kv.first] = new_ds;
   }
-
-  std::copy(recirc_fraction_per_recirc_port,
-            recirc_fraction_per_recirc_port + recirc_ports,
-            other.recirc_fraction_per_recirc_port);
-
-  std::copy(recirc_surplus_per_recirc_port,
-            recirc_surplus_per_recirc_port + recirc_ports,
-            other.recirc_surplus_per_recirc_port);
 }
 
 TofinoContext::~TofinoContext() {
@@ -54,9 +35,6 @@ TofinoContext::~TofinoContext() {
   }
   obj_to_ds.clear();
   id_to_ds.clear();
-
-  delete[] recirc_fraction_per_recirc_port;
-  delete[] recirc_surplus_per_recirc_port;
 }
 
 const std::vector<DS *> &TofinoContext::get_ds(addr_t addr) const {
@@ -255,28 +233,15 @@ bool TofinoContext::check_many_placements(
   return status == PlacementStatus::SUCCESS;
 }
 
+void TofinoContext::add_recirculated_traffic(int port, int total_recirc_times,
+                                             float fraction) {
+  PerfOracle &oracle = tna.get_mutable_perf_oracle();
+  oracle.add_recirculated_traffic(port, total_recirc_times, fraction);
+}
+
 int TofinoContext::estimate_throughput_kpps() const {
-  const TNAProperties &properties = tna.get_properties();
-
-  float r = 0;
-  float Ts = properties.port_capacity_pps * properties.total_ports;
-  float throughput_estimation_pps = 0;
-
-  for (int port = 0; port < recirc_ports; port++) {
-    float ri = recirc_fraction_per_recirc_port[port];
-    float rsi = recirc_surplus_per_recirc_port[port];
-
-    r += ri;
-
-    float r_load = Ts * ri;
-    float r_cap = properties.port_capacity_pps / (rsi + 1);
-
-    throughput_estimation_pps += std::min(r_load, r_cap);
-  }
-
-  throughput_estimation_pps += Ts * (1 - r);
-
-  return throughput_estimation_pps / 1'000;
+  const PerfOracle &oracle = tna.get_perf_oracle();
+  return oracle.estimate_throughput_kpps();
 }
 
 } // namespace tofino

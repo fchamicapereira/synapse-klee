@@ -16,7 +16,7 @@ typedef int ss_node_id_t;
 
 struct module_data_t {
   ModuleType type;
-  std::string name;
+  std::string description;
   float hit_rate;
 };
 

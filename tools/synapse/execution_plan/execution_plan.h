@@ -4,7 +4,7 @@
 
 #include "node.h"
 #include "meta.h"
-#include "../hit_rate_tree.h"
+#include "../profiler.h"
 #include "../targets/target.h"
 #include "../targets/context.h"
 
@@ -40,7 +40,7 @@ private:
   const std::set<ep_id_t> ancestors;
 
   std::unordered_map<TargetType, bdd::nodes_t> targets_roots;
-  std::shared_ptr<HitRateTree> hit_rate_tree;
+  std::shared_ptr<Profiler> profiler;
 
   Context ctx;
   EPMeta meta;
@@ -48,7 +48,7 @@ private:
 public:
   EP(std::shared_ptr<const bdd::BDD> bdd,
      const std::vector<const Target *> &targets,
-     std::shared_ptr<HitRateTree> hit_rate_tree);
+     std::shared_ptr<Profiler> profiler);
 
   EP(const EP &other, bool is_ancestor = true);
 

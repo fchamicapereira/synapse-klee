@@ -168,9 +168,9 @@ protected:
     new_ep->update_node_constraints(then_node, else_node,
                                     cache_write_success_condition);
 
-    update_hit_rate_tree(new_ep, cache_write_success_condition,
-                         cache_write_success_estimation_rel,
-                         deleted_branch_constraints);
+    update_profiler(new_ep, cache_write_success_condition,
+                    cache_write_success_estimation_rel,
+                    deleted_branch_constraints);
 
     new_ep->process_leaf(
         cached_table_cond_write_node,
@@ -187,7 +187,7 @@ protected:
   }
 
 private:
-  void update_hit_rate_tree(
+  void update_profiler(
       EP *ep, klee::ref<klee::Expr> cache_write_success_condition,
       float cache_write_success_estimation_rel,
       const std::optional<constraints_t> &deleted_branch_constraints) const {

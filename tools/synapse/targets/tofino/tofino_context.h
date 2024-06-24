@@ -15,12 +15,8 @@ private:
   std::unordered_map<addr_t, std::vector<DS *>> obj_to_ds;
   std::unordered_map<DS_ID, DS *> id_to_ds;
 
-  int recirc_ports;
-  float *recirc_fraction_per_recirc_port;
-  float *recirc_surplus_per_recirc_port;
-
 public:
-  TofinoContext(TNAVersion version);
+  TofinoContext(TNAVersion version, const Profiler *profiler);
   TofinoContext(const TofinoContext &other);
 
   ~TofinoContext();
@@ -38,18 +34,8 @@ public:
   const DS *get_ds_from_id(DS_ID id) const;
   void save_ds(addr_t addr, DS *ds);
 
-  void inc_fraction_of_traffic_recirculated(int recirc_port,
-                                            float new_fraction) {
-    assert(recirc_port >= 0);
-    assert(recirc_port < recirc_ports);
-    recirc_fraction_per_recirc_port[recirc_port] += new_fraction;
-  }
-
-  void inc_recirculation_surplus(int recirc_port, float surplus) {
-    assert(recirc_port >= 0);
-    assert(recirc_port < recirc_ports);
-    recirc_surplus_per_recirc_port[recirc_port] += surplus;
-  }
+  void add_recirculated_traffic(int port, int total_recirc_times,
+                                float fraction);
 
   void parser_transition(const EP *ep, const bdd::Node *node,
                          klee::ref<klee::Expr> hdr);

@@ -29,6 +29,7 @@ struct bdd_profile_t {
   config_t config;
   bdd_node_counters counters;
   time_ns_t elapsed;
+  int avg_pkt_bytes;
 };
 
 bdd_profile_t parse_bdd_profile(const std::string &filename);

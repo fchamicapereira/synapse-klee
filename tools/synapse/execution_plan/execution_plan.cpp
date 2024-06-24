@@ -28,10 +28,10 @@ get_initial_target(const std::vector<const Target *> &targets) {
 
 EP::EP(std::shared_ptr<const bdd::BDD> _bdd,
        const std::vector<const Target *> &_targets,
-       std::shared_ptr<HitRateTree> _hit_rate_tree)
+       std::shared_ptr<Profiler> _profiler)
     : id(counter++), bdd(_bdd), root(nullptr),
       initial_target(get_initial_target(_targets)),
-      targets(get_target_types(_targets)), hit_rate_tree(_hit_rate_tree),
+      targets(get_target_types(_targets)), profiler(_profiler),
       ctx(_bdd.get(), _targets), meta(bdd.get(), targets, initial_target) {
   targets_roots[initial_target] = bdd::nodes_t({bdd->get_root()->get_id()});
 
@@ -59,7 +59,7 @@ EP::EP(const EP &other, bool is_ancestor)
       root(other.root ? other.root->clone(true) : nullptr),
       initial_target(other.initial_target), targets(other.targets),
       ancestors(update_ancestors(other, is_ancestor)),
-      targets_roots(other.targets_roots), hit_rate_tree(other.hit_rate_tree),
+      targets_roots(other.targets_roots), profiler(other.profiler),
       ctx(other.ctx), meta(other.meta) {
   if (!root) {
     assert(other.leaves.size() == 1);
@@ -207,14 +207,14 @@ void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves,
     new_node->set_prev(active_leaf->node);
   }
 
-  meta.update(active_leaf, new_node, hit_rate_tree.get(), process_node);
+  meta.update(active_leaf, new_node, profiler.get(), process_node);
   meta.depth++;
 
   for (const EPLeaf &new_leaf : new_leaves) {
     if (!new_leaf.next)
       continue;
 
-    meta.update(active_leaf, new_leaf.node, hit_rate_tree.get(), process_node);
+    meta.update(active_leaf, new_leaf.node, profiler.get(), process_node);
 
     const Module *module = new_leaf.node->get_module();
     TargetType next_target = module->get_next_target();
@@ -302,7 +302,7 @@ void EP::log_debug_placements() const {
   }
 }
 
-void EP::log_debug_hit_rate() const { hit_rate_tree->log_debug(); }
+void EP::log_debug_hit_rate() const { profiler->log_debug(); }
 
 void EP::inspect() const {
   std::vector<const EPNode *> nodes{root};
@@ -367,7 +367,7 @@ float EP::get_active_leaf_hit_rate() const {
     return 1.0;
   }
 
-  std::optional<float> fraction = hit_rate_tree->get_fraction(constraints);
+  std::optional<float> fraction = profiler->get_fraction(constraints);
   assert(fraction.has_value());
 
   return *fraction;
@@ -375,8 +375,8 @@ float EP::get_active_leaf_hit_rate() const {
 
 void EP::add_hit_rate_estimation(klee::ref<klee::Expr> new_constraint,
                                  float estimation_rel) {
-  HitRateTree *new_hit_rate_tree = new HitRateTree(*hit_rate_tree);
-  hit_rate_tree.reset(new_hit_rate_tree);
+  Profiler *new_profiler = new Profiler(*profiler);
+  profiler.reset(new_profiler);
 
   constraints_t constraints = get_active_leaf_constraints();
 
@@ -385,16 +385,16 @@ void EP::add_hit_rate_estimation(klee::ref<klee::Expr> new_constraint,
     Log::dbg() << "   " << kutil::expr_to_string(constraint, true) << "\n";
   }
 
-  hit_rate_tree->insert_relative(constraints, new_constraint, estimation_rel);
+  profiler->insert_relative(constraints, new_constraint, estimation_rel);
 
   Log::dbg() << "\n";
   Log::dbg() << "Resulting Hit rate:\n";
-  hit_rate_tree->log_debug();
+  profiler->log_debug();
   Log::dbg() << "\n";
 }
 
 void EP::remove_hit_rate_node(const constraints_t &constraints) {
-  hit_rate_tree->remove(constraints);
+  profiler->remove(constraints);
 }
 
 void EP::update_node_constraints(const EPNode *on_true_node,

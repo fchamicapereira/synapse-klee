@@ -2,6 +2,7 @@
 
 #include "parser.h"
 #include "simple_placer.h"
+#include "perf_oracle.h"
 
 #include <unordered_map>
 
@@ -11,9 +12,10 @@ namespace tofino {
 enum class TNAVersion { TNA1, TNA2 };
 
 struct TNAProperties {
-  uint64_t port_capacity_pps;
+  uint64_t port_capacity_bps;
   int total_ports;
-  int total_recirculation_ports;
+  uint64_t recirc_port_capacity_bps;
+  int total_recirc_ports;
   int max_packet_bytes_in_condition;
   int pipes;
   int stages;
@@ -40,11 +42,12 @@ private:
   const TNAProperties properties;
 
   SimplePlacer simple_placer;
+  PerfOracle perf_oracle;
 
 public:
   Parser parser;
 
-  TNA(TNAVersion version);
+  TNA(TNAVersion version, int avg_pkt_bytes);
   TNA(const TNA &other);
 
   TNAVersion get_version() const { return version; }
@@ -65,6 +68,9 @@ public:
                  const std::unordered_set<DS_ID> &deps) const;
 
   void log_debug_placement() const;
+
+  const PerfOracle &get_perf_oracle() const;
+  PerfOracle &get_mutable_perf_oracle();
 };
 
 } // namespace tofino

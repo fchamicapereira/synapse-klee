@@ -6,7 +6,7 @@
 #include "node.h"
 #include "../targets/target.h"
 
-#include "../hit_rate_tree.h"
+#include "../profiler.h"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -81,7 +81,7 @@ struct EPMeta {
   void process_node(const bdd::Node *node, TargetType target);
   void update_total_bdd_nodes(const bdd::BDD *bdd);
   void update(const EPLeaf *leaf, const EPNode *new_node,
-              const HitRateTree *hit_rate_tree, bool process_node);
+              const Profiler *profiler, bool process_node);
   void transfer_traffic(TargetType old_target, TargetType new_target,
                         float fraction);
   void update_constraints_per_node(ep_node_id_t node,

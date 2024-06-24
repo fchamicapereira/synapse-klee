@@ -100,7 +100,7 @@ static void visit_definitions(std::stringstream &ss,
   ss << " colspan=\"3\"";
   ss << ">";
   if (ssnode->module_data) {
-    ss << ssnode->module_data->name;
+    ss << ssnode->module_data->description;
   } else {
     ss << "ROOT";
   }

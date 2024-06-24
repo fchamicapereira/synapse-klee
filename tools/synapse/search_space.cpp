@@ -95,7 +95,7 @@ void SearchSpace::add_to_active_leaf(
 
     module_data_t module_data = {
         .type = modgen->get_type(),
-        .name = modgen->get_name(),
+        .description = modgen->get_name(),
         .hit_rate = ep->get_active_leaf_hit_rate(),
     };
 

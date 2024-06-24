@@ -13,8 +13,7 @@ void EPMeta::process_node(const bdd::Node *node, TargetType target) {
 }
 
 void EPMeta::update(const EPLeaf *leaf, const EPNode *new_node,
-                    const HitRateTree *hit_rate_tree,
-                    bool should_process_node) {
+                    const Profiler *profiler, bool should_process_node) {
   ep_node_id_t node_id = new_node->get_id();
   if (visited_ep_nodes.find(node_id) != visited_ep_nodes.end()) {
     return;
@@ -28,7 +27,7 @@ void EPMeta::update(const EPLeaf *leaf, const EPNode *new_node,
   TargetType next_target = module->get_next_target();
   if (next_target != target) {
     constraints_t constraints = get_node_constraints(new_node);
-    std::optional<float> fraction = hit_rate_tree->get_fraction(constraints);
+    std::optional<float> fraction = profiler->get_fraction(constraints);
     assert(fraction.has_value());
 
     transfer_traffic(target, next_target, *fraction);

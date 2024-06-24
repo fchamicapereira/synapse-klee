@@ -76,7 +76,7 @@ llvm::cl::opt<bool> Verbose("v", llvm::cl::desc("Verbose mode."),
                             llvm::cl::cat(SyNAPSE));
 } // namespace
 
-search_product_t search(const bdd::BDD *bdd, HitRateTree *hit_rate_tree) {
+search_product_t search(const bdd::BDD *bdd, Profiler *profiler) {
   unsigned seed = Seed ? Seed : std::random_device()();
 
   // BFS heuristic(seed);
@@ -88,7 +88,7 @@ search_product_t search(const bdd::BDD *bdd, HitRateTree *hit_rate_tree) {
     peek.insert(ep_id);
   }
 
-  SearchEngine engine(bdd, &heuristic, hit_rate_tree, !BDDNoReorder, peek);
+  SearchEngine engine(bdd, &heuristic, profiler, !BDDNoReorder, peek);
   search_product_t result = engine.search();
 
   return result;
@@ -117,19 +117,19 @@ int main(int argc, char **argv) {
 
   bdd::BDD *bdd = new bdd::BDD(InputBDDFile);
 
-  HitRateTree *hit_rate_tree = nullptr;
+  Profiler *profiler = nullptr;
   if (!BDDProfile.empty()) {
-    hit_rate_tree = new HitRateTree(bdd, BDDProfile);
+    profiler = new Profiler(bdd, BDDProfile);
   } else {
-    hit_rate_tree = new HitRateTree(bdd, Seed);
+    profiler = new Profiler(bdd, Seed);
   }
 
-  hit_rate_tree->log_debug();
+  profiler->log_debug();
 
   std::string nf_name = nf_name_from_bdd(InputBDDFile);
 
   auto start_search = std::chrono::steady_clock::now();
-  search_product_t result = search(bdd, hit_rate_tree);
+  search_product_t result = search(bdd, profiler);
   auto end_search = std::chrono::steady_clock::now();
 
   auto search_dt = std::chrono::duration_cast<std::chrono::seconds>(

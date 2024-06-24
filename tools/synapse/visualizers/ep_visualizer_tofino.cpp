@@ -49,7 +49,7 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
 
   const bdd::Node *bdd_node = node->get_node();
   TargetType target = node->get_target();
-  int port = node->get_recirculation_port();
+  int port = node->get_recirc_port();
 
   label_builder << "Recirculate (";
   label_builder << port;
