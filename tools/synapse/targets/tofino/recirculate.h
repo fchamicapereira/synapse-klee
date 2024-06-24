@@ -2,18 +2,22 @@
 
 #include "tofino_module.h"
 
+// We only allow recirculating at most twice per packet.
+#define MAX_RECIRCULATIONS 2
+
 namespace synapse {
 namespace tofino {
 
 class Recirculate : public TofinoModule {
 private:
   symbols_t symbols;
-  int recirc_port;
+  std::vector<int> recirc_ports;
 
 public:
-  Recirculate(const bdd::Node *node, symbols_t _symbols, int _recirc_port)
+  Recirculate(const bdd::Node *node, symbols_t _symbols,
+              std::vector<int> _recirc_ports)
       : TofinoModule(ModuleType::Tofino_Recirculate, "Recirculate", node),
-        symbols(_symbols), recirc_port(_recirc_port) {}
+        symbols(_symbols), recirc_ports(_recirc_ports) {}
 
   virtual void visit(EPVisitor &visitor, const EP *ep,
                      const EPNode *ep_node) const override {
@@ -21,12 +25,12 @@ public:
   }
 
   virtual Module *clone() const {
-    Recirculate *cloned = new Recirculate(node, symbols, recirc_port);
+    Recirculate *cloned = new Recirculate(node, symbols, recirc_ports);
     return cloned;
   }
 
   symbols_t get_symbols() const { return symbols; }
-  int get_recirc_port() const { return recirc_port; }
+  const std::vector<int> &get_recirc_ports() const { return recirc_ports; }
 };
 
 class RecirculateGenerator : public TofinoModuleGenerator {
@@ -63,27 +67,65 @@ protected:
 
     symbols_t symbols = get_dataplane_state(ep, node);
 
-    for (int recirc_port = 0; recirc_port < total_recirc_ports; recirc_port++) {
-      int past_recirc = 0;
-      if (total_past_recirc.find(recirc_port) != total_past_recirc.end()) {
-        past_recirc = total_past_recirc[recirc_port];
-      }
+    generate_eps_single_port_recirc(ep, node, total_past_recirc,
+                                    total_recirc_ports, symbols, new_eps);
 
-      // We only allow recirculating at most twice per packet.
-      if (past_recirc == 2) {
-        return new_eps;
-      }
-
-      const EP *new_ep =
-          generate_new_ep(ep, node, symbols, recirc_port, past_recirc);
-
-      new_eps.push_back(new_ep);
-    }
+    // Now evenly distribute the traffic among the recirculation ports.
+    generate_ep_recirc_all_ports(ep, node, total_past_recirc,
+                                 total_recirc_ports, symbols, new_eps);
 
     return new_eps;
   }
 
 private:
+  void generate_eps_single_port_recirc(
+      const EP *ep, const bdd::Node *node,
+      const std::unordered_map<int, int> &total_past_recirc,
+      int total_recirc_ports, const symbols_t &symbols,
+      std::vector<const EP *> &new_eps) const {
+    for (int recirc_port = 0; recirc_port < total_recirc_ports; recirc_port++) {
+      int past_recirc = 0;
+      if (total_past_recirc.find(recirc_port) != total_past_recirc.end()) {
+        past_recirc = total_past_recirc.at(recirc_port);
+      }
+
+      if (past_recirc == MAX_RECIRCULATIONS) {
+        continue;
+      }
+
+      const EP *new_ep =
+          generate_new_ep(ep, node, symbols, {recirc_port}, total_past_recirc);
+
+      new_eps.push_back(new_ep);
+    }
+  }
+
+  void generate_ep_recirc_all_ports(
+      const EP *ep, const bdd::Node *node,
+      const std::unordered_map<int, int> &total_past_recirc,
+      int total_recirc_ports, const symbols_t &symbols,
+      std::vector<const EP *> &new_eps) const {
+    std::vector<int> recirc_ports;
+
+    for (int recirc_port = 0; recirc_port < total_recirc_ports; recirc_port++) {
+      int past_recirc = 0;
+      if (total_past_recirc.find(recirc_port) != total_past_recirc.end()) {
+        past_recirc = total_past_recirc.at(recirc_port);
+      }
+
+      if (past_recirc == MAX_RECIRCULATIONS) {
+        return;
+      }
+
+      recirc_ports.push_back(recirc_port);
+    }
+
+    const EP *new_ep =
+        generate_new_ep(ep, node, symbols, recirc_ports, total_past_recirc);
+
+    new_eps.push_back(new_ep);
+  }
+
   int get_total_recirc_ports(const EP *ep) const {
     const TofinoContext *ctx = get_tofino_ctx(ep);
     const TNA &tna = ctx->get_tna();
@@ -91,12 +133,13 @@ private:
     return properties.total_recirc_ports;
   }
 
-  const EP *generate_new_ep(const EP *ep, const bdd::Node *node,
-                            const symbols_t &symbols, int recirc_port,
-                            int past_recirc) const {
+  const EP *
+  generate_new_ep(const EP *ep, const bdd::Node *node, const symbols_t &symbols,
+                  const std::vector<int> &recirc_ports,
+                  const std::unordered_map<int, int> &total_past_recirc) const {
     EP *new_ep = new EP(*ep);
 
-    Module *module = new Recirculate(node, symbols, recirc_port);
+    Module *module = new Recirculate(node, symbols, recirc_ports);
     EPNode *ep_node = new EPNode(module);
 
     // Note that we don't point to the next BDD node, as it was not actually
@@ -105,20 +148,25 @@ private:
     EPLeaf leaf(ep_node, node);
     new_ep->process_leaf(ep_node, {leaf}, false);
 
-    update_fraction_of_traffic_recirculated_metric(recirc_port, past_recirc,
-                                                   new_ep);
+    TofinoContext *ctx = get_mutable_tofino_ctx(new_ep);
+    float recirc_fraction = ep->get_active_leaf_hit_rate();
+    size_t total_recirc_ports_in_use = recirc_ports.size();
+
+    for (int recirc_port : recirc_ports) {
+      int past_recirc = 0;
+      if (total_past_recirc.find(recirc_port) != total_past_recirc.end()) {
+        past_recirc = total_past_recirc.at(recirc_port);
+      }
+
+      float port_load = recirc_fraction / total_recirc_ports_in_use;
+      ctx->add_recirculated_traffic(recirc_port, past_recirc + 1, port_load);
+    }
+
+    const TNA &tna = get_tna(new_ep);
+    const PerfOracle &oracle = tna.get_perf_oracle();
+    oracle.log_debug();
 
     return new_ep;
-  }
-
-  void update_fraction_of_traffic_recirculated_metric(int recirc_port,
-                                                      int past_recirc,
-                                                      EP *ep) const {
-    TofinoContext *ctx = get_mutable_tofino_ctx(ep);
-    float recirc_fraction = ep->get_active_leaf_hit_rate();
-
-    ctx->add_recirculated_traffic(recirc_port, past_recirc + 1,
-                                  recirc_fraction);
   }
 
   std::unordered_map<int, int>
@@ -138,15 +186,18 @@ private:
       if (module->get_type() == ModuleType::Tofino_Recirculate) {
         const Recirculate *recirc_module =
             static_cast<const Recirculate *>(module);
-        int recirc_port = recirc_module->get_recirc_port();
-        assert(recirc_port < total_recirc_ports);
+        const std::vector<int> &recirc_ports =
+            recirc_module->get_recirc_ports();
+        assert((int)recirc_ports.size() <= total_recirc_ports);
 
-        if (past_recirc_per_port.find(recirc_port) ==
-            past_recirc_per_port.end()) {
-          past_recirc_per_port[recirc_port] = 0;
+        for (int recirc_port : recirc_ports) {
+          if (past_recirc_per_port.find(recirc_port) ==
+              past_recirc_per_port.end()) {
+            past_recirc_per_port[recirc_port] = 0;
+          }
+
+          past_recirc_per_port[recirc_port]++;
         }
-
-        past_recirc_per_port[recirc_port]++;
       }
     }
 

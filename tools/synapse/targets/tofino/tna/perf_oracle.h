@@ -31,7 +31,7 @@ private:
   std::vector<RecircPortUsage> recirc_ports_usage;
   float non_recirc_traffic;
 
-  mutable std::optional<uint64_t> cached_throughput_kpps;
+  uint64_t throughput_kpps;
 
 public:
   PerfOracle(const TNAProperties *properties, int avg_pkt_bytes);
@@ -40,8 +40,10 @@ public:
   void add_recirculated_traffic(int port, int total_recirc_times,
                                 float fraction);
   uint64_t estimate_throughput_kpps() const;
-
   void log_debug() const;
+
+private:
+  void update_estimate_throughput_kpps();
 };
 
 } // namespace tofino

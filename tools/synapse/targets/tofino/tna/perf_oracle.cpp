@@ -14,10 +14,12 @@ PerfOracle::PerfOracle(const TNAProperties *properties, int _avg_pkt_bytes)
       recirc_port_capacity_bps(properties->recirc_port_capacity_bps),
       avg_pkt_bytes(_avg_pkt_bytes),
       recirc_ports_usage(properties->total_recirc_ports), non_recirc_traffic(1),
-      cached_throughput_kpps(std::nullopt) {
+      throughput_kpps(0) {
   for (int port = 0; port < total_recirc_ports; port++) {
     recirc_ports_usage[port].port = port;
   }
+
+  update_estimate_throughput_kpps();
 }
 
 PerfOracle::PerfOracle(const PerfOracle &other)
@@ -28,12 +30,10 @@ PerfOracle::PerfOracle(const PerfOracle &other)
       avg_pkt_bytes(other.avg_pkt_bytes),
       recirc_ports_usage(other.recirc_ports_usage),
       non_recirc_traffic(other.non_recirc_traffic),
-      cached_throughput_kpps(other.cached_throughput_kpps) {}
+      throughput_kpps(other.throughput_kpps) {}
 
 void PerfOracle::add_recirculated_traffic(int port, int total_recirc_times,
                                           float fraction) {
-  cached_throughput_kpps.reset();
-
   assert(port < total_recirc_ports);
   RecircPortUsage &usage = recirc_ports_usage[port];
 
@@ -57,16 +57,12 @@ void PerfOracle::add_recirculated_traffic(int port, int total_recirc_times,
 
   assert(usage.fractions[total_recirc_times - 1] <= 1);
 
-  log_debug();
+  update_estimate_throughput_kpps();
 }
 
-uint64_t PerfOracle::estimate_throughput_kpps() const {
-  if (cached_throughput_kpps.has_value()) {
-    return cached_throughput_kpps.value();
-  }
-
+void PerfOracle::update_estimate_throughput_kpps() {
   uint64_t Tswitch_bps = port_capacity_bps * total_ports;
-  uint64_t total_throughput_bps = 0;
+  uint64_t throughput_bps = 0;
 
   for (const RecircPortUsage &usage : recirc_ports_usage) {
     size_t recirc_depth = usage.fractions.size();
@@ -104,17 +100,15 @@ uint64_t PerfOracle::estimate_throughput_kpps() const {
       assert(false && "TODO");
     }
 
-    total_throughput_bps += std::min(Tout_bps, port_capacity_bps);
+    throughput_bps += std::min(Tout_bps, port_capacity_bps);
   }
 
-  total_throughput_bps += non_recirc_traffic * Tswitch_bps;
+  throughput_bps += non_recirc_traffic * Tswitch_bps;
+  throughput_kpps = throughput_bps / (avg_pkt_bytes * 8 * 1000);
+}
 
-  uint64_t total_throughput_kpps =
-      total_throughput_bps / (avg_pkt_bytes * 8 * 1000);
-
-  cached_throughput_kpps = total_throughput_kpps;
-
-  return total_throughput_kpps;
+uint64_t PerfOracle::estimate_throughput_kpps() const {
+  return throughput_kpps;
 }
 
 void PerfOracle::log_debug() const {
