@@ -49,15 +49,10 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
 
   const bdd::Node *bdd_node = node->get_node();
   TargetType target = node->get_target();
-  const std::vector<int> &ports = node->get_recirc_ports();
+  int port = node->get_recirc_port();
 
   label_builder << "Recirculate (";
-  for (int i = 0; i < (int)ports.size(); i++) {
-    label_builder << ports[i];
-    if (i < (int)ports.size() - 1) {
-      label_builder << ",";
-    }
-  }
+  label_builder << port;
   label_builder << ")";
 
   std::string label = label_builder.str();

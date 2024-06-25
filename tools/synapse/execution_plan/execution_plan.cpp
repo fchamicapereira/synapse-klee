@@ -403,10 +403,13 @@ void EP::update_node_constraints(const EPNode *on_true_node,
   const EPLeaf *active_leaf = get_active_leaf();
   assert(active_leaf && "No active leaf");
 
-  const EPNode *active_node = active_leaf->node;
-  assert(active_node && "No active node");
+  constraints_t constraints;
 
-  constraints_t constraints = meta.get_node_constraints(active_node);
+  const EPNode *active_node = active_leaf->node;
+
+  if (active_node) {
+    constraints = meta.get_node_constraints(active_node);
+  }
 
   klee::ref<klee::Expr> new_constraint_not =
       kutil::solver_toolbox.exprBuilder->Not(new_constraint);

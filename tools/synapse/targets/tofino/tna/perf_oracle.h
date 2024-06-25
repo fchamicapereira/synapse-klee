@@ -37,8 +37,8 @@ public:
   PerfOracle(const TNAProperties *properties, int avg_pkt_bytes);
   PerfOracle(const PerfOracle &other);
 
-  void add_recirculated_traffic(int port, int total_recirc_times,
-                                float fraction);
+  void add_recirculated_traffic(int port, int port_recirculations,
+                                int total_recirculations, float fraction);
   uint64_t estimate_throughput_kpps() const;
   void log_debug() const;
 

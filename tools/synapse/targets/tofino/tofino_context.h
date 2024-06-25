@@ -34,8 +34,8 @@ public:
   const DS *get_ds_from_id(DS_ID id) const;
   void save_ds(addr_t addr, DS *ds);
 
-  void add_recirculated_traffic(int port, int total_recirc_times,
-                                float fraction);
+  void add_recirculated_traffic(int port, int port_recirculations,
+                                int total_recirculations, float fraction);
 
   void parser_transition(const EP *ep, const bdd::Node *node,
                          klee::ref<klee::Expr> hdr);

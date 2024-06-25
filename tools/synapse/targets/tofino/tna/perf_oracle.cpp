@@ -32,30 +32,35 @@ PerfOracle::PerfOracle(const PerfOracle &other)
       non_recirc_traffic(other.non_recirc_traffic),
       throughput_kpps(other.throughput_kpps) {}
 
-void PerfOracle::add_recirculated_traffic(int port, int total_recirc_times,
+void PerfOracle::add_recirculated_traffic(int port, int port_recirculations,
+                                          int total_recirculations,
                                           float fraction) {
   assert(port < total_recirc_ports);
   RecircPortUsage &usage = recirc_ports_usage[port];
 
   assert(usage.port == port);
 
-  int curr_total_recirc_times = usage.fractions.size();
-  assert(total_recirc_times == curr_total_recirc_times ||
-         total_recirc_times == curr_total_recirc_times + 1);
+  int curr_port_recirculations = usage.fractions.size();
+  assert(port_recirculations == curr_port_recirculations ||
+         port_recirculations == curr_port_recirculations + 1);
 
-  if (total_recirc_times == curr_total_recirc_times + 1) {
+  if (port_recirculations > curr_port_recirculations) {
     usage.fractions.push_back(0);
+    assert(curr_port_recirculations == 0 ||
+           fraction <= usage.fractions[curr_port_recirculations - 1]);
+    assert(port_recirculations == (int)usage.fractions.size());
   }
 
-  usage.fractions[total_recirc_times - 1] += fraction;
+  usage.fractions[port_recirculations - 1] += fraction;
 
-  if (total_recirc_times == 1 && non_recirc_traffic > 0) {
+  assert(usage.fractions[port_recirculations - 1] >= 0);
+  assert(usage.fractions[port_recirculations - 1] <= 1);
+
+  if (total_recirculations == 1 && non_recirc_traffic > 0) {
     non_recirc_traffic -= fraction;
     assert(non_recirc_traffic >= 0);
     assert(non_recirc_traffic <= 1);
   }
-
-  assert(usage.fractions[total_recirc_times - 1] <= 1);
 
   update_estimate_throughput_kpps();
 }

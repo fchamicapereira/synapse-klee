@@ -233,10 +233,12 @@ bool TofinoContext::check_many_placements(
   return status == PlacementStatus::SUCCESS;
 }
 
-void TofinoContext::add_recirculated_traffic(int port, int total_recirc_times,
+void TofinoContext::add_recirculated_traffic(int port, int port_recirculations,
+                                             int total_recirculations,
                                              float fraction) {
   PerfOracle &oracle = tna.get_mutable_perf_oracle();
-  oracle.add_recirculated_traffic(port, total_recirc_times, fraction);
+  oracle.add_recirculated_traffic(port, port_recirculations,
+                                  total_recirculations, fraction);
 }
 
 int TofinoContext::estimate_throughput_kpps() const {
