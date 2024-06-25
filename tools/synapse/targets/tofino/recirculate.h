@@ -2,8 +2,7 @@
 
 #include "tofino_module.h"
 
-// We only allow recirculating at most twice per packet.
-#define MAX_RECIRCULATIONS 2
+#define MAX_RECIRCULATIONS_PER_PACKET 3
 
 namespace synapse {
 namespace tofino {
@@ -80,12 +79,12 @@ private:
       std::vector<const EP *> &new_eps) const {
     for (int recirc_port = 0; recirc_port < total_recirc_ports; recirc_port++) {
       if (total_past_recirc.find(recirc_port) != total_past_recirc.end() &&
-          total_past_recirc.at(recirc_port) == MAX_RECIRCULATIONS) {
+          total_past_recirc.at(recirc_port) == MAX_RECIRCULATIONS_PER_PACKET) {
         continue;
       }
 
       const EP *new_ep =
-          generate_new_ep(ep, node, symbols, {recirc_port}, total_past_recirc);
+          generate_new_ep(ep, node, symbols, recirc_port, total_past_recirc);
 
       new_eps.push_back(new_ep);
     }
