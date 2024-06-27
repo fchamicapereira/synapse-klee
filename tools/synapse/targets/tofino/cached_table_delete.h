@@ -57,6 +57,45 @@ public:
                               "CachedTableDelete") {}
 
 protected:
+  virtual std::optional<speculation_t>
+  speculate(const EP *ep, const bdd::Node *node,
+            const constraints_t &current_speculative_constraints,
+            const Context &current_speculative_ctx) const override {
+    if (node->get_type() != bdd::NodeType::CALL) {
+      return std::nullopt;
+    }
+
+    const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
+    const call_t &call = call_node->get_call();
+
+    if (call.function_name != "map_erase" &&
+        call.function_name != "dchain_free_index") {
+      return std::nullopt;
+    }
+
+    const bdd::Call *map_erase;
+
+    if (call.function_name == "dchain_free_index") {
+      map_erase = get_map_erase_after_dchain_free(ep, call_node);
+    } else {
+      map_erase = call_node;
+    }
+
+    if (!map_erase) {
+      return std::nullopt;
+    }
+
+    map_coalescing_data_t coalescing_data;
+    if (!can_place_cached_table(ep, map_erase, coalescing_data)) {
+      return std::nullopt;
+    }
+
+    // TODO: Implement speculative processing
+    return std::nullopt;
+
+    return current_speculative_ctx;
+  }
+
   virtual std::vector<const EP *>
   process_node(const EP *ep, const bdd::Node *node) const override {
     std::vector<const EP *> new_eps;

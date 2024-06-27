@@ -14,7 +14,7 @@ std::ostream &operator<<(std::ostream &os, const Score &score) {
 
     ScoreCategory category = score.categories[i].first;
     ScoreObjective objective = score.categories[i].second;
-    int value = score.values[i];
+    int64_t value = score.values[i];
 
     switch (objective) {
     case ScoreObjective::MIN:
@@ -73,13 +73,16 @@ std::ostream &operator<<(std::ostream &os, ScoreCategory score_category) {
     os << "#SwitchDS";
     break;
   case ScoreCategory::Throughput:
-    os << "Throughput(Kpps)";
+    os << "T(pps)";
+    break;
+  case ScoreCategory::SpeculativeThroughput:
+    os << "T*(pps)";
     break;
   }
   return os;
 }
 
-int Score::get_nr_nodes(const EP *ep) const {
+int64_t Score::get_nr_nodes(const EP *ep) const {
   const EPMeta &meta = ep->get_meta();
   return meta.nodes;
 }
@@ -109,13 +112,13 @@ Score::get_nodes_with_type(const EP *ep,
   return found;
 }
 
-int Score::get_depth(const EP *ep) const {
+int64_t Score::get_depth(const EP *ep) const {
   const EPMeta &meta = ep->get_meta();
   return meta.depth;
 }
 
-int Score::get_nr_switch_nodes(const EP *ep) const {
-  int switch_nodes = 0;
+int64_t Score::get_nr_switch_nodes(const EP *ep) const {
+  int64_t switch_nodes = 0;
 
   const EPMeta &meta = ep->get_meta();
   auto tofino_nodes_it = meta.bdd_nodes_per_target.find(TargetType::Tofino);
@@ -127,8 +130,8 @@ int Score::get_nr_switch_nodes(const EP *ep) const {
   return switch_nodes;
 }
 
-int Score::get_nr_controller_nodes(const EP *ep) const {
-  int controller_nodes = 0;
+int64_t Score::get_nr_controller_nodes(const EP *ep) const {
+  int64_t controller_nodes = 0;
 
   const EPMeta &meta = ep->get_meta();
   auto tofino_controller_nodes_it =
@@ -141,19 +144,19 @@ int Score::get_nr_controller_nodes(const EP *ep) const {
   return controller_nodes;
 }
 
-int Score::get_nr_send_to_controller(const EP *ep) const {
+int64_t Score::get_nr_send_to_controller(const EP *ep) const {
   std::vector<const EPNode *> send_to_controller =
       get_nodes_with_type(ep, {ModuleType::Tofino_SendToController});
   return send_to_controller.size();
 }
 
-int Score::get_nr_reordered_nodes(const EP *ep) const {
+int64_t Score::get_nr_reordered_nodes(const EP *ep) const {
   const EPMeta &meta = ep->get_meta();
   return meta.reordered_nodes;
 }
 
-int Score::get_nr_switch_leaves(const EP *ep) const {
-  int switch_leaves = 0;
+int64_t Score::get_nr_switch_leaves(const EP *ep) const {
+  int64_t switch_leaves = 0;
 
   const std::vector<EPLeaf> &leaves = ep->get_leaves();
   std::vector<TargetType> switch_types{TargetType::Tofino};
@@ -170,7 +173,7 @@ int Score::get_nr_switch_leaves(const EP *ep) const {
   return switch_leaves;
 }
 
-int Score::next_op_same_obj_in_switch(const EP *ep) const {
+int64_t Score::next_op_same_obj_in_switch(const EP *ep) const {
   TargetType target = ep->get_current_platform();
 
   if (target != TargetType::Tofino) {
@@ -211,7 +214,7 @@ int Score::next_op_same_obj_in_switch(const EP *ep) const {
   return 0;
 }
 
-int Score::next_op_is_stateful_in_switch(const EP *ep) const {
+int64_t Score::next_op_is_stateful_in_switch(const EP *ep) const {
   TargetType target = ep->get_current_platform();
 
   if (target != TargetType::Tofino) {
@@ -251,13 +254,13 @@ int Score::next_op_is_stateful_in_switch(const EP *ep) const {
   return 0;
 }
 
-int Score::get_percentage_of_processed_bdd(const EP *ep) const {
+int64_t Score::get_percentage_of_processed_bdd(const EP *ep) const {
   const EPMeta &meta = ep->get_meta();
   return 100 * meta.get_bdd_progress();
 }
 
-int Score::get_nr_switch_data_structures(const EP *ep) const {
-  int switch_data_structures = 0;
+int64_t Score::get_nr_switch_data_structures(const EP *ep) const {
+  int64_t switch_data_structures = 0;
 
   const Context &ctx = ep->get_ctx();
   const std::unordered_map<addr_t, PlacementDecision> &placements =
@@ -278,39 +281,18 @@ int Score::get_nr_switch_data_structures(const EP *ep) const {
   return switch_data_structures;
 }
 
-int Score::get_nr_recirculations(const EP *ep) const {
+int64_t Score::get_nr_recirculations(const EP *ep) const {
   std::vector<const EPNode *> recirculate =
       get_nodes_with_type(ep, {ModuleType::Tofino_Recirculate});
   return recirculate.size();
 }
 
-int Score::estimate_throughput_kpps(const EP *ep) const {
-  int estimation_kpps = 0;
+int64_t Score::get_throughput_prediction(const EP *ep) const {
+  return ep->estimate_throughput_pps();
+}
 
-  const EPMeta &meta = ep->get_meta();
-  const Context &ctx = ep->get_ctx();
-
-  for (const auto &[target, traffic_fraction] :
-       meta.traffic_fraction_per_target) {
-    const TargetContext *target_ctx = nullptr;
-
-    switch (target) {
-    case TargetType::Tofino: {
-      target_ctx = ctx.get_target_ctx<tofino::TofinoContext>();
-    } break;
-    case TargetType::TofinoCPU: {
-      target_ctx = ctx.get_target_ctx<tofino_cpu::TofinoCPUContext>();
-    } break;
-    case TargetType::x86: {
-      target_ctx = ctx.get_target_ctx<x86::x86Context>();
-    } break;
-    }
-
-    int target_estimation = target_ctx->estimate_throughput_kpps();
-    estimation_kpps += target_estimation * traffic_fraction;
-  }
-
-  return estimation_kpps;
+int64_t Score::get_throughput_speculation(const EP *ep) const {
+  return ep->speculate_throughput_pps();
 }
 
 } // namespace synapse

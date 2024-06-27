@@ -233,66 +233,118 @@ void Node::recursive_add_constraint(klee::ref<klee::Expr> constraint) {
   });
 }
 
-void Node::visit_nodes(std::function<NodeVisitAction(const Node *)> fn) const {
-  std::vector<const Node *> nodes{this};
+void Node::visit_nodes(
+    std::function<NodeVisitAction(const Node *, cookie_t *)> fn,
+    std::unique_ptr<cookie_t> cookie) const {
+  std::vector<std::pair<const Node *, cookie_t *>> nodes{
+      {this, cookie.release()}};
+
   while (nodes.size()) {
-    const Node *node = nodes[0];
+    const Node *node = nodes[0].first;
+    cookie_t *node_cookie = nodes[0].second;
+
     nodes.erase(nodes.begin());
 
-    NodeVisitAction action = fn(node);
+    NodeVisitAction action = fn(node, node_cookie);
 
-    if (action == NodeVisitAction::STOP)
+    if (action == NodeVisitAction::STOP) {
+      if (node_cookie)
+        delete node_cookie;
       return;
+    }
 
     switch (node->get_type()) {
     case NodeType::BRANCH: {
       const Branch *branch_node = static_cast<const Branch *>(node);
       const Node *on_true = branch_node->get_on_true();
       const Node *on_false = branch_node->get_on_false();
-      if (on_true && action != NodeVisitAction::SKIP_CHILDREN)
-        nodes.push_back(on_true);
-      if (on_false && action != NodeVisitAction::SKIP_CHILDREN)
-        nodes.push_back(on_false);
+
+      if (on_true && action != NodeVisitAction::SKIP_CHILDREN) {
+        cookie_t *new_cookie = node_cookie ? node_cookie->clone() : node_cookie;
+        nodes.push_back({on_true, new_cookie});
+      }
+
+      if (on_false && action != NodeVisitAction::SKIP_CHILDREN) {
+        cookie_t *new_cookie = node_cookie ? node_cookie->clone() : node_cookie;
+        nodes.push_back({on_false, new_cookie});
+      }
+
+      delete node_cookie;
     } break;
     case NodeType::CALL:
     case NodeType::ROUTE: {
       const Node *next = node->get_next();
-      if (next && action != NodeVisitAction::SKIP_CHILDREN)
-        nodes.push_back(next);
+
+      if (next && action != NodeVisitAction::SKIP_CHILDREN) {
+        nodes.push_back({next, node_cookie});
+      } else {
+        delete node_cookie;
+      }
+
     } break;
     }
   }
 }
 
-void Node::visit_mutable_nodes(std::function<NodeVisitAction(Node *)> fn) {
-  std::vector<Node *> nodes{this};
+void Node::visit_nodes(std::function<NodeVisitAction(const Node *)> fn) const {
+  visit_nodes([fn](const Node *node, void *) { return fn(node); }, nullptr);
+}
+
+void Node::visit_mutable_nodes(
+    std::function<NodeVisitAction(Node *, cookie_t *)> fn,
+    std::unique_ptr<cookie_t> cookie) {
+  std::vector<std::pair<Node *, cookie_t *>> nodes{{this, cookie.release()}};
+
   while (nodes.size()) {
-    Node *node = nodes[0];
+    Node *node = nodes[0].first;
+    cookie_t *node_cookie = nodes[0].second;
+
     nodes.erase(nodes.begin());
 
-    NodeVisitAction action = fn(node);
+    NodeVisitAction action = fn(node, node_cookie);
 
-    if (action == NodeVisitAction::STOP)
+    if (action == NodeVisitAction::STOP) {
+      if (node_cookie)
+        delete node_cookie;
       return;
+    }
 
     switch (node->get_type()) {
     case NodeType::BRANCH: {
       Branch *branch_node = static_cast<Branch *>(node);
       Node *on_true = branch_node->get_mutable_on_true();
       Node *on_false = branch_node->get_mutable_on_false();
-      if (on_true && action != NodeVisitAction::SKIP_CHILDREN)
-        nodes.push_back(on_true);
-      if (on_false && action != NodeVisitAction::SKIP_CHILDREN)
-        nodes.push_back(on_false);
+
+      if (on_true && action != NodeVisitAction::SKIP_CHILDREN) {
+        cookie_t *new_cookie = node_cookie ? node_cookie->clone() : node_cookie;
+        nodes.push_back({on_true, new_cookie});
+      }
+
+      if (on_false && action != NodeVisitAction::SKIP_CHILDREN) {
+        cookie_t *new_cookie = node_cookie ? node_cookie->clone() : node_cookie;
+        nodes.push_back({on_false, new_cookie});
+      }
+
+      delete node_cookie;
     } break;
     case NodeType::CALL:
     case NodeType::ROUTE: {
       Node *next = node->get_mutable_next();
-      if (next && action != NodeVisitAction::SKIP_CHILDREN)
-        nodes.push_back(next);
+
+      if (next && action != NodeVisitAction::SKIP_CHILDREN) {
+        nodes.push_back({next, node_cookie});
+      } else {
+        delete node_cookie;
+      }
+
     } break;
     }
   }
+}
+
+void Node::visit_mutable_nodes(std::function<NodeVisitAction(Node *)> fn) {
+  visit_mutable_nodes([fn](Node *node, cookie_t *) { return fn(node); },
+                      nullptr);
 }
 
 void Node::recursive_free_children(NodeManager &manager) {

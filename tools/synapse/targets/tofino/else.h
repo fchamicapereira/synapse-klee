@@ -26,6 +26,13 @@ public:
   ElseGenerator() : TofinoModuleGenerator(ModuleType::Tofino_Else, "Else") {}
 
 protected:
+  virtual std::optional<speculation_t>
+  speculate(const EP *ep, const bdd::Node *node,
+            const constraints_t &current_speculative_constraints,
+            const Context &current_speculative_ctx) const override {
+    return std::nullopt;
+  }
+
   virtual std::vector<const EP *>
   process_node(const EP *ep, const bdd::Node *node) const override {
     // Never explicitly generate this module from the BDD.

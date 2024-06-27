@@ -30,9 +30,9 @@ EP::EP(std::shared_ptr<const bdd::BDD> _bdd,
        const std::vector<const Target *> &_targets,
        std::shared_ptr<Profiler> _profiler)
     : id(counter++), bdd(_bdd), root(nullptr),
-      initial_target(get_initial_target(_targets)),
-      targets(get_target_types(_targets)), profiler(_profiler),
-      ctx(_bdd.get(), _targets), meta(bdd.get(), targets, initial_target) {
+      initial_target(get_initial_target(_targets)), targets(_targets),
+      profiler(_profiler), ctx(_bdd.get(), _targets, initial_target),
+      meta(bdd.get(), get_target_types(targets), initial_target) {
   targets_roots[initial_target] = bdd::nodes_t({bdd->get_root()->get_id()});
 
   for (const Target *target : _targets) {
@@ -92,6 +92,8 @@ EPNode *EP::get_mutable_root() { return root; }
 
 const std::vector<EPLeaf> &EP::get_leaves() const { return leaves; }
 
+const std::vector<const Target *> &EP::get_targets() const { return targets; }
+
 const bdd::nodes_t &EP::get_target_roots(TargetType target) const {
   assert(targets_roots.find(target) != targets_roots.end() &&
          "Target not found in the roots map.");
@@ -138,8 +140,14 @@ std::vector<const EPNode *> EP::get_prev_nodes_of_current_target() const {
 }
 
 bool EP::has_target(TargetType type) const {
-  return targets.find(type) != targets.end();
+  auto found_it = std::find_if(
+      targets.begin(), targets.end(),
+      [type](const Target *target) { return target->type == type; });
+
+  return found_it != targets.end();
 }
+
+const Profiler *EP::get_profiler() const { return profiler.get(); }
 
 const Context &EP::get_ctx() const { return ctx; }
 
@@ -191,6 +199,8 @@ void EP::process_leaf(const bdd::Node *next_node) {
   } else {
     leaves.erase(leaves.begin());
   }
+
+  ctx.update_throughput_estimates(this);
 }
 
 void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves,
@@ -208,6 +218,8 @@ void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves,
   }
 
   meta.update(active_leaf, new_node, profiler.get(), process_node);
+  ctx.update_traffic_fractions(new_node, profiler.get());
+
   meta.depth++;
 
   for (const EPLeaf &new_leaf : new_leaves) {
@@ -215,6 +227,7 @@ void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves,
       continue;
 
     meta.update(active_leaf, new_leaf.node, profiler.get(), process_node);
+    ctx.update_traffic_fractions(new_node, profiler.get());
 
     const Module *module = new_leaf.node->get_module();
     TargetType next_target = module->get_next_target();
@@ -240,6 +253,8 @@ void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves,
       leaves.insert(leaves.begin(), new_leaf);
     }
   }
+
+  ctx.update_throughput_estimates(this);
 }
 
 void EP::replace_bdd(const bdd::BDD *new_bdd,
@@ -289,6 +304,8 @@ void EP::replace_bdd(const bdd::BDD *new_bdd,
   // and we needed the old nodes to find the new ones.
   bdd.reset(new_bdd);
   meta.update_total_bdd_nodes(new_bdd);
+
+  ctx.update_throughput_estimates(this);
 }
 
 void EP::visit(EPVisitor &visitor) const { visitor.visit(this); }
@@ -357,7 +374,7 @@ constraints_t EP::get_active_leaf_constraints() const {
     return {};
   }
 
-  return meta.get_node_constraints(node);
+  return ctx.get_node_constraints(node);
 }
 
 float EP::get_active_leaf_hit_rate() const {
@@ -408,7 +425,7 @@ void EP::update_node_constraints(const EPNode *on_true_node,
   const EPNode *active_node = active_leaf->node;
 
   if (active_node) {
-    constraints = meta.get_node_constraints(active_node);
+    constraints = ctx.get_node_constraints(active_node);
   }
 
   klee::ref<klee::Expr> new_constraint_not =
@@ -423,8 +440,16 @@ void EP::update_node_constraints(const EPNode *on_true_node,
   ep_node_id_t on_true_id = on_true_node->get_id();
   ep_node_id_t on_false_id = on_false_node->get_id();
 
-  meta.update_constraints_per_node(on_true_id, on_true_constraints);
-  meta.update_constraints_per_node(on_false_id, on_false_constraints);
+  ctx.update_constraints_per_node(on_true_id, on_true_constraints);
+  ctx.update_constraints_per_node(on_false_id, on_false_constraints);
+}
+
+uint64_t EP::estimate_throughput_pps() const {
+  return ctx.get_throughput_estimate_pps();
+}
+
+uint64_t EP::speculate_throughput_pps() const {
+  return ctx.get_throughput_speculation_pps();
 }
 
 } // namespace synapse

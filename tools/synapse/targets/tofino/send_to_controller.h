@@ -35,6 +35,22 @@ public:
                               "SendToController") {}
 
 protected:
+  virtual std::optional<speculation_t>
+  speculate(const EP *ep, const bdd::Node *node,
+            const constraints_t &current_speculative_constraints,
+            const Context &current_speculative_ctx) const override {
+    Context new_ctx = current_speculative_ctx;
+
+    const Profiler *profiler = ep->get_profiler();
+    auto fraction = profiler->get_fraction(current_speculative_constraints);
+    assert(fraction.has_value());
+
+    new_ctx.update_traffic_fractions(TargetType::Tofino, TargetType::TofinoCPU,
+                                     *fraction);
+
+    return new_ctx;
+  }
+
   virtual std::vector<const EP *>
   process_node(const EP *ep, const bdd::Node *node) const override {
     std::vector<const EP *> new_eps;

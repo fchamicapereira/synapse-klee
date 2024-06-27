@@ -4,7 +4,7 @@
 
 #include <cmath>
 
-#define NEWTON_MAX_ITERATIONS 100
+#define NEWTON_MAX_ITERATIONS 10
 #define NEWTON_PRECISION 1e-3
 
 namespace synapse {
@@ -17,12 +17,12 @@ PerfOracle::PerfOracle(const TNAProperties *properties, int _avg_pkt_bytes)
       recirc_port_capacity_bps(properties->recirc_port_capacity_bps),
       avg_pkt_bytes(_avg_pkt_bytes),
       recirc_ports_usage(properties->total_recirc_ports), non_recirc_traffic(1),
-      throughput_kpps(0) {
+      throughput_pps(0) {
   for (int port = 0; port < total_recirc_ports; port++) {
     recirc_ports_usage[port].port = port;
   }
 
-  update_estimate_throughput_kpps();
+  update_estimate_throughput_pps();
 }
 
 PerfOracle::PerfOracle(const PerfOracle &other)
@@ -33,19 +33,23 @@ PerfOracle::PerfOracle(const PerfOracle &other)
       avg_pkt_bytes(other.avg_pkt_bytes),
       recirc_ports_usage(other.recirc_ports_usage),
       non_recirc_traffic(other.non_recirc_traffic),
-      throughput_kpps(other.throughput_kpps) {}
+      throughput_pps(other.throughput_pps) {}
 
 void PerfOracle::add_recirculated_traffic(int port, int port_recirculations,
                                           int total_recirculations,
                                           float fraction) {
   assert(port < total_recirc_ports);
-  RecircPortUsage &usage = recirc_ports_usage[port];
+  assert(port_recirculations > 0);
+  assert(port_recirculations <= total_recirculations);
+  assert(fraction >= 0);
+  assert(fraction <= 1);
 
+  RecircPortUsage &usage = recirc_ports_usage[port];
   assert(usage.port == port);
 
   int curr_port_recirculations = usage.fractions.size();
-  assert(port_recirculations == curr_port_recirculations ||
-         port_recirculations == curr_port_recirculations + 1);
+
+  assert(port_recirculations <= curr_port_recirculations + 1);
 
   if (port_recirculations > curr_port_recirculations) {
     usage.fractions.push_back(0);
@@ -65,7 +69,7 @@ void PerfOracle::add_recirculated_traffic(int port, int port_recirculations,
     assert(non_recirc_traffic <= 1);
   }
 
-  update_estimate_throughput_kpps();
+  update_estimate_throughput_pps();
 }
 
 static uint64_t single_recirc_estimate(uint64_t Tin, uint64_t Cp) {
@@ -89,7 +93,7 @@ static float newton_root_finder(double *coefficients, int n_coefficients,
   double x = (min + max) / 2.0;
   int it = 0;
 
-  while (1) {
+  while (it < NEWTON_MAX_ITERATIONS) {
     double f = 0;
     double df_dx = 0;
 
@@ -109,8 +113,6 @@ static float newton_root_finder(double *coefficients, int n_coefficients,
 
     x = x - f / df_dx;
     it++;
-
-    assert(it < NEWTON_MAX_ITERATIONS);
   }
 
   return x;
@@ -136,7 +138,7 @@ static uint64_t triple_recirc_estimate(uint64_t Tin, uint64_t Cr, uint64_t Cp,
   return std::min(std::min(Tin, Cp), Tout);
 }
 
-void PerfOracle::update_estimate_throughput_kpps() {
+void PerfOracle::update_estimate_throughput_pps() {
   uint64_t Tswitch_bps = port_capacity_bps * total_ports;
   uint64_t throughput_bps = 0;
 
@@ -192,12 +194,12 @@ void PerfOracle::update_estimate_throughput_kpps() {
   }
 
   throughput_bps += non_recirc_traffic * Tswitch_bps;
-  throughput_kpps = throughput_bps / (avg_pkt_bytes * 8 * 1000);
+  throughput_pps = throughput_bps / (avg_pkt_bytes * 8);
+
+  log_debug();
 }
 
-uint64_t PerfOracle::estimate_throughput_kpps() const {
-  return throughput_kpps;
-}
+uint64_t PerfOracle::estimate_throughput_pps() const { return throughput_pps; }
 
 void PerfOracle::log_debug() const {
   Log::dbg() << "====== PerfOracle ======\n";
@@ -209,7 +211,7 @@ void PerfOracle::log_debug() const {
     }
     Log::dbg() << "\n";
   }
-  Log::dbg() << "Estimate: " << estimate_throughput_kpps() << " kpps\n";
+  Log::dbg() << "Estimate: " << estimate_throughput_pps() << " pps\n";
   Log::dbg() << "========================\n";
 }
 

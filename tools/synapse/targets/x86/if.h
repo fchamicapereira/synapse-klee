@@ -34,11 +34,28 @@ public:
   IfGenerator() : x86ModuleGenerator(ModuleType::x86_If, "If") {}
 
 protected:
+  bool bdd_node_match_pattern(const bdd::Node *node) const {
+    if (node->get_type() != bdd::NodeType::BRANCH) {
+      return false;
+    }
+
+    return true;
+  }
+
+  virtual std::optional<speculation_t>
+  speculate(const EP *ep, const bdd::Node *node,
+            const constraints_t &current_speculative_constraints,
+            const Context &current_speculative_ctx) const override {
+    if (bdd_node_match_pattern(node))
+      return current_speculative_ctx;
+    return std::nullopt;
+  }
+
   virtual std::vector<const EP *>
   process_node(const EP *ep, const bdd::Node *node) const override {
     std::vector<const EP *> new_eps;
 
-    if (node->get_type() != bdd::NodeType::BRANCH) {
+    if (!bdd_node_match_pattern(node)) {
       return new_eps;
     }
 

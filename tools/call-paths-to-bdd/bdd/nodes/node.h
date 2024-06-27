@@ -18,6 +18,11 @@ typedef std::unordered_set<node_id_t> nodes_t;
 enum class NodeType { BRANCH, CALL, ROUTE };
 enum class NodeVisitAction { VISIT_CHILDREN, SKIP_CHILDREN, STOP };
 
+struct cookie_t {
+  virtual ~cookie_t() {}
+  virtual cookie_t *clone() const = 0;
+};
+
 class Node {
 protected:
   node_id_t id;
@@ -59,6 +64,12 @@ public:
 
   void visit_nodes(std::function<NodeVisitAction(const Node *)> fn) const;
   void visit_mutable_nodes(std::function<NodeVisitAction(Node *)> fn);
+
+  void visit_nodes(std::function<NodeVisitAction(const Node *, cookie_t *)> fn,
+                   std::unique_ptr<cookie_t> cookie) const;
+  void
+  visit_mutable_nodes(std::function<NodeVisitAction(Node *, cookie_t *)> fn,
+                      std::unique_ptr<cookie_t> cookie);
 
   void recursive_update_ids(node_id_t &new_id);
   void recursive_translate_symbol(const symbol_t &old_symbol,

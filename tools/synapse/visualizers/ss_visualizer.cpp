@@ -145,6 +145,25 @@ static void visit_definitions(std::stringstream &ss,
     ss << "</tr>\n";
   }
 
+  // Metadata rows
+
+  for (const std::string &metadata : ssnode->metadata) {
+    indent(3);
+    ss << "<tr>\n";
+
+    indent(4);
+
+    ss << "<td ";
+    ss << " bgcolor=\"" << target_color << "\"";
+    ss << " colspan=\"3\"";
+    ss << ">";
+    ss << metadata;
+    ss << "</td>\n";
+
+    indent(3);
+    ss << "</tr>\n";
+  }
+
   indent(2);
   ss << "</table>\n";
 

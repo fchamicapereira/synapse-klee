@@ -25,18 +25,35 @@ public:
   DropGenerator() : x86ModuleGenerator(ModuleType::x86_Drop, "Drop") {}
 
 protected:
-  virtual std::vector<const EP *>
-  process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<const EP *> new_eps;
-
+  bool bdd_node_match_pattern(const bdd::Node *node) const {
     if (node->get_type() != bdd::NodeType::ROUTE) {
-      return new_eps;
+      return false;
     }
 
     const bdd::Route *route_node = static_cast<const bdd::Route *>(node);
     bdd::RouteOperation op = route_node->get_operation();
 
     if (op != bdd::RouteOperation::DROP) {
+      return false;
+    }
+
+    return true;
+  }
+
+  virtual std::optional<speculation_t>
+  speculate(const EP *ep, const bdd::Node *node,
+            const constraints_t &current_speculative_constraints,
+            const Context &current_speculative_ctx) const override {
+    if (bdd_node_match_pattern(node))
+      return current_speculative_ctx;
+    return std::nullopt;
+  }
+
+  virtual std::vector<const EP *>
+  process_node(const EP *ep, const bdd::Node *node) const override {
+    std::vector<const EP *> new_eps;
+
+    if (!bdd_node_match_pattern(node)) {
       return new_eps;
     }
 

@@ -8,17 +8,17 @@ namespace x86 {
 
 class x86Context : public TargetContext {
 private:
-  int capacity_kpps;
+  uint64_t capacity_pps;
 
 public:
-  x86Context() : capacity_kpps(120'000) {}
+  x86Context() : capacity_pps(120'000'000) {}
 
   virtual TargetContext *clone() const override {
     return new x86Context(*this);
   }
 
-  virtual int estimate_throughput_kpps() const override {
-    return capacity_kpps;
+  virtual uint64_t estimate_throughput_pps() const override {
+    return capacity_pps;
   }
 };
 

@@ -64,20 +64,48 @@ public:
                            "DchainAllocateNewIndex") {}
 
 protected:
-  virtual std::vector<const EP *>
-  process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<const EP *> new_eps;
-
+  bool bdd_node_match_pattern(const bdd::Node *node) const {
     if (node->get_type() != bdd::NodeType::CALL) {
-      return new_eps;
+      return false;
     }
 
     const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
     const call_t &call = call_node->get_call();
 
     if (call.function_name != "dchain_allocate_new_index") {
+      return false;
+    }
+
+    return true;
+  }
+
+  virtual std::optional<speculation_t>
+  speculate(const EP *ep, const bdd::Node *node,
+            const constraints_t &current_speculative_constraints,
+            const Context &current_speculative_ctx) const override {
+    if (!bdd_node_match_pattern(node)) {
+      return std::nullopt;
+    }
+
+    const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
+
+    if (!can_place(ep, call_node, "chain", PlacementDecision::x86_Dchain)) {
+      return std::nullopt;
+    }
+
+    return current_speculative_ctx;
+  }
+
+  virtual std::vector<const EP *>
+  process_node(const EP *ep, const bdd::Node *node) const override {
+    std::vector<const EP *> new_eps;
+
+    if (!bdd_node_match_pattern(node)) {
       return new_eps;
     }
+
+    const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
+    const call_t &call = call_node->get_call();
 
     if (!can_place(ep, call_node, "chain", PlacementDecision::x86_Dchain)) {
       return new_eps;

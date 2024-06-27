@@ -37,6 +37,14 @@ public:
       : TofinoModuleGenerator(ModuleType::Tofino_Recirculate, "Recirculate") {}
 
 protected:
+  virtual std::optional<speculation_t>
+  speculate(const EP *ep, const bdd::Node *node,
+            const constraints_t &current_speculative_constraints,
+            const Context &current_speculative_ctx) const override {
+    // No reason to speculatively predict recirculations.
+    return std::nullopt;
+  }
+
   virtual std::vector<const EP *>
   process_node(const EP *ep, const bdd::Node *node) const override {
     std::vector<const EP *> new_eps;
@@ -85,7 +93,6 @@ private:
 
       const EP *new_ep =
           generate_new_ep(ep, node, symbols, recirc_port, total_past_recirc);
-
       new_eps.push_back(new_ep);
     }
   }
@@ -112,25 +119,23 @@ private:
     EPLeaf leaf(ep_node, node);
     new_ep->process_leaf(ep_node, {leaf}, false);
 
-    TofinoContext *ctx = get_mutable_tofino_ctx(new_ep);
+    Context &ctx = new_ep->get_mutable_ctx();
+    TofinoContext *tofino_ctx = get_mutable_tofino_ctx(new_ep);
     float recirc_fraction = ep->get_active_leaf_hit_rate();
 
     int total_recirculations = 0;
-    for (auto &[recirc_port, recircs] : total_past_recirc) {
+    for (auto &[recirc_port, recircs] : total_past_recirc)
       total_recirculations += recircs;
-    }
+    total_recirculations += 1;
 
     int port_recirculations = 0;
     if (total_past_recirc.find(recirc_port) != total_past_recirc.end())
       port_recirculations = total_past_recirc.at(recirc_port);
     port_recirculations += 1;
 
-    ctx->add_recirculated_traffic(recirc_port, port_recirculations,
-                                  total_recirculations, recirc_fraction);
-
-    const TNA &tna = get_tna(new_ep);
-    const PerfOracle &oracle = tna.get_perf_oracle();
-    oracle.log_debug();
+    tofino_ctx->add_recirculated_traffic(recirc_port, port_recirculations,
+                                         total_recirculations, recirc_fraction);
+    ctx.update_throughput_estimates(new_ep);
 
     return new_ep;
   }

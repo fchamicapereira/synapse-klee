@@ -36,7 +36,7 @@ private:
   std::vector<EPLeaf> leaves;
 
   const TargetType initial_target;
-  const std::unordered_set<TargetType> targets;
+  const std::vector<const Target *> targets;
   const std::set<ep_id_t> ancestors;
 
   std::unordered_map<TargetType, bdd::nodes_t> targets_roots;
@@ -70,8 +70,10 @@ public:
   const bdd::BDD *get_bdd() const;
   const EPNode *get_root() const;
   const std::vector<EPLeaf> &get_leaves() const;
+  const std::vector<const Target *> &get_targets() const;
   const bdd::nodes_t &get_target_roots(TargetType target) const;
   const std::set<ep_id_t> &get_ancestors() const;
+  const Profiler *get_profiler() const;
   const Context &get_ctx() const;
   const EPMeta &get_meta() const;
 
@@ -107,6 +109,9 @@ public:
                                klee::ref<klee::Expr> new_constraint);
 
   void remove_hit_rate_node(const constraints_t &constraints);
+
+  uint64_t estimate_throughput_pps() const;
+  uint64_t speculate_throughput_pps() const;
 
   void visit(EPVisitor &visitor) const;
 

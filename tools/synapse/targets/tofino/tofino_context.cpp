@@ -241,9 +241,9 @@ void TofinoContext::add_recirculated_traffic(int port, int port_recirculations,
                                   total_recirculations, fraction);
 }
 
-int TofinoContext::estimate_throughput_kpps() const {
+uint64_t TofinoContext::estimate_throughput_pps() const {
   const PerfOracle &oracle = tna.get_perf_oracle();
-  return oracle.estimate_throughput_kpps();
+  return oracle.estimate_throughput_pps();
 }
 
 } // namespace tofino

@@ -25,7 +25,7 @@ public:
     return new TofinoContext(*this);
   }
 
-  virtual int estimate_throughput_kpps() const override;
+  virtual uint64_t estimate_throughput_pps() const override;
 
   const TNA &get_tna() const { return tna; }
   TNA &get_mutable_tna() { return tna; }

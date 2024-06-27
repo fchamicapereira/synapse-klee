@@ -54,6 +54,35 @@ public:
                               "SimpleTableLookup") {}
 
 protected:
+  virtual std::optional<speculation_t>
+  speculate(const EP *ep, const bdd::Node *node,
+            const constraints_t &current_speculative_constraints,
+            const Context &current_speculative_ctx) const override {
+    if (node->get_type() != bdd::NodeType::CALL) {
+      return std::nullopt;
+    }
+
+    const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
+
+    if (!can_place_in_simple_table(ep, call_node)) {
+      return std::nullopt;
+    }
+
+    addr_t obj;
+    int num_entries;
+    std::vector<klee::ref<klee::Expr>> keys;
+    std::vector<klee::ref<klee::Expr>> values;
+    std::optional<symbol_t> hit;
+    DS_ID id;
+
+    if (!get_table_data(ep, call_node, obj, num_entries, keys, values, hit,
+                        id)) {
+      return std::nullopt;
+    }
+
+    return current_speculative_ctx;
+  }
+
   virtual std::vector<const EP *>
   process_node(const EP *ep, const bdd::Node *node) const override {
     std::vector<const EP *> new_eps;

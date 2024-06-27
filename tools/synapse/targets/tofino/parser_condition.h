@@ -48,6 +48,17 @@ public:
                               "ParserCondition") {}
 
 protected:
+  virtual std::optional<speculation_t>
+  speculate(const EP *ep, const bdd::Node *node,
+            const constraints_t &current_speculative_constraints,
+            const Context &current_speculative_ctx) const override {
+    if (node->get_type() != bdd::NodeType::BRANCH) {
+      return std::nullopt;
+    }
+
+    return current_speculative_ctx;
+  }
+
   virtual std::vector<const EP *>
   process_node(const EP *ep, const bdd::Node *node) const override {
     std::vector<const EP *> new_eps;

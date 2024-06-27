@@ -8,6 +8,19 @@
 
 namespace synapse {
 
+class Context;
+
+struct speculation_t {
+  Context ctx;
+  std::unordered_set<bdd::node_id_t> skip;
+
+  speculation_t(const Context &_ctx) : ctx(_ctx) {}
+
+  speculation_t(const Context &_ctx,
+                const std::unordered_set<bdd::node_id_t> &_skip)
+      : ctx(_ctx), skip(_skip) {}
+};
+
 class ModuleGenerator {
 protected:
   ModuleType type;
@@ -23,6 +36,11 @@ public:
 
   std::vector<const EP *> generate(const EP *ep, const bdd::Node *node,
                                    bool reorder_bdd) const;
+
+  virtual std::optional<speculation_t>
+  speculate(const EP *ep, const bdd::Node *node,
+            const constraints_t &current_speculative_constraints,
+            const Context &current_speculative_ctx) const = 0;
 
   ModuleType get_type() const { return type; }
   TargetType get_target() const { return target; }

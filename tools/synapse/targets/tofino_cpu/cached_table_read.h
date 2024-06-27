@@ -48,6 +48,29 @@ public:
                                  "CachedTableRead") {}
 
 protected:
+  virtual std::optional<speculation_t>
+  speculate(const EP *ep, const bdd::Node *node,
+            const constraints_t &current_speculative_constraints,
+            const Context &current_speculative_ctx) const override {
+    if (node->get_type() != bdd::NodeType::CALL) {
+      return std::nullopt;
+    }
+
+    const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
+    const call_t &call = call_node->get_call();
+
+    if (call.function_name != "map_get") {
+      return std::nullopt;
+    }
+
+    if (!can_place(ep, call_node, "map",
+                   PlacementDecision::Tofino_CachedTable)) {
+      return std::nullopt;
+    }
+
+    return current_speculative_ctx;
+  }
+
   virtual std::vector<const EP *>
   process_node(const EP *ep, const bdd::Node *node) const override {
     std::vector<const EP *> new_eps;

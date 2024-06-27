@@ -55,6 +55,38 @@ public:
                               "VectorRegisterUpdate") {}
 
 protected:
+  virtual std::optional<speculation_t>
+  speculate(const EP *ep, const bdd::Node *node,
+            const constraints_t &current_speculative_constraints,
+            const Context &current_speculative_ctx) const override {
+    if (node->get_type() != bdd::NodeType::CALL) {
+      return std::nullopt;
+    }
+
+    const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
+    const call_t &call = call_node->get_call();
+
+    if (call.function_name != "vector_borrow") {
+      return std::nullopt;
+    }
+
+    if (is_vector_read(call_node)) {
+      return std::nullopt;
+    }
+
+    const bdd::Node *vector_return;
+    if (is_conditional_write(call_node, vector_return)) {
+      return std::nullopt;
+    }
+
+    if (!can_place(ep, call_node, "vector",
+                   PlacementDecision::Tofino_VectorRegister)) {
+      return std::nullopt;
+    }
+
+    return current_speculative_ctx;
+  }
+
   virtual std::vector<const EP *>
   process_node(const EP *ep, const bdd::Node *node) const override {
     std::vector<const EP *> new_eps;
