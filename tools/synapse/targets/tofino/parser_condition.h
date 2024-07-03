@@ -59,18 +59,18 @@ protected:
     return current_speculative_ctx;
   }
 
-  virtual std::vector<const EP *>
+  virtual std::vector<generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<const EP *> new_eps;
+    std::vector<generator_product_t> products;
 
     if (node->get_type() != bdd::NodeType::BRANCH) {
-      return new_eps;
+      return products;
     }
 
     const bdd::Branch *branch_node = static_cast<const bdd::Branch *>(node);
 
     if (!is_parser_condition(branch_node)) {
-      return new_eps;
+      return products;
     }
 
     klee::ref<klee::Expr> original_condition = branch_node->get_condition();
@@ -123,7 +123,7 @@ protected:
     assert(branch_node->get_on_false());
 
     EP *new_ep = new EP(*ep);
-    new_eps.push_back(new_ep);
+    products.emplace_back(new_ep);
 
     Module *if_module = new ParserCondition(node, original_condition,
                                             conditional_hdr, field, values);
@@ -148,7 +148,7 @@ protected:
     TofinoContext *tofino_ctx = get_mutable_tofino_ctx(new_ep);
     tofino_ctx->parser_select(ep, node, field, values);
 
-    return new_eps;
+    return products;
   }
 
 private:

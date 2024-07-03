@@ -81,9 +81,9 @@ static std::string get_bdd_node_description(const bdd::Node *node) {
   return node_str;
 }
 
-static std::pair<float, std::string> n2hr(uint64_t n) {
+static std::pair<double, std::string> n2hr(uint64_t n) {
   if (n < 1e3) {
-    return {(float)n, ""};
+    return {(double)n, ""};
   }
 
   if (n < 1e6) {
@@ -135,7 +135,8 @@ static std::string build_meta_throughput_estimate(const EP *ep) {
 
   ss << "Throughput: ";
 
-  const Profiler *profiler = ep->get_profiler();
+  const Context &ctx = ep->get_ctx();
+  const Profiler *profiler = ctx.get_profiler();
   int avg_pkt_size = profiler->get_avg_pkt_bytes();
 
   uint64_t estimate_pps = ep->estimate_throughput_pps();
@@ -155,7 +156,8 @@ static std::string build_meta_throughput_speculation(const EP *ep) {
 
   ss << "Speculation: ";
 
-  const Profiler *profiler = ep->get_profiler();
+  const Context &ctx = ep->get_ctx();
+  const Profiler *profiler = ctx.get_profiler();
   int avg_pkt_size = profiler->get_avg_pkt_bytes();
 
   uint64_t speculation_pps = ep->speculate_throughput_pps();
@@ -172,19 +174,20 @@ static std::string build_meta_throughput_speculation(const EP *ep) {
 
 void SearchSpace::add_to_active_leaf(
     const EP *ep, const bdd::Node *node, const ModuleGenerator *modgen,
-    const std::vector<const EP *> &generated_eps) {
+    const std::vector<generator_product_t> &products) {
   assert(active_leaf && "Active leaf not set");
 
-  for (const EP *generated_ep : generated_eps) {
+  for (const generator_product_t &product : products) {
     ss_node_id_t id = node_id_counter++;
-    ep_id_t ep_id = generated_ep->get_id();
-    Score score = hcfg->get_score(generated_ep);
+    ep_id_t ep_id = product.ep->get_id();
+    Score score = hcfg->get_score(product.ep);
     TargetType target = modgen->get_target();
-    const bdd::Node *next = generated_ep->get_next_node();
+    const bdd::Node *next = product.ep->get_next_node();
 
     module_data_t module_data = {
         .type = modgen->get_type(),
-        .description = modgen->get_name(),
+        .name = modgen->get_name(),
+        .description = product.description,
         .hit_rate = ep->get_active_leaf_hit_rate(),
     };
 
@@ -202,8 +205,8 @@ void SearchSpace::add_to_active_leaf(
     }
 
     std::vector<std::string> metadata = {
-        build_meta_throughput_estimate(generated_ep),
-        build_meta_throughput_speculation(generated_ep),
+        build_meta_throughput_estimate(product.ep),
+        build_meta_throughput_speculation(product.ep),
     };
 
     SSNode *new_node = new SSNode(id, ep_id, score, target, module_data,
@@ -218,5 +221,6 @@ void SearchSpace::add_to_active_leaf(
 
 SSNode *SearchSpace::get_root() const { return root; }
 size_t SearchSpace::get_size() const { return size; }
+const HeuristicCfg *SearchSpace::get_hcfg() const { return hcfg; }
 
 } // namespace synapse

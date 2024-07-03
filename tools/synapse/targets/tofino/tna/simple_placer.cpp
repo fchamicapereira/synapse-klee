@@ -292,10 +292,6 @@ void SimplePlacer::place(const Table *table,
     Stage *stage = &stages[placement.stage_id];
     concretize_placement(stage, placement);
   }
-
-  Log::dbg() << "-> ~~~ New placement ~~~ <-\n";
-  table->log_debug();
-  log_debug();
 }
 
 void SimplePlacer::place(const Register *reg,
@@ -313,10 +309,6 @@ void SimplePlacer::place(const Register *reg,
     Stage *stage = &stages[placement.stage_id];
     concretize_placement(stage, placement);
   }
-
-  Log::dbg() << "-> ~~~ New placement ~~~ <-\n";
-  reg->log_debug();
-  log_debug();
 }
 
 void SimplePlacer::place(const CachedTable *cached_table,
@@ -341,14 +333,6 @@ void SimplePlacer::place(const CachedTable *cached_table,
 
     deps.insert(new_deps.begin(), new_deps.end());
   }
-
-  Log::dbg() << "\n";
-  Log::dbg() << "-> ~~~~~~~~~~~~~~~~~~~~~~~~~~~ <-\n";
-  Log::dbg() << "-> ~~~~~~ NEW PLACEMENT ~~~~~~ <-\n";
-  Log::dbg() << "-> ~~~~~~~~~~~~~~~~~~~~~~~~~~~ <-\n";
-
-  cached_table->log_debug();
-  log_debug();
 }
 
 void SimplePlacer::place(const DS *ds, const std::unordered_set<DS_ID> &deps) {
@@ -458,21 +442,21 @@ void SimplePlacer::log_debug() const {
 
     std::stringstream ss;
 
-    float sram_usage =
+    double sram_usage =
         100.0 - (stage.available_sram * 100.0) / properties->sram_per_stage;
     bits_t sram_consumed = properties->sram_per_stage - stage.available_sram;
 
-    float tcam_usage =
+    double tcam_usage =
         100.0 - (stage.available_tcam * 100.0) / properties->tcam_per_stage;
     bits_t tcam_consumed = properties->tcam_per_stage - stage.available_tcam;
 
-    float map_ram_usage = 100.0 - (stage.available_map_ram * 100.0) /
-                                      properties->map_ram_per_stage;
+    double map_ram_usage = 100.0 - (stage.available_map_ram * 100.0) /
+                                       properties->map_ram_per_stage;
     bits_t map_ram_consumed =
         properties->map_ram_per_stage - stage.available_map_ram;
 
-    float xbar_usage = 100.0 - (stage.available_exact_match_xbar * 100.0) /
-                                   properties->exact_match_xbar_per_stage;
+    double xbar_usage = 100.0 - (stage.available_exact_match_xbar * 100.0) /
+                                    properties->exact_match_xbar_per_stage;
     bits_t xbar_consumed = properties->exact_match_xbar_per_stage -
                            stage.available_exact_match_xbar;
 

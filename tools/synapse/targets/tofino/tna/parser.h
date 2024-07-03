@@ -8,6 +8,8 @@
 #include <sstream>
 #include <optional>
 
+#include "../../../log.h"
+
 namespace synapse {
 namespace tofino {
 
@@ -17,17 +19,51 @@ typedef std::unordered_map<bdd::node_id_t, ParserState *> states_t;
 enum class ParserStateType { EXTRACT, SELECT, TERMINATE };
 
 struct ParserState {
-  bdd::node_id_t id;
+  bdd::nodes_t ids;
   ParserStateType type;
 
   ParserState(bdd::node_id_t _id, ParserStateType _type)
-      : id(_id), type(_type) {}
+      : ids({_id}), type(_type) {}
+
+  ParserState(const bdd::nodes_t &_ids, ParserStateType _type)
+      : ids(_ids), type(_type) {}
 
   virtual ~ParserState() {}
 
-  virtual std::string dump(int lvl = 0) const = 0;
+  virtual std::string dump(int lvl = 0) const {
+    std::stringstream ss;
+
+    ss << std::string(lvl * 2, ' ');
+    ss << "[";
+    bool first = true;
+    for (bdd::node_id_t id : ids) {
+      if (first) {
+        first = false;
+      } else {
+        ss << ", ";
+      }
+      ss << id;
+    }
+    ss << "] ";
+
+    return ss.str();
+  }
+
   virtual ParserState *clone() const = 0;
-  virtual void retrieve(states_t &states) = 0;
+
+  virtual bool equals(const ParserState *other) const {
+    if (!other || other->type != type) {
+      return false;
+    }
+
+    return true;
+  }
+
+  virtual void record(states_t &states) {
+    for (bdd::node_id_t id : ids) {
+      states[id] = this;
+    }
+  }
 };
 
 struct ParserStateTerminate : public ParserState {
@@ -36,13 +72,9 @@ struct ParserStateTerminate : public ParserState {
   ParserStateTerminate(bdd::node_id_t _id, bool _accept)
       : ParserState(_id, ParserStateType::TERMINATE), accept(_accept) {}
 
-  ParserStateTerminate(const ParserStateTerminate &other)
-      : ParserStateTerminate(other.id, other.accept) {}
-
-  std::string dump(int lvl = 0) const {
+  std::string dump(int lvl = 0) const override {
     std::stringstream ss;
-    ss << std::string(lvl * 2, ' ');
-    ss << "[" << id << "] ";
+    ss << ParserState::dump(lvl);
     ss << (accept ? "ACCEPT" : "REJECT");
     ss << "\n";
     return ss.str();
@@ -50,7 +82,15 @@ struct ParserStateTerminate : public ParserState {
 
   ParserState *clone() const { return new ParserStateTerminate(*this); }
 
-  void retrieve(states_t &states) { states[id] = this; }
+  bool equals(const ParserState *other) const override {
+    if (!ParserState::equals(other)) {
+      return false;
+    }
+
+    const ParserStateTerminate *other_terminate =
+        static_cast<const ParserStateTerminate *>(other);
+    return other_terminate->accept == accept;
+  }
 };
 
 struct ParserStateSelect : public ParserState {
@@ -64,14 +104,10 @@ struct ParserStateSelect : public ParserState {
       : ParserState(_id, ParserStateType::SELECT), field(_field),
         values(_values), on_true(nullptr), on_false(nullptr) {}
 
-  ParserStateSelect(const ParserStateSelect &other)
-      : ParserStateSelect(other.id, other.field, other.values) {}
-
-  std::string dump(int lvl = 0) const {
+  std::string dump(int lvl = 0) const override {
     std::stringstream ss;
 
-    ss << std::string(lvl * 2, ' ');
-    ss << "[" << id << "] ";
+    ss << ParserState::dump(lvl);
     ss << "select (";
     ss << "field=";
     ss << kutil::expr_to_string(field, true);
@@ -102,30 +138,44 @@ struct ParserStateSelect : public ParserState {
   }
 
   ParserState *clone() const {
-    ParserState *on_true_clone = nullptr;
-    ParserState *on_false_clone = nullptr;
-
-    if (on_true) {
-      on_true_clone = on_true->clone();
-    }
-
-    if (on_false) {
-      on_false_clone = on_false->clone();
-    }
-
     ParserStateSelect *clone = new ParserStateSelect(*this);
-    clone->on_true = on_true_clone;
-    clone->on_false = on_false_clone;
-
+    clone->on_true = on_true ? on_true->clone() : nullptr;
+    clone->on_false = on_false ? on_false->clone() : nullptr;
     return clone;
   }
 
-  void retrieve(states_t &states) {
-    states[id] = this;
+  bool equals(const ParserState *other) const override {
+    if (!ParserState::equals(other)) {
+      return false;
+    }
+
+    const ParserStateSelect *other_select =
+        static_cast<const ParserStateSelect *>(other);
+
+    if (!kutil::solver_toolbox.are_exprs_always_equal(field,
+                                                      other_select->field)) {
+      return false;
+    }
+
+    if (values.size() != other_select->values.size()) {
+      return false;
+    }
+
+    for (size_t i = 0; i < values.size(); i++) {
+      if (values[i] != other_select->values[i]) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  void record(states_t &states) override {
+    ParserState::record(states);
     if (on_true)
-      on_true->retrieve(states);
+      on_true->record(states);
     if (on_false)
-      on_false->retrieve(states);
+      on_false->record(states);
   }
 };
 
@@ -136,14 +186,10 @@ struct ParserStateExtract : public ParserState {
   ParserStateExtract(bdd::node_id_t _id, klee::ref<klee::Expr> _hdr)
       : ParserState(_id, ParserStateType::EXTRACT), hdr(_hdr), next(nullptr) {}
 
-  ParserStateExtract(const ParserStateExtract &other)
-      : ParserStateExtract(other.id, other.hdr) {}
-
-  std::string dump(int lvl = 0) const {
+  std::string dump(int lvl = 0) const override {
     std::stringstream ss;
 
-    ss << std::string(lvl * 2, ' ');
-    ss << "[" << id << "] ";
+    ss << ParserState::dump(lvl);
     ss << "extract(" << kutil::expr_to_string(hdr, true) << ")\n";
 
     lvl++;
@@ -156,22 +202,27 @@ struct ParserStateExtract : public ParserState {
   }
 
   ParserState *clone() const {
-    ParserState *next_clone = nullptr;
-
-    if (next) {
-      next_clone = next->clone();
-    }
-
     ParserStateExtract *clone = new ParserStateExtract(*this);
-    clone->next = next_clone;
-
+    clone->next = next ? next->clone() : nullptr;
     return clone;
   }
 
-  void retrieve(states_t &states) {
-    states[id] = this;
+  bool equals(const ParserState *other) const override {
+    if (!ParserState::equals(other)) {
+      return false;
+    }
+
+    const ParserStateExtract *other_extract =
+        static_cast<const ParserStateExtract *>(other);
+
+    return kutil::solver_toolbox.are_exprs_always_equal(hdr,
+                                                        other_extract->hdr);
+  }
+
+  void record(states_t &states) override {
+    ParserState::record(states);
     if (next)
-      next->retrieve(states);
+      next->record(states);
   }
 };
 
@@ -186,13 +237,19 @@ public:
   Parser(const Parser &other) : initial_state(nullptr) {
     if (other.initial_state) {
       initial_state = other.initial_state->clone();
-      initial_state->retrieve(states);
+      initial_state->record(states);
     }
   }
 
   ~Parser() {
+    bdd::nodes_t freed;
+
+    // The states data structure can have duplicates, so we need to make sure
     for (auto &kv : states) {
-      delete kv.second;
+      if (freed.find(kv.first) == freed.end()) {
+        freed.insert(kv.second->ids.begin(), kv.second->ids.end());
+        delete kv.second;
+      }
     }
   }
 
@@ -258,13 +315,11 @@ public:
     add_state(leaf_id, new_state, direction);
   }
 
-  std::string dump() const {
-    std::stringstream ss;
-    ss << "******  Parser ******\n";
+  void log_debug() const {
+    Log::dbg() << "******  Parser ******\n";
     if (initial_state)
-      ss << initial_state->dump();
-    ss << "************************\n";
-    return ss.str();
+      Log::dbg() << initial_state->dump();
+    Log::dbg() << "************************\n";
   }
 
 private:
@@ -334,14 +389,29 @@ private:
   void add_state(ParserState *new_state) {
     assert(!initial_state);
     assert(states.empty());
+    assert(!new_state->ids.empty());
 
     initial_state = new_state;
-    states[new_state->id] = new_state;
+    states[*new_state->ids.begin()] = new_state;
   }
 
   void set_next(ParserState *&next_state, ParserState *new_state) {
-    ParserState *old_next_state = next_state;
+    if (next_state && next_state->equals(new_state)) {
+      assert(new_state->ids.size() == 1);
 
+      bdd::node_id_t new_id = *new_state->ids.begin();
+      assert(next_state->ids.find(new_id) == next_state->ids.end());
+
+      next_state->ids.insert(new_id);
+
+      // Fix the incorrect previous recording
+      states[new_id] = next_state;
+      delete new_state;
+
+      return;
+    }
+
+    ParserState *old_next_state = next_state;
     next_state = new_state;
 
     if (!old_next_state) {
@@ -378,9 +448,12 @@ private:
                  std::optional<bool> direction) {
     assert(initial_state);
     assert(states.find(leaf_id) != states.end());
-    assert(states.find(new_state->id) == states.end());
+    assert(!new_state->ids.empty());
+    for (bdd::node_id_t id : new_state->ids) {
+      assert(states.find(id) == states.end());
+    }
 
-    states[new_state->id] = new_state;
+    states[*new_state->ids.begin()] = new_state;
 
     ParserState *leaf = states[leaf_id];
 

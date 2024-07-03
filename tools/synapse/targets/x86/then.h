@@ -32,10 +32,10 @@ protected:
     return std::nullopt;
   }
 
-  virtual std::vector<const EP *>
+  virtual std::vector<generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
     // Never explicitly generate this module from the BDD.
-    return std::vector<const EP *>();
+    return {};
   }
 };
 

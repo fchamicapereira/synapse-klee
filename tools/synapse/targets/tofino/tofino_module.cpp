@@ -3,10 +3,8 @@
 namespace synapse {
 namespace tofino {
 
-std::unordered_set<DS *> TofinoModuleGenerator::build_registers(
-    const EP *ep, const bdd::Node *node, int num_entries, bits_t index,
-    klee::ref<klee::Expr> value,
-    const std::unordered_set<RegisterAction> &actions,
+std::unordered_set<DS *> TofinoModuleGenerator::build_vector_registers(
+    const EP *ep, const bdd::Node *node, const vector_register_data_t &data,
     std::unordered_set<DS_ID> &rids, std::unordered_set<DS_ID> &deps) const {
   std::unordered_set<DS *> regs;
 
@@ -14,14 +12,15 @@ std::unordered_set<DS *> TofinoModuleGenerator::build_registers(
   const TNAProperties &properties = tna.get_properties();
 
   std::vector<klee::ref<klee::Expr>> partitions =
-      Register::partition_value(properties, value);
+      Register::partition_value(properties, data.value);
 
   for (klee::ref<klee::Expr> partition : partitions) {
     DS_ID rid = "vector_" + std::to_string(node->get_id()) + "_" +
                 std::to_string(rids.size());
     bits_t partition_size = partition->getWidth();
-    Register *reg = new Register(properties, rid, num_entries, index,
-                                 partition_size, actions);
+    Register *reg =
+        new Register(properties, rid, data.num_entries, data.index->getWidth(),
+                     partition_size, data.actions);
     regs.insert(reg);
     rids.insert(rid);
   }
@@ -39,13 +38,13 @@ std::unordered_set<DS *> TofinoModuleGenerator::build_registers(
   return regs;
 }
 
-std::unordered_set<DS *> TofinoModuleGenerator::get_registers(
-    const EP *ep, const bdd::Node *node, addr_t obj,
+std::unordered_set<DS *> TofinoModuleGenerator::get_vector_registers(
+    const EP *ep, const bdd::Node *node, const vector_register_data_t &data,
     std::unordered_set<DS_ID> &rids, std::unordered_set<DS_ID> &deps) const {
   std::unordered_set<DS *> regs;
 
   const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
-  const std::vector<DS *> &ds = tofino_ctx->get_ds(obj);
+  const std::vector<DS *> &ds = tofino_ctx->get_ds(data.obj);
   assert(ds.size());
 
   for (DS *reg : ds) {
@@ -60,6 +59,42 @@ std::unordered_set<DS *> TofinoModuleGenerator::get_registers(
   }
 
   return regs;
+}
+
+std::unordered_set<DS *> TofinoModuleGenerator::get_or_build_vector_registers(
+    const EP *ep, const bdd::Node *node, const vector_register_data_t &data,
+    bool &already_exists, std::unordered_set<DS_ID> &rids,
+    std::unordered_set<DS_ID> &deps) const {
+  std::unordered_set<DS *> regs;
+
+  const Context &ctx = ep->get_ctx();
+  bool regs_already_placed =
+      ctx.check_placement(data.obj, PlacementDecision::Tofino_VectorRegister);
+
+  if (regs_already_placed) {
+    regs = get_vector_registers(ep, node, data, rids, deps);
+    already_exists = true;
+  } else {
+    regs = build_vector_registers(ep, node, data, rids, deps);
+    already_exists = false;
+  }
+
+  return regs;
+}
+
+void TofinoModuleGenerator::place_vector_registers(
+    EP *ep, const vector_register_data_t &data,
+    const std::unordered_set<DS *> &regs,
+    const std::unordered_set<DS_ID> &deps) const {
+  TofinoContext *tofino_ctx = get_mutable_tofino_ctx(ep);
+  place(ep, data.obj, PlacementDecision::Tofino_VectorRegister);
+  tofino_ctx->place_many(ep, data.obj, {regs}, deps);
+
+  Log::dbg() << "-> ~~~ NEW PLACEMENT ~~~ <-\n";
+  for (DS *reg : regs) {
+    reg->log_debug();
+  }
+  tofino_ctx->get_tna().log_debug_placement();
 }
 
 CachedTable *TofinoModuleGenerator::build_cached_table(
@@ -129,6 +164,10 @@ CachedTable *TofinoModuleGenerator::get_or_build_cached_table(
   if (already_placed) {
     cached_table = get_cached_table(ep, data, deps);
     already_exists = true;
+
+    if (cached_table && cached_table->cache_capacity != cache_capacity) {
+      return nullptr;
+    }
   } else {
     cached_table = build_cached_table(ep, node, data, cache_capacity, deps);
     already_exists = false;
@@ -148,8 +187,8 @@ bool TofinoModuleGenerator::can_place_cached_table(
     const EP *ep, const bdd::Call *map_get,
     map_coalescing_data_t &coalescing_data) const {
   const call_t &call = map_get->get_call();
-  assert(call.function_name == "map_get");
 
+  assert(call.args.find("map") != call.args.end());
   klee::ref<klee::Expr> obj_expr = call.args.at("map").expr;
 
   addr_t map_obj = kutil::expr_addr_to_obj_addr(obj_expr);
@@ -181,6 +220,23 @@ void TofinoModuleGenerator::place_cached_table(
 
   TofinoContext *tofino_ctx = get_mutable_tofino_ctx(ep);
   tofino_ctx->place(ep, map_obj, cached_table, deps);
+
+  Log::dbg() << "-> ~~~ NEW PLACEMENT ~~~ <-\n";
+  ds->log_debug();
+  tofino_ctx->get_tna().log_debug_placement();
+}
+
+std::unordered_set<int>
+TofinoModuleGenerator::enumerate_cache_table_capacities(int num_entries) const {
+  std::unordered_set<int> capacities;
+
+  int cache_capacity = 1024;
+  while (cache_capacity <= num_entries) {
+    capacities.insert(cache_capacity);
+    cache_capacity *= 2;
+  }
+
+  return capacities;
 }
 
 } // namespace tofino

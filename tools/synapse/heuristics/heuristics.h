@@ -3,7 +3,7 @@
 #include "bfs.h"
 #include "dfs.h"
 #include "least_reordered.h"
-#include "maximize_switch_nodes.h"
+#include "max_switch_nodes.h"
 #include "most_compact.h"
 #include "gallium.h"
 #include "max_throughput.h"
@@ -13,6 +13,6 @@
   template class C<DFSComparator>;                                             \
   template class C<GalliumComparator>;                                         \
   template class C<LeastReorderedComparator>;                                  \
-  template class C<MaximizeSwitchNodesComparator>;                             \
+  template class C<MaxSwitchNodesComparator>;                                  \
   template class C<MostCompactComparator>;                                     \
   template class C<MaxThroughputComparator>;

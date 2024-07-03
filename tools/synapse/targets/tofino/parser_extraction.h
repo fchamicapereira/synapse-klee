@@ -59,19 +59,19 @@ protected:
     return current_speculative_ctx;
   }
 
-  virtual std::vector<const EP *>
+  virtual std::vector<generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<const EP *> new_eps;
+    std::vector<generator_product_t> products;
 
     if (node->get_type() != bdd::NodeType::CALL) {
-      return new_eps;
+      return products;
     }
 
     const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
     const call_t &call = call_node->get_call();
 
     if (call.function_name != "packet_borrow_next_chunk") {
-      return new_eps;
+      return products;
     }
 
     klee::ref<klee::Expr> hdr_addr_expr = call.args.at("chunk").out;
@@ -88,7 +88,7 @@ protected:
     EPNode *ep_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
-    new_eps.push_back(new_ep);
+    products.emplace_back(new_ep);
 
     TofinoContext *tofino_ctx = get_mutable_tofino_ctx(new_ep);
     tofino_ctx->parser_transition(ep, node, hdr);
@@ -96,7 +96,7 @@ protected:
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
 
-    return new_eps;
+    return products;
   }
 };
 

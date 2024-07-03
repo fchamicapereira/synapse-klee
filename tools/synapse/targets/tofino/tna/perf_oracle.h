@@ -17,7 +17,12 @@ struct RecircPortUsage {
   //    Index 0 contains the fraction of traffic recirculated once.
   //    Index 1 contains the fraction of traffic recirculated twice.
   //    Etc.
-  std::vector<float> fractions;
+  std::vector<double> fractions;
+
+  // Fraction of traffic being steered to another recirculation port.
+  // This avoids us double counting the contribution of recirculation traffic to
+  // the final throughput estimation.
+  double steering_fraction;
 };
 
 class PerfOracle {
@@ -29,7 +34,7 @@ private:
   int avg_pkt_bytes;
 
   std::vector<RecircPortUsage> recirc_ports_usage;
-  float non_recirc_traffic;
+  double non_recirc_traffic;
 
   uint64_t throughput_pps;
 
@@ -38,11 +43,14 @@ public:
   PerfOracle(const PerfOracle &other);
 
   void add_recirculated_traffic(int port, int port_recirculations,
-                                int total_recirculations, float fraction);
+                                double fraction,
+                                std::optional<int> prev_recirc_port);
   uint64_t estimate_throughput_pps() const;
   void log_debug() const;
 
 private:
+  void steer_recirculation_traffic(int source_port, int destination_port,
+                                   double fraction);
   void update_estimate_throughput_pps();
 };
 

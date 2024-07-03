@@ -51,25 +51,25 @@ protected:
     return current_speculative_ctx;
   }
 
-  virtual std::vector<const EP *>
+  virtual std::vector<generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<const EP *> new_eps;
+    std::vector<generator_product_t> products;
 
     if (node->get_type() != bdd::NodeType::ROUTE) {
-      return new_eps;
+      return products;
     }
 
     const bdd::Route *route_node = static_cast<const bdd::Route *>(node);
     bdd::RouteOperation op = route_node->get_operation();
 
     if (op != bdd::RouteOperation::FWD) {
-      return new_eps;
+      return products;
     }
 
     int dst_device = route_node->get_dst_device();
 
     EP *new_ep = new EP(*ep);
-    new_eps.push_back(new_ep);
+    products.emplace_back(new_ep);
 
     Module *module = new Forward(node, dst_device);
     EPNode *ep_node = new EPNode(module);
@@ -80,7 +80,7 @@ protected:
     TofinoContext *tofino_ctx = get_mutable_tofino_ctx(new_ep);
     tofino_ctx->parser_accept(ep, node);
 
-    return new_eps;
+    return products;
   }
 };
 

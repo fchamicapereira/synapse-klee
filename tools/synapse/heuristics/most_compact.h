@@ -6,6 +6,8 @@
 namespace synapse {
 
 struct MostCompactComparator : public HeuristicCfg {
+  MostCompactComparator() : HeuristicCfg("MostCompact") {}
+
   Score get_score(const EP *ep) const override {
     Score score(ep, {
                         {ScoreCategory::Nodes, ScoreObjective::MIN},

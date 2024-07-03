@@ -65,11 +65,10 @@ struct EPMeta {
     return *this;
   }
 
-  float get_bdd_progress() const;
+  double get_bdd_progress() const;
   void process_node(const bdd::Node *node, TargetType target);
   void update_total_bdd_nodes(const bdd::BDD *bdd);
-  void update(const EPLeaf *leaf, const EPNode *new_node,
-              const Profiler *profiler, bool process_node);
+  void update(const EPLeaf *leaf, const EPNode *new_node, bool process_node);
 };
 
 } // namespace synapse

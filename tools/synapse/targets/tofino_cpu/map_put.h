@@ -62,23 +62,23 @@ protected:
     return current_speculative_ctx;
   }
 
-  virtual std::vector<const EP *>
+  virtual std::vector<generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<const EP *> new_eps;
+    std::vector<generator_product_t> products;
 
     if (node->get_type() != bdd::NodeType::CALL) {
-      return new_eps;
+      return products;
     }
 
     const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
     const call_t &call = call_node->get_call();
 
     if (call.function_name != "map_put") {
-      return new_eps;
+      return products;
     }
 
     if (!can_place(ep, call_node, "map", PlacementDecision::TofinoCPU_Map)) {
-      return new_eps;
+      return products;
     }
 
     klee::ref<klee::Expr> map_addr_expr = call.args.at("map").expr;
@@ -93,14 +93,14 @@ protected:
     EPNode *ep_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
-    new_eps.push_back(new_ep);
+    products.emplace_back(new_ep);
 
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
 
     place(new_ep, map_addr, PlacementDecision::TofinoCPU_Map);
 
-    return new_eps;
+    return products;
   }
 };
 

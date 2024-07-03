@@ -70,26 +70,26 @@ protected:
     return current_speculative_ctx;
   }
 
-  virtual std::vector<const EP *>
+  virtual std::vector<generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<const EP *> new_eps;
+    std::vector<generator_product_t> products;
 
     if (node->get_type() != bdd::NodeType::CALL) {
-      return new_eps;
+      return products;
     }
 
     const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
     const call_t &call = call_node->get_call();
 
     if (call.function_name != "vector_return") {
-      return new_eps;
+      return products;
     }
 
     // We don't need to place the vector, we will never get a vector_return
     // before a vector_borrow.
     if (!check_placement(ep, call_node, "vector",
                          PlacementDecision::TofinoCPU_Vector)) {
-      return new_eps;
+      return products;
     }
 
     klee::ref<klee::Expr> vector_addr_expr = call.args.at("vector").expr;
@@ -107,11 +107,11 @@ protected:
 
     // Check the Ignore module.
     if (changes.empty()) {
-      return new_eps;
+      return products;
     }
 
     EP *new_ep = new EP(*ep);
-    new_eps.push_back(new_ep);
+    products.emplace_back(new_ep);
 
     Module *module =
         new VectorWrite(node, vector_addr, index, value_addr, changes);
@@ -120,7 +120,7 @@ protected:
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
 
-    return new_eps;
+    return products;
   }
 };
 

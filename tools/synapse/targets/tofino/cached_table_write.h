@@ -98,29 +98,29 @@ protected:
     return current_speculative_ctx;
   }
 
-  virtual std::vector<const EP *>
+  virtual std::vector<generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<const EP *> new_eps;
+    std::vector<generator_product_t> products;
 
     if (node->get_type() != bdd::NodeType::CALL) {
-      return new_eps;
+      return products;
     }
 
     const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
     const call_t &call = call_node->get_call();
 
     if (call.function_name != "map_put") {
-      return new_eps;
+      return products;
     }
 
     map_coalescing_data_t coalescing_data;
     if (!can_place_cached_table(ep, call_node, coalescing_data)) {
-      return new_eps;
+      return products;
     }
 
     assert(false && "TODO");
 
-    return new_eps;
+    return products;
   }
 };
 

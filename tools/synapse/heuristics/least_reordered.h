@@ -6,6 +6,8 @@
 namespace synapse {
 
 struct LeastReorderedComparator : public HeuristicCfg {
+  LeastReorderedComparator() : HeuristicCfg("LeastReordered") {}
+
   Score get_score(const EP *ep) const override {
     Score score(ep, {
                         {ScoreCategory::ReorderedNodes, ScoreObjective::MIN},

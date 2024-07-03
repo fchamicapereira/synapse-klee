@@ -62,43 +62,6 @@ static std::vector<const EP *> get_reordered(const EP *ep) {
     bool is_ancestor = false;
     EP *new_ep = new EP(*ep, is_ancestor);
 
-    // std::cerr << "new ep: " << new_ep->get_id() << "\n";
-    // std::cerr << "new_bdd: " << new_bdd.bdd->hash() << "\n";
-
-    // auto DEBUG_CONDITION = new_bdd.op.candidate_info.siblings.size() > 1 &&
-    //                        ep->get_leaves().size() > 1;
-    // auto DEBUG_CONDITION = new_bdd.op.candidate_info.is_branch &&
-    //                        new_bdd.op.candidate_info.siblings.size() > 1;
-    // auto DEBUG_CONDITION = (new_ep->get_id() == 26601);
-
-    // if (DEBUG_CONDITION) {
-    //   std::cerr << "\n\n";
-    //   std::cerr << "Anchor: " << anchor_id << "\n";
-    //   std::cerr << "Evicted: " << new_bdd.op.evicted_id << "\n";
-    //   std::cerr << "Candidate: " << new_bdd.op.candidate_info.id << "\n";
-    //   std::cerr << "Siblings: ";
-    //   for (bdd::node_id_t sibling_id : new_bdd.op.candidate_info.siblings) {
-    //     std::cerr << sibling_id << " ";
-    //   }
-    //   std::cerr << "\n";
-    //   if (new_bdd.op2.has_value()) {
-    //     std::cerr << "Evicted2: " << new_bdd.op2->evicted_id << "\n";
-    //     std::cerr << "Candidate2: " << new_bdd.op2->candidate_info.id <<
-    //     "\n"; std::cerr << "Siblings2: "; for (bdd::node_id_t sibling_id :
-    //     new_bdd.op2->candidate_info.siblings) {
-    //       std::cerr << sibling_id << " ";
-    //     }
-    //     std::cerr << "\n";
-    //   }
-    //   std::cerr << "Old leaves:\n";
-    //   for (auto leaf : ep->get_leaves()) {
-    //     std::cerr << "  " << leaf.next->get_id() << "\n";
-    //   }
-    //   bdd::BDDVisualizer::visualize(bdd, false, {.fname = "old"});
-    //   bdd::BDDVisualizer::visualize(new_bdd.bdd, false, {.fname = "new"});
-    //   EPVisualizer::visualize(new_ep, false);
-    // }
-
     translator_t next_nodes_translator;
     translator_t processed_nodes_translator;
 
@@ -109,29 +72,9 @@ static std::vector<const EP *> get_reordered(const EP *ep) {
                               bdd, *new_bdd.op2);
     }
 
-    // if (DEBUG_CONDITION) {
-    //   std::cerr << "next_nodes_translator:\n";
-    //   for (const auto &kv : next_nodes_translator) {
-    //     std::cerr << "  " << kv.first << " -> " << kv.second << "\n";
-    //   }
-
-    //   std::cerr << "processed_nodes_translator:\n";
-    //   for (const auto &kv : processed_nodes_translator) {
-    //     std::cerr << "  " << kv.first << " -> " << kv.second << "\n";
-    //   }
-    // }
-
     new_ep->replace_bdd(new_bdd.bdd, next_nodes_translator,
                         processed_nodes_translator);
     new_ep->inspect();
-
-    // if (DEBUG_CONDITION) {
-    //   std::cerr << "New leaves:\n";
-    //   for (auto leaf : new_ep->get_leaves()) {
-    //     std::cerr << "  " << leaf.next->get_id() << "\n";
-    //   }
-    //   DEBUG_PAUSE
-    // }
 
     reordered.push_back(new_ep);
   }
@@ -139,29 +82,32 @@ static std::vector<const EP *> get_reordered(const EP *ep) {
   return reordered;
 }
 
-std::vector<const EP *> ModuleGenerator::generate(const EP *ep,
-                                                  const bdd::Node *node,
-                                                  bool reorder_bdd) const {
-  std::vector<const EP *> new_eps;
+std::vector<generator_product_t>
+ModuleGenerator::generate(const EP *ep, const bdd::Node *node,
+                          bool reorder_bdd) const {
+  std::vector<generator_product_t> products;
 
   if (!can_process_platform(ep, target)) {
-    return new_eps;
+    return products;
   }
 
-  new_eps = process_node(ep, node);
+  products = process_node(ep, node);
 
-  if (reorder_bdd) {
-    std::vector<const EP *> reordered;
+  if (!reorder_bdd) {
+    return products;
+  }
 
-    for (const EP *ep : new_eps) {
-      std::vector<const EP *> ep_reodered = get_reordered(ep);
-      reordered.insert(reordered.end(), ep_reodered.begin(), ep_reodered.end());
+  std::vector<generator_product_t> all_products = products;
+
+  for (const generator_product_t &product : products) {
+    std::vector<const EP *> reordered = get_reordered(product.ep);
+
+    for (const EP *reordered_ep : reordered) {
+      all_products.emplace_back(reordered_ep, product.description + " [R]");
     }
-
-    new_eps.insert(new_eps.end(), reordered.begin(), reordered.end());
   }
 
-  return new_eps;
+  return all_products;
 }
 
 bool ModuleGenerator::can_place(const EP *ep, const bdd::Call *call_node,

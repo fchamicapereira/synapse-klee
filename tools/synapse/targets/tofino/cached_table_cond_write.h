@@ -96,53 +96,133 @@ protected:
       return std::nullopt;
     }
 
-    // TODO: Implement speculative processing
-    return std::nullopt;
+    cached_table_data_t cached_table_data =
+        get_cached_table_data(ep, call_node, future_map_puts);
 
-    return current_speculative_ctx;
+    std::unordered_set<int> allowed_cache_capacities =
+        enumerate_cache_table_capacities(cached_table_data.num_entries);
+
+    double chosen_success_estimation = 0;
+    int chosen_cache_capacity = 0;
+
+    // We can use a different method for picking the right estimation depending
+    // on the time it takes to find a solution.
+    for (int cache_capacity : allowed_cache_capacities) {
+      double success_estimation = get_cache_write_success_estimation_rel(
+          cache_capacity, cached_table_data.num_entries);
+
+      if (success_estimation > chosen_success_estimation) {
+        chosen_success_estimation = success_estimation;
+        chosen_cache_capacity = cache_capacity;
+      }
+    }
+
+    std::unordered_set<DS_ID> deps;
+    bool already_exists;
+
+    CachedTable *cached_table =
+        get_or_build_cached_table(ep, node, cached_table_data,
+                                  chosen_cache_capacity, already_exists, deps);
+
+    if (!cached_table) {
+      return std::nullopt;
+    }
+
+    if (!already_exists) {
+      delete cached_table;
+    }
+
+    Context new_ctx = current_speculative_ctx;
+
+    Profiler *profiler = new_ctx.get_mutable_profiler();
+    std::optional<double> fraction =
+        profiler->get_fraction(current_speculative_constraints);
+    assert(fraction.has_value());
+
+    double on_fail_fraction =
+        fraction.value() * (1 - chosen_success_estimation);
+
+    new_ctx.update_traffic_fractions(TargetType::Tofino, TargetType::TofinoCPU,
+                                     on_fail_fraction);
+
+    profiler->scale(current_speculative_constraints, chosen_success_estimation);
+
+    std::vector<const bdd::Node *> ignore_nodes =
+        get_nodes_to_speculatively_ignore(ep, call_node, coalescing_data,
+                                          cached_table_data.key);
+
+    speculation_t speculation(new_ctx);
+    for (const bdd::Node *op : ignore_nodes) {
+      speculation.skip.insert(op->get_id());
+    }
+
+    return speculation;
   }
 
-  virtual std::vector<const EP *>
+  virtual std::vector<generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<const EP *> new_eps;
+    std::vector<generator_product_t> products;
 
     if (node->get_type() != bdd::NodeType::CALL) {
-      return new_eps;
+      return products;
     }
 
     const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
     const call_t &call = call_node->get_call();
 
     if (call.function_name != "map_get") {
-      return new_eps;
+      return products;
     }
 
     map_coalescing_data_t coalescing_data;
     if (!can_place_cached_table(ep, call_node, coalescing_data)) {
-      return new_eps;
+      return products;
     }
 
     std::vector<const bdd::Call *> future_map_puts;
     if (!is_map_get_followed_by_map_puts_on_miss(ep->get_bdd(), call_node,
                                                  future_map_puts)) {
       // The cached table read should deal with these cases.
-      return new_eps;
+      return products;
     }
 
-    cached_table_data_t data =
+    symbol_t cache_write_failed = create_symbol("cache_write_failed", 32);
+
+    cached_table_data_t cached_table_data =
         get_cached_table_data(ep, call_node, future_map_puts);
 
-    std::unordered_set<DS_ID> deps;
-    int cache_capacity = 1024;
-    bool already_exists;
-    CachedTable *cached_table = get_or_build_cached_table(
-        ep, node, data, cache_capacity, already_exists, deps);
+    std::unordered_set<int> allowed_cache_capacities =
+        enumerate_cache_table_capacities(cached_table_data.num_entries);
 
-    if (!cached_table) {
-      return new_eps;
+    for (int cache_capacity : allowed_cache_capacities) {
+      std::optional<generator_product_t> product =
+          concretize_cached_table_cond_write(
+              ep, node, coalescing_data, cached_table_data, cache_write_failed,
+              cache_capacity);
+
+      if (product.has_value()) {
+        products.push_back(*product);
+      }
     }
 
-    symbol_t cache_write_failed = create_cache_write_failed_symbol();
+    return products;
+  }
+
+private:
+  std::optional<generator_product_t> concretize_cached_table_cond_write(
+      const EP *ep, const bdd::Node *node,
+      const map_coalescing_data_t &coalescing_data,
+      const cached_table_data_t &cached_table_data,
+      const symbol_t &cache_write_failed, int cache_capacity) const {
+    std::unordered_set<DS_ID> deps;
+    bool already_exists;
+
+    CachedTable *cached_table = get_or_build_cached_table(
+        ep, node, cached_table_data, cache_capacity, already_exists, deps);
+
+    if (!cached_table) {
+      return std::nullopt;
+    }
 
     std::unordered_set<DS_ID> byproducts =
         get_cached_table_byproducts(cached_table);
@@ -151,20 +231,21 @@ protected:
         build_cache_write_success_condition(cache_write_failed);
 
     Module *module = new CachedTableConditionalWrite(
-        node, cached_table->id, byproducts, data.obj, data.key, data.read_value,
-        data.write_value, data.map_has_this_key, cache_write_failed);
+        node, cached_table->id, byproducts, cached_table_data.obj,
+        cached_table_data.key, cached_table_data.read_value,
+        cached_table_data.write_value, cached_table_data.map_has_this_key,
+        cache_write_failed);
     EPNode *cached_table_cond_write_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
-    new_eps.push_back(new_ep);
 
     bdd::Node *on_cache_write_success;
     bdd::Node *on_cache_write_failed;
     std::optional<constraints_t> deleted_branch_constraints;
 
     bdd::BDD *new_bdd = branch_bdd_on_cache_write_success(
-        new_ep, node, data, cache_write_success_condition, coalescing_data,
-        on_cache_write_success, on_cache_write_failed,
+        new_ep, node, cached_table_data, cache_write_success_condition,
+        coalescing_data, on_cache_write_success, on_cache_write_failed,
         deleted_branch_constraints);
 
     symbols_t symbols = get_dataplane_state(ep, node);
@@ -195,15 +276,19 @@ protected:
     EPLeaf on_cache_write_failed_leaf(send_to_controller_node,
                                       on_cache_write_failed);
 
-    float cache_write_success_estimation_rel =
-        get_cache_write_success_estimation_rel(data, cache_capacity);
+    double cache_write_success_estimation_rel =
+        get_cache_write_success_estimation_rel(cache_capacity,
+                                               cached_table_data.num_entries);
 
     new_ep->update_node_constraints(then_node, else_node,
                                     cache_write_success_condition);
 
-    update_profiler(new_ep, cache_write_success_condition,
-                    cache_write_success_estimation_rel,
-                    deleted_branch_constraints);
+    new_ep->add_hit_rate_estimation(cache_write_success_condition,
+                                    cache_write_success_estimation_rel);
+
+    if (deleted_branch_constraints.has_value()) {
+      new_ep->remove_hit_rate_node(deleted_branch_constraints.value());
+    }
 
     new_ep->process_leaf(
         cached_table_cond_write_node,
@@ -216,25 +301,15 @@ protected:
       place_cached_table(new_ep, coalescing_data, cached_table, deps);
     }
 
-    return new_eps;
+    std::stringstream descr;
+    descr << "cap=" << cache_capacity;
+
+    return generator_product_t(new_ep, descr.str());
   }
 
-private:
-  void update_profiler(
-      EP *ep, klee::ref<klee::Expr> cache_write_success_condition,
-      float cache_write_success_estimation_rel,
-      const std::optional<constraints_t> &deleted_branch_constraints) const {
-    ep->add_hit_rate_estimation(cache_write_success_condition,
-                                cache_write_success_estimation_rel);
-
-    if (deleted_branch_constraints.has_value()) {
-      ep->remove_hit_rate_node(deleted_branch_constraints.value());
-    }
-  }
-
-  float get_cache_write_success_estimation_rel(
-      const cached_table_data_t &cached_table_data, int cache_capacity) const {
-    return static_cast<float>(cache_capacity) / cached_table_data.num_entries;
+  double get_cache_write_success_estimation_rel(int cache_capacity,
+                                                int num_entries) const {
+    return static_cast<double>(cache_capacity) / num_entries;
   }
 
   std::unordered_set<DS_ID>
@@ -255,7 +330,7 @@ private:
   cached_table_data_t
   get_cached_table_data(const EP *ep, const bdd::Call *map_get,
                         std::vector<const bdd::Call *> future_map_puts) const {
-    cached_table_data_t data;
+    cached_table_data_t cached_table_data;
 
     assert(!future_map_puts.empty());
     const bdd::Call *map_put = future_map_puts.front();
@@ -266,19 +341,20 @@ private:
     symbols_t symbols = map_get->get_locally_generated_symbols();
     klee::ref<klee::Expr> obj_expr = get_call.args.at("map").expr;
 
-    data.obj = kutil::expr_addr_to_obj_addr(obj_expr);
-    data.key = get_call.args.at("key").in;
-    data.read_value = get_call.args.at("value_out").out;
-    data.write_value = put_call.args.at("value").expr;
+    cached_table_data.obj = kutil::expr_addr_to_obj_addr(obj_expr);
+    cached_table_data.key = get_call.args.at("key").in;
+    cached_table_data.read_value = get_call.args.at("value_out").out;
+    cached_table_data.write_value = put_call.args.at("value").expr;
 
-    bool found = get_symbol(symbols, "map_has_this_key", data.map_has_this_key);
+    bool found = get_symbol(symbols, "map_has_this_key",
+                            cached_table_data.map_has_this_key);
     assert(found && "Symbol map_has_this_key not found");
 
     const Context &ctx = ep->get_ctx();
-    const bdd::map_config_t &cfg = ctx.get_map_config(data.obj);
+    const bdd::map_config_t &cfg = ctx.get_map_config(cached_table_data.obj);
 
-    data.num_entries = cfg.capacity;
-    return data;
+    cached_table_data.num_entries = cfg.capacity;
+    return cached_table_data;
   }
 
   klee::ref<klee::Expr> build_cache_write_success_condition(
@@ -286,23 +362,6 @@ private:
     klee::ref<klee::Expr> zero = kutil::solver_toolbox.exprBuilder->Constant(
         0, cache_write_failed.expr->getWidth());
     return kutil::solver_toolbox.exprBuilder->Eq(cache_write_failed.expr, zero);
-  }
-
-  symbol_t create_cache_write_failed_symbol() const {
-    const klee::Array *array;
-    std::string label = "cache_write_failed";
-    bits_t size = 32;
-
-    klee::ref<klee::Expr> expr =
-        kutil::solver_toolbox.create_new_symbol(label, size, array);
-
-    symbol_t cache_write_failed = {
-        .base = label,
-        .array = array,
-        .expr = expr,
-    };
-
-    return cache_write_failed;
   }
 
   void add_map_get_clone_on_cache_write_failed(
@@ -333,6 +392,46 @@ private:
 
     add_non_branch_nodes_to_bdd(ep, bdd, on_cache_write_failed, prev_borrows,
                                 new_on_cache_write_failed);
+  }
+
+  std::vector<const bdd::Node *> get_nodes_to_speculatively_ignore(
+      const EP *ep, const bdd::Node *on_success,
+      const map_coalescing_data_t &coalescing_data,
+      klee::ref<klee::Expr> key) const {
+    const bdd::BDD *bdd = ep->get_bdd();
+
+    std::vector<const bdd::Node *> nodes_to_ignore =
+        get_coalescing_nodes_from_key(bdd, on_success, key, coalescing_data);
+
+    for (const bdd::Node *target : nodes_to_ignore) {
+      const bdd::Call *call_target = static_cast<const bdd::Call *>(target);
+      const call_t &call = call_target->get_call();
+
+      if (call.function_name == "dchain_allocate_new_index") {
+        symbol_t out_of_space;
+        bool found = get_symbol(call_target->get_locally_generated_symbols(),
+                                "out_of_space", out_of_space);
+        assert(found && "Symbol out_of_space not found");
+
+        const bdd::Branch *branch =
+            find_branch_checking_index_alloc(ep, on_success, out_of_space);
+
+        if (branch) {
+          nodes_to_ignore.push_back(branch);
+
+          bool direction_to_keep = true;
+          const bdd::Node *next = direction_to_keep ? branch->get_on_false()
+                                                    : branch->get_on_true();
+
+          next->visit_nodes([&nodes_to_ignore](const bdd::Node *node) {
+            nodes_to_ignore.push_back(node);
+            return bdd::NodeVisitAction::VISIT_CHILDREN;
+          });
+        }
+      }
+    }
+
+    return nodes_to_ignore;
   }
 
   void delete_coalescing_nodes_on_success(
@@ -369,20 +468,23 @@ private:
             extra_constraint =
                 kutil::solver_toolbox.exprBuilder->Not(extra_constraint);
           }
+
           deleted_branch_constraints->push_back(extra_constraint);
 
           bdd::Node *trash;
-          delete_branch_node_from_bdd(ep, bdd, branch, direction_to_keep,
-                                      trash);
+          delete_branch_node_from_bdd(ep, bdd, branch->get_id(),
+                                      direction_to_keep, trash);
         }
       }
 
       bdd::Node *trash;
-      delete_non_branch_node_from_bdd(ep, bdd, target, trash);
+      delete_non_branch_node_from_bdd(ep, bdd, target->get_id(), trash);
     }
   }
+
   bdd::BDD *branch_bdd_on_cache_write_success(
-      const EP *ep, const bdd::Node *map_get, const cached_table_data_t &data,
+      const EP *ep, const bdd::Node *map_get,
+      const cached_table_data_t &cached_table_data,
       klee::ref<klee::Expr> cache_write_success_condition,
       const map_coalescing_data_t &coalescing_data,
       bdd::Node *&on_cache_write_success, bdd::Node *&on_cache_write_failed,
@@ -404,7 +506,7 @@ private:
         ep, new_bdd, cache_write_branch, on_cache_write_failed);
 
     delete_coalescing_nodes_on_success(ep, new_bdd, on_cache_write_success,
-                                       coalescing_data, data.key,
+                                       coalescing_data, cached_table_data.key,
                                        deleted_branch_constraints);
 
     return new_bdd;

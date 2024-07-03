@@ -90,18 +90,24 @@ protected:
       return std::nullopt;
     }
 
-    // TODO: Implement speculative processing
-    return std::nullopt;
+    std::vector<const bdd::Node *> future_ops =
+        get_future_related_nodes(ep, node, coalescing_data);
+
+    Context new_ctx = current_speculative_ctx;
+    speculation_t speculation(new_ctx);
+    for (const bdd::Node *op : future_ops) {
+      speculation.skip.insert(op->get_id());
+    }
 
     return current_speculative_ctx;
   }
 
-  virtual std::vector<const EP *>
+  virtual std::vector<generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<const EP *> new_eps;
+    std::vector<generator_product_t> products;
 
     if (node->get_type() != bdd::NodeType::CALL) {
-      return new_eps;
+      return products;
     }
 
     const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
@@ -109,7 +115,7 @@ protected:
 
     if (call.function_name != "map_erase" &&
         call.function_name != "dchain_free_index") {
-      return new_eps;
+      return products;
     }
 
     const bdd::Call *map_erase;
@@ -121,39 +127,54 @@ protected:
     }
 
     if (!map_erase) {
-      return new_eps;
+      return products;
     }
 
     // A bit too strict, but I don't want to build the cached table ds in this
     // module because we don't have a value.
     if (!check_placement(ep, map_erase, "map",
                          PlacementDecision::Tofino_CachedTable)) {
-      return new_eps;
+      return products;
     }
 
-    cached_table_data_t data = get_cached_table_data(ep, map_erase);
+    cached_table_data_t cached_table_data =
+        get_cached_table_data(ep, map_erase);
 
+    std::optional<generator_product_t> product =
+        concretize_cached_table_delete(ep, node, cached_table_data);
+
+    if (product.has_value()) {
+      products.push_back(*product);
+    }
+
+    return products;
+  }
+
+private:
+  std::optional<generator_product_t> concretize_cached_table_delete(
+      const EP *ep, const bdd::Node *node,
+      const cached_table_data_t &cached_table_data) const {
     std::unordered_set<DS_ID> deps;
-    CachedTable *cached_table = get_cached_table(ep, data, deps);
+    CachedTable *cached_table = get_cached_table(ep, cached_table_data, deps);
 
     if (!cached_table) {
-      return new_eps;
+      return std::nullopt;
     }
 
     std::unordered_set<DS_ID> byproducts =
         get_cached_table_byproducts(cached_table);
 
-    Module *module =
-        new CachedTableDelete(node, cached_table->id, byproducts, data.obj,
-                              data.key, data.read_value, data.map_has_this_key);
+    Module *module = new CachedTableDelete(
+        node, cached_table->id, byproducts, cached_table_data.obj,
+        cached_table_data.key, cached_table_data.read_value,
+        cached_table_data.map_has_this_key);
     EPNode *ep_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
-    new_eps.push_back(new_ep);
 
     const bdd::Node *new_next;
-    bdd::BDD *bdd =
-        delete_future_related_nodes(new_ep, node, data.obj, new_next);
+    bdd::BDD *bdd = delete_future_related_nodes(
+        new_ep, node, cached_table_data.obj, new_next);
 
     EPLeaf leaf(ep_node, new_next);
     new_ep->process_leaf(ep_node, {leaf});
@@ -161,10 +182,12 @@ protected:
 
     new_ep->inspect();
 
-    return new_eps;
+    std::stringstream descr;
+    descr << "cap=" << cached_table->cache_capacity;
+
+    return generator_product_t(new_ep, descr.str());
   }
 
-private:
   std::unordered_set<DS_ID>
   get_cached_table_byproducts(CachedTable *cached_table) const {
     std::unordered_set<DS_ID> byproducts;
@@ -191,10 +214,10 @@ private:
     addr_t chain_obj = kutil::expr_addr_to_obj_addr(chain_addr_expr);
 
     const Context &ctx = ep->get_ctx();
-    std::optional<map_coalescing_data_t> data =
+    std::optional<map_coalescing_data_t> cached_table_data =
         ctx.get_coalescing_data(chain_obj);
 
-    if (!data.has_value()) {
+    if (!cached_table_data.has_value()) {
       return nullptr;
     }
 
@@ -212,7 +235,7 @@ private:
       klee::ref<klee::Expr> map_addr_expr = map_erase_call.args.at("map").expr;
       addr_t map_obj = kutil::expr_addr_to_obj_addr(map_addr_expr);
 
-      if (map_obj == data->map) {
+      if (map_obj == cached_table_data->map) {
         return map_erase;
       }
     }
@@ -222,7 +245,7 @@ private:
 
   cached_table_data_t get_cached_table_data(const EP *ep,
                                             const bdd::Call *map_erase) const {
-    cached_table_data_t data;
+    cached_table_data_t cached_table_data;
 
     const call_t &call = map_erase->get_call();
     assert(call.function_name == "map_erase");
@@ -230,15 +253,56 @@ private:
     klee::ref<klee::Expr> map_addr_expr = call.args.at("map").expr;
     klee::ref<klee::Expr> key = call.args.at("key").in;
 
-    data.obj = kutil::expr_addr_to_obj_addr(map_addr_expr);
-    data.key = key;
+    cached_table_data.obj = kutil::expr_addr_to_obj_addr(map_addr_expr);
+    cached_table_data.key = key;
 
     const Context &ctx = ep->get_ctx();
-    const bdd::map_config_t &cfg = ctx.get_map_config(data.obj);
+    const bdd::map_config_t &cfg = ctx.get_map_config(cached_table_data.obj);
 
-    data.num_entries = cfg.capacity;
+    cached_table_data.num_entries = cfg.capacity;
 
-    return data;
+    return cached_table_data;
+  }
+
+  std::vector<const bdd::Node *> get_future_related_nodes(
+      const EP *ep, const bdd::Node *node,
+      const map_coalescing_data_t &cached_table_data) const {
+    std::vector<const bdd::Node *> ops =
+        get_future_functions(node, {"vector_borrow", "vector_return",
+                                    "dchain_free_index", "map_put"});
+
+    std::vector<const bdd::Node *> related_ops;
+    for (const bdd::Node *op : ops) {
+      assert(op->get_type() == bdd::NodeType::CALL);
+
+      const bdd::Call *call_node = static_cast<const bdd::Call *>(op);
+      const call_t &call = call_node->get_call();
+
+      if (call.function_name == "dchain_free_index") {
+        klee::ref<klee::Expr> obj_expr = call.args.at("chain").expr;
+        addr_t obj = kutil::expr_addr_to_obj_addr(obj_expr);
+
+        if (obj != cached_table_data.dchain) {
+          continue;
+        }
+      } else if (call.function_name == "map_put") {
+        klee::ref<klee::Expr> obj_expr = call.args.at("map").expr;
+        addr_t obj = kutil::expr_addr_to_obj_addr(obj_expr);
+
+        if (obj != cached_table_data.map) {
+          continue;
+        }
+      } else {
+        klee::ref<klee::Expr> obj_expr = call.args.at("vector").expr;
+        addr_t obj = kutil::expr_addr_to_obj_addr(obj_expr);
+
+        if (obj != cached_table_data.vector_key) {
+          continue;
+        }
+      }
+    }
+
+    return related_ops;
   }
 
   bdd::BDD *delete_future_related_nodes(const EP *ep, const bdd::Node *node,
@@ -251,46 +315,17 @@ private:
     new_next = next;
 
     const Context &ctx = ep->get_ctx();
-    std::optional<map_coalescing_data_t> data =
+    std::optional<map_coalescing_data_t> cached_table_data =
         ctx.get_coalescing_data(map_obj);
-    assert(data.has_value());
+    assert(cached_table_data.has_value());
 
     std::vector<const bdd::Node *> ops =
-        get_future_functions(node, {"vector_borrow", "vector_return",
-                                    "dchain_free_index", "map_put"});
+        get_future_related_nodes(ep, node, *cached_table_data);
 
     for (const bdd::Node *op : ops) {
-      assert(op->get_type() == bdd::NodeType::CALL);
-
-      const bdd::Call *call_node = static_cast<const bdd::Call *>(op);
-      const call_t &call = call_node->get_call();
-
-      if (call.function_name == "dchain_free_index") {
-        klee::ref<klee::Expr> obj_expr = call.args.at("chain").expr;
-        addr_t obj = kutil::expr_addr_to_obj_addr(obj_expr);
-
-        if (obj != data->dchain) {
-          continue;
-        }
-      } else if (call.function_name == "map_put") {
-        klee::ref<klee::Expr> obj_expr = call.args.at("map").expr;
-        addr_t obj = kutil::expr_addr_to_obj_addr(obj_expr);
-
-        if (obj != data->map) {
-          continue;
-        }
-      } else {
-        klee::ref<klee::Expr> obj_expr = call.args.at("vector").expr;
-        addr_t obj = kutil::expr_addr_to_obj_addr(obj_expr);
-
-        if (obj != data->vector_key) {
-          continue;
-        }
-      }
-
       bool replace_next = (op == next);
       bdd::Node *replacement;
-      delete_non_branch_node_from_bdd(ep, new_bdd, op, replacement);
+      delete_non_branch_node_from_bdd(ep, new_bdd, op->get_id(), replacement);
 
       if (replace_next) {
         new_next = replacement;

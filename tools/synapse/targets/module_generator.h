@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "call-paths-to-bdd.h"
 
 #include "target.h"
@@ -12,13 +14,26 @@ class Context;
 
 struct speculation_t {
   Context ctx;
-  std::unordered_set<bdd::node_id_t> skip;
+  std::optional<TargetType> next_target;
+  bdd::nodes_t skip;
 
   speculation_t(const Context &_ctx) : ctx(_ctx) {}
+};
 
-  speculation_t(const Context &_ctx,
-                const std::unordered_set<bdd::node_id_t> &_skip)
-      : ctx(_ctx), skip(_skip) {}
+struct generator_product_t {
+  const EP *ep;
+  const std::string description;
+
+  generator_product_t(const EP *_ep) : ep(_ep), description("") {}
+
+  generator_product_t(const EP *_ep, const std::string &_description)
+      : ep(_ep), description(_description) {}
+
+  generator_product_t(const generator_product_t &other)
+      : ep(other.ep), description(other.description) {}
+
+  generator_product_t(generator_product_t &&other)
+      : ep(std::move(other.ep)), description(std::move(other.description)) {}
 };
 
 class ModuleGenerator {
@@ -34,8 +49,8 @@ public:
 
   virtual ~ModuleGenerator() {}
 
-  std::vector<const EP *> generate(const EP *ep, const bdd::Node *node,
-                                   bool reorder_bdd) const;
+  std::vector<generator_product_t> generate(const EP *ep, const bdd::Node *node,
+                                            bool reorder_bdd) const;
 
   virtual std::optional<speculation_t>
   speculate(const EP *ep, const bdd::Node *node,
@@ -47,8 +62,8 @@ public:
   const std::string &get_name() const { return name; }
 
 protected:
-  virtual std::vector<const EP *> process_node(const EP *ep,
-                                               const bdd::Node *node) const = 0;
+  virtual std::vector<generator_product_t>
+  process_node(const EP *ep, const bdd::Node *node) const = 0;
 
   bool can_place(const EP *ep, const bdd::Call *call_node,
                  const std::string &obj_arg, PlacementDecision decision) const;

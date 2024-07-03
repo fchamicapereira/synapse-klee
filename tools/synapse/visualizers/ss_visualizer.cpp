@@ -100,6 +100,8 @@ static void visit_definitions(std::stringstream &ss,
   ss << " colspan=\"3\"";
   ss << ">";
   if (ssnode->module_data) {
+    ss << ssnode->module_data->name;
+    ss << " ";
     ss << ssnode->module_data->description;
   } else {
     ss << "ROOT";
@@ -214,6 +216,7 @@ void SSVisualizer::visit(const SearchSpace *search_space) {
 static void log_visualization(const SearchSpace *search_space,
                               const std::string &fname,
                               const EP *ep = nullptr) {
+  assert(search_space);
   std::cerr << "Visualizing SS";
   std::cerr << " file=" << fname;
   if (ep)
@@ -222,6 +225,7 @@ static void log_visualization(const SearchSpace *search_space,
 }
 
 void SSVisualizer::visualize(const SearchSpace *search_space, bool interrupt) {
+  assert(search_space);
   SSVisualizer visualizer;
   visualizer.visit(search_space);
   log_visualization(search_space, visualizer.fpath);
@@ -230,6 +234,7 @@ void SSVisualizer::visualize(const SearchSpace *search_space, bool interrupt) {
 
 void SSVisualizer::visualize(const SearchSpace *search_space,
                              const EP *highlight, bool interrupt) {
+  assert(search_space);
   SSVisualizer visualizer(highlight);
   visualizer.visit(search_space);
   log_visualization(search_space, visualizer.fpath, highlight);

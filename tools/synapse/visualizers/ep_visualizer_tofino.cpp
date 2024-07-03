@@ -57,8 +57,6 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
 
   std::string label = label_builder.str();
   function_call(ep_node, bdd_node, target, label);
-
-  find_and_replace(label, {{"\n", "\\n"}});
 }
 
 void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
@@ -75,8 +73,6 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
 
   std::string label = label_builder.str();
   function_call(ep_node, bdd_node, target, label);
-
-  find_and_replace(label, {{"\n", "\\n"}});
 }
 
 void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
@@ -98,8 +94,6 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
 
   std::string label = label_builder.str();
   function_call(ep_node, bdd_node, target, label);
-
-  find_and_replace(label, {{"\n", "\\n"}});
 }
 
 void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
@@ -116,7 +110,7 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
   label_builder << "rids=[";
 
   int i = 0;
-  for (const auto &rid : rids) {
+  for (const std::string &rid : rids) {
     label_builder << rid;
     i++;
     if (i < (int)rids.size()) {
@@ -133,8 +127,6 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
 
   std::string label = label_builder.str();
   function_call(ep_node, bdd_node, target, label);
-
-  find_and_replace(label, {{"\n", "\\n"}});
 }
 
 void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
@@ -147,11 +139,11 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
   addr_t obj = node->get_obj();
 
   label_builder << "Register Update\n";
-  label_builder << "(";
+
   label_builder << "rids=[";
 
   int i = 0;
-  for (const auto &rid : rids) {
+  for (const std::string &rid : rids) {
     label_builder << rid;
     i++;
     if (i < (int)rids.size()) {
@@ -164,12 +156,9 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
 
   label_builder << "], obj=";
   label_builder << obj;
-  label_builder << ")";
 
   std::string label = label_builder.str();
   function_call(ep_node, bdd_node, target, label);
-
-  find_and_replace(label, {{"\n", "\\n"}});
 }
 
 void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
@@ -180,16 +169,23 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
   TargetType target = node->get_target();
   addr_t obj = node->get_obj();
 
+  tofino::DS_ID id = node->get_id();
+  const Context &ctx = ep->get_ctx();
+  const TofinoContext *tofino_ctx = ctx.get_target_ctx<TofinoContext>();
+  const DS *ds = tofino_ctx->get_ds_from_id(id);
+  assert(ds->type == DSType::CACHED_TABLE);
+  const CachedTable *cached_table = static_cast<const CachedTable *>(ds);
+
   label_builder << "Cached Table Read\n";
-  label_builder << "(";
+
   label_builder << "obj=";
   label_builder << obj;
-  label_builder << ")";
+  label_builder << ", ";
+  label_builder << "size=";
+  label_builder << cached_table->cache_capacity;
 
   std::string label = label_builder.str();
   function_call(ep_node, bdd_node, target, label);
-
-  find_and_replace(label, {{"\n", "\\n"}});
 }
 
 void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
@@ -200,16 +196,23 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
   TargetType target = node->get_target();
   addr_t obj = node->get_obj();
 
+  tofino::DS_ID id = node->get_id();
+  const Context &ctx = ep->get_ctx();
+  const TofinoContext *tofino_ctx = ctx.get_target_ctx<TofinoContext>();
+  const DS *ds = tofino_ctx->get_ds_from_id(id);
+  assert(ds->type == DSType::CACHED_TABLE);
+  const CachedTable *cached_table = static_cast<const CachedTable *>(ds);
+
   label_builder << "Cached Table Conditional Write\n";
-  label_builder << "(";
+
   label_builder << "obj=";
   label_builder << obj;
-  label_builder << ")";
+  label_builder << ", ";
+  label_builder << "size=";
+  label_builder << cached_table->cache_capacity;
 
   std::string label = label_builder.str();
   function_call(ep_node, bdd_node, target, label);
-
-  find_and_replace(label, {{"\n", "\\n"}});
 }
 
 void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
@@ -220,16 +223,23 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
   TargetType target = node->get_target();
   addr_t obj = node->get_obj();
 
+  tofino::DS_ID id = node->get_id();
+  const Context &ctx = ep->get_ctx();
+  const TofinoContext *tofino_ctx = ctx.get_target_ctx<TofinoContext>();
+  const DS *ds = tofino_ctx->get_ds_from_id(id);
+  assert(ds->type == DSType::CACHED_TABLE);
+  const CachedTable *cached_table = static_cast<const CachedTable *>(ds);
+
   label_builder << "Cached Table Write\n";
-  label_builder << "(";
+
   label_builder << "obj=";
   label_builder << obj;
-  label_builder << ")";
+  label_builder << ", ";
+  label_builder << "size=";
+  label_builder << cached_table->cache_capacity;
 
   std::string label = label_builder.str();
   function_call(ep_node, bdd_node, target, label);
-
-  find_and_replace(label, {{"\n", "\\n"}});
 }
 
 void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
@@ -240,16 +250,23 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
   TargetType target = node->get_target();
   addr_t obj = node->get_obj();
 
+  tofino::DS_ID id = node->get_id();
+  const Context &ctx = ep->get_ctx();
+  const TofinoContext *tofino_ctx = ctx.get_target_ctx<TofinoContext>();
+  const DS *ds = tofino_ctx->get_ds_from_id(id);
+  assert(ds->type == DSType::CACHED_TABLE);
+  const CachedTable *cached_table = static_cast<const CachedTable *>(ds);
+
   label_builder << "Cached Table Conditional Delete\n";
-  label_builder << "(";
+
   label_builder << "obj=";
   label_builder << obj;
-  label_builder << ")";
+  label_builder << ", ";
+  label_builder << "size=";
+  label_builder << cached_table->cache_capacity;
 
   std::string label = label_builder.str();
   function_call(ep_node, bdd_node, target, label);
-
-  find_and_replace(label, {{"\n", "\\n"}});
 }
 
 void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
@@ -260,16 +277,23 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
   TargetType target = node->get_target();
   addr_t obj = node->get_obj();
 
+  tofino::DS_ID id = node->get_id();
+  const Context &ctx = ep->get_ctx();
+  const TofinoContext *tofino_ctx = ctx.get_target_ctx<TofinoContext>();
+  const DS *ds = tofino_ctx->get_ds_from_id(id);
+  assert(ds->type == DSType::CACHED_TABLE);
+  const CachedTable *cached_table = static_cast<const CachedTable *>(ds);
+
   label_builder << "Cached Table Delete\n";
-  label_builder << "(";
+
   label_builder << "obj=";
   label_builder << obj;
-  label_builder << ")";
+  label_builder << ", ";
+  label_builder << "size=";
+  label_builder << cached_table->cache_capacity;
 
   std::string label = label_builder.str();
   function_call(ep_node, bdd_node, target, label);
-
-  find_and_replace(label, {{"\n", "\\n"}});
 }
 
 void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
@@ -285,10 +309,8 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
   label_builder << size;
   label_builder << "B)";
 
-  auto label = label_builder.str();
+  std::string label = label_builder.str();
   function_call(ep_node, bdd_node, target, label);
-
-  find_and_replace(label, {{"\n", "\\n"}});
 }
 
 } // namespace synapse

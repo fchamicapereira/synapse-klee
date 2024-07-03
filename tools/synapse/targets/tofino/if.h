@@ -55,18 +55,18 @@ protected:
     return current_speculative_ctx;
   }
 
-  virtual std::vector<const EP *>
+  virtual std::vector<generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<const EP *> new_eps;
+    std::vector<generator_product_t> products;
 
     if (node->get_type() != bdd::NodeType::BRANCH) {
-      return new_eps;
+      return products;
     }
 
     const bdd::Branch *branch_node = static_cast<const bdd::Branch *>(node);
 
     if (is_parser_condition(branch_node)) {
-      return new_eps;
+      return products;
     }
 
     const TNA &tna = get_tna(ep);
@@ -77,7 +77,7 @@ protected:
     for (klee::ref<klee::Expr> sub_condition : conditions) {
       if (!tna.condition_meets_phv_limit(sub_condition)) {
         assert(false && "TODO: deal with this");
-        return new_eps;
+        return products;
       }
     }
 
@@ -100,12 +100,12 @@ protected:
     EPLeaf else_leaf(else_node, branch_node->get_on_false());
 
     EP *new_ep = new EP(*ep);
-    new_eps.push_back(new_ep);
+    products.emplace_back(new_ep);
 
     new_ep->update_node_constraints(then_node, else_node, condition);
     new_ep->process_leaf(if_node, {then_leaf, else_leaf});
 
-    return new_eps;
+    return products;
   }
 
 private:

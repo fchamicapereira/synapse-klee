@@ -30,11 +30,12 @@ const Color BOLD = "\033[1m";
 class Log {
 
 public:
-  enum Level { DEBUG, LOG, WARNING, ERROR };
+  enum Level { DEBUG = 0, LOG = 1, WARNING = 2, ERROR = 3 };
 
   std::ostream stream;
 
   static Level MINIMUM_LOG_LEVEL;
+  static bool is_dbg_active() { return Log::MINIMUM_LOG_LEVEL >= Level::DEBUG; }
 
   static Log log();
   static Log dbg();
@@ -48,19 +49,19 @@ private:
 private:
   Log(const Level &_level) : stream(nullptr), level(_level) {
     switch (_level) {
-    case LOG:
+    case Level::LOG:
       stream.rdbuf(std::cout.rdbuf());
       color = Colors::WHITE;
       break;
-    case DEBUG:
+    case Level::DEBUG:
       stream.rdbuf(std::cerr.rdbuf());
       color = Colors::CYAN;
       break;
-    case WARNING:
+    case Level::WARNING:
       stream.rdbuf(std::cerr.rdbuf());
       color = Colors::RED;
       break;
-    case ERROR:
+    case Level::ERROR:
       stream.rdbuf(std::cerr.rdbuf());
       color = Colors::RED_BRIGHT;
       break;

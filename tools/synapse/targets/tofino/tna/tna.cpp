@@ -137,6 +137,7 @@ TNA::can_place_many(const std::vector<std::unordered_set<DS *>> &candidates,
 }
 
 void TNA::log_debug_placement() const { simple_placer.log_debug(); }
+void TNA::log_debug_perf_oracle() const { perf_oracle.log_debug(); }
 
 const PerfOracle &TNA::get_perf_oracle() const { return perf_oracle; }
 PerfOracle &TNA::get_mutable_perf_oracle() { return perf_oracle; }

@@ -52,6 +52,7 @@ public:
 
 class Context {
 private:
+  std::shared_ptr<Profiler> profiler;
   std::unordered_map<addr_t, bdd::map_config_t> map_configs;
   std::unordered_map<addr_t, bdd::vector_config_t> vector_configs;
   std::unordered_map<addr_t, bdd::dchain_config_t> dchain_configs;
@@ -61,15 +62,14 @@ private:
   std::optional<expiration_data_t> expiration_data;
   std::unordered_map<addr_t, PlacementDecision> placement_decisions;
   std::unordered_map<TargetType, TargetContext *> target_ctxs;
-  std::unordered_map<TargetType, float> traffic_fraction_per_target;
+  std::unordered_map<TargetType, double> traffic_fraction_per_target;
   std::unordered_map<ep_node_id_t, constraints_t> constraints_per_node;
-
   uint64_t throughput_estimate_pps;
   uint64_t throughput_speculation_pps;
 
 public:
   Context(const bdd::BDD *bdd, const std::vector<const Target *> &targets,
-          const TargetType initial_target);
+          const TargetType initial_target, std::shared_ptr<Profiler> profiler);
   Context(const Context &other);
   Context(Context &&other);
 
@@ -77,20 +77,21 @@ public:
 
   Context &operator=(const Context &other);
 
+  const Profiler *get_profiler() const;
   const bdd::map_config_t &get_map_config(addr_t addr) const;
   const bdd::vector_config_t &get_vector_config(addr_t addr) const;
   const bdd::dchain_config_t &get_dchain_config(addr_t addr) const;
   const bdd::sketch_config_t &get_sketch_config(addr_t addr) const;
   const bdd::cht_config_t &get_cht_config(addr_t addr) const;
-
   std::optional<map_coalescing_data_t> get_coalescing_data(addr_t obj) const;
   const std::optional<expiration_data_t> &get_expiration_data() const;
-
   const std::unordered_map<addr_t, PlacementDecision> &get_placements() const;
-  const std::unordered_map<TargetType, float> &get_traffic_fractions() const;
+  const std::unordered_map<TargetType, double> &get_traffic_fractions() const;
 
   template <class TCtx> const TCtx *get_target_ctx() const;
   template <class TCtx> TCtx *get_mutable_target_ctx();
+
+  Profiler *get_mutable_profiler();
 
   void save_placement(addr_t obj, PlacementDecision decision);
   bool has_placement(addr_t obj) const;
@@ -101,18 +102,24 @@ public:
                                    const constraints_t &constraints);
   constraints_t get_node_constraints(const EPNode *node) const;
 
-  void update_traffic_fractions(const EPNode *new_node,
-                                const Profiler *profiler);
+  void update_traffic_fractions(const EPNode *new_node);
   void update_traffic_fractions(TargetType old_target, TargetType new_target,
-                                float fraction);
+                                double fraction);
 
   void update_throughput_estimates(const EP *ep);
   uint64_t get_throughput_estimate_pps() const;
   uint64_t get_throughput_speculation_pps() const;
 
+  void add_hit_rate_estimation(const constraints_t &constraints,
+                               klee::ref<klee::Expr> new_constraint,
+                               double estimation_rel);
+  void remove_hit_rate_node(const constraints_t &constraints);
+
+  void log_debug() const;
+
 private:
   void update_throughput_speculation(const EP *ep);
-  void update_throughput_estimate(const EP *ep);
+  void update_throughput_estimate();
 };
 
 #define EXPLICIT_TARGET_CONTEXT_INSTANTIATION(NS, TCTX)                        \

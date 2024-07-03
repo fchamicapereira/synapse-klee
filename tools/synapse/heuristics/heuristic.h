@@ -10,6 +10,10 @@
 namespace synapse {
 
 struct HeuristicCfg {
+  std::string name;
+
+  HeuristicCfg(const std::string &_name) : name(_name) {}
+
   virtual Score get_score(const EP *e) const = 0;
 
   virtual bool operator()(const EP *e1, const EP *e2) const {

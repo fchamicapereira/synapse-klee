@@ -44,24 +44,24 @@ protected:
     return current_speculative_ctx;
   }
 
-  virtual std::vector<const EP *>
+  virtual std::vector<generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<const EP *> new_eps;
+    std::vector<generator_product_t> products;
 
     if (!should_ignore(ep, node)) {
-      return new_eps;
+      return products;
     }
 
     Module *module = new Ignore(node);
     EPNode *ep_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
-    new_eps.push_back(new_ep);
+    products.emplace_back(new_ep);
 
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
 
-    return new_eps;
+    return products;
   }
 
 private:

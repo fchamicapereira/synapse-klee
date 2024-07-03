@@ -5,6 +5,7 @@
 #include "visualizers/ss_visualizer.h"
 #include "visualizers/ep_visualizer.h"
 
+#include <chrono>
 #include <iomanip>
 
 namespace synapse {
@@ -37,6 +38,35 @@ template <class HCfg> SearchEngine<HCfg>::~SearchEngine() {
   }
 }
 
+search_report_t::search_report_t(const EP *_ep,
+                                 const SearchSpace *_search_space,
+                                 const std::string &_heuristic_name,
+                                 unsigned _random_seed, size_t _ss_size,
+                                 Score _winner_score, double _search_time)
+    : ep(_ep), search_space(_search_space), heuristic_name(_heuristic_name),
+      random_seed(_random_seed), ss_size(_ss_size), winner_score(_winner_score),
+      search_time(_search_time) {}
+
+search_report_t::search_report_t(search_report_t &&other)
+    : ep(std::move(other.ep)), search_space(std::move(other.search_space)),
+      heuristic_name(std::move(other.heuristic_name)),
+      random_seed(std::move(other.random_seed)),
+      ss_size(std::move(other.ss_size)),
+      winner_score(std::move(other.winner_score)),
+      search_time(std::move(other.search_time)) {}
+
+search_report_t::~search_report_t() {
+  if (ep) {
+    delete ep;
+    ep = nullptr;
+  }
+
+  if (search_space) {
+    delete search_space;
+    search_space = nullptr;
+  }
+}
+
 struct search_it_report_t {
   int available_execution_plans;
   const EP *chosen;
@@ -52,18 +82,18 @@ struct search_it_report_t {
         current(_current) {}
 
   void save(const ModuleGenerator *modgen,
-            const std::vector<const EP *> &new_eps) {
-    if (new_eps.empty()) {
+            const std::vector<generator_product_t> &products) {
+    if (products.empty()) {
       return;
     }
 
     targets.push_back(modgen->get_target());
     name.push_back(modgen->get_name());
     gen_ep_ids.emplace_back();
-    available_execution_plans += new_eps.size();
+    available_execution_plans += products.size();
 
-    for (const EP *next_ep : new_eps) {
-      ep_id_t next_ep_id = next_ep->get_id();
+    for (const generator_product_t &product : products) {
+      ep_id_t next_ep_id = product.ep->get_id();
       gen_ep_ids.back().push_back(next_ep_id);
     }
   }
@@ -131,7 +161,9 @@ static void peek_search_space(const std::vector<const EP *> &eps,
   }
 }
 
-template <class HCfg> search_product_t SearchEngine<HCfg>::search() {
+template <class HCfg> search_report_t SearchEngine<HCfg>::search() {
+  auto start_search = std::chrono::steady_clock::now();
+
   SearchSpace *search_space = new SearchSpace(h->get_cfg());
 
   h->add({new EP(bdd, targets, profiler)});
@@ -148,12 +180,14 @@ template <class HCfg> search_product_t SearchEngine<HCfg>::search() {
 
     for (const Target *target : targets) {
       for (const ModuleGenerator *modgen : target->module_generators) {
-        std::vector<const EP *> modgen_new_eps =
+        std::vector<generator_product_t> modgen_products =
             modgen->generate(ep, node, allow_bdd_reordering);
-        new_eps.insert(new_eps.end(), modgen_new_eps.begin(),
-                       modgen_new_eps.end());
-        search_space->add_to_active_leaf(ep, node, modgen, modgen_new_eps);
-        report.save(modgen, modgen_new_eps);
+        search_space->add_to_active_leaf(ep, node, modgen, modgen_products);
+        report.save(modgen, modgen_products);
+
+        for (const generator_product_t &product : modgen_products) {
+          new_eps.push_back(product.ep);
+        }
       }
     }
 
@@ -165,14 +199,21 @@ template <class HCfg> search_product_t SearchEngine<HCfg>::search() {
     delete ep;
   }
 
+  auto end_search = std::chrono::steady_clock::now();
+  auto search_dt = std::chrono::duration_cast<std::chrono::seconds>(
+                       end_search - start_search)
+                       .count();
+
   EP *winner = new EP(*h->get());
 
-  Log::log() << "Random seed: " << h->get_random_seed() << "\n";
-  Log::log() << "Solutions: " << h->get_all().size() << "\n";
-  Log::log() << "SS size: " << search_space->get_size() << "\n";
-  Log::log() << "Winner: " << h->get_score(winner) << "\n";
+  const std::string heuristic_name = h->get_cfg()->name;
+  const unsigned random_seed = h->get_random_seed();
+  const size_t ss_size = search_space->get_size();
+  const Score winner_score = h->get_score(winner);
+  const double search_time = search_dt;
 
-  return search_product_t(winner, search_space);
+  return search_report_t(winner, search_space, heuristic_name, random_seed,
+                         ss_size, winner_score, search_time);
 }
 
 EXPLICIT_HEURISTIC_TEMPLATE_CLASS_INSTANTIATION(SearchEngine)

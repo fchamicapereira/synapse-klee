@@ -80,21 +80,30 @@ protected:
       return std::nullopt;
     }
 
+    std::unordered_set<DS_ID> deps;
+    Table *table = build_table(ep, id, num_entries, keys, values, hit, deps);
+
+    if (!table) {
+      return std::nullopt;
+    }
+
+    delete table;
+
     return current_speculative_ctx;
   }
 
-  virtual std::vector<const EP *>
+  virtual std::vector<generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<const EP *> new_eps;
+    std::vector<generator_product_t> products;
 
     if (node->get_type() != bdd::NodeType::CALL) {
-      return new_eps;
+      return products;
     }
 
     const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
 
     if (!can_place_in_simple_table(ep, call_node)) {
-      return new_eps;
+      return products;
     }
 
     addr_t obj;
@@ -106,28 +115,28 @@ protected:
 
     if (!get_table_data(ep, call_node, obj, num_entries, keys, values, hit,
                         id)) {
-      return new_eps;
+      return products;
     }
 
     std::unordered_set<DS_ID> deps;
     Table *table = build_table(ep, id, num_entries, keys, values, hit, deps);
 
     if (!table) {
-      return new_eps;
+      return products;
     }
 
     Module *module = new SimpleTableLookup(node, id, obj, keys, values, hit);
     EPNode *ep_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
-    new_eps.push_back(new_ep);
+    products.emplace_back(new_ep);
 
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
 
     place_simple_table(new_ep, obj, table, deps);
 
-    return new_eps;
+    return products;
   }
 
 private:
@@ -164,6 +173,10 @@ private:
     TofinoContext *tofino_ctx = get_mutable_tofino_ctx(ep);
     place(ep, obj, PlacementDecision::Tofino_SimpleTable);
     tofino_ctx->place(ep, obj, table, deps);
+
+    Log::dbg() << "-> ~~~ NEW PLACEMENT ~~~ <-\n";
+    table->log_debug();
+    tofino_ctx->get_tna().log_debug_placement();
   }
 
   bool can_place_in_simple_table(const EP *ep,

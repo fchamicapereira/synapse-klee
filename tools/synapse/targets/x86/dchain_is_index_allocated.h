@@ -74,19 +74,19 @@ protected:
     return current_speculative_ctx;
   }
 
-  virtual std::vector<const EP *>
+  virtual std::vector<generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<const EP *> new_eps;
+    std::vector<generator_product_t> products;
 
     if (!bdd_node_match_pattern(node)) {
-      return new_eps;
+      return products;
     }
 
     const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
     const call_t &call = call_node->get_call();
 
     if (!can_place(ep, call_node, "chain", PlacementDecision::x86_Dchain)) {
-      return new_eps;
+      return products;
     }
 
     klee::ref<klee::Expr> dchain_addr_expr = call.args.at("chain").expr;
@@ -103,14 +103,14 @@ protected:
     EPNode *ep_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
-    new_eps.push_back(new_ep);
+    products.emplace_back(new_ep);
 
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
 
     place(new_ep, dchain_addr, PlacementDecision::x86_Dchain);
 
-    return new_eps;
+    return products;
   }
 };
 

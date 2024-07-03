@@ -13,7 +13,7 @@ void EPMeta::process_node(const bdd::Node *node, TargetType target) {
 }
 
 void EPMeta::update(const EPLeaf *leaf, const EPNode *new_node,
-                    const Profiler *profiler, bool should_process_node) {
+                    bool should_process_node) {
   ep_node_id_t node_id = new_node->get_id();
   if (visited_ep_nodes.find(node_id) != visited_ep_nodes.end()) {
     return;
@@ -32,8 +32,8 @@ void EPMeta::update(const EPLeaf *leaf, const EPNode *new_node,
   nodes_per_target[target]++;
 }
 
-float EPMeta::get_bdd_progress() const {
-  return processed_nodes.size() / static_cast<float>(total_bdd_nodes);
+double EPMeta::get_bdd_progress() const {
+  return processed_nodes.size() / static_cast<double>(total_bdd_nodes);
 }
 
 void EPMeta::update_total_bdd_nodes(const bdd::BDD *bdd) {

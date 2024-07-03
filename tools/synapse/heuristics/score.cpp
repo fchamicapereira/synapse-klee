@@ -66,8 +66,11 @@ std::ostream &operator<<(std::ostream &os, ScoreCategory score_category) {
   case ScoreCategory::HasNextStatefulOperationInSwitch:
     os << "HasNextStatefulOpInSwitch";
     break;
-  case ScoreCategory::ProcessedBDDPercentage:
+  case ScoreCategory::ProcessedBDD:
     os << "BDDProgress";
+    break;
+  case ScoreCategory::ProcessedBDDPercentage:
+    os << "PercentualBDDProgress";
     break;
   case ScoreCategory::SwitchDataStructures:
     os << "#SwitchDS";
@@ -252,6 +255,11 @@ int64_t Score::next_op_is_stateful_in_switch(const EP *ep) const {
   }
 
   return 0;
+}
+
+int64_t Score::get_processed_bdd(const EP *ep) const {
+  const EPMeta &meta = ep->get_meta();
+  return meta.processed_nodes.size();
 }
 
 int64_t Score::get_percentage_of_processed_bdd(const EP *ep) const {

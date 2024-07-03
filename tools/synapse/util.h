@@ -38,6 +38,8 @@ std::vector<modification_t> build_modifications(klee::ref<klee::Expr> before,
 std::vector<modification_t>
 ignore_checksum_modifications(const std::vector<modification_t> &modifications);
 
+symbol_t create_symbol(const std::string &label, bits_t size);
+
 bool query_contains_map_has_key(const bdd::Branch *node);
 
 klee::ref<klee::Expr> chunk_borrow_from_return(const EP *ep,
@@ -165,11 +167,11 @@ void add_branch_to_bdd(const EP *ep, bdd::BDD *bdd, const bdd::Node *current,
                        bdd::Branch *&new_branch);
 
 void delete_non_branch_node_from_bdd(const EP *ep, bdd::BDD *bdd,
-                                     const bdd::Node *target,
+                                     bdd::node_id_t target_id,
                                      bdd::Node *&new_current);
 
 void delete_branch_node_from_bdd(const EP *ep, bdd::BDD *bdd,
-                                 const bdd::Branch *target,
+                                 bdd::node_id_t target_id,
                                  bool direction_to_keep,
                                  bdd::Node *&new_current);
 

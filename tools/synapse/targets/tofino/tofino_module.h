@@ -52,17 +52,28 @@ protected:
 
   symbols_t get_dataplane_state(const EP *ep, const bdd::Node *node) const;
 
-  std::unordered_set<DS *>
-  build_registers(const EP *ep, const bdd::Node *node, int num_entries,
-                  bits_t index, klee::ref<klee::Expr> value,
-                  const std::unordered_set<RegisterAction> &actions,
-                  std::unordered_set<DS_ID> &rids,
-                  std::unordered_set<DS_ID> &deps) const;
+  struct vector_register_data_t {
+    addr_t obj;
+    int num_entries;
+    klee::ref<klee::Expr> index;
+    klee::ref<klee::Expr> value;
+    std::unordered_set<RegisterAction> actions;
+  };
 
-  std::unordered_set<DS *> get_registers(const EP *ep, const bdd::Node *node,
-                                         addr_t obj,
-                                         std::unordered_set<DS_ID> &rids,
-                                         std::unordered_set<DS_ID> &deps) const;
+  std::unordered_set<DS *> build_vector_registers(
+      const EP *ep, const bdd::Node *node, const vector_register_data_t &data,
+      std::unordered_set<DS_ID> &rids, std::unordered_set<DS_ID> &deps) const;
+  std::unordered_set<DS *> get_vector_registers(
+      const EP *ep, const bdd::Node *node, const vector_register_data_t &data,
+      std::unordered_set<DS_ID> &rids, std::unordered_set<DS_ID> &deps) const;
+  std::unordered_set<DS *> get_or_build_vector_registers(
+      const EP *ep, const bdd::Node *node, const vector_register_data_t &data,
+      bool &already_exists, std::unordered_set<DS_ID> &rids,
+      std::unordered_set<DS_ID> &deps) const;
+
+  void place_vector_registers(EP *ep, const vector_register_data_t &data,
+                              const std::unordered_set<DS *> &regs,
+                              const std::unordered_set<DS_ID> &deps) const;
 
   struct cached_table_data_t {
     addr_t obj;
@@ -84,11 +95,14 @@ protected:
                                          int cache_capacity,
                                          bool &already_exists,
                                          std::unordered_set<DS_ID> &deps) const;
+
   bool can_place_cached_table(const EP *ep, const bdd::Call *map_get,
                               map_coalescing_data_t &coalescing_data) const;
   void place_cached_table(EP *ep, const map_coalescing_data_t &coalescing_data,
                           CachedTable *ds,
                           const std::unordered_set<DS_ID> &deps) const;
+  std::unordered_set<int>
+  enumerate_cache_table_capacities(int num_entries) const;
 };
 
 } // namespace tofino

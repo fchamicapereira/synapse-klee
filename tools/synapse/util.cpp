@@ -1223,18 +1223,17 @@ void add_branch_to_bdd(const EP *ep, bdd::BDD *bdd, const bdd::Node *current,
 }
 
 void delete_non_branch_node_from_bdd(const EP *ep, bdd::BDD *bdd,
-                                     const bdd::Node *target,
+                                     bdd::node_id_t target_id,
                                      bdd::Node *&new_current) {
-  assert(target->get_type() != bdd::NodeType::BRANCH);
-
   bdd::NodeManager &manager = bdd->get_mutable_manager();
 
-  const bdd::Node *prev = target->get_prev();
-  assert(prev);
+  bdd::Node *anchor_next = bdd->get_mutable_node_by_id(target_id);
+  assert(anchor_next);
+  assert(anchor_next->get_type() != bdd::NodeType::BRANCH);
 
-  bdd::node_id_t anchor_id = prev->get_id();
-  bdd::Node *anchor = bdd->get_mutable_node_by_id(anchor_id);
-  bdd::Node *anchor_next = bdd->get_mutable_node_by_id(target->get_id());
+  bdd::Node *anchor = anchor_next->get_mutable_prev();
+  assert(anchor);
+
   new_current = anchor_next->get_mutable_next();
 
   switch (anchor->get_type()) {
@@ -1264,18 +1263,19 @@ void delete_non_branch_node_from_bdd(const EP *ep, bdd::BDD *bdd,
 }
 
 void delete_branch_node_from_bdd(const EP *ep, bdd::BDD *bdd,
-                                 const bdd::Branch *target,
+                                 bdd::node_id_t target_id,
                                  bool direction_to_keep,
                                  bdd::Node *&new_current) {
   bdd::NodeManager &manager = bdd->get_mutable_manager();
 
-  const bdd::Node *prev = target->get_prev();
-  assert(prev);
+  bdd::Node *target = bdd->get_mutable_node_by_id(target_id);
+  assert(target);
+  assert(target->get_type() == bdd::NodeType::BRANCH);
 
-  bdd::node_id_t anchor_id = prev->get_id();
-  bdd::Node *anchor = bdd->get_mutable_node_by_id(anchor_id);
-  bdd::Branch *anchor_next =
-      static_cast<bdd::Branch *>(bdd->get_mutable_node_by_id(target->get_id()));
+  bdd::Node *anchor = target->get_mutable_prev();
+  assert(anchor);
+
+  bdd::Branch *anchor_next = static_cast<bdd::Branch *>(target);
 
   bdd::Node *target_on_true = anchor_next->get_mutable_on_true();
   bdd::Node *target_on_false = anchor_next->get_mutable_on_false();
@@ -1499,6 +1499,21 @@ get_coalescing_nodes_from_key(const bdd::BDD *bdd, const bdd::Node *node,
                        filtered_nodes.end());
 
   return filtered_nodes;
+}
+
+symbol_t create_symbol(const std::string &label, bits_t size) {
+  const klee::Array *array;
+
+  klee::ref<klee::Expr> expr =
+      kutil::solver_toolbox.create_new_symbol(label, size, array);
+
+  symbol_t new_symbol = {
+      .base = label,
+      .array = array,
+      .expr = expr,
+  };
+
+  return new_symbol;
 }
 
 } // namespace synapse

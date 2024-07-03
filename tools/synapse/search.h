@@ -11,24 +11,24 @@
 
 namespace synapse {
 
-struct search_product_t {
+struct search_report_t {
   const EP *ep;
   const SearchSpace *search_space;
 
-  search_product_t(const EP *_ep, const SearchSpace *_search_space)
-      : ep(_ep), search_space(_search_space) {}
+  const std::string heuristic_name;
+  const unsigned random_seed;
+  const size_t ss_size;
+  const Score winner_score;
+  const double search_time;
 
-  ~search_product_t() {
-    if (ep) {
-      delete ep;
-      ep = nullptr;
-    }
+  search_report_t(const EP *_ep, const SearchSpace *_search_space,
+                  const std::string &_heuristic_name, unsigned _random_seed,
+                  size_t _ss_size, Score _winner_score, double _search_time);
 
-    if (search_space) {
-      delete search_space;
-      search_space = nullptr;
-    }
-  }
+  search_report_t(const search_report_t &) = delete;
+  search_report_t(search_report_t &&other);
+
+  ~search_report_t();
 };
 
 template <class HCfg> class SearchEngine {
@@ -55,7 +55,7 @@ public:
 
   ~SearchEngine();
 
-  search_product_t search();
+  search_report_t search();
 };
 
 } // namespace synapse

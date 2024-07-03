@@ -5,6 +5,7 @@
 #include "data_structures/data_structures.h"
 
 #include <unordered_map>
+#include <optional>
 
 namespace synapse {
 namespace tofino {
@@ -35,7 +36,8 @@ public:
   void save_ds(addr_t addr, DS *ds);
 
   void add_recirculated_traffic(int port, int port_recirculations,
-                                int total_recirculations, float fraction);
+                                double fraction,
+                                std::optional<int> prev_recirc_port);
 
   void parser_transition(const EP *ep, const bdd::Node *node,
                          klee::ref<klee::Expr> hdr);

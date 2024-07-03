@@ -60,19 +60,19 @@ protected:
     return current_speculative_ctx;
   }
 
-  virtual std::vector<const EP *>
+  virtual std::vector<generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<const EP *> new_eps;
+    std::vector<generator_product_t> products;
 
     if (node->get_type() != bdd::NodeType::CALL) {
-      return new_eps;
+      return products;
     }
 
     const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
     const call_t &call = call_node->get_call();
 
     if (call.function_name != "nf_set_rte_ipv4_udptcp_checksum") {
-      return new_eps;
+      return products;
     }
 
     klee::ref<klee::Expr> ip_hdr_addr_expr = call.args.at("ip_header").expr;
@@ -88,7 +88,7 @@ protected:
     addr_t l4_hdr_addr = kutil::expr_addr_to_obj_addr(l4_hdr_addr_expr);
 
     EP *new_ep = new EP(*ep);
-    new_eps.push_back(new_ep);
+    products.emplace_back(new_ep);
 
     Module *module =
         new ChecksumUpdate(node, ip_hdr_addr, l4_hdr_addr, checksum);
@@ -97,7 +97,7 @@ protected:
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
 
-    return new_eps;
+    return products;
   }
 };
 

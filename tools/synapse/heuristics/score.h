@@ -23,6 +23,7 @@ enum class ScoreCategory {
   Depth,
   ConsecutiveObjectOperationsInSwitch,
   HasNextStatefulOperationInSwitch,
+  ProcessedBDD,
   ProcessedBDDPercentage,
   Throughput,
   SpeculativeThroughput,
@@ -51,66 +52,69 @@ public:
 
   Score(const EP *ep,
         const std::vector<std::pair<ScoreCategory, ScoreObjective>>
-            &categories_objectives) {
-    computers = {
-        {
-            ScoreCategory::SendToControllerNodes,
-            &Score::get_nr_send_to_controller,
-        },
-        {
-            ScoreCategory::Recirculations,
-            &Score::get_nr_recirculations,
-        },
-        {
-            ScoreCategory::ReorderedNodes,
-            &Score::get_nr_reordered_nodes,
-        },
-        {
-            ScoreCategory::Nodes,
-            &Score::get_nr_nodes,
-        },
-        {
-            ScoreCategory::SwitchNodes,
-            &Score::get_nr_switch_nodes,
-        },
-        {
-            ScoreCategory::SwitchLeaves,
-            &Score::get_nr_switch_leaves,
-        },
-        {
-            ScoreCategory::ControllerNodes,
-            &Score::get_nr_controller_nodes,
-        },
-        {
-            ScoreCategory::SwitchDataStructures,
-            &Score::get_nr_switch_data_structures,
-        },
-        {
-            ScoreCategory::Depth,
-            &Score::get_depth,
-        },
-        {
-            ScoreCategory::ConsecutiveObjectOperationsInSwitch,
-            &Score::next_op_same_obj_in_switch,
-        },
-        {
-            ScoreCategory::HasNextStatefulOperationInSwitch,
-            &Score::next_op_is_stateful_in_switch,
-        },
-        {
-            ScoreCategory::ProcessedBDDPercentage,
-            &Score::get_percentage_of_processed_bdd,
-        },
-        {
-            ScoreCategory::Throughput,
-            &Score::get_throughput_prediction,
-        },
-        {
-            ScoreCategory::SpeculativeThroughput,
-            &Score::get_throughput_speculation,
-        },
-    };
-
+            &categories_objectives)
+      : computers({
+            {
+                ScoreCategory::SendToControllerNodes,
+                &Score::get_nr_send_to_controller,
+            },
+            {
+                ScoreCategory::Recirculations,
+                &Score::get_nr_recirculations,
+            },
+            {
+                ScoreCategory::ReorderedNodes,
+                &Score::get_nr_reordered_nodes,
+            },
+            {
+                ScoreCategory::Nodes,
+                &Score::get_nr_nodes,
+            },
+            {
+                ScoreCategory::SwitchNodes,
+                &Score::get_nr_switch_nodes,
+            },
+            {
+                ScoreCategory::SwitchLeaves,
+                &Score::get_nr_switch_leaves,
+            },
+            {
+                ScoreCategory::ControllerNodes,
+                &Score::get_nr_controller_nodes,
+            },
+            {
+                ScoreCategory::SwitchDataStructures,
+                &Score::get_nr_switch_data_structures,
+            },
+            {
+                ScoreCategory::Depth,
+                &Score::get_depth,
+            },
+            {
+                ScoreCategory::ConsecutiveObjectOperationsInSwitch,
+                &Score::next_op_same_obj_in_switch,
+            },
+            {
+                ScoreCategory::HasNextStatefulOperationInSwitch,
+                &Score::next_op_is_stateful_in_switch,
+            },
+            {
+                ScoreCategory::ProcessedBDD,
+                &Score::get_processed_bdd,
+            },
+            {
+                ScoreCategory::ProcessedBDDPercentage,
+                &Score::get_percentage_of_processed_bdd,
+            },
+            {
+                ScoreCategory::Throughput,
+                &Score::get_throughput_prediction,
+            },
+            {
+                ScoreCategory::SpeculativeThroughput,
+                &Score::get_throughput_speculation,
+            },
+        }) {
     for (const auto &category_objective : categories_objectives) {
       ScoreCategory ScoreCategory = category_objective.first;
       ScoreObjective ScoreObjective = category_objective.second;
@@ -208,6 +212,7 @@ private:
   int64_t get_nr_switch_leaves(const EP *ep) const;
   int64_t next_op_same_obj_in_switch(const EP *ep) const;
   int64_t next_op_is_stateful_in_switch(const EP *ep) const;
+  int64_t get_processed_bdd(const EP *ep) const;
   int64_t get_percentage_of_processed_bdd(const EP *ep) const;
   int64_t get_nr_send_to_controller(const EP *ep) const;
   int64_t get_nr_switch_data_structures(const EP *ep) const;

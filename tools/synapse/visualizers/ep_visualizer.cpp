@@ -55,6 +55,9 @@ void EPVisualizer::log(const EPNode *ep_node) const {
 
 void EPVisualizer::function_call(const EPNode *ep_node, const bdd::Node *node,
                                  TargetType target, const std::string &label) {
+  std::string nice_label = label;
+  find_and_replace(nice_label, {{"\n", "\\n"}});
+
   assert(node_colors.find(target) != node_colors.end());
   ss << "[label=\"";
 
@@ -66,7 +69,7 @@ void EPVisualizer::function_call(const EPNode *ep_node, const bdd::Node *node,
   ss << "]";
   ss << "\\n";
 
-  ss << label;
+  ss << nice_label;
   ss << "\", ";
   ss << "color=" << node_colors[target] << "];";
   ss << "\n";
@@ -74,6 +77,9 @@ void EPVisualizer::function_call(const EPNode *ep_node, const bdd::Node *node,
 
 void EPVisualizer::branch(const EPNode *ep_node, const bdd::Node *node,
                           TargetType target, const std::string &label) {
+  std::string nice_label = label;
+  find_and_replace(nice_label, {{"\n", "\\n"}});
+
   assert(node_colors.find(target) != node_colors.end());
   ss << "[shape=Mdiamond, label=\"";
 
@@ -85,13 +91,14 @@ void EPVisualizer::branch(const EPNode *ep_node, const bdd::Node *node,
   ss << "]";
   ss << " ";
 
-  ss << label;
+  ss << nice_label;
   ss << "\", ";
   ss << "color=" << node_colors[target] << "];";
   ss << "\n";
 }
 
 static void log_visualization(const EP *ep, const std::string &fname) {
+  assert(ep);
   std::cerr << "Visualizing EP";
   std::cerr << " id=" << ep->get_id();
   std::cerr << " file=" << fname;
@@ -109,6 +116,7 @@ static void log_visualization(const EP *ep, const std::string &fname) {
 }
 
 void EPVisualizer::visualize(const EP *ep, bool interrupt) {
+  assert(ep);
   EPVisualizer visualizer;
   visualizer.visit(ep);
   log_visualization(ep, visualizer.fpath);
@@ -116,6 +124,7 @@ void EPVisualizer::visualize(const EP *ep, bool interrupt) {
 }
 
 void EPVisualizer::visit(const EP *ep) {
+  assert(ep);
   ss << "digraph EP {\n";
   ss << "layout=\"dot\";";
   ss << "node [shape=record,style=filled];\n";
@@ -127,6 +136,7 @@ void EPVisualizer::visit(const EP *ep) {
 }
 
 void EPVisualizer::visit(const EP *ep, const EPNode *node) {
+  assert(ep);
   if (should_ignore_node(node)) {
     EPVisitor::visit(ep, node);
     return;

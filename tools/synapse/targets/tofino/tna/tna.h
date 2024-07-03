@@ -68,6 +68,7 @@ public:
                  const std::unordered_set<DS_ID> &deps) const;
 
   void log_debug_placement() const;
+  void log_debug_perf_oracle() const;
 
   const PerfOracle &get_perf_oracle() const;
   PerfOracle &get_mutable_perf_oracle();

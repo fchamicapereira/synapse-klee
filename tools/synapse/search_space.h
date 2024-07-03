@@ -16,8 +16,9 @@ typedef int ss_node_id_t;
 
 struct module_data_t {
   ModuleType type;
+  std::string name;
   std::string description;
-  float hit_rate;
+  double hit_rate;
 };
 
 struct bdd_node_data_t {
@@ -83,10 +84,11 @@ public:
   void activate_leaf(const EP *ep);
   void add_to_active_leaf(const EP *ep, const bdd::Node *node,
                           const ModuleGenerator *mogden,
-                          const std::vector<const EP *> &generated_eps);
+                          const std::vector<generator_product_t> &products);
 
   SSNode *get_root() const;
   size_t get_size() const;
+  const HeuristicCfg *get_hcfg() const;
 
   bool was_explored(ss_node_id_t node_id) const;
 };

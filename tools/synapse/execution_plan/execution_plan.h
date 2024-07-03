@@ -4,7 +4,6 @@
 
 #include "node.h"
 #include "meta.h"
-#include "../profiler.h"
 #include "../targets/target.h"
 #include "../targets/context.h"
 
@@ -15,6 +14,7 @@
 namespace synapse {
 
 class EPVisitor;
+class Profiler;
 
 typedef uint64_t ep_id_t;
 typedef std::unordered_map<bdd::node_id_t, bdd::node_id_t> translator_t;
@@ -40,7 +40,6 @@ private:
   const std::set<ep_id_t> ancestors;
 
   std::unordered_map<TargetType, bdd::nodes_t> targets_roots;
-  std::shared_ptr<Profiler> profiler;
 
   Context ctx;
   EPMeta meta;
@@ -73,7 +72,6 @@ public:
   const std::vector<const Target *> &get_targets() const;
   const bdd::nodes_t &get_target_roots(TargetType target) const;
   const std::set<ep_id_t> &get_ancestors() const;
-  const Profiler *get_profiler() const;
   const Context &get_ctx() const;
   const EPMeta &get_meta() const;
 
@@ -94,14 +92,14 @@ public:
   // TODO: Improve the performance of this method.
   // Currently it goes through all the leaf's parents, extracts the generated
   // conditions, and traverses the hit rate tree (using the solver).
-  float get_active_leaf_hit_rate() const;
+  double get_active_leaf_hit_rate() const;
 
   // Estimation is relative to the parent node.
   // E.g. if the parent node has a hit rate of 0.5, and the estimation_rel is
   // 0.1, the hit rate of the current node will be 0.05.
   // WARNING: this should be called before processing the leaf.
   void add_hit_rate_estimation(klee::ref<klee::Expr> condition,
-                               float estimation_rel);
+                               double estimation_rel);
 
   // WARNING: this should be called before processing the leaf.
   void update_node_constraints(const EPNode *on_true_node,

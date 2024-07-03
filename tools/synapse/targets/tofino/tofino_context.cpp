@@ -107,6 +107,8 @@ void TofinoContext::parser_select(const EP *ep, const bdd::Node *node,
 
   bdd::node_id_t leaf_id = last_op->get_id();
   tna.parser.add_select(leaf_id, id, field, values, direction);
+
+  tna.parser.log_debug();
 }
 
 void TofinoContext::parser_transition(const EP *ep, const bdd::Node *node,
@@ -124,6 +126,8 @@ void TofinoContext::parser_transition(const EP *ep, const bdd::Node *node,
 
   bdd::node_id_t leaf_id = last_op->get_id();
   tna.parser.add_extract(leaf_id, id, hdr, direction);
+
+  tna.parser.log_debug();
 }
 
 void TofinoContext::parser_accept(const EP *ep, const bdd::Node *node) {
@@ -139,6 +143,8 @@ void TofinoContext::parser_accept(const EP *ep, const bdd::Node *node) {
     bdd::node_id_t leaf_id = last_op->get_id();
     tna.parser.accept(leaf_id, id, direction);
   }
+
+  tna.parser.log_debug();
 }
 
 void TofinoContext::parser_reject(const EP *ep, const bdd::Node *node) {
@@ -154,6 +160,8 @@ void TofinoContext::parser_reject(const EP *ep, const bdd::Node *node) {
     bdd::node_id_t leaf_id = last_op->get_id();
     tna.parser.reject(leaf_id, id, direction);
   }
+
+  tna.parser.log_debug();
 }
 
 std::unordered_set<DS_ID> TofinoContext::get_stateful_deps(const EP *ep) const {
@@ -233,12 +241,12 @@ bool TofinoContext::check_many_placements(
   return status == PlacementStatus::SUCCESS;
 }
 
-void TofinoContext::add_recirculated_traffic(int port, int port_recirculations,
-                                             int total_recirculations,
-                                             float fraction) {
+void TofinoContext::add_recirculated_traffic(
+    int port, int port_recirculations, double fraction,
+    std::optional<int> prev_recirc_port) {
   PerfOracle &oracle = tna.get_mutable_perf_oracle();
-  oracle.add_recirculated_traffic(port, port_recirculations,
-                                  total_recirculations, fraction);
+  oracle.add_recirculated_traffic(port, port_recirculations, fraction,
+                                  prev_recirc_port);
 }
 
 uint64_t TofinoContext::estimate_throughput_pps() const {

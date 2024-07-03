@@ -84,65 +84,96 @@ protected:
       return std::nullopt;
     }
 
-    // TODO: Implement speculative processing
-    return std::nullopt;
+    cached_table_data_t cached_table_data =
+        get_cached_table_data(ep, call_node);
+
+    std::vector<const bdd::Node *> vector_ops =
+        get_future_vector_key_ops(ep, node, cached_table_data, coalescing_data);
+
+    Context new_ctx = current_speculative_ctx;
+    speculation_t speculation(new_ctx);
+    for (const bdd::Node *vector_op : vector_ops) {
+      speculation.skip.insert(vector_op->get_id());
+    }
 
     return current_speculative_ctx;
   }
 
-  virtual std::vector<const EP *>
+  virtual std::vector<generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<const EP *> new_eps;
+    std::vector<generator_product_t> products;
 
     if (node->get_type() != bdd::NodeType::CALL) {
-      return new_eps;
+      return products;
     }
 
     const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
     const call_t &call = call_node->get_call();
 
     if (call.function_name != "map_get") {
-      return new_eps;
+      return products;
     }
 
     map_coalescing_data_t coalescing_data;
     if (!can_place_cached_table(ep, call_node, coalescing_data)) {
-      return new_eps;
+      return products;
     }
 
     std::vector<const bdd::Call *> future_map_puts;
     if (is_map_get_followed_by_map_puts_on_miss(ep->get_bdd(), call_node,
                                                 future_map_puts)) {
       // The cached table conditional write should deal with these cases.
-      return new_eps;
+      return products;
     }
 
-    cached_table_data_t data = get_cached_table_data(ep, call_node);
+    cached_table_data_t cached_table_data =
+        get_cached_table_data(ep, call_node);
 
+    std::unordered_set<int> allowed_cache_capacities =
+        enumerate_cache_table_capacities(cached_table_data.num_entries);
+
+    for (int cache_capacity : allowed_cache_capacities) {
+      std::optional<generator_product_t> product = concretize_cached_table_read(
+          ep, node, coalescing_data, cached_table_data, cache_capacity);
+
+      if (product.has_value()) {
+        products.push_back(*product);
+      }
+    }
+
+    return products;
+  }
+
+private:
+  std::optional<generator_product_t>
+  concretize_cached_table_read(const EP *ep, const bdd::Node *node,
+                               const map_coalescing_data_t &coalescing_data,
+                               const cached_table_data_t &cached_table_data,
+                               int cache_capacity) const {
     std::unordered_set<DS_ID> deps;
-    int cache_capacity = 1024;
     bool already_exists;
+
     CachedTable *cached_table = get_or_build_cached_table(
-        ep, node, data, cache_capacity, already_exists, deps);
+        ep, node, cached_table_data, cache_capacity, already_exists, deps);
 
     if (!cached_table) {
-      return new_eps;
+      return std::nullopt;
     }
 
     std::unordered_set<DS_ID> byproducts =
         get_cached_table_byproducts(cached_table);
 
-    Module *module =
-        new CachedTableRead(node, cached_table->id, byproducts, data.obj,
-                            data.key, data.read_value, data.map_has_this_key);
+    Module *module = new CachedTableRead(
+        node, cached_table->id, byproducts, cached_table_data.obj,
+        cached_table_data.key, cached_table_data.read_value,
+        cached_table_data.map_has_this_key);
     EPNode *ep_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
-    new_eps.push_back(new_ep);
 
     const bdd::Node *new_next;
-    bdd::BDD *bdd = delete_future_vector_key_ops(new_ep, node, data,
-                                                 coalescing_data, new_next);
+    bdd::BDD *bdd = delete_future_vector_key_ops(
+        new_ep, node, cached_table_data, coalescing_data, new_next);
 
     EPLeaf leaf(ep_node, new_next);
     new_ep->process_leaf(ep_node, {leaf});
@@ -154,10 +185,12 @@ protected:
       place_cached_table(new_ep, coalescing_data, cached_table, deps);
     }
 
-    return new_eps;
+    std::stringstream descr;
+    descr << "cap=" << cached_table->cache_capacity;
+
+    return generator_product_t(new_ep, descr.str());
   }
 
-private:
   std::unordered_set<DS_ID>
   get_cached_table_byproducts(CachedTable *cached_table) const {
     std::unordered_set<DS_ID> byproducts;
@@ -175,43 +208,32 @@ private:
 
   cached_table_data_t get_cached_table_data(const EP *ep,
                                             const bdd::Call *map_get) const {
-    cached_table_data_t data;
+    cached_table_data_t cached_table_data;
 
     const call_t &call = map_get->get_call();
     symbols_t symbols = map_get->get_locally_generated_symbols();
     klee::ref<klee::Expr> obj_expr = call.args.at("map").expr;
 
-    data.obj = kutil::expr_addr_to_obj_addr(obj_expr);
-    data.key = call.args.at("key").in;
-    data.read_value = call.args.at("value_out").out;
+    cached_table_data.obj = kutil::expr_addr_to_obj_addr(obj_expr);
+    cached_table_data.key = call.args.at("key").in;
+    cached_table_data.read_value = call.args.at("value_out").out;
 
-    bool found = get_symbol(symbols, "map_has_this_key", data.map_has_this_key);
+    bool found = get_symbol(symbols, "map_has_this_key",
+                            cached_table_data.map_has_this_key);
     assert(found && "Symbol map_has_this_key not found");
 
     const Context &ctx = ep->get_ctx();
-    const bdd::map_config_t &cfg = ctx.get_map_config(data.obj);
+    const bdd::map_config_t &cfg = ctx.get_map_config(cached_table_data.obj);
 
-    data.num_entries = cfg.capacity;
+    cached_table_data.num_entries = cfg.capacity;
 
-    return data;
+    return cached_table_data;
   }
 
-  bdd::BDD *
-  delete_future_vector_key_ops(EP *ep, const bdd::Node *node,
-                               const cached_table_data_t &cached_table_data,
-                               const map_coalescing_data_t &coalescing_data,
-                               const bdd::Node *&new_next) const {
-    const bdd::BDD *old_bdd = ep->get_bdd();
-    bdd::BDD *new_bdd = new bdd::BDD(*old_bdd);
-
-    const bdd::Node *next = node->get_next();
-
-    if (next) {
-      new_next = new_bdd->get_node_by_id(next->get_id());
-    } else {
-      new_next = nullptr;
-    }
-
+  std::vector<const bdd::Node *> get_future_vector_key_ops(
+      const EP *ep, const bdd::Node *node,
+      const cached_table_data_t &cached_table_data,
+      const map_coalescing_data_t &coalescing_data) const {
     std::vector<const bdd::Node *> vector_ops =
         get_future_functions(node, {"vector_borrow", "vector_return"});
 
@@ -235,9 +257,36 @@ private:
         continue;
       }
 
+      vector_ops.push_back(vector_op);
+    }
+
+    return vector_ops;
+  }
+
+  bdd::BDD *
+  delete_future_vector_key_ops(EP *ep, const bdd::Node *node,
+                               const cached_table_data_t &cached_table_data,
+                               const map_coalescing_data_t &coalescing_data,
+                               const bdd::Node *&new_next) const {
+    const bdd::BDD *old_bdd = ep->get_bdd();
+    bdd::BDD *new_bdd = new bdd::BDD(*old_bdd);
+
+    const bdd::Node *next = node->get_next();
+
+    if (next) {
+      new_next = new_bdd->get_node_by_id(next->get_id());
+    } else {
+      new_next = nullptr;
+    }
+
+    std::vector<const bdd::Node *> vector_ops =
+        get_future_vector_key_ops(ep, node, cached_table_data, coalescing_data);
+
+    for (const bdd::Node *vector_op : vector_ops) {
       bool replace_next = (vector_op == next);
       bdd::Node *replacement;
-      delete_non_branch_node_from_bdd(ep, new_bdd, vector_op, replacement);
+      delete_non_branch_node_from_bdd(ep, new_bdd, vector_op->get_id(),
+                                      replacement);
 
       if (replace_next) {
         new_next = replacement;

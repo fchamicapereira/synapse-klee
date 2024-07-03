@@ -93,62 +93,142 @@ protected:
       return std::nullopt;
     }
 
-    // TODO: Implement speculative processing
-    return std::nullopt;
+    cached_table_data_t cached_table_data =
+        get_cached_table_data(ep, call_node);
 
-    return current_speculative_ctx;
+    std::unordered_set<int> allowed_cache_capacities =
+        enumerate_cache_table_capacities(cached_table_data.num_entries);
+
+    double chosen_success_estimation = 0;
+    int chosen_cache_capacity = 0;
+
+    // We can use a different method for picking the right estimation depending
+    // on the time it takes to find a solution.
+    for (int cache_capacity : allowed_cache_capacities) {
+      double success_estimation = get_cache_delete_success_estimation_rel(
+          cache_capacity, cached_table_data.num_entries);
+
+      if (success_estimation > chosen_success_estimation) {
+        chosen_success_estimation = success_estimation;
+        chosen_cache_capacity = cache_capacity;
+      }
+    }
+
+    std::unordered_set<DS_ID> deps;
+    bool already_exists;
+
+    CachedTable *cached_table =
+        get_or_build_cached_table(ep, node, cached_table_data,
+                                  chosen_cache_capacity, already_exists, deps);
+
+    if (!cached_table) {
+      return std::nullopt;
+    }
+
+    if (!already_exists) {
+      delete cached_table;
+    }
+
+    Context new_ctx = current_speculative_ctx;
+
+    Profiler *profiler = new_ctx.get_mutable_profiler();
+    std::optional<double> fraction =
+        profiler->get_fraction(current_speculative_constraints);
+    assert(fraction.has_value());
+
+    double on_fail_fraction =
+        fraction.value() * (1 - chosen_success_estimation);
+
+    new_ctx.update_traffic_fractions(TargetType::Tofino, TargetType::TofinoCPU,
+                                     on_fail_fraction);
+
+    profiler->scale(current_speculative_constraints, chosen_success_estimation);
+
+    std::vector<const bdd::Node *> ignore_nodes = get_coalescing_nodes_from_key(
+        ep->get_bdd(), node, cached_table_data.key, coalescing_data);
+
+    speculation_t speculation(new_ctx);
+    for (const bdd::Node *op : ignore_nodes) {
+      speculation.skip.insert(op->get_id());
+    }
+
+    return speculation;
   }
 
-  virtual std::vector<const EP *>
+  virtual std::vector<generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<const EP *> new_eps;
+    std::vector<generator_product_t> products;
 
     if (node->get_type() != bdd::NodeType::CALL) {
-      return new_eps;
+      return products;
     }
 
     const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
     const call_t &call = call_node->get_call();
 
     if (call.function_name != "map_get") {
-      return new_eps;
+      return products;
     }
 
     map_coalescing_data_t coalescing_data;
     if (!can_place_cached_table(ep, call_node, coalescing_data)) {
-      return new_eps;
+      return products;
     }
 
     std::vector<const bdd::Call *> future_map_erases;
     if (!is_map_get_followed_by_map_erases_on_hit(ep->get_bdd(), call_node,
                                                   future_map_erases)) {
-      return new_eps;
+      return products;
     }
 
-    cached_table_data_t data = get_cached_table_data(ep, call_node);
+    symbol_t cache_delete_failed = create_symbol("cache_delete_failed", 32);
 
+    cached_table_data_t cached_table_data =
+        get_cached_table_data(ep, call_node);
+
+    std::unordered_set<int> allowed_cache_capacities =
+        enumerate_cache_table_capacities(cached_table_data.num_entries);
+
+    for (int cache_capacity : allowed_cache_capacities) {
+      std::optional<generator_product_t> product =
+          concretize_cached_table_cond_delete(
+              ep, node, coalescing_data, cached_table_data, cache_delete_failed,
+              cache_capacity);
+
+      if (product.has_value()) {
+        products.push_back(*product);
+      }
+    }
+
+    return products;
+  }
+
+private:
+  std::optional<generator_product_t> concretize_cached_table_cond_delete(
+      const EP *ep, const bdd::Node *node,
+      const map_coalescing_data_t &coalescing_data,
+      const cached_table_data_t &cached_table_data,
+      const symbol_t &cache_delete_failed, int cache_capacity) const {
     std::unordered_set<DS_ID> deps;
-    int cache_capacity = 1024;
     bool already_exists;
+
     CachedTable *cached_table = get_or_build_cached_table(
-        ep, node, data, cache_capacity, already_exists, deps);
+        ep, node, cached_table_data, cache_capacity, already_exists, deps);
 
     if (!cached_table) {
-      return new_eps;
+      return std::nullopt;
     }
-
-    symbol_t cache_delete_failed = create_cache_delete_failed_symbol();
 
     std::unordered_set<DS_ID> byproducts =
         get_cached_table_byproducts(cached_table);
 
     Module *module = new CachedTableConditionalDelete(
-        node, cached_table->id, byproducts, data.obj, data.key, data.read_value,
-        data.map_has_this_key, cache_delete_failed);
+        node, cached_table->id, byproducts, cached_table_data.obj,
+        cached_table_data.key, cached_table_data.read_value,
+        cached_table_data.map_has_this_key, cache_delete_failed);
     EPNode *cached_table_cond_write_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
-    new_eps.push_back(new_ep);
 
     klee::ref<klee::Expr> cache_delete_success_condition =
         build_cache_delete_success_condition(cache_delete_failed);
@@ -156,8 +236,8 @@ protected:
     bdd::Node *on_cache_delete_success;
     bdd::Node *on_cache_delete_failed;
     bdd::BDD *new_bdd = branch_bdd_on_cache_delete_success(
-        new_ep, node, data, cache_delete_success_condition, coalescing_data,
-        on_cache_delete_success, on_cache_delete_failed);
+        new_ep, node, cached_table_data, cache_delete_success_condition,
+        coalescing_data, on_cache_delete_success, on_cache_delete_failed);
 
     symbols_t symbols = get_dataplane_state(ep, node);
 
@@ -187,8 +267,9 @@ protected:
     EPLeaf on_cache_delete_failed_leaf(send_to_controller_node,
                                        on_cache_delete_failed);
 
-    float cache_delete_success_estimation_rel =
-        get_cache_delete_success_estimation_rel(data, cache_capacity);
+    double cache_delete_success_estimation_rel =
+        get_cache_delete_success_estimation_rel(cache_capacity,
+                                                cached_table_data.num_entries);
 
     new_ep->update_node_constraints(then_node, else_node,
                                     cache_delete_success_condition);
@@ -206,13 +287,15 @@ protected:
       place_cached_table(new_ep, coalescing_data, cached_table, deps);
     }
 
-    return new_eps;
+    std::stringstream descr;
+    descr << "cap=" << cache_capacity;
+
+    return generator_product_t(new_ep, descr.str());
   }
 
-private:
-  float get_cache_delete_success_estimation_rel(
-      const cached_table_data_t &cached_table_data, int cache_capacity) const {
-    return static_cast<float>(cache_capacity) / cached_table_data.num_entries;
+  double get_cache_delete_success_estimation_rel(int cache_capacity,
+                                                 int num_entries) const {
+    return static_cast<double>(cache_capacity) / num_entries;
   }
 
   std::unordered_set<DS_ID>
@@ -232,25 +315,26 @@ private:
 
   cached_table_data_t get_cached_table_data(const EP *ep,
                                             const bdd::Call *map_get) const {
-    cached_table_data_t data;
+    cached_table_data_t cached_table_data;
 
     const call_t &get_call = map_get->get_call();
 
     symbols_t symbols = map_get->get_locally_generated_symbols();
     klee::ref<klee::Expr> obj_expr = get_call.args.at("map").expr;
 
-    data.obj = kutil::expr_addr_to_obj_addr(obj_expr);
-    data.key = get_call.args.at("key").in;
-    data.read_value = get_call.args.at("value_out").out;
+    cached_table_data.obj = kutil::expr_addr_to_obj_addr(obj_expr);
+    cached_table_data.key = get_call.args.at("key").in;
+    cached_table_data.read_value = get_call.args.at("value_out").out;
 
-    bool found = get_symbol(symbols, "map_has_this_key", data.map_has_this_key);
+    bool found = get_symbol(symbols, "map_has_this_key",
+                            cached_table_data.map_has_this_key);
     assert(found && "Symbol map_has_this_key not found");
 
     const Context &ctx = ep->get_ctx();
-    const bdd::map_config_t &cfg = ctx.get_map_config(data.obj);
+    const bdd::map_config_t &cfg = ctx.get_map_config(cached_table_data.obj);
 
-    data.num_entries = cfg.capacity;
-    return data;
+    cached_table_data.num_entries = cfg.capacity;
+    return cached_table_data;
   }
 
   klee::ref<klee::Expr> build_cache_delete_success_condition(
@@ -259,23 +343,6 @@ private:
         0, cache_delete_failed.expr->getWidth());
     return kutil::solver_toolbox.exprBuilder->Eq(cache_delete_failed.expr,
                                                  zero);
-  }
-
-  symbol_t create_cache_delete_failed_symbol() const {
-    const klee::Array *array;
-    std::string label = "cache_delete_failed";
-    bits_t size = 32;
-
-    klee::ref<klee::Expr> expr =
-        kutil::solver_toolbox.create_new_symbol(label, size, array);
-
-    symbol_t cache_delete_failed = {
-        .base = label,
-        .array = array,
-        .expr = expr,
-    };
-
-    return cache_delete_failed;
   }
 
   void add_map_get_clone_on_cache_delete_failed(
@@ -318,12 +385,13 @@ private:
 
     for (const bdd::Node *target : targets) {
       bdd::Node *trash;
-      delete_non_branch_node_from_bdd(ep, bdd, target, trash);
+      delete_non_branch_node_from_bdd(ep, bdd, target->get_id(), trash);
     }
   }
 
   bdd::BDD *branch_bdd_on_cache_delete_success(
-      const EP *ep, const bdd::Node *map_get, const cached_table_data_t &data,
+      const EP *ep, const bdd::Node *map_get,
+      const cached_table_data_t &cached_table_data,
       klee::ref<klee::Expr> cache_delete_success_condition,
       const map_coalescing_data_t &coalescing_data,
       bdd::Node *&on_cache_delete_success,
@@ -345,7 +413,7 @@ private:
         ep, new_bdd, cache_delete_branch, on_cache_delete_failed);
 
     delete_coalescing_nodes_on_success(ep, new_bdd, on_cache_delete_success,
-                                       coalescing_data, data.key);
+                                       coalescing_data, cached_table_data.key);
 
     return new_bdd;
   }

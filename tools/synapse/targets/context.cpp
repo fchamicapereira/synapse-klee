@@ -95,7 +95,10 @@ build_expiration_data(const bdd::BDD *bdd) {
 
 Context::Context(const bdd::BDD *bdd,
                  const std::vector<const Target *> &targets,
-                 const TargetType initial_target) {
+                 const TargetType initial_target,
+                 std::shared_ptr<Profiler> _profiler)
+    : profiler(_profiler), expiration_data(build_expiration_data(bdd)),
+      throughput_estimate_pps(0), throughput_speculation_pps(0) {
   for (const Target *target : targets) {
     target_ctxs[target->type] = target->ctx->clone();
     traffic_fraction_per_target[target->type] = 0.0;
@@ -156,16 +159,12 @@ Context::Context(const bdd::BDD *bdd,
     assert(false && "Unknown init call");
   }
 
-  expiration_data = build_expiration_data(bdd);
-
-  throughput_estimate_pps = 0;
-  throughput_speculation_pps = 0;
-
   log_bdd_pre_processing(coalescing_candidates);
 }
 
 Context::Context(const Context &other)
-    : map_configs(other.map_configs), vector_configs(other.vector_configs),
+    : profiler(other.profiler), map_configs(other.map_configs),
+      vector_configs(other.vector_configs),
       dchain_configs(other.dchain_configs),
       sketch_configs(other.sketch_configs), cht_configs(other.cht_configs),
       coalescing_candidates(other.coalescing_candidates),
@@ -181,7 +180,8 @@ Context::Context(const Context &other)
 }
 
 Context::Context(Context &&other)
-    : map_configs(std::move(other.map_configs)),
+    : profiler(std::move(other.profiler)),
+      map_configs(std::move(other.map_configs)),
       vector_configs(std::move(other.vector_configs)),
       dchain_configs(std::move(other.dchain_configs)),
       sketch_configs(std::move(other.sketch_configs)),
@@ -216,6 +216,7 @@ Context &Context::operator=(const Context &other) {
     }
   }
 
+  profiler = other.profiler;
   map_configs = other.map_configs;
   vector_configs = other.vector_configs;
   dchain_configs = other.dchain_configs;
@@ -236,6 +237,10 @@ Context &Context::operator=(const Context &other) {
 
   return *this;
 }
+
+const Profiler *Context::get_profiler() const { return profiler.get(); }
+
+Profiler *Context::get_mutable_profiler() { return profiler.get(); }
 
 const bdd::map_config_t &Context::get_map_config(addr_t addr) const {
   assert(map_configs.find(addr) != map_configs.end());
@@ -350,38 +355,37 @@ Context::get_placements() const {
   return placement_decisions;
 }
 
-const std::unordered_map<TargetType, float> &
+const std::unordered_map<TargetType, double> &
 Context::get_traffic_fractions() const {
   return traffic_fraction_per_target;
 }
 
-void Context::update_traffic_fractions(const EPNode *new_node,
-                                       const Profiler *profiler) {
+void Context::update_traffic_fractions(const EPNode *new_node) {
   const Module *module = new_node->get_module();
 
   TargetType old_target = module->get_target();
   TargetType new_target = module->get_next_target();
 
   constraints_t constraints = get_node_constraints(new_node);
-  std::optional<float> fraction = profiler->get_fraction(constraints);
+  std::optional<double> fraction = profiler->get_fraction(constraints);
   assert(fraction.has_value());
 
   update_traffic_fractions(old_target, new_target, *fraction);
 }
 
 void Context::update_traffic_fractions(TargetType old_target,
-                                       TargetType new_target, float fraction) {
-  float &old_target_fraction = traffic_fraction_per_target[old_target];
-  float &new_target_fraction = traffic_fraction_per_target[new_target];
+                                       TargetType new_target, double fraction) {
+  double &old_target_fraction = traffic_fraction_per_target[old_target];
+  double &new_target_fraction = traffic_fraction_per_target[new_target];
 
   old_target_fraction -= fraction;
   new_target_fraction += fraction;
 
-  old_target_fraction = std::min(old_target_fraction, 1.0f);
-  old_target_fraction = std::max(old_target_fraction, 0.0f);
+  old_target_fraction = std::max(old_target_fraction, 0.0);
+  old_target_fraction = std::min(old_target_fraction, 1.0);
 
-  new_target_fraction = std::min(new_target_fraction, 1.0f);
-  new_target_fraction = std::max(new_target_fraction, 0.0f);
+  new_target_fraction = std::max(new_target_fraction, 0.0);
+  new_target_fraction = std::min(new_target_fraction, 1.0);
 }
 
 void Context::update_constraints_per_node(ep_node_id_t node,
@@ -414,7 +418,7 @@ constraints_t Context::get_node_constraints(const EPNode *node) const {
 static uint64_t estimate_throughput_pps_from_ctx(const Context &ctx) {
   uint64_t estimation_pps = 0;
 
-  const std::unordered_map<TargetType, float> &traffic_fractions =
+  const std::unordered_map<TargetType, double> &traffic_fractions =
       ctx.get_traffic_fractions();
 
   for (const auto &[target, traffic_fraction] : traffic_fractions) {
@@ -439,7 +443,7 @@ static uint64_t estimate_throughput_pps_from_ctx(const Context &ctx) {
   return estimation_pps;
 }
 
-void Context::update_throughput_estimate(const EP *ep) {
+void Context::update_throughput_estimate() {
   throughput_estimate_pps = estimate_throughput_pps_from_ctx(*this);
 }
 
@@ -459,12 +463,78 @@ struct speculative_data_t : public bdd::cookie_t {
   }
 };
 
+static speculation_t
+get_best_speculation(const EP *ep, const bdd::Node *node,
+                     const std::vector<const Target *> &targets,
+                     TargetType current_target,
+                     const speculation_t &current_speculation,
+                     const constraints_t &constraints) {
+  std::optional<speculation_t> best_local_speculation;
+
+  uint64_t best_local_pps = 0;
+  std::string best_local_module;
+
+  for (const Target *target : targets) {
+    if (target->type != current_target) {
+      continue;
+    }
+
+    for (const ModuleGenerator *modgen : target->module_generators) {
+      std::optional<speculation_t> new_speculation =
+          modgen->speculate(ep, node, constraints, current_speculation.ctx);
+
+      if (!new_speculation.has_value()) {
+        continue;
+      }
+
+      uint64_t new_speculation_pps =
+          estimate_throughput_pps_from_ctx(new_speculation->ctx);
+
+      bool more_perf = new_speculation_pps > best_local_pps;
+      bool same_perf = new_speculation_pps == best_local_pps;
+      bool more_skip =
+          new_speculation->skip.size() > best_local_speculation->skip.size();
+
+      if (more_perf) {
+        best_local_speculation = new_speculation;
+        best_local_pps = new_speculation_pps;
+        best_local_module = modgen->get_name();
+      }
+    }
+  }
+
+  if (!best_local_speculation.has_value()) {
+    Log::err() << "No module to speculative execute\n";
+    Log::err() << "Target: " << current_target << "\n";
+    Log::err() << "Node:   " << node->dump(true) << "\n";
+    exit(1);
+  }
+
+  // std::cerr << "\n";
+  // std::cerr << "Speculation:\n";
+  // std::cerr << "  " << current_target << "\n";
+  // std::cerr << "  " << node->dump(true) << "\n";
+  // std::cerr << "  " << best_local_module << "\n";
+  // std::cerr << "  " << best_local_pps << " pps\n";
+  // for (auto tf : best_local_speculation->ctx.get_traffic_fractions()) {
+  //   std::cerr << "  " << tf.first << ": " << tf.second << "\n";
+  // }
+
+  best_local_speculation->skip.insert(current_speculation.skip.begin(),
+                                      current_speculation.skip.end());
+
+  return *best_local_speculation;
+}
+
 void Context::update_throughput_speculation(const EP *ep) {
   const std::vector<EPLeaf> &leaves = ep->get_leaves();
   const std::vector<const Target *> &targets = ep->get_targets();
 
   speculation_t speculation(*this);
-  uint64_t speculation_pps = estimate_throughput_pps_from_ctx(*this);
+
+  // std::cerr <<
+  // "\n==========================================================\n"; std::cerr
+  // << "Speculation for EP: " << ep->get_id() << "\n";
 
   for (const EPLeaf &leaf : leaves) {
     const bdd::Node *node = leaf.next;
@@ -474,17 +544,19 @@ void Context::update_throughput_speculation(const EP *ep) {
     }
 
     TargetType current_target;
+    constraints_t constraints;
 
     if (leaf.node) {
       const Module *module = leaf.node->get_module();
       current_target = module->get_next_target();
+      constraints = get_node_constraints(leaf.node);
     } else {
       current_target = ep->get_current_platform();
     }
 
     node->visit_nodes(
-        [&speculation, &speculation_pps, &targets, current_target,
-         ep](const bdd::Node *node, bdd::cookie_t *cookie) {
+        [&speculation, &targets, current_target, ep](const bdd::Node *node,
+                                                     bdd::cookie_t *cookie) {
           speculative_data_t *data = static_cast<speculative_data_t *>(cookie);
 
           if (speculation.skip.find(node->get_id()) != speculation.skip.end()) {
@@ -512,70 +584,36 @@ void Context::update_throughput_speculation(const EP *ep) {
             data->constraints.push_back(constraint_it->second);
           }
 
-          std::optional<speculation_t> best_local_speculation;
-          uint64_t best_local_pps = 0;
+          speculation = get_best_speculation(ep, node, targets, current_target,
+                                             speculation, data->constraints);
 
-          for (const Target *target : targets) {
-            if (target->type != current_target) {
-              continue;
-            }
-
-            // if (ep->get_id() == 609) {
-            //   std::cerr << "Speculating node: " << node->dump(true) << "\n";
-            // }
-
-            for (const ModuleGenerator *modgen : target->module_generators) {
-              std::optional<speculation_t> new_speculation = modgen->speculate(
-                  ep, node, data->constraints, speculation.ctx);
-
-              if (!new_speculation.has_value()) {
-                continue;
-              }
-
-              uint64_t new_speculation_pps =
-                  estimate_throughput_pps_from_ctx(new_speculation->ctx);
-
-              if (new_speculation_pps > best_local_pps) {
-                best_local_speculation = new_speculation;
-                best_local_pps = new_speculation_pps;
-              }
-
-              // if (ep->get_id() == 609) {
-              //   std::cerr << "  " << target->type << "::" <<
-              //   modgen->get_name()
-              //             << " -> " << best_local_pps << "\n";
-              // }
-            }
+          if (speculation.next_target.has_value() &&
+              speculation.next_target != current_target) {
+            return bdd::NodeVisitAction::SKIP_CHILDREN;
           }
-
-          if (!best_local_speculation.has_value()) {
-            Log::err() << "No module to speculative execute\n";
-            Log::err() << "Target: " << current_target << "\n";
-            Log::err() << "Node:   " << node->dump(true) << "\n";
-            exit(1);
-          }
-
-          speculation = *best_local_speculation;
-          speculation_pps = best_local_pps;
 
           return bdd::NodeVisitAction::VISIT_CHILDREN;
         },
-        std::make_unique<speculative_data_t>(get_node_constraints(leaf.node)));
+        std::make_unique<speculative_data_t>(constraints));
   }
 
-  throughput_speculation_pps = speculation_pps;
-
-  // if (ep->get_id() == 609) {
-  //   std::cerr << "Throughput estimation:  " << throughput_estimate_pps <<
-  //   "\n"; std::cerr << "Throughput speculation: " <<
-  //   throughput_speculation_pps
-  //             << "\n";
-  //   exit(0);
+  // std::cerr << "\nFinal: " <<
+  // estimate_throughput_pps_from_ctx(speculation.ctx)
+  //           << " pps\n";
+  // for (auto tf : speculation.ctx.get_traffic_fractions()) {
+  //   std::cerr << "  " << tf.first << ": " << tf.second << "\n";
   // }
+
+  // std::cerr <<
+  // "\n==========================================================\n";
+  // DEBUG_PAUSE
+
+  throughput_speculation_pps =
+      estimate_throughput_pps_from_ctx(speculation.ctx);
 }
 
 void Context::update_throughput_estimates(const EP *ep) {
-  update_throughput_estimate(ep);
+  update_throughput_estimate();
   update_throughput_speculation(ep);
 }
 
@@ -630,6 +668,57 @@ std::ostream &operator<<(std::ostream &os, PlacementDecision decision) {
     break;
   }
   return os;
+}
+
+void Context::add_hit_rate_estimation(const constraints_t &constraints,
+                                      klee::ref<klee::Expr> new_constraint,
+                                      double estimation_rel) {
+  Profiler *new_profiler = new Profiler(*profiler);
+  profiler.reset(new_profiler);
+
+  Log::dbg() << "Adding hit rate estimation " << estimation_rel << "\n";
+  for (const klee::ref<klee::Expr> &constraint : constraints) {
+    Log::dbg() << "   " << kutil::expr_to_string(constraint, true) << "\n";
+  }
+
+  profiler->insert_relative(constraints, new_constraint, estimation_rel);
+
+  Log::dbg() << "\n";
+  Log::dbg() << "Resulting Hit rate:\n";
+  profiler->log_debug();
+  Log::dbg() << "\n";
+}
+
+void Context::remove_hit_rate_node(const constraints_t &constraints) {
+  profiler->remove(constraints);
+}
+
+void Context::log_debug() const {
+  Log::dbg() << "~~~~~~~~~~~~~~~~~~~~~~~~ Context ~~~~~~~~~~~~~~~~~~~~~~~~\n";
+  Log::dbg() << "Traffic fractions:\n";
+  for (const auto &[target, fraction] : traffic_fraction_per_target) {
+    Log::dbg() << "    " << target << ": " << fraction << "\n";
+  }
+
+  Log::dbg() << "Placement decisions:\n";
+  for (const auto &[obj, decision] : placement_decisions) {
+    Log::dbg() << "    " << obj << ": " << decision << "\n";
+  }
+
+  Log::dbg() << "Throughput estimate: " << throughput_estimate_pps << " pps\n";
+  Log::dbg() << "Throughput speculation: " << throughput_speculation_pps
+             << " pps\n";
+
+  if (target_ctxs.find(TargetType::Tofino) != target_ctxs.end()) {
+    const tofino::TofinoContext *tofino_ctx =
+        get_target_ctx<tofino::TofinoContext>();
+    const tofino::TNA &tna = tofino_ctx->get_tna();
+    tna.log_debug_placement();
+    tna.log_debug_perf_oracle();
+  }
+
+  Log::dbg() << "\n";
+  Log::dbg() << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
 }
 
 } // namespace synapse

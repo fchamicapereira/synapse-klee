@@ -84,79 +84,95 @@ protected:
       return std::nullopt;
     }
 
-    return current_speculative_ctx;
+    std::vector<modification_t> changes;
+    vector_register_data_t vector_register_data =
+        get_vector_register_data(ep, call_node, vector_return, changes);
+
+    // This will be ignored by the Ignore module.
+    if (changes.empty()) {
+      return std::nullopt;
+    }
+
+    std::unordered_set<DS_ID> rids;
+    std::unordered_set<DS_ID> deps;
+    bool already_placed = false;
+
+    std::unordered_set<DS *> regs = get_or_build_vector_registers(
+        ep, call_node, vector_register_data, already_placed, rids, deps);
+
+    if (regs.empty()) {
+      return std::nullopt;
+    }
+
+    if (!already_placed) {
+      for (DS *reg : regs) {
+        delete reg;
+      }
+    }
+
+    Context new_ctx = current_speculative_ctx;
+    speculation_t speculation(new_ctx);
+    speculation.skip.insert(vector_return->get_id());
+
+    return new_ctx;
   }
 
-  virtual std::vector<const EP *>
+  virtual std::vector<generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<const EP *> new_eps;
+    std::vector<generator_product_t> products;
 
     if (node->get_type() != bdd::NodeType::CALL) {
-      return new_eps;
+      return products;
     }
 
     const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
     const call_t &call = call_node->get_call();
 
     if (call.function_name != "vector_borrow") {
-      return new_eps;
+      return products;
     }
 
     if (is_vector_read(call_node)) {
-      return new_eps;
+      return products;
     }
 
     const bdd::Node *vector_return;
     if (is_conditional_write(call_node, vector_return)) {
-      return new_eps;
+      return products;
     }
 
     if (!can_place(ep, call_node, "vector",
                    PlacementDecision::Tofino_VectorRegister)) {
-      return new_eps;
+      return products;
     }
 
-    addr_t obj;
-    klee::ref<klee::Expr> index;
-    klee::ref<klee::Expr> value;
     std::vector<modification_t> changes;
-    int num_entries;
-    int index_size;
-
-    get_data(ep, call_node, vector_return, obj, index, value, changes,
-             num_entries, index_size);
+    vector_register_data_t vector_register_data =
+        get_vector_register_data(ep, call_node, vector_return, changes);
 
     // Check the Ignore module.
     if (changes.empty()) {
-      return new_eps;
+      return products;
     }
 
     std::unordered_set<DS_ID> rids;
-    std::unordered_set<DS *> regs;
     std::unordered_set<DS_ID> deps;
+    bool already_placed = false;
 
-    bool regs_already_placed = check_placement(
-        ep, call_node, "vector", PlacementDecision::Tofino_VectorRegister);
-
-    if (regs_already_placed) {
-      regs = get_registers(ep, node, obj, rids, deps);
-    } else {
-      std::unordered_set<RegisterAction> actions = {RegisterAction::READ,
-                                                    RegisterAction::SWAP};
-      regs = build_registers(ep, node, num_entries, index_size, value, actions,
-                             rids, deps);
-    }
+    std::unordered_set<DS *> regs = get_or_build_vector_registers(
+        ep, call_node, vector_register_data, already_placed, rids, deps);
 
     if (regs.empty()) {
-      return new_eps;
+      return products;
     }
 
-    Module *module =
-        new VectorRegisterUpdate(node, rids, obj, index, value, changes);
+    Module *module = new VectorRegisterUpdate(
+        node, rids, vector_register_data.obj, vector_register_data.index,
+        vector_register_data.value, changes);
     EPNode *ep_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
-    new_eps.push_back(new_ep);
+    products.emplace_back(new_ep);
 
     const bdd::Node *new_next;
     bdd::BDD *bdd =
@@ -168,11 +184,11 @@ protected:
 
     new_ep->inspect();
 
-    if (!regs_already_placed) {
-      place_regs(new_ep, obj, regs, deps);
+    if (!already_placed) {
+      place_vector_registers(new_ep, vector_register_data, regs, deps);
     }
 
-    return new_eps;
+    return products;
   }
 
 private:
@@ -187,17 +203,18 @@ private:
     vector_return = vector_returns.at(0);
     return false;
   }
-  void get_data(const EP *ep, const bdd::Call *node,
-                const bdd::Node *vector_return, addr_t &obj,
-                klee::ref<klee::Expr> &index, klee::ref<klee::Expr> &value,
-                std::vector<modification_t> &changes, int &num_entries,
-                int &index_size) const {
-    const call_t &call = node->get_call();
-    klee::ref<klee::Expr> obj_expr = call.args.at("vector").expr;
 
-    obj = kutil::expr_addr_to_obj_addr(obj_expr);
-    index = call.args.at("index").expr;
-    value = call.extra_vars.at("borrowed_cell").second;
+  vector_register_data_t
+  get_vector_register_data(const EP *ep, const bdd::Call *node,
+                           const bdd::Node *vector_return,
+                           std::vector<modification_t> &changes) const {
+    const call_t &call = node->get_call();
+
+    klee::ref<klee::Expr> obj_expr = call.args.at("vector").expr;
+    klee::ref<klee::Expr> index = call.args.at("index").expr;
+    klee::ref<klee::Expr> value = call.extra_vars.at("borrowed_cell").second;
+
+    addr_t obj = kutil::expr_addr_to_obj_addr(obj_expr);
     changes = get_modifications(node, vector_return);
 
     assert(vector_return && "vector_return not found");
@@ -205,8 +222,15 @@ private:
     const Context &ctx = ep->get_ctx();
     const bdd::vector_config_t &cfg = ctx.get_vector_config(obj);
 
-    num_entries = cfg.capacity;
-    index_size = index->getWidth();
+    vector_register_data_t vector_register_data = {
+        .obj = obj,
+        .num_entries = static_cast<int>(cfg.capacity),
+        .index = index,
+        .value = value,
+        .actions = {RegisterAction::READ, RegisterAction::SWAP},
+    };
+
+    return vector_register_data;
   }
 
   std::vector<modification_t>
@@ -231,13 +255,6 @@ private:
     return changes;
   }
 
-  void place_regs(EP *ep, addr_t obj, const std::unordered_set<DS *> &regs,
-                  const std::unordered_set<DS_ID> &deps) const {
-    TofinoContext *tofino_ctx = get_mutable_tofino_ctx(ep);
-    place(ep, obj, PlacementDecision::Tofino_VectorRegister);
-    tofino_ctx->place_many(ep, obj, {regs}, deps);
-  }
-
   bdd::BDD *delete_future_vector_return(EP *ep, const bdd::Node *node,
                                         const bdd::Node *vector_return,
                                         const bdd::Node *&new_next) const {
@@ -254,7 +271,8 @@ private:
 
     bool replace_next = (vector_return == next);
     bdd::Node *replacement;
-    delete_non_branch_node_from_bdd(ep, new_bdd, vector_return, replacement);
+    delete_non_branch_node_from_bdd(ep, new_bdd, vector_return->get_id(),
+                                    replacement);
 
     if (replace_next) {
       new_next = replacement;

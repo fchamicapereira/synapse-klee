@@ -5,7 +5,9 @@
 
 namespace synapse {
 
-struct MaximizeSwitchNodesComparator : public HeuristicCfg {
+struct MaxSwitchNodesComparator : public HeuristicCfg {
+  MaxSwitchNodesComparator() : HeuristicCfg("MaxSwitchNodes") {}
+
   Score get_score(const EP *ep) const override {
     Score score(
         ep, {
@@ -29,5 +31,5 @@ struct MaximizeSwitchNodesComparator : public HeuristicCfg {
   bool terminate_on_first_solution() const override { return true; }
 };
 
-using MaximizeSwitchNodes = Heuristic<MaximizeSwitchNodesComparator>;
+using MaxSwitchNodes = Heuristic<MaxSwitchNodesComparator>;
 } // namespace synapse

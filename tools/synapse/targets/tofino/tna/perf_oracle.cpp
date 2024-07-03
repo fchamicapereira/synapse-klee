@@ -17,9 +17,10 @@ PerfOracle::PerfOracle(const TNAProperties *properties, int _avg_pkt_bytes)
       recirc_port_capacity_bps(properties->recirc_port_capacity_bps),
       avg_pkt_bytes(_avg_pkt_bytes),
       recirc_ports_usage(properties->total_recirc_ports), non_recirc_traffic(1),
-      throughput_pps(0) {
+      throughput_pps(port_capacity_bps * total_ports) {
   for (int port = 0; port < total_recirc_ports; port++) {
     recirc_ports_usage[port].port = port;
+    recirc_ports_usage[port].steering_fraction = 0;
   }
 
   update_estimate_throughput_pps();
@@ -36,11 +37,10 @@ PerfOracle::PerfOracle(const PerfOracle &other)
       throughput_pps(other.throughput_pps) {}
 
 void PerfOracle::add_recirculated_traffic(int port, int port_recirculations,
-                                          int total_recirculations,
-                                          float fraction) {
+                                          double fraction,
+                                          std::optional<int> prev_recirc_port) {
   assert(port < total_recirc_ports);
   assert(port_recirculations > 0);
-  assert(port_recirculations <= total_recirculations);
   assert(fraction >= 0);
   assert(fraction <= 1);
 
@@ -63,7 +63,9 @@ void PerfOracle::add_recirculated_traffic(int port, int port_recirculations,
   assert(usage.fractions[port_recirculations - 1] >= 0);
   assert(usage.fractions[port_recirculations - 1] <= 1);
 
-  if (total_recirculations == 1 && non_recirc_traffic > 0) {
+  if (prev_recirc_port.has_value() && *prev_recirc_port != port) {
+    steer_recirculation_traffic(*prev_recirc_port, port, fraction);
+  } else if (non_recirc_traffic > 0) {
     non_recirc_traffic -= fraction;
     assert(non_recirc_traffic >= 0);
     assert(non_recirc_traffic <= 1);
@@ -72,24 +74,47 @@ void PerfOracle::add_recirculated_traffic(int port, int port_recirculations,
   update_estimate_throughput_pps();
 }
 
+void PerfOracle::steer_recirculation_traffic(int source_port,
+                                             int destination_port,
+                                             double fraction) {
+  assert(source_port < total_recirc_ports);
+  assert(destination_port < total_recirc_ports);
+  assert(fraction >= 0);
+  assert(fraction <= 1);
+
+  RecircPortUsage &source_usage = recirc_ports_usage[source_port];
+  RecircPortUsage &destination_usage = recirc_ports_usage[destination_port];
+
+  assert(source_usage.port == source_port);
+  assert(destination_usage.port == destination_port);
+
+  source_usage.steering_fraction += fraction;
+
+  assert(source_usage.steering_fraction >= 0);
+  assert(source_usage.steering_fraction <= 1);
+
+  assert(destination_usage.steering_fraction >= 0);
+  assert(destination_usage.steering_fraction <= 1);
+}
+
 static uint64_t single_recirc_estimate(uint64_t Tin, uint64_t Cp) {
   uint64_t Tout = std::min(Tin, Cp);
   return Tout;
 }
 
 static uint64_t double_recirc_estimate(uint64_t Tin, uint64_t Cr, uint64_t Cp,
-                                       float s) {
+                                       double s) {
   uint64_t Ts = (-Tin + sqrt(Tin * Tin + 4 * Cr * Tin * s)) / 2;
-  uint64_t Tout_in = (Tin / (float)(Tin + Ts)) * Cr * (1.0 - s);
-  uint64_t Tout_s = (Ts / (float)(Tin + Ts)) * Cr;
+  uint64_t Tout_in = (Tin / (double)(Tin + Ts)) * Cr * (1.0 - s);
+  uint64_t Tout_s = (Ts / (double)(Tin + Ts)) * Cr;
   uint64_t Tout = Tout_in + Tout_s;
   return std::min(std::min(Tin, Cp), Tout);
 }
 
 // Coefficients are in increasing order: x^0, x^1, x^2, ...
 // min and max are inclusive
-static float newton_root_finder(double *coefficients, int n_coefficients,
-                                uint64_t min, uint64_t max) {
+static double newton_root_finder(double *coefficients, int n_coefficients,
+                                 uint64_t min, uint64_t max) {
   double x = (min + max) / 2.0;
   int it = 0;
 
@@ -119,7 +144,7 @@ static float newton_root_finder(double *coefficients, int n_coefficients,
 }
 
 static uint64_t triple_recirc_estimate(uint64_t Tin, uint64_t Cr, uint64_t Cp,
-                                       float s0, float s1) {
+                                       double s0, double s1) {
   double a = (s1 / s0) * (1.0 / Tin);
   double b = 1;
   double c = Tin;
@@ -150,6 +175,7 @@ void PerfOracle::update_estimate_throughput_pps() {
     }
 
     uint64_t Tin_bps = Tswitch_bps * usage.fractions[0];
+    uint64_t Tsteering_bps = Tswitch_bps * usage.steering_fraction;
     uint64_t Tout_bps = 0;
 
     switch (recirc_depth) {
@@ -164,7 +190,7 @@ void PerfOracle::update_estimate_throughput_pps() {
       assert(usage.fractions[1] <= usage.fractions[0]);
       assert(usage.fractions[0] > 0);
 
-      float s = usage.fractions[1] / usage.fractions[0];
+      double s = usage.fractions[1] / usage.fractions[0];
 
       Tout_bps = double_recirc_estimate(Tin_bps, recirc_port_capacity_bps,
                                         port_capacity_bps, s);
@@ -179,8 +205,8 @@ void PerfOracle::update_estimate_throughput_pps() {
       assert(usage.fractions[1] > 0);
       assert(usage.fractions[0] > 0);
 
-      float s0 = usage.fractions[1] / usage.fractions[0];
-      float s1 = usage.fractions[2] / usage.fractions[1];
+      double s0 = usage.fractions[1] / usage.fractions[0];
+      double s1 = usage.fractions[2] / usage.fractions[1];
 
       Tout_bps = triple_recirc_estimate(Tin_bps, recirc_port_capacity_bps,
                                         port_capacity_bps, s0, s1);
@@ -190,25 +216,32 @@ void PerfOracle::update_estimate_throughput_pps() {
     }
     }
 
-    throughput_bps += Tout_bps;
+    assert(Tsteering_bps <= Tout_bps);
+    throughput_bps += Tout_bps - Tsteering_bps;
   }
 
   throughput_bps += non_recirc_traffic * Tswitch_bps;
-  throughput_pps = throughput_bps / (avg_pkt_bytes * 8);
 
-  log_debug();
+  uint64_t old_estimate_pps = throughput_pps;
+  uint64_t new_estimate_pps = throughput_bps / (avg_pkt_bytes * 8);
+
+  assert(new_estimate_pps <= old_estimate_pps);
+
+  throughput_pps = new_estimate_pps;
 }
 
 uint64_t PerfOracle::estimate_throughput_pps() const { return throughput_pps; }
 
 void PerfOracle::log_debug() const {
   Log::dbg() << "====== PerfOracle ======\n";
+  Log::dbg() << "Non recirculated: " << non_recirc_traffic << "\n";
   Log::dbg() << "Recirculations:\n";
   for (const RecircPortUsage &usage : recirc_ports_usage) {
     Log::dbg() << "  Port " << usage.port << ":";
     for (size_t i = 0; i < usage.fractions.size(); i++) {
       Log::dbg() << " " << usage.fractions[i];
     }
+    Log::dbg() << " (steering=" << usage.steering_fraction << ")";
     Log::dbg() << "\n";
   }
   Log::dbg() << "Estimate: " << estimate_throughput_pps() << " pps\n";

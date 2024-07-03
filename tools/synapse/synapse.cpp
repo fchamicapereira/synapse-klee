@@ -45,7 +45,7 @@ llvm::cl::opt<std::string>
 
 llvm::cl::opt<int> Seed("seed", llvm::cl::desc("Random seed."),
                         llvm::cl::ValueRequired, llvm::cl::Optional,
-                        llvm::cl::init(false), llvm::cl::cat(SyNAPSE));
+                        llvm::cl::init(-1), llvm::cl::cat(SyNAPSE));
 
 llvm::cl::opt<bool> BDDNoReorder("no-reorder",
                                  llvm::cl::desc("Deactivate BDD reordering."),
@@ -71,27 +71,54 @@ llvm::cl::opt<std::string> BDDProfile("prof",
                                       llvm::cl::Optional,
                                       llvm::cl::cat(SyNAPSE));
 
+enum HeuristicOption {
+  HEURISTIC_BFS,
+  HEURISTIC_GALLIUM,
+  HEURISTIC_MAX_THROUGHPUT,
+};
+
+llvm::cl::opt<HeuristicOption> ChosenHeuristic(
+    "heuristic", llvm::cl::desc("Chosen heuristic."),
+    llvm::cl::values(clEnumValN(HEURISTIC_BFS, "bfs", "BFS"),
+                     clEnumValN(HEURISTIC_GALLIUM, "gallium", "Gallium"),
+                     clEnumValN(HEURISTIC_MAX_THROUGHPUT, "max-throughput",
+                                "Maximize throughput"),
+                     clEnumValEnd),
+    llvm::cl::Required, llvm::cl::cat(SyNAPSE));
+
 llvm::cl::opt<bool> Verbose("v", llvm::cl::desc("Verbose mode."),
                             llvm::cl::ValueDisallowed, llvm::cl::init(false),
                             llvm::cl::cat(SyNAPSE));
 } // namespace
 
-search_product_t search(const bdd::BDD *bdd, Profiler *profiler) {
-  unsigned seed = Seed ? Seed : std::random_device()();
-
-  // BFS heuristic(seed);
-  // Gallium heuristic(seed);
-  MaxThroughput heuristic(seed);
+search_report_t search(const bdd::BDD *bdd, Profiler *profiler) {
+  unsigned seed = (Seed >= 0) ? Seed : std::random_device()();
 
   std::unordered_set<ep_id_t> peek;
   for (ep_id_t ep_id : Peek) {
     peek.insert(ep_id);
   }
 
-  SearchEngine engine(bdd, &heuristic, profiler, !BDDNoReorder, peek);
-  search_product_t result = engine.search();
+  // A bit disgusting, but oh well...
+  switch (ChosenHeuristic) {
+  case HEURISTIC_BFS: {
+    BFS heuristic(seed);
+    SearchEngine engine(bdd, &heuristic, profiler, !BDDNoReorder, peek);
+    return engine.search();
+  } break;
+  case HEURISTIC_GALLIUM: {
+    Gallium heuristic(seed);
+    SearchEngine engine(bdd, &heuristic, profiler, !BDDNoReorder, peek);
+    return engine.search();
+  } break;
+  case HEURISTIC_MAX_THROUGHPUT: {
+    MaxThroughput heuristic(seed);
+    SearchEngine engine(bdd, &heuristic, profiler, !BDDNoReorder, peek);
+    return engine.search();
+  } break;
+  }
 
-  return result;
+  assert(false && "Unknown heuristic");
 }
 
 // void synthesize(const std::string &fname, const EP*ep) {
@@ -128,13 +155,7 @@ int main(int argc, char **argv) {
 
   std::string nf_name = nf_name_from_bdd(InputBDDFile);
 
-  auto start_search = std::chrono::steady_clock::now();
-  search_product_t result = search(bdd, profiler);
-  auto end_search = std::chrono::steady_clock::now();
-
-  auto search_dt = std::chrono::duration_cast<std::chrono::seconds>(
-                       end_search - start_search)
-                       .count();
+  search_report_t report = search(bdd, profiler);
 
   // int64_t synthesis_dt = -1;
   // if (Out.size()) {
@@ -147,18 +168,25 @@ int main(int argc, char **argv) {
   //                      .count();
   // }
 
-  Log::log() << "Search time: " << search_dt << " s\n";
+  Log::log() << "\n";
+  Log::log() << "Search report:\n";
+  Log::log() << "  Heuristic:   " << report.heuristic_name << "\n";
+  Log::log() << "  Random seed: " << report.random_seed << "\n";
+  Log::log() << "  SS size:     " << report.ss_size << "\n";
+  Log::log() << "  Winner:      " << report.winner_score << "\n";
+  Log::log() << "  Search time: " << report.search_time << " s\n";
+  Log::log() << "\n";
 
   // if (synthesis_dt >= 0) {
   //   Log::log() << "Generation time: " << synthesis_dt << " s\n";
   // }
 
   if (ShowEP) {
-    EPVisualizer::visualize(result.ep, false);
+    EPVisualizer::visualize(report.ep, false);
   }
 
   if (ShowSS) {
-    SSVisualizer::visualize(result.search_space, result.ep, false);
+    SSVisualizer::visualize(report.search_space, report.ep, false);
   }
 
   delete bdd;
