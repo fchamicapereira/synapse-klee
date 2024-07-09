@@ -97,8 +97,9 @@ Context::Context(const bdd::BDD *bdd,
                  const std::vector<const Target *> &targets,
                  const TargetType initial_target,
                  std::shared_ptr<Profiler> _profiler)
-    : profiler(_profiler), expiration_data(build_expiration_data(bdd)),
-      throughput_estimate_pps(0), throughput_speculation_pps(0) {
+    : profiler(_profiler), profiler_mutations_allowed(false),
+      expiration_data(build_expiration_data(bdd)), throughput_estimate_pps(0),
+      throughput_speculation_pps(0) {
   for (const Target *target : targets) {
     target_ctxs[target->type] = target->ctx->clone();
     traffic_fraction_per_target[target->type] = 0.0;
@@ -163,8 +164,8 @@ Context::Context(const bdd::BDD *bdd,
 }
 
 Context::Context(const Context &other)
-    : profiler(other.profiler), map_configs(other.map_configs),
-      vector_configs(other.vector_configs),
+    : profiler(other.profiler), profiler_mutations_allowed(false),
+      map_configs(other.map_configs), vector_configs(other.vector_configs),
       dchain_configs(other.dchain_configs),
       sketch_configs(other.sketch_configs), cht_configs(other.cht_configs),
       coalescing_candidates(other.coalescing_candidates),
@@ -181,6 +182,7 @@ Context::Context(const Context &other)
 
 Context::Context(Context &&other)
     : profiler(std::move(other.profiler)),
+      profiler_mutations_allowed(other.profiler_mutations_allowed),
       map_configs(std::move(other.map_configs)),
       vector_configs(std::move(other.vector_configs)),
       dchain_configs(std::move(other.dchain_configs)),
@@ -239,8 +241,6 @@ Context &Context::operator=(const Context &other) {
 }
 
 const Profiler *Context::get_profiler() const { return profiler.get(); }
-
-Profiler *Context::get_mutable_profiler() { return profiler.get(); }
 
 const bdd::map_config_t &Context::get_map_config(addr_t addr) const {
   assert(map_configs.find(addr) != map_configs.end());
@@ -366,6 +366,10 @@ void Context::update_traffic_fractions(const EPNode *new_node) {
   TargetType old_target = module->get_target();
   TargetType new_target = module->get_next_target();
 
+  if (old_target == new_target) {
+    return;
+  }
+
   constraints_t constraints = get_node_constraints(new_node);
   std::optional<double> fraction = profiler->get_fraction(constraints);
   assert(fraction.has_value());
@@ -415,214 +419,42 @@ constraints_t Context::get_node_constraints(const EPNode *node) const {
   return {};
 }
 
-static uint64_t estimate_throughput_pps_from_ctx(const Context &ctx) {
-  uint64_t estimation_pps = 0;
+void Context::add_hit_rate_estimation(const constraints_t &constraints,
+                                      klee::ref<klee::Expr> new_constraint,
+                                      double estimation_rel) {
+  allow_profiler_mutation();
 
-  const std::unordered_map<TargetType, double> &traffic_fractions =
-      ctx.get_traffic_fractions();
-
-  for (const auto &[target, traffic_fraction] : traffic_fractions) {
-    const TargetContext *target_ctx = nullptr;
-
-    switch (target) {
-    case TargetType::Tofino: {
-      target_ctx = ctx.get_target_ctx<tofino::TofinoContext>();
-    } break;
-    case TargetType::TofinoCPU: {
-      target_ctx = ctx.get_target_ctx<tofino_cpu::TofinoCPUContext>();
-    } break;
-    case TargetType::x86: {
-      target_ctx = ctx.get_target_ctx<x86::x86Context>();
-    } break;
-    }
-
-    uint64_t target_estimation_pps = target_ctx->estimate_throughput_pps();
-    estimation_pps += target_estimation_pps * traffic_fraction;
+  Log::dbg() << "Adding hit rate estimation " << estimation_rel << "\n";
+  for (const klee::ref<klee::Expr> &constraint : constraints) {
+    Log::dbg() << "   " << kutil::expr_to_string(constraint, true) << "\n";
   }
 
-  return estimation_pps;
+  profiler->insert_relative(constraints, new_constraint, estimation_rel);
+
+  Log::dbg() << "\n";
+  Log::dbg() << "Resulting Hit rate:\n";
+  profiler->log_debug();
+  Log::dbg() << "\n";
 }
 
-void Context::update_throughput_estimate() {
-  throughput_estimate_pps = estimate_throughput_pps_from_ctx(*this);
+void Context::remove_hit_rate_node(const constraints_t &constraints) {
+  allow_profiler_mutation();
+  profiler->remove(constraints);
 }
 
-struct speculative_data_t : public bdd::cookie_t {
-  constraints_t constraints;
-  std::unordered_map<bdd::node_id_t, klee::ref<klee::Expr>> pending_constraints;
+void Context::scale_profiler(const constraints_t &constraints, double factor) {
+  allow_profiler_mutation();
+  profiler->scale(constraints, factor);
+}
 
-  speculative_data_t(const constraints_t &_constraints)
-      : constraints(_constraints) {}
-
-  speculative_data_t(const speculative_data_t &other)
-      : constraints(other.constraints),
-        pending_constraints(other.pending_constraints) {}
-
-  virtual speculative_data_t *clone() const {
-    return new speculative_data_t(*this);
-  }
-};
-
-static speculation_t
-get_best_speculation(const EP *ep, const bdd::Node *node,
-                     const std::vector<const Target *> &targets,
-                     TargetType current_target,
-                     const speculation_t &current_speculation,
-                     const constraints_t &constraints) {
-  std::optional<speculation_t> best_local_speculation;
-
-  uint64_t best_local_pps = 0;
-  std::string best_local_module;
-
-  for (const Target *target : targets) {
-    if (target->type != current_target) {
-      continue;
-    }
-
-    for (const ModuleGenerator *modgen : target->module_generators) {
-      std::optional<speculation_t> new_speculation =
-          modgen->speculate(ep, node, constraints, current_speculation.ctx);
-
-      if (!new_speculation.has_value()) {
-        continue;
-      }
-
-      uint64_t new_speculation_pps =
-          estimate_throughput_pps_from_ctx(new_speculation->ctx);
-
-      bool more_perf = new_speculation_pps > best_local_pps;
-      bool same_perf = new_speculation_pps == best_local_pps;
-      bool more_skip =
-          new_speculation->skip.size() > best_local_speculation->skip.size();
-
-      if (more_perf) {
-        best_local_speculation = new_speculation;
-        best_local_pps = new_speculation_pps;
-        best_local_module = modgen->get_name();
-      }
-    }
+void Context::allow_profiler_mutation() {
+  if (profiler_mutations_allowed) {
+    return;
   }
 
-  if (!best_local_speculation.has_value()) {
-    Log::err() << "No module to speculative execute\n";
-    Log::err() << "Target: " << current_target << "\n";
-    Log::err() << "Node:   " << node->dump(true) << "\n";
-    exit(1);
-  }
-
-  // std::cerr << "\n";
-  // std::cerr << "Speculation:\n";
-  // std::cerr << "  " << current_target << "\n";
-  // std::cerr << "  " << node->dump(true) << "\n";
-  // std::cerr << "  " << best_local_module << "\n";
-  // std::cerr << "  " << best_local_pps << " pps\n";
-  // for (auto tf : best_local_speculation->ctx.get_traffic_fractions()) {
-  //   std::cerr << "  " << tf.first << ": " << tf.second << "\n";
-  // }
-
-  best_local_speculation->skip.insert(current_speculation.skip.begin(),
-                                      current_speculation.skip.end());
-
-  return *best_local_speculation;
-}
-
-void Context::update_throughput_speculation(const EP *ep) {
-  const std::vector<EPLeaf> &leaves = ep->get_leaves();
-  const std::vector<const Target *> &targets = ep->get_targets();
-
-  speculation_t speculation(*this);
-
-  // std::cerr <<
-  // "\n==========================================================\n"; std::cerr
-  // << "Speculation for EP: " << ep->get_id() << "\n";
-
-  for (const EPLeaf &leaf : leaves) {
-    const bdd::Node *node = leaf.next;
-
-    if (!node) {
-      continue;
-    }
-
-    TargetType current_target;
-    constraints_t constraints;
-
-    if (leaf.node) {
-      const Module *module = leaf.node->get_module();
-      current_target = module->get_next_target();
-      constraints = get_node_constraints(leaf.node);
-    } else {
-      current_target = ep->get_current_platform();
-    }
-
-    node->visit_nodes(
-        [&speculation, &targets, current_target, ep](const bdd::Node *node,
-                                                     bdd::cookie_t *cookie) {
-          speculative_data_t *data = static_cast<speculative_data_t *>(cookie);
-
-          if (speculation.skip.find(node->get_id()) != speculation.skip.end()) {
-            return bdd::NodeVisitAction::VISIT_CHILDREN;
-          }
-
-          if (node->get_type() == bdd::NodeType::BRANCH) {
-            const bdd::Branch *branch = static_cast<const bdd::Branch *>(node);
-            const bdd::Node *on_true = branch->get_on_true();
-            const bdd::Node *on_false = branch->get_on_false();
-
-            assert(on_true);
-            assert(on_false);
-
-            klee::ref<klee::Expr> constraint = branch->get_condition();
-            klee::ref<klee::Expr> not_constraint =
-                kutil::solver_toolbox.exprBuilder->Not(constraint);
-
-            data->pending_constraints[on_true->get_id()] = constraint;
-            data->pending_constraints[on_false->get_id()] = not_constraint;
-          }
-
-          auto constraint_it = data->pending_constraints.find(node->get_id());
-          if (constraint_it != data->pending_constraints.end()) {
-            data->constraints.push_back(constraint_it->second);
-          }
-
-          speculation = get_best_speculation(ep, node, targets, current_target,
-                                             speculation, data->constraints);
-
-          if (speculation.next_target.has_value() &&
-              speculation.next_target != current_target) {
-            return bdd::NodeVisitAction::SKIP_CHILDREN;
-          }
-
-          return bdd::NodeVisitAction::VISIT_CHILDREN;
-        },
-        std::make_unique<speculative_data_t>(constraints));
-  }
-
-  // std::cerr << "\nFinal: " <<
-  // estimate_throughput_pps_from_ctx(speculation.ctx)
-  //           << " pps\n";
-  // for (auto tf : speculation.ctx.get_traffic_fractions()) {
-  //   std::cerr << "  " << tf.first << ": " << tf.second << "\n";
-  // }
-
-  // std::cerr <<
-  // "\n==========================================================\n";
-  // DEBUG_PAUSE
-
-  throughput_speculation_pps =
-      estimate_throughput_pps_from_ctx(speculation.ctx);
-}
-
-void Context::update_throughput_estimates(const EP *ep) {
-  update_throughput_estimate();
-  update_throughput_speculation(ep);
-}
-
-uint64_t Context::get_throughput_estimate_pps() const {
-  return throughput_estimate_pps;
-}
-
-uint64_t Context::get_throughput_speculation_pps() const {
-  return throughput_speculation_pps;
+  Profiler *new_profiler = new Profiler(*profiler);
+  profiler.reset(new_profiler);
+  profiler_mutations_allowed = true;
 }
 
 std::ostream &operator<<(std::ostream &os, PlacementDecision decision) {
@@ -670,29 +502,6 @@ std::ostream &operator<<(std::ostream &os, PlacementDecision decision) {
   return os;
 }
 
-void Context::add_hit_rate_estimation(const constraints_t &constraints,
-                                      klee::ref<klee::Expr> new_constraint,
-                                      double estimation_rel) {
-  Profiler *new_profiler = new Profiler(*profiler);
-  profiler.reset(new_profiler);
-
-  Log::dbg() << "Adding hit rate estimation " << estimation_rel << "\n";
-  for (const klee::ref<klee::Expr> &constraint : constraints) {
-    Log::dbg() << "   " << kutil::expr_to_string(constraint, true) << "\n";
-  }
-
-  profiler->insert_relative(constraints, new_constraint, estimation_rel);
-
-  Log::dbg() << "\n";
-  Log::dbg() << "Resulting Hit rate:\n";
-  profiler->log_debug();
-  Log::dbg() << "\n";
-}
-
-void Context::remove_hit_rate_node(const constraints_t &constraints) {
-  profiler->remove(constraints);
-}
-
 void Context::log_debug() const {
   Log::dbg() << "~~~~~~~~~~~~~~~~~~~~~~~~ Context ~~~~~~~~~~~~~~~~~~~~~~~~\n";
   Log::dbg() << "Traffic fractions:\n";
@@ -700,10 +509,11 @@ void Context::log_debug() const {
     Log::dbg() << "    " << target << ": " << fraction << "\n";
   }
 
-  Log::dbg() << "Placement decisions:\n";
+  Log::dbg() << "Placement decisions: [\n";
   for (const auto &[obj, decision] : placement_decisions) {
     Log::dbg() << "    " << obj << ": " << decision << "\n";
   }
+  Log::dbg() << "]\n";
 
   Log::dbg() << "Throughput estimate: " << throughput_estimate_pps << " pps\n";
   Log::dbg() << "Throughput speculation: " << throughput_speculation_pps

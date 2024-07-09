@@ -57,8 +57,7 @@ public:
 protected:
   virtual std::optional<speculation_t>
   speculate(const EP *ep, const bdd::Node *node,
-            const constraints_t &current_speculative_constraints,
-            const Context &current_speculative_ctx) const override {
+            const Context &ctx) const override {
     if (node->get_type() != bdd::NodeType::CALL) {
       return std::nullopt;
     }
@@ -93,33 +92,23 @@ protected:
       return std::nullopt;
     }
 
-    std::unordered_set<DS_ID> rids;
-    std::unordered_set<DS_ID> deps;
-    bool already_placed = false;
+    bool can_place_ds =
+        can_get_or_build_vector_registers(ep, call_node, vector_register_data);
 
-    std::unordered_set<DS *> regs = get_or_build_vector_registers(
-        ep, call_node, vector_register_data, already_placed, rids, deps);
-
-    if (regs.empty()) {
+    if (!can_place_ds) {
       return std::nullopt;
     }
 
-    if (!already_placed) {
-      for (DS *reg : regs) {
-        delete reg;
-      }
-    }
-
-    Context new_ctx = current_speculative_ctx;
+    Context new_ctx = ctx;
     speculation_t speculation(new_ctx);
     speculation.skip.insert(vector_return->get_id());
 
-    return new_ctx;
+    return speculation;
   }
 
-  virtual std::vector<generator_product_t>
+  virtual std::vector<__generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<generator_product_t> products;
+    std::vector<__generator_product_t> products;
 
     if (node->get_type() != bdd::NodeType::CALL) {
       return products;
@@ -178,15 +167,15 @@ protected:
     bdd::BDD *bdd =
         delete_future_vector_return(new_ep, node, vector_return, new_next);
 
+    if (!already_placed) {
+      place_vector_registers(new_ep, vector_register_data, regs, deps);
+    }
+
     EPLeaf leaf(ep_node, new_next);
     new_ep->process_leaf(ep_node, {leaf});
     new_ep->replace_bdd(bdd);
 
-    new_ep->inspect();
-
-    if (!already_placed) {
-      place_vector_registers(new_ep, vector_register_data, regs, deps);
-    }
+    new_ep->inspect_debug();
 
     return products;
   }

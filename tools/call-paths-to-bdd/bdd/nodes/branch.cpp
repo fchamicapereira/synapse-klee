@@ -49,12 +49,17 @@ std::vector<node_id_t> Branch::get_leaves() const {
 
 void Branch::visit(BDDVisitor &visitor) const { visitor.visit(this); }
 
-std::string Branch::dump(bool one_liner) const {
+std::string Branch::dump(bool one_liner, bool id_name_only) const {
   std::stringstream ss;
   ss << id << ":";
-  ss << "if (";
+  ss << "if";
+
+  if (id_name_only) {
+    return ss.str();
+  }
+
+  ss << " (";
   ss << kutil::expr_to_string(condition, one_liner);
-  ss << ")";
   return ss.str();
 }
 

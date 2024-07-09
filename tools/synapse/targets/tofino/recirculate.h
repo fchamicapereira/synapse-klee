@@ -37,15 +37,14 @@ public:
 protected:
   virtual std::optional<speculation_t>
   speculate(const EP *ep, const bdd::Node *node,
-            const constraints_t &current_speculative_constraints,
-            const Context &current_speculative_ctx) const override {
+            const Context &ctx) const override {
     // No reason to speculatively predict recirculations.
     return std::nullopt;
   }
 
-  virtual std::vector<generator_product_t>
+  virtual std::vector<__generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<generator_product_t> products;
+    std::vector<__generator_product_t> products;
 
     // We can always recirculate, with a small exception: if we have just
     // recirculated, and did nothing meanwhile.
@@ -78,14 +77,13 @@ protected:
   }
 
 private:
-  std::vector<generator_product_t> concretize_single_port_recirc(
+  std::vector<__generator_product_t> concretize_single_port_recirc(
       const EP *ep, const bdd::Node *node, const std::vector<int> &past_recirc,
       int total_recirc_ports, const symbols_t &symbols) const {
-    std::vector<generator_product_t> products;
+    std::vector<__generator_product_t> products;
 
     for (int recirc_port = 0; recirc_port < total_recirc_ports; recirc_port++) {
-      const EP *new_ep =
-          generate_new_ep(ep, node, symbols, recirc_port, past_recirc);
+      EP *new_ep = generate_new_ep(ep, node, symbols, recirc_port, past_recirc);
 
       std::stringstream descr;
       descr << "port=" << recirc_port;
@@ -103,21 +101,14 @@ private:
     return properties.total_recirc_ports;
   }
 
-  const EP *generate_new_ep(const EP *ep, const bdd::Node *node,
-                            const symbols_t &symbols, int recirc_port,
-                            const std::vector<int> &past_recirc) const {
+  EP *generate_new_ep(const EP *ep, const bdd::Node *node,
+                      const symbols_t &symbols, int recirc_port,
+                      const std::vector<int> &past_recirc) const {
     EP *new_ep = new EP(*ep);
 
     Module *module = new Recirculate(node, symbols, recirc_port);
     EPNode *ep_node = new EPNode(module);
 
-    // Note that we don't point to the next BDD node, as it was not actually
-    // implemented.
-    // We are delegating the implementation to other platform.
-    EPLeaf leaf(ep_node, node);
-    new_ep->process_leaf(ep_node, {leaf}, false);
-
-    Context &ctx = new_ep->get_mutable_ctx();
     TofinoContext *tofino_ctx = get_mutable_tofino_ctx(new_ep);
     double recirc_fraction = ep->get_active_leaf_hit_rate();
 
@@ -136,7 +127,12 @@ private:
 
     tofino_ctx->add_recirculated_traffic(recirc_port, port_recirculations,
                                          recirc_fraction, past_recirc_port);
-    ctx.update_throughput_estimates(new_ep);
+
+    // Note that we don't point to the next BDD node, as it was not actually
+    // implemented.
+    // We are delegating the implementation to other platform.
+    EPLeaf leaf(ep_node, node);
+    new_ep->process_leaf(ep_node, {leaf}, false);
 
     return new_ep;
   }

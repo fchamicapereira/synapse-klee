@@ -59,8 +59,7 @@ public:
 protected:
   virtual std::optional<speculation_t>
   speculate(const EP *ep, const bdd::Node *node,
-            const constraints_t &current_speculative_constraints,
-            const Context &current_speculative_ctx) const override {
+            const Context &ctx) const override {
     if (node->get_type() != bdd::NodeType::CALL) {
       return std::nullopt;
     }
@@ -90,18 +89,18 @@ protected:
     std::vector<const bdd::Node *> vector_ops =
         get_future_vector_key_ops(ep, node, cached_table_data, coalescing_data);
 
-    Context new_ctx = current_speculative_ctx;
+    Context new_ctx = ctx;
     speculation_t speculation(new_ctx);
     for (const bdd::Node *vector_op : vector_ops) {
       speculation.skip.insert(vector_op->get_id());
     }
 
-    return current_speculative_ctx;
+    return ctx;
   }
 
-  virtual std::vector<generator_product_t>
+  virtual std::vector<__generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<generator_product_t> products;
+    std::vector<__generator_product_t> products;
 
     if (node->get_type() != bdd::NodeType::CALL) {
       return products;
@@ -133,8 +132,9 @@ protected:
         enumerate_cache_table_capacities(cached_table_data.num_entries);
 
     for (int cache_capacity : allowed_cache_capacities) {
-      std::optional<generator_product_t> product = concretize_cached_table_read(
-          ep, node, coalescing_data, cached_table_data, cache_capacity);
+      std::optional<__generator_product_t> product =
+          concretize_cached_table_read(ep, node, coalescing_data,
+                                       cached_table_data, cache_capacity);
 
       if (product.has_value()) {
         products.push_back(*product);
@@ -145,7 +145,7 @@ protected:
   }
 
 private:
-  std::optional<generator_product_t>
+  std::optional<__generator_product_t>
   concretize_cached_table_read(const EP *ep, const bdd::Node *node,
                                const map_coalescing_data_t &coalescing_data,
                                const cached_table_data_t &cached_table_data,
@@ -175,20 +175,20 @@ private:
     bdd::BDD *bdd = delete_future_vector_key_ops(
         new_ep, node, cached_table_data, coalescing_data, new_next);
 
-    EPLeaf leaf(ep_node, new_next);
-    new_ep->process_leaf(ep_node, {leaf});
-    new_ep->replace_bdd(bdd);
-
-    new_ep->inspect();
-
     if (!already_exists) {
       place_cached_table(new_ep, coalescing_data, cached_table, deps);
     }
 
+    EPLeaf leaf(ep_node, new_next);
+    new_ep->process_leaf(ep_node, {leaf});
+    new_ep->replace_bdd(bdd);
+
+    new_ep->inspect_debug();
+
     std::stringstream descr;
     descr << "cap=" << cached_table->cache_capacity;
 
-    return generator_product_t(new_ep, descr.str());
+    return __generator_product_t(new_ep, descr.str());
   }
 
   std::unordered_set<DS_ID>

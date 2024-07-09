@@ -28,12 +28,11 @@ public:
 protected:
   virtual std::optional<speculation_t>
   speculate(const EP *ep, const bdd::Node *node,
-            const constraints_t &current_speculative_constraints,
-            const Context &current_speculative_ctx) const override {
+            const Context &ctx) const override {
     return std::nullopt;
   }
 
-  virtual std::vector<generator_product_t>
+  virtual std::vector<__generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
     // Never explicitly generate this module from the BDD.
     return {};

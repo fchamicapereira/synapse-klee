@@ -24,10 +24,15 @@ Node *Call::clone(NodeManager &manager, bool recursive) const {
 
 void Call::visit(BDDVisitor &visitor) const { visitor.visit(this); }
 
-std::string Call::dump(bool one_liner) const {
+std::string Call::dump(bool one_liner, bool id_name_only) const {
   std::stringstream ss;
   ss << id << ":";
   ss << call.function_name;
+
+  if (id_name_only) {
+    return ss.str();
+  }
+
   ss << "(";
 
   bool first = true;

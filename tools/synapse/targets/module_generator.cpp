@@ -36,8 +36,8 @@ static void build_node_translations(translator_t &next_nodes_translator,
   }
 }
 
-static std::vector<const EP *> get_reordered(const EP *ep) {
-  std::vector<const EP *> reordered;
+static std::vector<EP *> get_reordered(const EP *ep) {
+  std::vector<EP *> reordered;
 
   const bdd::Node *next = ep->get_next_node();
 
@@ -74,7 +74,7 @@ static std::vector<const EP *> get_reordered(const EP *ep) {
 
     new_ep->replace_bdd(new_bdd.bdd, next_nodes_translator,
                         processed_nodes_translator);
-    new_ep->inspect();
+    new_ep->inspect_debug();
 
     reordered.push_back(new_ep);
   }
@@ -85,29 +85,35 @@ static std::vector<const EP *> get_reordered(const EP *ep) {
 std::vector<generator_product_t>
 ModuleGenerator::generate(const EP *ep, const bdd::Node *node,
                           bool reorder_bdd) const {
-  std::vector<generator_product_t> products;
-
   if (!can_process_platform(ep, target)) {
-    return products;
+    return {};
   }
 
-  products = process_node(ep, node);
+  std::vector<__generator_product_t> node_products = process_node(ep, node);
+  std::vector<generator_product_t> products;
+
+  for (const __generator_product_t &node_product : node_products) {
+    EP *ep = node_product.ep;
+    Context &ctx = ep->get_mutable_ctx();
+    ctx.update_throughput_estimates(ep);
+    products.emplace_back(ep, node_product.description);
+  }
 
   if (!reorder_bdd) {
     return products;
   }
 
-  std::vector<generator_product_t> all_products = products;
+  for (const __generator_product_t &product : node_products) {
+    std::vector<EP *> reordered = get_reordered(product.ep);
 
-  for (const generator_product_t &product : products) {
-    std::vector<const EP *> reordered = get_reordered(product.ep);
-
-    for (const EP *reordered_ep : reordered) {
-      all_products.emplace_back(reordered_ep, product.description + " [R]");
+    for (EP *reordered_ep : reordered) {
+      Context &ctx = reordered_ep->get_mutable_ctx();
+      ctx.update_throughput_estimates(reordered_ep);
+      products.emplace_back(reordered_ep, product.description + " [R]");
     }
   }
 
-  return all_products;
+  return products;
 }
 
 bool ModuleGenerator::can_place(const EP *ep, const bdd::Call *call_node,

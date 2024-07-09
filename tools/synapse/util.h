@@ -131,6 +131,14 @@ bool borrow_has_var_len(const bdd::Node *node);
 symbols_t get_prev_symbols(const bdd::Node *node,
                            const bdd::nodes_t &stop_nodes = bdd::nodes_t());
 
+struct rw_fractions_t {
+  double read;
+  double write;
+};
+
+rw_fractions_t get_cond_map_put_rw_profile_fractions(const EP *ep,
+                                                     const bdd::Node *map_get);
+
 // Tries to find the pattern of a map_get followed by map_puts, but only when
 // the map_get is not successful (i.e. the key is not found).
 // Conditions to meet:
@@ -178,5 +186,8 @@ void delete_branch_node_from_bdd(const EP *ep, bdd::BDD *bdd,
 const bdd::Branch *
 find_branch_checking_index_alloc(const EP *ep, const bdd::Node *node,
                                  const symbol_t &out_of_space);
+
+std::string throughput2str(uint64_t thpt, const std::string &units,
+                           bool human_readable = false);
 
 } // namespace synapse

@@ -49,7 +49,8 @@ public:
   void parser_accept(const EP *ep, const bdd::Node *node);
   void parser_reject(const EP *ep, const bdd::Node *node);
 
-  std::unordered_set<DS_ID> get_stateful_deps(const EP *ep) const;
+  std::unordered_set<DS_ID> get_stateful_deps(const EP *ep,
+                                              const bdd::Node *node) const;
 
   void place(EP *ep, addr_t obj, DS *ds, const std::unordered_set<DS_ID> &deps);
   void place_many(EP *ep, addr_t obj,

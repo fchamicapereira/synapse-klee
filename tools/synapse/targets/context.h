@@ -40,6 +40,8 @@ struct expiration_data_t {
   symbol_t number_of_freed_flows;
 };
 
+struct speculation_t;
+
 class TargetContext {
 public:
   TargetContext() {}
@@ -53,6 +55,8 @@ public:
 class Context {
 private:
   std::shared_ptr<Profiler> profiler;
+  bool profiler_mutations_allowed;
+
   std::unordered_map<addr_t, bdd::map_config_t> map_configs;
   std::unordered_map<addr_t, bdd::vector_config_t> vector_configs;
   std::unordered_map<addr_t, bdd::dchain_config_t> dchain_configs;
@@ -91,8 +95,6 @@ public:
   template <class TCtx> const TCtx *get_target_ctx() const;
   template <class TCtx> TCtx *get_mutable_target_ctx();
 
-  Profiler *get_mutable_profiler();
-
   void save_placement(addr_t obj, PlacementDecision decision);
   bool has_placement(addr_t obj) const;
   bool check_placement(addr_t obj, PlacementDecision decision) const;
@@ -114,12 +116,40 @@ public:
                                klee::ref<klee::Expr> new_constraint,
                                double estimation_rel);
   void remove_hit_rate_node(const constraints_t &constraints);
+  void scale_profiler(const constraints_t &constraints, double factor);
 
   void log_debug() const;
 
 private:
   void update_throughput_speculation(const EP *ep);
   void update_throughput_estimate();
+  void allow_profiler_mutation();
+
+  struct node_speculation_t;
+
+  void
+  print_speculations(const EP *ep,
+                     const std::vector<node_speculation_t> &node_speculations,
+                     const speculation_t &speculation) const;
+
+  node_speculation_t
+  get_best_speculation(const EP *ep, const bdd::Node *node,
+                       const std::vector<const Target *> &targets,
+                       TargetType current_target,
+                       const speculation_t &current_speculation) const;
+
+  speculation_t
+  peek_speculation_for_future_nodes(const speculation_t &base_speculation,
+                                    const EP *ep, const bdd::Node *anchor,
+                                    bdd::nodes_t future_nodes,
+                                    const std::vector<const Target *> &targets,
+                                    TargetType current_target) const;
+
+  bool is_better_speculation(const speculation_t &old_speculation,
+                             const speculation_t &new_speculation, const EP *ep,
+                             const bdd::Node *node,
+                             const std::vector<const Target *> &targets,
+                             TargetType current_target) const;
 };
 
 #define EXPLICIT_TARGET_CONTEXT_INSTANTIATION(NS, TCTX)                        \

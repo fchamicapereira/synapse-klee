@@ -8,6 +8,10 @@
 
 namespace synapse {
 
+static double normalize_fraction(double fraction) {
+  return std::min(1.0, std::max(0.0, fraction));
+}
+
 ProfilerNode::ProfilerNode(klee::ref<klee::Expr> _constraint, double _fraction)
     : constraint(_constraint), fraction(_fraction), on_true(nullptr),
       on_false(nullptr), prev(nullptr) {}
@@ -107,7 +111,8 @@ static ProfilerNode *build_hit_fraction_tree(const bdd::Node *node,
 
     klee::ref<klee::Expr> condition = branch->get_condition();
     uint64_t counter = counters.at(node->get_id());
-    double fraction = static_cast<double>(counter) / max_count;
+    double fraction =
+        normalize_fraction(static_cast<double>(counter) / max_count);
     bdd::node_id_t bdd_node_id = node->get_id();
 
     ProfilerNode *new_node = new ProfilerNode(condition, fraction, bdd_node_id);
@@ -121,7 +126,7 @@ static ProfilerNode *build_hit_fraction_tree(const bdd::Node *node,
     if (!new_node->on_true && on_true) {
       uint64_t on_true_counter = counters.at(on_true->get_id());
       double on_true_fraction =
-          static_cast<double>(on_true_counter) / max_count;
+          normalize_fraction(static_cast<double>(on_true_counter) / max_count);
       bdd::node_id_t bdd_node_id = on_true->get_id();
       new_node->on_true =
           new ProfilerNode(nullptr, on_true_fraction, bdd_node_id);
@@ -130,7 +135,7 @@ static ProfilerNode *build_hit_fraction_tree(const bdd::Node *node,
     if (!new_node->on_false && on_false) {
       uint64_t on_false_counter = counters.at(on_false->get_id());
       double on_false_fraction =
-          static_cast<double>(on_false_counter) / max_count;
+          normalize_fraction(static_cast<double>(on_false_counter) / max_count);
       bdd::node_id_t bdd_node_id = on_false->get_id();
       new_node->on_false =
           new ProfilerNode(nullptr, on_false_fraction, bdd_node_id);
@@ -179,11 +184,13 @@ build_random_hit_fraction_tree(const bdd::Node *node,
     const bdd::Node *on_false = branch->get_on_false();
 
     int relative_percent_on_true = random_percent_engine.generate();
-    double relative_fraction_on_true =
-        static_cast<double>(relative_percent_on_true) / 100.0;
+    double relative_fraction_on_true = normalize_fraction(
+        static_cast<double>(relative_percent_on_true) / 100.0);
 
-    double on_true_fraction = parent_fraction * relative_fraction_on_true;
-    double on_false_fraction = parent_fraction - on_true_fraction;
+    double on_true_fraction =
+        normalize_fraction(parent_fraction * relative_fraction_on_true);
+    double on_false_fraction =
+        normalize_fraction(parent_fraction - on_true_fraction);
 
     new_node->on_true = build_random_hit_fraction_tree(
         on_true, random_percent_engine, on_true_fraction);
@@ -318,11 +325,11 @@ static void recursive_update_fractions(ProfilerNode *node,
   assert(parent_new_fraction >= 0.0);
   assert(parent_new_fraction <= 1.0);
 
-  double old_fraction = node->fraction;
-  double new_fraction =
+  double old_fraction = normalize_fraction(node->fraction);
+  double new_fraction = normalize_fraction(
       parent_old_fraction != 0
           ? (parent_new_fraction / parent_old_fraction) * node->fraction
-          : 0;
+          : 0);
 
   node->fraction = new_fraction;
 
@@ -342,8 +349,8 @@ void Profiler::replace_root(klee::ref<klee::Expr> constraint, double fraction) {
   new_node->on_true->prev = new_node;
   new_node->on_false->prev = new_node;
 
-  double fraction_on_true = fraction;
-  double fraction_on_false = new_node->fraction - fraction;
+  double fraction_on_true = normalize_fraction(fraction);
+  double fraction_on_false = normalize_fraction(new_node->fraction - fraction);
 
   assert(fraction_on_true <= 1.0);
   assert(fraction_on_false <= 1.0);
@@ -382,14 +389,8 @@ void Profiler::append(ProfilerNode *node, klee::ref<klee::Expr> constraint,
   new_node->on_true = node;
   new_node->on_false = node->clone(false);
 
-  double fraction_on_true = fraction;
-  double fraction_on_false = new_node->fraction - fraction;
-
-  assert(fraction_on_true <= 1.0);
-  assert(fraction_on_false <= 1.0);
-
-  assert(fraction_on_true <= new_node->fraction);
-  assert(fraction_on_false <= new_node->fraction);
+  double fraction_on_true = normalize_fraction(fraction);
+  double fraction_on_false = normalize_fraction(new_node->fraction - fraction);
 
   recursive_update_fractions(new_node->on_true, new_node->fraction,
                              fraction_on_true);
@@ -470,8 +471,8 @@ void Profiler::scale(const constraints_t &constraints, double factor) {
   ProfilerNode *node = get_node(constraints);
   assert(node);
 
-  double old_fraction = node->fraction;
-  double new_fraction = node->fraction * factor;
+  double old_fraction = normalize_fraction(node->fraction);
+  double new_fraction = normalize_fraction(node->fraction * factor);
 
   node->fraction = new_fraction;
 

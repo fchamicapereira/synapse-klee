@@ -56,8 +56,7 @@ protected:
 
   virtual std::optional<speculation_t>
   speculate(const EP *ep, const bdd::Node *node,
-            const constraints_t &current_speculative_constraints,
-            const Context &current_speculative_ctx) const override {
+            const Context &ctx) const override {
     if (!bdd_node_match_pattern(node)) {
       return std::nullopt;
     }
@@ -68,12 +67,12 @@ protected:
       return std::nullopt;
     }
 
-    return current_speculative_ctx;
+    return ctx;
   }
 
-  virtual std::vector<generator_product_t>
+  virtual std::vector<__generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<generator_product_t> products;
+    std::vector<__generator_product_t> products;
 
     if (!bdd_node_match_pattern(node)) {
       return products;

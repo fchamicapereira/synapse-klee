@@ -966,6 +966,76 @@ bool is_vector_read(const bdd::Call *vector_borrow) {
   return kutil::solver_toolbox.are_exprs_always_equal(vb_value, vr_value);
 }
 
+rw_fractions_t get_cond_map_put_rw_profile_fractions(const EP *ep,
+                                                     const bdd::Node *node) {
+  const Context &ctx = ep->get_ctx();
+  const Profiler *profiler = ctx.get_profiler();
+
+  assert(node->get_type() == bdd::NodeType::CALL);
+  const bdd::Call *map_get = static_cast<const bdd::Call *>(node);
+
+  const call_t &mg_call = map_get->get_call();
+  assert(mg_call.function_name == "map_get");
+
+  symbols_t symbols = map_get->get_locally_generated_symbols();
+  symbol_t map_has_this_key;
+  bool found = get_symbol(symbols, "map_has_this_key", map_has_this_key);
+  assert(found && "Symbol map_has_this_key not found");
+
+  rw_fractions_t fractions;
+  bool found_condition = false;
+
+  klee::ref<klee::Expr> key_not_found_cond =
+      kutil::solver_toolbox.exprBuilder->Eq(
+          map_has_this_key.expr, kutil::solver_toolbox.exprBuilder->Constant(
+                                     0, map_has_this_key.expr->getWidth()));
+
+  map_get->visit_nodes([&fractions, &key_not_found_cond, &found_condition,
+                        profiler](const bdd::Node *node) {
+    if (node->get_type() != bdd::NodeType::BRANCH) {
+      return bdd::NodeVisitAction::VISIT_CHILDREN;
+    }
+
+    const bdd::Branch *branch = static_cast<const bdd::Branch *>(node);
+    klee::ref<klee::Expr> condition = branch->get_condition();
+
+    bool is_key_not_found_cond = kutil::solver_toolbox.are_exprs_always_equal(
+        condition, key_not_found_cond);
+    bool is_not_key_not_found_cond =
+        kutil::solver_toolbox.are_exprs_always_equal(
+            kutil::solver_toolbox.exprBuilder->Not(condition),
+            key_not_found_cond);
+
+    if (!is_key_not_found_cond && !is_not_key_not_found_cond) {
+      return bdd::NodeVisitAction::SKIP_CHILDREN;
+    }
+
+    const bdd::Node *read =
+        is_key_not_found_cond ? branch->get_on_false() : branch->get_on_true();
+    const bdd::Node *write =
+        is_key_not_found_cond ? branch->get_on_true() : branch->get_on_false();
+
+    constraints_t read_constraints = read->get_ordered_branch_constraints();
+    constraints_t write_constraints = write->get_ordered_branch_constraints();
+
+    std::optional<float> rf = profiler->get_fraction(read_constraints);
+    std::optional<float> wf = profiler->get_fraction(write_constraints);
+
+    assert(rf.has_value());
+    assert(wf.has_value());
+
+    fractions.read = *rf;
+    fractions.write = *wf;
+
+    found_condition = true;
+
+    return bdd::NodeVisitAction::STOP;
+  });
+
+  assert(found_condition && "map_has_this_key condition not found");
+  return fractions;
+}
+
 bool is_map_get_followed_by_map_puts_on_miss(
     const bdd::BDD *bdd, const bdd::Call *map_get,
     std::vector<const bdd::Call *> &map_puts) {
@@ -1514,6 +1584,55 @@ symbol_t create_symbol(const std::string &label, bits_t size) {
   };
 
   return new_symbol;
+}
+
+static std::pair<double, std::string> n2hr(uint64_t n) {
+  if (n < 1e3) {
+    return {(double)n, ""};
+  }
+
+  if (n < 1e6) {
+    return {n / 1e3, "K"};
+  }
+
+  if (n < 1e9) {
+    return {n / 1e6, "M"};
+  }
+
+  if (n < 1e12) {
+    return {n / 1e9, "G"};
+  }
+
+  return {n / 1e12, "T"};
+}
+
+std::string throughput2str(uint64_t thpt, const std::string &units,
+                           bool human_readable) {
+  std::stringstream ss;
+
+  if (human_readable) {
+    auto [n, m] = n2hr(thpt);
+
+    ss.setf(std::ios::fixed);
+    ss.precision(2);
+
+    ss << n;
+    ss << " ";
+    ss << m;
+  } else {
+    std::string str = std::to_string(thpt);
+
+    // Add thousands separator
+    for (int i = str.size() - 3; i > 0; i -= 3) {
+      str.insert(i, ",");
+    }
+
+    ss << str;
+    ss << " ";
+  }
+
+  ss << units;
+  return ss.str();
 }
 
 } // namespace synapse

@@ -81,55 +81,6 @@ static std::string get_bdd_node_description(const bdd::Node *node) {
   return node_str;
 }
 
-static std::pair<double, std::string> n2hr(uint64_t n) {
-  if (n < 1e3) {
-    return {(double)n, ""};
-  }
-
-  if (n < 1e6) {
-    return {n / 1e3, "K"};
-  }
-
-  if (n < 1e9) {
-    return {n / 1e6, "M"};
-  }
-
-  if (n < 1e12) {
-    return {n / 1e9, "G"};
-  }
-
-  return {n / 1e12, "T"};
-}
-
-static std::string throughput2str(uint64_t thpt, const std::string &units,
-                                  bool human_readable = false) {
-  std::stringstream ss;
-
-  if (human_readable) {
-    auto [n, m] = n2hr(thpt);
-
-    ss.setf(std::ios::fixed);
-    ss.precision(2);
-
-    ss << n;
-    ss << " ";
-    ss << m;
-  } else {
-    std::string str = std::to_string(thpt);
-
-    // Add thousands separator
-    for (int i = str.size() - 3; i > 0; i -= 3) {
-      str.insert(i, ",");
-    }
-
-    ss << str;
-    ss << " ";
-  }
-
-  ss << units;
-  return ss.str();
-}
-
 static std::string build_meta_throughput_estimate(const EP *ep) {
   std::stringstream ss;
 

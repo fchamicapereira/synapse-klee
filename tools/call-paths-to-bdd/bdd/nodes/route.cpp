@@ -22,7 +22,7 @@ Node *Route::clone(NodeManager &manager, bool recursive) const {
 
 void Route::visit(BDDVisitor &visitor) const { visitor.visit(this); }
 
-std::string Route::dump(bool one_liner) const {
+std::string Route::dump(bool one_liner, bool id_name_only) const {
   std::stringstream ss;
   ss << id << ":";
 

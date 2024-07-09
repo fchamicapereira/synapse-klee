@@ -164,17 +164,35 @@ void TofinoContext::parser_reject(const EP *ep, const bdd::Node *node) {
   tna.parser.log_debug();
 }
 
-std::unordered_set<DS_ID> TofinoContext::get_stateful_deps(const EP *ep) const {
+static const EPNode *
+get_ep_node_leaf_from_future_bdd_node(const EP *ep, const bdd::Node *node) {
+  const std::vector<EPLeaf> &leaves = ep->get_leaves();
+
+  while (node) {
+    for (const EPLeaf &leaf : leaves) {
+      if (leaf.next == node) {
+        return leaf.node;
+      }
+    }
+
+    node = node->get_prev();
+  }
+
+  return nullptr;
+}
+
+std::unordered_set<DS_ID>
+TofinoContext::get_stateful_deps(const EP *ep, const bdd::Node *node) const {
   std::unordered_set<DS_ID> deps;
 
-  const EPLeaf *active_leaf = ep->get_active_leaf();
-  if (!active_leaf || !active_leaf->node) {
+  const EPNode *ep_node = get_ep_node_leaf_from_future_bdd_node(ep, node);
+
+  if (!ep_node) {
     return deps;
   }
 
-  const EPNode *node = active_leaf->node;
-  while (node) {
-    const Module *module = node->get_module();
+  while (ep_node) {
+    const Module *module = ep_node->get_module();
 
     if (module->get_target() != TargetType::Tofino) {
       break;
@@ -190,7 +208,7 @@ std::unordered_set<DS_ID> TofinoContext::get_stateful_deps(const EP *ep) const {
         tofino_module->get_generated_ds();
     deps.insert(generated_ds.begin(), generated_ds.end());
 
-    node = node->get_prev();
+    ep_node = ep_node->get_prev();
   }
 
   return deps;
@@ -236,6 +254,19 @@ bool TofinoContext::check_many_placements(
   if (status != PlacementStatus::SUCCESS) {
     TargetType target = ep->get_current_platform();
     Log::dbg() << "[" << target << "] Cannot place objs (" << status << ")\n";
+    Log::dbg() << "  DS:\n";
+    for (const auto &ds_list : ds) {
+      for (const DS *ds : ds_list) {
+        Log::dbg() << "   * " << ds->id << "\n";
+      }
+    }
+    Log::dbg() << "  Deps:\n";
+    for (DS_ID dep : deps) {
+      Log::dbg() << "   * " << dep << "\n";
+    }
+    if (status == PlacementStatus::SELF_DEPENDENCE) {
+      assert(false);
+    }
   }
 
   return status == PlacementStatus::SUCCESS;

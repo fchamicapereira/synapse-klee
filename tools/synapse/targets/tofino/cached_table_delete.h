@@ -59,8 +59,7 @@ public:
 protected:
   virtual std::optional<speculation_t>
   speculate(const EP *ep, const bdd::Node *node,
-            const constraints_t &current_speculative_constraints,
-            const Context &current_speculative_ctx) const override {
+            const Context &ctx) const override {
     if (node->get_type() != bdd::NodeType::CALL) {
       return std::nullopt;
     }
@@ -93,18 +92,18 @@ protected:
     std::vector<const bdd::Node *> future_ops =
         get_future_related_nodes(ep, node, coalescing_data);
 
-    Context new_ctx = current_speculative_ctx;
+    Context new_ctx = ctx;
     speculation_t speculation(new_ctx);
     for (const bdd::Node *op : future_ops) {
       speculation.skip.insert(op->get_id());
     }
 
-    return current_speculative_ctx;
+    return ctx;
   }
 
-  virtual std::vector<generator_product_t>
+  virtual std::vector<__generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<generator_product_t> products;
+    std::vector<__generator_product_t> products;
 
     if (node->get_type() != bdd::NodeType::CALL) {
       return products;
@@ -140,7 +139,7 @@ protected:
     cached_table_data_t cached_table_data =
         get_cached_table_data(ep, map_erase);
 
-    std::optional<generator_product_t> product =
+    std::optional<__generator_product_t> product =
         concretize_cached_table_delete(ep, node, cached_table_data);
 
     if (product.has_value()) {
@@ -151,11 +150,12 @@ protected:
   }
 
 private:
-  std::optional<generator_product_t> concretize_cached_table_delete(
+  std::optional<__generator_product_t> concretize_cached_table_delete(
       const EP *ep, const bdd::Node *node,
       const cached_table_data_t &cached_table_data) const {
     std::unordered_set<DS_ID> deps;
-    CachedTable *cached_table = get_cached_table(ep, cached_table_data, deps);
+    CachedTable *cached_table =
+        get_cached_table(ep, node, cached_table_data, deps);
 
     if (!cached_table) {
       return std::nullopt;
@@ -180,12 +180,12 @@ private:
     new_ep->process_leaf(ep_node, {leaf});
     new_ep->replace_bdd(bdd);
 
-    new_ep->inspect();
+    new_ep->inspect_debug();
 
     std::stringstream descr;
     descr << "cap=" << cached_table->cache_capacity;
 
-    return generator_product_t(new_ep, descr.str());
+    return __generator_product_t(new_ep, descr.str());
   }
 
   std::unordered_set<DS_ID>

@@ -35,7 +35,9 @@ public:
   std::ostream stream;
 
   static Level MINIMUM_LOG_LEVEL;
-  static bool is_dbg_active() { return Log::MINIMUM_LOG_LEVEL >= Level::DEBUG; }
+  static bool is_debug_active() {
+    return Log::MINIMUM_LOG_LEVEL >= Level::DEBUG;
+  }
 
   static Log log();
   static Log dbg();

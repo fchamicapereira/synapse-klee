@@ -56,8 +56,7 @@ public:
 protected:
   virtual std::optional<speculation_t>
   speculate(const EP *ep, const bdd::Node *node,
-            const constraints_t &current_speculative_constraints,
-            const Context &current_speculative_ctx) const override {
+            const Context &ctx) const override {
     if (node->get_type() != bdd::NodeType::CALL) {
       return std::nullopt;
     }
@@ -81,7 +80,8 @@ protected:
     }
 
     std::unordered_set<DS_ID> deps;
-    Table *table = build_table(ep, id, num_entries, keys, values, hit, deps);
+    Table *table =
+        build_table(ep, node, id, num_entries, keys, values, hit, deps);
 
     if (!table) {
       return std::nullopt;
@@ -89,12 +89,12 @@ protected:
 
     delete table;
 
-    return current_speculative_ctx;
+    return ctx;
   }
 
-  virtual std::vector<generator_product_t>
+  virtual std::vector<__generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<generator_product_t> products;
+    std::vector<__generator_product_t> products;
 
     if (node->get_type() != bdd::NodeType::CALL) {
       return products;
@@ -119,7 +119,8 @@ protected:
     }
 
     std::unordered_set<DS_ID> deps;
-    Table *table = build_table(ep, id, num_entries, keys, values, hit, deps);
+    Table *table =
+        build_table(ep, node, id, num_entries, keys, values, hit, deps);
 
     if (!table) {
       return products;
@@ -131,16 +132,17 @@ protected:
     EP *new_ep = new EP(*ep);
     products.emplace_back(new_ep);
 
+    place_simple_table(new_ep, obj, table, deps);
+
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
-
-    place_simple_table(new_ep, obj, table, deps);
 
     return products;
   }
 
 private:
-  Table *build_table(const EP *ep, DS_ID id, int num_entries,
+  Table *build_table(const EP *ep, const bdd::Node *node, DS_ID id,
+                     int num_entries,
                      const std::vector<klee::ref<klee::Expr>> &keys,
                      const std::vector<klee::ref<klee::Expr>> &values,
                      const std::optional<symbol_t> &hit,
@@ -158,7 +160,7 @@ private:
     Table *table = new Table(id, num_entries, keys_size, params_size);
 
     const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
-    deps = tofino_ctx->get_stateful_deps(ep);
+    deps = tofino_ctx->get_stateful_deps(ep, node);
 
     if (!tofino_ctx->check_placement(ep, table, deps)) {
       delete table;

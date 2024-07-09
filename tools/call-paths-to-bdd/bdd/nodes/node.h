@@ -86,7 +86,8 @@ public:
   virtual std::vector<node_id_t> get_leaves() const;
   virtual Node *clone(NodeManager &manager, bool recursive = false) const = 0;
   virtual void visit(BDDVisitor &visitor) const = 0;
-  virtual std::string dump(bool one_liner = false) const = 0;
+  virtual std::string dump(bool one_liner = false,
+                           bool id_name_only = false) const = 0;
 
   virtual ~Node() = default;
 };

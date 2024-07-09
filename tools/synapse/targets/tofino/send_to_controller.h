@@ -37,13 +37,13 @@ public:
 protected:
   virtual std::optional<speculation_t>
   speculate(const EP *ep, const bdd::Node *node,
-            const constraints_t &current_speculative_constraints,
-            const Context &current_speculative_ctx) const override {
-    Context new_ctx = current_speculative_ctx;
+            const Context &ctx) const override {
+    Context new_ctx = ctx;
 
     const Profiler *profiler = new_ctx.get_profiler();
-    std::optional<double> fraction =
-        profiler->get_fraction(current_speculative_constraints);
+    constraints_t constraints = node->get_ordered_branch_constraints();
+
+    std::optional<double> fraction = profiler->get_fraction(constraints);
     assert(fraction.has_value());
 
     new_ctx.update_traffic_fractions(TargetType::Tofino, TargetType::TofinoCPU,
@@ -55,9 +55,9 @@ protected:
     return speculation;
   }
 
-  virtual std::vector<generator_product_t>
+  virtual std::vector<__generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<generator_product_t> products;
+    std::vector<__generator_product_t> products;
 
     // We can always send to the controller, at any point in time.
     EP *new_ep = new EP(*ep);

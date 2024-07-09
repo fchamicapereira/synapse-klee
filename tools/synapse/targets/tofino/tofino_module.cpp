@@ -26,7 +26,7 @@ std::unordered_set<DS *> TofinoModuleGenerator::build_vector_registers(
   }
 
   const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
-  deps = tofino_ctx->get_stateful_deps(ep);
+  deps = tofino_ctx->get_stateful_deps(ep, node);
 
   if (!tofino_ctx->check_many_placements(ep, {regs}, deps)) {
     for (DS *reg : regs) {
@@ -53,7 +53,8 @@ std::unordered_set<DS *> TofinoModuleGenerator::get_vector_registers(
     rids.insert(reg->id);
   }
 
-  deps = tofino_ctx->get_stateful_deps(ep);
+  deps = tofino_ctx->get_stateful_deps(ep, node);
+
   if (!tofino_ctx->check_many_placements(ep, {regs}, deps)) {
     regs.clear();
   }
@@ -80,6 +81,33 @@ std::unordered_set<DS *> TofinoModuleGenerator::get_or_build_vector_registers(
   }
 
   return regs;
+}
+
+bool TofinoModuleGenerator::can_get_or_build_vector_registers(
+    const EP *ep, const bdd::Node *node,
+    const vector_register_data_t &data) const {
+  std::unordered_set<DS_ID> rids;
+  std::unordered_set<DS_ID> deps;
+
+  const Context &ctx = ep->get_ctx();
+  bool regs_already_placed =
+      ctx.check_placement(data.obj, PlacementDecision::Tofino_VectorRegister);
+
+  if (regs_already_placed) {
+    std::unordered_set<DS *> regs =
+        get_vector_registers(ep, node, data, rids, deps);
+    return !regs.empty();
+  }
+
+  std::unordered_set<DS *> regs =
+      build_vector_registers(ep, node, data, rids, deps);
+  bool success = !regs.empty();
+
+  for (DS *reg : regs) {
+    delete reg;
+  }
+
+  return success;
 }
 
 void TofinoModuleGenerator::place_vector_registers(
@@ -122,7 +150,7 @@ CachedTable *TofinoModuleGenerator::build_cached_table(
       properties, id, cache_capacity, data.num_entries, keys_sizes, value_size);
 
   const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
-  deps = tofino_ctx->get_stateful_deps(ep);
+  deps = tofino_ctx->get_stateful_deps(ep, node);
   if (!tofino_ctx->check_placement(ep, cached_table, deps)) {
     delete cached_table;
     cached_table = nullptr;
@@ -132,7 +160,7 @@ CachedTable *TofinoModuleGenerator::build_cached_table(
 }
 
 CachedTable *
-TofinoModuleGenerator::get_cached_table(const EP *ep,
+TofinoModuleGenerator::get_cached_table(const EP *ep, const bdd::Node *node,
                                         const cached_table_data_t &data,
                                         std::unordered_set<DS_ID> &deps) const {
   const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
@@ -143,7 +171,7 @@ TofinoModuleGenerator::get_cached_table(const EP *ep,
 
   CachedTable *cached_table = static_cast<CachedTable *>(ds[0]);
 
-  deps = tofino_ctx->get_stateful_deps(ep);
+  deps = tofino_ctx->get_stateful_deps(ep, node);
   if (!tofino_ctx->check_placement(ep, cached_table, deps)) {
     cached_table = nullptr;
   }
@@ -162,7 +190,7 @@ CachedTable *TofinoModuleGenerator::get_or_build_cached_table(
       ctx.check_placement(data.obj, PlacementDecision::Tofino_CachedTable);
 
   if (already_placed) {
-    cached_table = get_cached_table(ep, data, deps);
+    cached_table = get_cached_table(ep, node, data, deps);
     already_exists = true;
 
     if (cached_table && cached_table->cache_capacity != cache_capacity) {
@@ -174,6 +202,36 @@ CachedTable *TofinoModuleGenerator::get_or_build_cached_table(
   }
 
   return cached_table;
+}
+
+bool TofinoModuleGenerator::can_get_or_build_cached_table(
+    const EP *ep, const bdd::Node *node, const cached_table_data_t &data,
+    int cache_capacity) const {
+  std::unordered_set<DS_ID> deps;
+
+  const Context &ctx = ep->get_ctx();
+  bool already_placed =
+      ctx.check_placement(data.obj, PlacementDecision::Tofino_CachedTable);
+
+  if (already_placed) {
+    CachedTable *cached_table = get_cached_table(ep, node, data, deps);
+
+    if (cached_table && cached_table->cache_capacity != cache_capacity) {
+      return false;
+    }
+
+    return true;
+  }
+
+  CachedTable *cached_table =
+      build_cached_table(ep, node, data, cache_capacity, deps);
+
+  if (!cached_table) {
+    return false;
+  }
+
+  delete cached_table;
+  return true;
 }
 
 symbols_t

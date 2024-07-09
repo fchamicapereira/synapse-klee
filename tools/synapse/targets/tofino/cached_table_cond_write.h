@@ -71,8 +71,7 @@ public:
 protected:
   virtual std::optional<speculation_t>
   speculate(const EP *ep, const bdd::Node *node,
-            const constraints_t &current_speculative_constraints,
-            const Context &current_speculative_ctx) const override {
+            const Context &ctx) const override {
     if (node->get_type() != bdd::NodeType::CALL) {
       return std::nullopt;
     }
@@ -109,7 +108,7 @@ protected:
     // on the time it takes to find a solution.
     for (int cache_capacity : allowed_cache_capacities) {
       double success_estimation = get_cache_write_success_estimation_rel(
-          cache_capacity, cached_table_data.num_entries);
+          ep, node, cache_capacity, cached_table_data.num_entries);
 
       if (success_estimation > chosen_success_estimation) {
         chosen_success_estimation = success_estimation;
@@ -117,35 +116,26 @@ protected:
       }
     }
 
-    std::unordered_set<DS_ID> deps;
-    bool already_exists;
+    bool can_place_cached_table = can_get_or_build_cached_table(
+        ep, node, cached_table_data, chosen_cache_capacity);
 
-    CachedTable *cached_table =
-        get_or_build_cached_table(ep, node, cached_table_data,
-                                  chosen_cache_capacity, already_exists, deps);
-
-    if (!cached_table) {
+    if (!can_place_cached_table) {
       return std::nullopt;
     }
 
-    if (!already_exists) {
-      delete cached_table;
-    }
+    Context new_ctx = ctx;
+    const Profiler *profiler = new_ctx.get_profiler();
+    constraints_t constraints = node->get_ordered_branch_constraints();
 
-    Context new_ctx = current_speculative_ctx;
-
-    Profiler *profiler = new_ctx.get_mutable_profiler();
-    std::optional<double> fraction =
-        profiler->get_fraction(current_speculative_constraints);
+    std::optional<double> fraction = profiler->get_fraction(constraints);
     assert(fraction.has_value());
 
-    double on_fail_fraction =
-        fraction.value() * (1 - chosen_success_estimation);
+    double on_fail_fraction = *fraction * (1 - chosen_success_estimation);
 
     new_ctx.update_traffic_fractions(TargetType::Tofino, TargetType::TofinoCPU,
                                      on_fail_fraction);
 
-    profiler->scale(current_speculative_constraints, chosen_success_estimation);
+    new_ctx.scale_profiler(constraints, chosen_success_estimation);
 
     std::vector<const bdd::Node *> ignore_nodes =
         get_nodes_to_speculatively_ignore(ep, call_node, coalescing_data,
@@ -159,9 +149,9 @@ protected:
     return speculation;
   }
 
-  virtual std::vector<generator_product_t>
+  virtual std::vector<__generator_product_t>
   process_node(const EP *ep, const bdd::Node *node) const override {
-    std::vector<generator_product_t> products;
+    std::vector<__generator_product_t> products;
 
     if (node->get_type() != bdd::NodeType::CALL) {
       return products;
@@ -195,7 +185,7 @@ protected:
         enumerate_cache_table_capacities(cached_table_data.num_entries);
 
     for (int cache_capacity : allowed_cache_capacities) {
-      std::optional<generator_product_t> product =
+      std::optional<__generator_product_t> product =
           concretize_cached_table_cond_write(
               ep, node, coalescing_data, cached_table_data, cache_write_failed,
               cache_capacity);
@@ -209,7 +199,7 @@ protected:
   }
 
 private:
-  std::optional<generator_product_t> concretize_cached_table_cond_write(
+  std::optional<__generator_product_t> concretize_cached_table_cond_write(
       const EP *ep, const bdd::Node *node,
       const map_coalescing_data_t &coalescing_data,
       const cached_table_data_t &cached_table_data,
@@ -272,12 +262,8 @@ private:
     else_node->set_children({send_to_controller_node});
     send_to_controller_node->set_prev(else_node);
 
-    EPLeaf on_cache_write_success_leaf(then_node, on_cache_write_success);
-    EPLeaf on_cache_write_failed_leaf(send_to_controller_node,
-                                      on_cache_write_failed);
-
     double cache_write_success_estimation_rel =
-        get_cache_write_success_estimation_rel(cache_capacity,
+        get_cache_write_success_estimation_rel(ep, node, cache_capacity,
                                                cached_table_data.num_entries);
 
     new_ep->update_node_constraints(then_node, else_node,
@@ -290,26 +276,52 @@ private:
       new_ep->remove_hit_rate_node(deleted_branch_constraints.value());
     }
 
+    if (!already_exists) {
+      place_cached_table(new_ep, coalescing_data, cached_table, deps);
+    }
+
+    EPLeaf on_cache_write_success_leaf(then_node, on_cache_write_success);
+    EPLeaf on_cache_write_failed_leaf(send_to_controller_node,
+                                      on_cache_write_failed);
+
     new_ep->process_leaf(
         cached_table_cond_write_node,
         {on_cache_write_success_leaf, on_cache_write_failed_leaf});
     new_ep->replace_bdd(new_bdd);
 
-    new_ep->inspect();
-
-    if (!already_exists) {
-      place_cached_table(new_ep, coalescing_data, cached_table, deps);
-    }
+    new_ep->inspect_debug();
 
     std::stringstream descr;
     descr << "cap=" << cache_capacity;
 
-    return generator_product_t(new_ep, descr.str());
+    return __generator_product_t(new_ep, descr.str());
   }
 
-  double get_cache_write_success_estimation_rel(int cache_capacity,
+  double get_cache_write_success_estimation_rel(const EP *ep,
+                                                const bdd::Node *node,
+                                                int cache_capacity,
                                                 int num_entries) const {
-    return static_cast<double>(cache_capacity) / num_entries;
+    const Context &ctx = ep->get_ctx();
+    const Profiler *profiler = ctx.get_profiler();
+    constraints_t constraints = node->get_ordered_branch_constraints();
+
+    std::optional<double> fraction = profiler->get_fraction(constraints);
+    assert(fraction.has_value());
+
+    rw_fractions_t rw_fractions =
+        get_cond_map_put_rw_profile_fractions(ep, node);
+
+    double relative_write_fraction = rw_fractions.write / *fraction;
+    double relative_read_fraction = rw_fractions.read / *fraction;
+
+    double cache_update_success_fraction =
+        static_cast<double>(cache_capacity) / num_entries;
+
+    double relative_cache_success_fraction =
+        relative_read_fraction +
+        relative_write_fraction * cache_update_success_fraction;
+
+    return relative_cache_success_fraction;
   }
 
   std::unordered_set<DS_ID>

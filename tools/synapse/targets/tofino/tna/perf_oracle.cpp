@@ -36,6 +36,12 @@ PerfOracle::PerfOracle(const PerfOracle &other)
       non_recirc_traffic(other.non_recirc_traffic),
       throughput_pps(other.throughput_pps) {}
 
+static bool fractions_le(double f0, double f1) {
+  double delta = f0 - f1;
+  double epsilon = 1e-8;
+  return delta < epsilon;
+}
+
 void PerfOracle::add_recirculated_traffic(int port, int port_recirculations,
                                           double fraction,
                                           std::optional<int> prev_recirc_port) {
@@ -53,9 +59,17 @@ void PerfOracle::add_recirculated_traffic(int port, int port_recirculations,
 
   if (port_recirculations > curr_port_recirculations) {
     usage.fractions.push_back(0);
-    assert(curr_port_recirculations == 0 ||
-           fraction <= usage.fractions[curr_port_recirculations - 1]);
+
+    assert(
+        curr_port_recirculations == 0 ||
+        fractions_le(fraction, usage.fractions[curr_port_recirculations - 1]));
     assert(port_recirculations == (int)usage.fractions.size());
+
+    if (curr_port_recirculations > 0) {
+      // double shenanigans to avoid floating point precision issues
+      double last_fraction = usage.fractions[curr_port_recirculations - 1];
+      fraction = std::min(fraction, last_fraction);
+    }
   }
 
   usage.fractions[port_recirculations - 1] += fraction;
@@ -187,7 +201,7 @@ void PerfOracle::update_estimate_throughput_pps() {
       // Recirculation surplus
       // s is relative to the first recirculation
 
-      assert(usage.fractions[1] <= usage.fractions[0]);
+      assert(fractions_le(usage.fractions[1], usage.fractions[0]));
       assert(usage.fractions[0] > 0);
 
       double s = usage.fractions[1] / usage.fractions[0];
@@ -199,8 +213,8 @@ void PerfOracle::update_estimate_throughput_pps() {
       // s1 is relative to s0
       // s0 is relative to the first recirculation
 
-      assert(usage.fractions[2] <= usage.fractions[1]);
-      assert(usage.fractions[1] <= usage.fractions[0]);
+      assert(fractions_le(usage.fractions[2], usage.fractions[1]));
+      assert(fractions_le(usage.fractions[1], usage.fractions[0]));
 
       assert(usage.fractions[1] > 0);
       assert(usage.fractions[0] > 0);
@@ -216,7 +230,7 @@ void PerfOracle::update_estimate_throughput_pps() {
     }
     }
 
-    assert(Tsteering_bps <= Tout_bps);
+    Tsteering_bps = std::min(Tsteering_bps, Tout_bps);
     throughput_bps += Tout_bps - Tsteering_bps;
   }
 

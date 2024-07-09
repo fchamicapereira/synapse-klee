@@ -43,7 +43,6 @@ EP::EP(std::shared_ptr<const bdd::BDD> _bdd,
   }
 
   leaves.emplace_back(nullptr, bdd->get_root());
-  ctx.update_throughput_estimates(this);
 }
 
 static std::set<ep_id_t> update_ancestors(const EP &other, bool is_ancestor) {
@@ -198,8 +197,6 @@ void EP::process_leaf(const bdd::Node *next_node) {
   } else {
     leaves.erase(leaves.begin());
   }
-
-  ctx.update_throughput_estimates(this);
 }
 
 void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves,
@@ -225,6 +222,7 @@ void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves,
     if (!new_leaf.next)
       continue;
 
+    ctx.update_traffic_fractions(new_leaf.node);
     meta.update(active_leaf, new_leaf.node, process_node);
 
     const Module *module = new_leaf.node->get_module();
@@ -251,8 +249,6 @@ void EP::process_leaf(EPNode *new_node, const std::vector<EPLeaf> &new_leaves,
       leaves.insert(leaves.begin(), new_leaf);
     }
   }
-
-  ctx.update_throughput_estimates(this);
 }
 
 void EP::replace_bdd(const bdd::BDD *new_bdd,
@@ -298,12 +294,11 @@ void EP::replace_bdd(const bdd::BDD *new_bdd,
     return EPNodeVisitAction::VISIT_CHILDREN;
   });
 
+  meta.update_total_bdd_nodes(new_bdd);
+
   // Reset the BDD only here, because we might lose the final reference to it
   // and we needed the old nodes to find the new ones.
   bdd.reset(new_bdd);
-  meta.update_total_bdd_nodes(new_bdd);
-
-  ctx.update_throughput_estimates(this);
 }
 
 void EP::visit(EPVisitor &visitor) const { visitor.visit(this); }
@@ -322,7 +317,11 @@ void EP::log_debug_hit_rate() const {
   profiler->log_debug();
 }
 
-void EP::inspect() const {
+void EP::inspect_debug() const {
+  if (!Log::is_debug_active()) {
+    return;
+  }
+
   std::vector<const EPNode *> nodes{root};
 
   while (nodes.size()) {
