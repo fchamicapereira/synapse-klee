@@ -32,7 +32,7 @@ enum class ModuleType {
   Tofino_VectorRegisterLookup,
   Tofino_VectorRegisterUpdate,
   Tofino_CachedTableRead,
-  Tofino_CachedTableConditionalWrite,
+  Tofino_CachedTableReadOrWrite,
   Tofino_CachedTableWrite,
   Tofino_CachedTableConditionalDelete,
   Tofino_CachedTableDelete,

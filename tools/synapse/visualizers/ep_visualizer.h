@@ -44,7 +44,7 @@ public:
   DECLARE_VISIT(tofino::VectorRegisterLookup)
   DECLARE_VISIT(tofino::VectorRegisterUpdate)
   DECLARE_VISIT(tofino::CachedTableRead)
-  DECLARE_VISIT(tofino::CachedTableConditionalWrite)
+  DECLARE_VISIT(tofino::CachedTableReadOrWrite)
   DECLARE_VISIT(tofino::CachedTableWrite)
   DECLARE_VISIT(tofino::CachedTableConditionalDelete)
   DECLARE_VISIT(tofino::CachedTableDelete)

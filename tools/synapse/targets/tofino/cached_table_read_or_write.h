@@ -10,7 +10,7 @@
 namespace synapse {
 namespace tofino {
 
-class CachedTableConditionalWrite : public TofinoModule {
+class CachedTableReadOrWrite : public TofinoModule {
 private:
   DS_ID cached_table_id;
   std::unordered_set<DS_ID> cached_table_byproducts;
@@ -23,14 +23,14 @@ private:
   symbol_t cache_write_failed;
 
 public:
-  CachedTableConditionalWrite(
+  CachedTableReadOrWrite(
       const bdd::Node *node, DS_ID _cached_table_id,
       const std::unordered_set<DS_ID> &_cached_table_byproducts, addr_t _obj,
       klee::ref<klee::Expr> _key, klee::ref<klee::Expr> _read_value,
       klee::ref<klee::Expr> _write_value, const symbol_t &_map_has_this_key,
       const symbol_t &_cache_write_failed)
-      : TofinoModule(ModuleType::Tofino_CachedTableConditionalWrite,
-                     "CachedTableConditionalWrite", node),
+      : TofinoModule(ModuleType::Tofino_CachedTableReadOrWrite,
+                     "CachedTableReadOrWrite", node),
         cached_table_id(_cached_table_id),
         cached_table_byproducts(_cached_table_byproducts), obj(_obj), key(_key),
         read_value(_read_value), write_value(_write_value),
@@ -43,7 +43,7 @@ public:
   }
 
   virtual Module *clone() const override {
-    Module *cloned = new CachedTableConditionalWrite(
+    Module *cloned = new CachedTableReadOrWrite(
         node, cached_table_id, cached_table_byproducts, obj, key, read_value,
         write_value, map_has_this_key, cache_write_failed);
     return cloned;
@@ -62,11 +62,11 @@ public:
   }
 };
 
-class CachedTableConditionalWriteGenerator : public TofinoModuleGenerator {
+class CachedTableReadOrWriteGenerator : public TofinoModuleGenerator {
 public:
-  CachedTableConditionalWriteGenerator()
-      : TofinoModuleGenerator(ModuleType::Tofino_CachedTableConditionalWrite,
-                              "CachedTableConditionalWrite") {}
+  CachedTableReadOrWriteGenerator()
+      : TofinoModuleGenerator(ModuleType::Tofino_CachedTableReadOrWrite,
+                              "CachedTableReadOrWrite") {}
 
 protected:
   virtual std::optional<speculation_t>
@@ -220,7 +220,7 @@ private:
     klee::ref<klee::Expr> cache_write_success_condition =
         build_cache_write_success_condition(cache_write_failed);
 
-    Module *module = new CachedTableConditionalWrite(
+    Module *module = new CachedTableReadOrWrite(
         node, cached_table->id, byproducts, cached_table_data.obj,
         cached_table_data.key, cached_table_data.read_value,
         cached_table_data.write_value, cached_table_data.map_has_this_key,

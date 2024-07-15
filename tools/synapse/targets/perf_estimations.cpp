@@ -304,6 +304,11 @@ void Context::update_throughput_speculation(const EP *ep) {
     });
   }
 
+  // if (ep->get_id() == 138) {
+  //   print_speculations(ep, nodes_speculations, speculation);
+  //   bdd::BDDVisualizer::visualize(ep->get_bdd(), true);
+  // }
+
   throughput_speculation_pps =
       estimate_throughput_pps_from_ctx(speculation.ctx);
 }

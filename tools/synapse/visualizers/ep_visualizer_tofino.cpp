@@ -189,7 +189,7 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
 }
 
 void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
-                         const tofino::CachedTableConditionalWrite *node) {
+                         const tofino::CachedTableReadOrWrite *node) {
   std::stringstream label_builder;
 
   const bdd::Node *bdd_node = node->get_node();
@@ -203,7 +203,7 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
   assert(ds->type == DSType::CACHED_TABLE);
   const CachedTable *cached_table = static_cast<const CachedTable *>(ds);
 
-  label_builder << "Cached Table Conditional Write\n";
+  label_builder << "Cached Table Read/Write\n";
 
   label_builder << "obj=";
   label_builder << obj;

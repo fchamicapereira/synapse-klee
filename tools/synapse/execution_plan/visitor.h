@@ -30,7 +30,7 @@ class SimpleTableLookup;
 class VectorRegisterLookup;
 class VectorRegisterUpdate;
 class CachedTableRead;
-class CachedTableConditionalWrite;
+class CachedTableReadOrWrite;
 class CachedTableWrite;
 class CachedTableConditionalDelete;
 class CachedTableDelete;
@@ -130,7 +130,7 @@ public:
   VISIT_TODO(tofino::VectorRegisterLookup)
   VISIT_TODO(tofino::VectorRegisterUpdate)
   VISIT_TODO(tofino::CachedTableRead)
-  VISIT_TODO(tofino::CachedTableConditionalWrite)
+  VISIT_TODO(tofino::CachedTableReadOrWrite)
   VISIT_TODO(tofino::CachedTableWrite)
   VISIT_TODO(tofino::CachedTableConditionalDelete)
   VISIT_TODO(tofino::CachedTableDelete)
