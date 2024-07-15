@@ -269,7 +269,7 @@ private:
       const map_coalescing_data_t &cached_table_data) const {
     std::vector<const bdd::Node *> ops =
         get_future_functions(node, {"vector_borrow", "vector_return",
-                                    "dchain_free_index", "map_put"});
+                                    "dchain_free_index", "map_erase"});
 
     std::vector<const bdd::Node *> related_ops;
     for (const bdd::Node *op : ops) {
@@ -285,7 +285,7 @@ private:
         if (obj != cached_table_data.dchain) {
           continue;
         }
-      } else if (call.function_name == "map_put") {
+      } else if (call.function_name == "map_erase") {
         klee::ref<klee::Expr> obj_expr = call.args.at("map").expr;
         addr_t obj = kutil::expr_addr_to_obj_addr(obj_expr);
 
@@ -300,6 +300,8 @@ private:
           continue;
         }
       }
+
+      related_ops.push_back(op);
     }
 
     return related_ops;
@@ -323,6 +325,10 @@ private:
         get_future_related_nodes(ep, node, *cached_table_data);
 
     for (const bdd::Node *op : ops) {
+      if (op == node) {
+        continue;
+      }
+
       bool replace_next = (op == next);
       bdd::Node *replacement;
       delete_non_branch_node_from_bdd(ep, new_bdd, op->get_id(), replacement);
