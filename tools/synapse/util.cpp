@@ -807,32 +807,31 @@ static void differentiate_vectors(const next_t &candidates, addr_t &vector_key,
   assert(candidates.vectors.size() == vectors_values.size() + 1);
 }
 
-std::optional<map_coalescing_data_t>
-get_map_coalescing_data(const bdd::BDD *bdd, addr_t obj) {
+bool get_map_coalescing_data(const bdd::BDD *bdd, addr_t obj,
+                             map_coalescing_data_t &data) {
   const bdd::Node *root = bdd->get_root();
 
   std::vector<const bdd::Node *> index_allocators =
       get_future_functions(root, {"dchain_allocate_new_index"});
 
   if (index_allocators.size() == 0) {
-    return std::nullopt;
+    return false;
   }
 
   next_t candidates = get_allowed_coalescing_objs(index_allocators, obj);
 
   if (candidates.size() == 0) {
-    return std::nullopt;
+    return false;
   }
 
   assert(candidates.maps.size() == 1);
   assert(candidates.dchains.size() == 1);
 
-  map_coalescing_data_t data;
   data.map = candidates.maps.begin()->obj;
   data.dchain = candidates.dchains.begin()->obj;
   differentiate_vectors(candidates, data.vector_key, data.vectors_values);
 
-  return data;
+  return true;
 }
 
 bool is_parser_condition(const bdd::Branch *branch) {
@@ -1093,6 +1092,81 @@ bool is_map_get_followed_by_map_puts_on_miss(
     if (!kutil::solver_toolbox.is_expr_always_true(constraints,
                                                    failed_map_get)) {
       // Found map_put that happens even if map_get was successful.
+      return false;
+    }
+
+    map_puts.push_back(map_put);
+  }
+
+  if (map_puts.empty()) {
+    return false;
+  }
+
+  return true;
+}
+
+bool is_map_update_with_dchain(const EP *ep,
+                               const bdd::Call *dchain_allocate_new_index,
+                               std::vector<const bdd::Call *> &map_puts) {
+  const call_t &call = dchain_allocate_new_index->get_call();
+
+  if (call.function_name != "dchain_allocate_new_index") {
+    return false;
+  }
+
+  map_coalescing_data_t coalescing_data;
+  if (!get_map_coalescing_data_from_dchain_op(ep, dchain_allocate_new_index,
+                                              coalescing_data)) {
+    return false;
+  }
+
+  symbol_t out_of_space;
+  bool found =
+      get_symbol(dchain_allocate_new_index->get_locally_generated_symbols(),
+                 "out_of_space", out_of_space);
+  assert(found && "Symbol out_of_space not found");
+
+  klee::ref<klee::Expr> not_out_of_space =
+      kutil::solver_toolbox.exprBuilder->Eq(
+          out_of_space.expr, kutil::solver_toolbox.exprBuilder->Constant(
+                                 0, out_of_space.expr->getWidth()));
+
+  std::vector<const bdd::Node *> future_map_puts =
+      get_future_functions(dchain_allocate_new_index, {"map_put"});
+
+  klee::ref<klee::Expr> key;
+  klee::ref<klee::Expr> value;
+
+  for (const bdd::Node *node : future_map_puts) {
+    const bdd::Call *map_put = static_cast<const bdd::Call *>(node);
+    const call_t &mp_call = map_put->get_call();
+    assert(mp_call.function_name == "map_put");
+
+    klee::ref<klee::Expr> map_expr = mp_call.args.at("map").expr;
+    klee::ref<klee::Expr> mp_key = mp_call.args.at("key").in;
+    klee::ref<klee::Expr> mp_value = mp_call.args.at("value").expr;
+
+    addr_t map = kutil::expr_addr_to_obj_addr(map_expr);
+
+    if (map != coalescing_data.map) {
+      continue;
+    }
+
+    if (key.isNull()) {
+      key = mp_key;
+    } else if (!kutil::solver_toolbox.are_exprs_always_equal(key, mp_key)) {
+      return false;
+    }
+
+    if (value.isNull()) {
+      value = mp_value;
+    } else if (!kutil::solver_toolbox.are_exprs_always_equal(value, mp_value)) {
+      return false;
+    }
+
+    klee::ConstraintManager constraints = map_put->get_constraints();
+    if (!kutil::solver_toolbox.is_expr_always_true(constraints,
+                                                   not_out_of_space)) {
       return false;
     }
 
@@ -1633,6 +1707,48 @@ std::string throughput2str(uint64_t thpt, const std::string &units,
 
   ss << units;
   return ss.str();
+}
+
+bool get_map_coalescing_data_from_dchain_op(
+    const EP *ep, const bdd::Call *dchain_op,
+    map_coalescing_data_t &coalescing_data) {
+  const call_t &call = dchain_op->get_call();
+
+  assert(call.args.find("chain") != call.args.end());
+  klee::ref<klee::Expr> obj_expr = call.args.at("chain").expr;
+
+  addr_t obj = kutil::expr_addr_to_obj_addr(obj_expr);
+
+  const Context &ctx = ep->get_ctx();
+  std::optional<map_coalescing_data_t> data = ctx.get_coalescing_data(obj);
+
+  if (!data.has_value()) {
+    return false;
+  }
+
+  coalescing_data = data.value();
+  return true;
+}
+
+bool get_map_coalescing_data_from_map_op(
+    const EP *ep, const bdd::Call *map_op,
+    map_coalescing_data_t &coalescing_data) {
+  const call_t &call = map_op->get_call();
+
+  assert(call.args.find("map") != call.args.end());
+  klee::ref<klee::Expr> obj_expr = call.args.at("map").expr;
+
+  addr_t obj = kutil::expr_addr_to_obj_addr(obj_expr);
+
+  const Context &ctx = ep->get_ctx();
+  std::optional<map_coalescing_data_t> data = ctx.get_coalescing_data(obj);
+
+  if (!data.has_value()) {
+    return false;
+  }
+
+  coalescing_data = data.value();
+  return true;
 }
 
 } // namespace synapse

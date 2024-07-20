@@ -103,8 +103,9 @@ protected:
                                      const cached_table_data_t &data,
                                      int cache_capacity) const;
 
-  bool can_place_cached_table(const EP *ep, const bdd::Call *map_get,
-                              map_coalescing_data_t &coalescing_data) const;
+  bool
+  can_place_cached_table(const EP *ep,
+                         const map_coalescing_data_t &coalescing_data) const;
   void place_cached_table(EP *ep, const map_coalescing_data_t &coalescing_data,
                           CachedTable *ds,
                           const std::unordered_set<DS_ID> &deps) const;

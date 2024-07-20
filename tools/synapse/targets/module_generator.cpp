@@ -74,7 +74,7 @@ static std::vector<EP *> get_reordered(const EP *ep) {
 
     new_ep->replace_bdd(new_bdd.bdd, next_nodes_translator,
                         processed_nodes_translator);
-    new_ep->inspect_debug();
+    // new_ep->inspect_debug();
 
     reordered.push_back(new_ep);
   }

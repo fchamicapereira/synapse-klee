@@ -42,11 +42,17 @@ static bool fractions_le(double f0, double f1) {
   return delta < epsilon;
 }
 
+static void clamp_fraction(double &fraction) {
+  fraction = std::max(0.0, fraction);
+  fraction = std::min(1.0, fraction);
+}
+
 void PerfOracle::add_recirculated_traffic(int port, int port_recirculations,
                                           double fraction,
                                           std::optional<int> prev_recirc_port) {
   assert(port < total_recirc_ports);
   assert(port_recirculations > 0);
+
   assert(fraction >= 0);
   assert(fraction <= 1);
 
@@ -73,16 +79,13 @@ void PerfOracle::add_recirculated_traffic(int port, int port_recirculations,
   }
 
   usage.fractions[port_recirculations - 1] += fraction;
-
-  assert(usage.fractions[port_recirculations - 1] >= 0);
-  assert(usage.fractions[port_recirculations - 1] <= 1);
+  clamp_fraction(usage.fractions[port_recirculations - 1]);
 
   if (prev_recirc_port.has_value() && *prev_recirc_port != port) {
     steer_recirculation_traffic(*prev_recirc_port, port, fraction);
   } else if (non_recirc_traffic > 0) {
     non_recirc_traffic -= fraction;
-    assert(non_recirc_traffic >= 0);
-    assert(non_recirc_traffic <= 1);
+    clamp_fraction(non_recirc_traffic);
   }
 
   update_estimate_throughput_pps();
@@ -93,6 +96,7 @@ void PerfOracle::steer_recirculation_traffic(int source_port,
                                              double fraction) {
   assert(source_port < total_recirc_ports);
   assert(destination_port < total_recirc_ports);
+
   assert(fraction >= 0);
   assert(fraction <= 1);
 
@@ -103,12 +107,7 @@ void PerfOracle::steer_recirculation_traffic(int source_port,
   assert(destination_usage.port == destination_port);
 
   source_usage.steering_fraction += fraction;
-
-  assert(source_usage.steering_fraction >= 0);
-  assert(source_usage.steering_fraction <= 1);
-
-  assert(destination_usage.steering_fraction >= 0);
-  assert(destination_usage.steering_fraction <= 1);
+  clamp_fraction(source_usage.steering_fraction);
 }
 
 static uint64_t single_recirc_estimate(uint64_t Tin, uint64_t Cp) {
@@ -202,7 +201,12 @@ void PerfOracle::update_estimate_throughput_pps() {
       // s is relative to the first recirculation
 
       assert(fractions_le(usage.fractions[1], usage.fractions[0]));
-      assert(usage.fractions[0] > 0);
+
+      if (usage.fractions[0] == 0) {
+        // Nothing to recirculate actually
+        Tout_bps = 0;
+        break;
+      }
 
       double s = usage.fractions[1] / usage.fractions[0];
 
@@ -216,8 +220,11 @@ void PerfOracle::update_estimate_throughput_pps() {
       assert(fractions_le(usage.fractions[2], usage.fractions[1]));
       assert(fractions_le(usage.fractions[1], usage.fractions[0]));
 
-      assert(usage.fractions[1] > 0);
-      assert(usage.fractions[0] > 0);
+      if (usage.fractions[0] == 0 || usage.fractions[1] == 0) {
+        // Nothing to recirculate actually
+        Tout_bps = 0;
+        break;
+      }
 
       double s0 = usage.fractions[1] / usage.fractions[0];
       double s1 = usage.fractions[2] / usage.fractions[1];

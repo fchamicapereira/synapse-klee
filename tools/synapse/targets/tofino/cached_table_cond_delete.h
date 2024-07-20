@@ -74,26 +74,24 @@ protected:
       return std::nullopt;
     }
 
-    const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
-    const call_t &call = call_node->get_call();
-
-    if (call.function_name != "map_get") {
-      return std::nullopt;
-    }
-
-    map_coalescing_data_t coalescing_data;
-    if (!can_place_cached_table(ep, call_node, coalescing_data)) {
-      return std::nullopt;
-    }
+    const bdd::Call *map_get = static_cast<const bdd::Call *>(node);
 
     std::vector<const bdd::Call *> future_map_erases;
-    if (!is_map_get_followed_by_map_erases_on_hit(ep->get_bdd(), call_node,
+    if (!is_map_get_followed_by_map_erases_on_hit(ep->get_bdd(), map_get,
                                                   future_map_erases)) {
       return std::nullopt;
     }
 
-    cached_table_data_t cached_table_data =
-        get_cached_table_data(ep, call_node);
+    map_coalescing_data_t coalescing_data;
+    if (!get_map_coalescing_data_from_map_op(ep, map_get, coalescing_data)) {
+      return std::nullopt;
+    }
+
+    if (!can_place_cached_table(ep, coalescing_data)) {
+      return std::nullopt;
+    }
+
+    cached_table_data_t cached_table_data = get_cached_table_data(ep, map_get);
 
     std::unordered_set<int> allowed_cache_capacities =
         enumerate_cache_table_capacities(cached_table_data.num_entries);
@@ -113,10 +111,8 @@ protected:
       }
     }
 
-    bool can_place_cached_table = can_get_or_build_cached_table(
-        ep, node, cached_table_data, chosen_cache_capacity);
-
-    if (!can_place_cached_table) {
+    if (!can_get_or_build_cached_table(ep, node, cached_table_data,
+                                       chosen_cache_capacity)) {
       return std::nullopt;
     }
 
@@ -155,28 +151,31 @@ protected:
       return products;
     }
 
-    const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
-    const call_t &call = call_node->get_call();
+    const bdd::Call *map_get = static_cast<const bdd::Call *>(node);
+    const call_t &call = map_get->get_call();
 
     if (call.function_name != "map_get") {
       return products;
     }
 
     map_coalescing_data_t coalescing_data;
-    if (!can_place_cached_table(ep, call_node, coalescing_data)) {
+    if (!get_map_coalescing_data_from_map_op(ep, map_get, coalescing_data)) {
+      return products;
+    }
+
+    if (!can_place_cached_table(ep, coalescing_data)) {
       return products;
     }
 
     std::vector<const bdd::Call *> future_map_erases;
-    if (!is_map_get_followed_by_map_erases_on_hit(ep->get_bdd(), call_node,
+    if (!is_map_get_followed_by_map_erases_on_hit(ep->get_bdd(), map_get,
                                                   future_map_erases)) {
       return products;
     }
 
     symbol_t cache_delete_failed = create_symbol("cache_delete_failed", 32);
 
-    cached_table_data_t cached_table_data =
-        get_cached_table_data(ep, call_node);
+    cached_table_data_t cached_table_data = get_cached_table_data(ep, map_get);
 
     std::unordered_set<int> allowed_cache_capacities =
         enumerate_cache_table_capacities(cached_table_data.num_entries);
@@ -224,6 +223,8 @@ private:
 
     klee::ref<klee::Expr> cache_delete_success_condition =
         build_cache_delete_success_condition(cache_delete_failed);
+
+    std::cerr << "Node: " << node->dump(true) << "\n";
 
     bdd::Node *on_cache_delete_success;
     bdd::Node *on_cache_delete_failed;
@@ -277,7 +278,7 @@ private:
         {on_cache_delete_success_leaf, on_cache_delete_failed_leaf});
     new_ep->replace_bdd(new_bdd);
 
-    new_ep->inspect_debug();
+    // new_ep->inspect_debug();
 
     std::stringstream descr;
     descr << "cap=" << cache_capacity;

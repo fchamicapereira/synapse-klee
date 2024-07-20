@@ -76,27 +76,26 @@ protected:
       return std::nullopt;
     }
 
-    const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
-    const call_t &call = call_node->get_call();
-
-    if (call.function_name != "map_get") {
-      return std::nullopt;
-    }
-
-    map_coalescing_data_t coalescing_data;
-    if (!can_place_cached_table(ep, call_node, coalescing_data)) {
-      return std::nullopt;
-    }
+    const bdd::Call *map_get = static_cast<const bdd::Call *>(node);
 
     std::vector<const bdd::Call *> future_map_puts;
-    if (!is_map_get_followed_by_map_puts_on_miss(ep->get_bdd(), call_node,
+    if (!is_map_get_followed_by_map_puts_on_miss(ep->get_bdd(), map_get,
                                                  future_map_puts)) {
       // The cached table read should deal with these cases.
       return std::nullopt;
     }
 
+    map_coalescing_data_t coalescing_data;
+    if (!get_map_coalescing_data_from_map_op(ep, map_get, coalescing_data)) {
+      return std::nullopt;
+    }
+
+    if (!can_place_cached_table(ep, coalescing_data)) {
+      return std::nullopt;
+    }
+
     cached_table_data_t cached_table_data =
-        get_cached_table_data(ep, call_node, future_map_puts);
+        get_cached_table_data(ep, map_get, future_map_puts);
 
     std::unordered_set<int> allowed_cache_capacities =
         enumerate_cache_table_capacities(cached_table_data.num_entries);
@@ -116,10 +115,8 @@ protected:
       }
     }
 
-    bool can_place_cached_table = can_get_or_build_cached_table(
-        ep, node, cached_table_data, chosen_cache_capacity);
-
-    if (!can_place_cached_table) {
+    if (!can_get_or_build_cached_table(ep, node, cached_table_data,
+                                       chosen_cache_capacity)) {
       return std::nullopt;
     }
 
@@ -138,7 +135,7 @@ protected:
     new_ctx.scale_profiler(constraints, chosen_success_estimation);
 
     std::vector<const bdd::Node *> ignore_nodes =
-        get_nodes_to_speculatively_ignore(ep, call_node, coalescing_data,
+        get_nodes_to_speculatively_ignore(ep, map_get, coalescing_data,
                                           cached_table_data.key);
 
     speculation_t speculation(new_ctx);
@@ -157,29 +154,28 @@ protected:
       return products;
     }
 
-    const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
-    const call_t &call = call_node->get_call();
+    const bdd::Call *map_get = static_cast<const bdd::Call *>(node);
 
-    if (call.function_name != "map_get") {
+    std::vector<const bdd::Call *> future_map_puts;
+    if (!is_map_get_followed_by_map_puts_on_miss(ep->get_bdd(), map_get,
+                                                 future_map_puts)) {
+      // The cached table read should deal with these cases.
       return products;
     }
 
     map_coalescing_data_t coalescing_data;
-    if (!can_place_cached_table(ep, call_node, coalescing_data)) {
+    if (!get_map_coalescing_data_from_map_op(ep, map_get, coalescing_data)) {
       return products;
     }
 
-    std::vector<const bdd::Call *> future_map_puts;
-    if (!is_map_get_followed_by_map_puts_on_miss(ep->get_bdd(), call_node,
-                                                 future_map_puts)) {
-      // The cached table read should deal with these cases.
+    if (!can_place_cached_table(ep, coalescing_data)) {
       return products;
     }
 
     symbol_t cache_write_failed = create_symbol("cache_write_failed", 32);
 
     cached_table_data_t cached_table_data =
-        get_cached_table_data(ep, call_node, future_map_puts);
+        get_cached_table_data(ep, map_get, future_map_puts);
 
     std::unordered_set<int> allowed_cache_capacities =
         enumerate_cache_table_capacities(cached_table_data.num_entries);
@@ -289,7 +285,7 @@ private:
         {on_cache_write_success_leaf, on_cache_write_failed_leaf});
     new_ep->replace_bdd(new_bdd);
 
-    new_ep->inspect_debug();
+    // new_ep->inspect_debug();
 
     std::stringstream descr;
     descr << "cap=" << cache_capacity;
@@ -415,31 +411,39 @@ private:
     std::vector<const bdd::Node *> nodes_to_ignore =
         get_coalescing_nodes_from_key(bdd, on_success, key, coalescing_data);
 
+    const bdd::Call *dchain_allocate_new_index = nullptr;
+
     for (const bdd::Node *target : nodes_to_ignore) {
       const bdd::Call *call_target = static_cast<const bdd::Call *>(target);
       const call_t &call = call_target->get_call();
 
       if (call.function_name == "dchain_allocate_new_index") {
-        symbol_t out_of_space;
-        bool found = get_symbol(call_target->get_locally_generated_symbols(),
-                                "out_of_space", out_of_space);
-        assert(found && "Symbol out_of_space not found");
+        dchain_allocate_new_index = call_target;
+        break;
+      }
+    }
 
-        const bdd::Branch *branch =
-            find_branch_checking_index_alloc(ep, on_success, out_of_space);
+    if (dchain_allocate_new_index) {
+      symbol_t out_of_space;
+      bool found =
+          get_symbol(dchain_allocate_new_index->get_locally_generated_symbols(),
+                     "out_of_space", out_of_space);
+      assert(found && "Symbol out_of_space not found");
 
-        if (branch) {
-          nodes_to_ignore.push_back(branch);
+      const bdd::Branch *branch =
+          find_branch_checking_index_alloc(ep, on_success, out_of_space);
 
-          bool direction_to_keep = true;
-          const bdd::Node *next = direction_to_keep ? branch->get_on_false()
-                                                    : branch->get_on_true();
+      if (branch) {
+        nodes_to_ignore.push_back(branch);
 
-          next->visit_nodes([&nodes_to_ignore](const bdd::Node *node) {
-            nodes_to_ignore.push_back(node);
-            return bdd::NodeVisitAction::VISIT_CHILDREN;
-          });
-        }
+        bool direction_to_keep = true;
+        const bdd::Node *next =
+            direction_to_keep ? branch->get_on_false() : branch->get_on_true();
+
+        next->visit_nodes([&nodes_to_ignore](const bdd::Node *node) {
+          nodes_to_ignore.push_back(node);
+          return bdd::NodeVisitAction::VISIT_CHILDREN;
+        });
       }
     }
 

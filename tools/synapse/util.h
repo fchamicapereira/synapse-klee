@@ -117,8 +117,14 @@ struct map_coalescing_data_t {
   objs_t vectors_values;
 };
 
-std::optional<map_coalescing_data_t>
-get_map_coalescing_data(const bdd::BDD *bdd, addr_t map_addr);
+bool get_map_coalescing_data(const bdd::BDD *bdd, addr_t obj,
+                             map_coalescing_data_t &data);
+bool get_map_coalescing_data_from_dchain_op(
+    const EP *ep, const bdd::Call *dchain_op,
+    map_coalescing_data_t &coalescing_data);
+bool get_map_coalescing_data_from_map_op(
+    const EP *ep, const bdd::Call *map_op,
+    map_coalescing_data_t &coalescing_data);
 
 std::vector<const bdd::Node *>
 get_coalescing_nodes_from_key(const bdd::BDD *bdd, const bdd::Node *node,
@@ -149,6 +155,14 @@ rw_fractions_t get_cond_map_put_rw_profile_fractions(const EP *ep,
 bool is_map_get_followed_by_map_puts_on_miss(
     const bdd::BDD *bdd, const bdd::Call *map_get,
     std::vector<const bdd::Call *> &map_puts);
+
+// (1) Has at least 1 future map_put
+// (2) All map_put happen if the dchain_allocate_new_index was successful
+// (3) All map_puts with the target obj also have the same key as the map_get
+// (4) All map_puts with the target obj update with the same value
+bool is_map_update_with_dchain(const EP *ep,
+                               const bdd::Call *dchain_allocate_new_index,
+                               std::vector<const bdd::Call *> &map_puts);
 
 // Tries to find the pattern of a map_get followed by map_erases, but only when
 // the map_get is successful (i.e. the key is found).

@@ -223,10 +223,10 @@ build_random_hit_fraction_tree(const bdd::Node *node,
 }
 
 static int get_random_avg_pkt_bytes(unsigned random_seed) {
-  int min_frame = 64;
-  int max_frame = 1500;
-  int preamble = 8;
-  int ipg = 12;
+  constexpr int min_frame = 64;
+  constexpr int max_frame = 1500;
+  constexpr int preamble = 8;
+  constexpr int ipg = 12;
 
   int min_size = preamble + min_frame + ipg;
   int max_size = preamble + max_frame + ipg;

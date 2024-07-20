@@ -26,6 +26,7 @@ build() {
                          -DCMAKE_BUILD_TYPE=RelWithDebInfo \
                          -DENABLE_KLEE_ASSERTS=ON \
                          -DENABLE_DOXYGEN=OFF \
+                         -DCMAKE_CXX_FLAGS=-pg -DCMAKE_EXE_LINKER_FLAGS=-pg -DCMAKE_SHARED_LINKER_FLAGS=-pg \
                          $KLEE_DIR
 
   make -kj $(nproc) || exit 1

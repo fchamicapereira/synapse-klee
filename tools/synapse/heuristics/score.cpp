@@ -48,6 +48,9 @@ std::ostream &operator<<(std::ostream &os, ScoreCategory score_category) {
   case ScoreCategory::SwitchNodes:
     os << "#SwitchNodes";
     break;
+  case ScoreCategory::SwitchProgressionNodes:
+    os << "#SwitchProgressionNodes";
+    break;
   case ScoreCategory::SwitchLeaves:
     os << "#SwitchLeaves";
     break;
@@ -131,6 +134,13 @@ int64_t Score::get_nr_switch_nodes(const EP *ep) const {
   }
 
   return switch_nodes;
+}
+
+int64_t Score::get_nr_switch_progression_nodes(const EP *ep) const {
+  int64_t switch_nodes = get_nr_switch_nodes(ep);
+  int64_t recirc_nodes = get_nr_recirculations(ep);
+  int64_t send_to_controller_nodes = get_nr_send_to_controller(ep);
+  return switch_nodes - recirc_nodes - send_to_controller_nodes;
 }
 
 int64_t Score::get_nr_controller_nodes(const EP *ep) const {

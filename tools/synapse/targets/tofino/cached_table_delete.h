@@ -85,7 +85,19 @@ protected:
     }
 
     map_coalescing_data_t coalescing_data;
-    if (!can_place_cached_table(ep, map_erase, coalescing_data)) {
+    if (!get_map_coalescing_data_from_map_op(ep, map_erase, coalescing_data)) {
+      return std::nullopt;
+    }
+
+    if (!can_place_cached_table(ep, coalescing_data)) {
+      return std::nullopt;
+    }
+
+    cached_table_data_t cached_table_data =
+        get_cached_table_data(ep, map_erase);
+
+    std::unordered_set<DS_ID> deps;
+    if (!get_cached_table(ep, node, cached_table_data, deps)) {
       return std::nullopt;
     }
 
@@ -180,7 +192,7 @@ private:
     new_ep->process_leaf(ep_node, {leaf});
     new_ep->replace_bdd(bdd);
 
-    new_ep->inspect_debug();
+    // new_ep->inspect_debug();
 
     std::stringstream descr;
     descr << "cap=" << cached_table->cache_capacity;

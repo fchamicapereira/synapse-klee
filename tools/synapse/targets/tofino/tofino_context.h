@@ -31,6 +31,7 @@ public:
   const TNA &get_tna() const { return tna; }
   TNA &get_mutable_tna() { return tna; }
 
+  bool has_ds(addr_t addr) const;
   const std::vector<DS *> &get_ds(addr_t addr) const;
   const DS *get_ds_from_id(DS_ID id) const;
   void save_ds(addr_t addr, DS *ds);

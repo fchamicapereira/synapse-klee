@@ -14,6 +14,9 @@ struct MaxThroughputComparator : public HeuristicCfg {
                 {ScoreCategory::SpeculativeThroughput, ScoreObjective::MAX},
                 // {ScoreCategory::Throughput, ScoreObjective::MAX},
 
+                // Avoid desincentivising modules that expand the BDD.
+                {ScoreCategory::SwitchProgressionNodes, ScoreObjective::MAX},
+
                 // Let's incentivize the ones that have already processed more
                 // BDD nodes.
                 {ScoreCategory::ProcessedBDDPercentage, ScoreObjective::MAX},

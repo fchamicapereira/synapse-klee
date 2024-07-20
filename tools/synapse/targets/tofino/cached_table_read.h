@@ -64,27 +64,23 @@ protected:
       return std::nullopt;
     }
 
-    const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
-    const call_t &call = call_node->get_call();
+    const bdd::Call *map_get = static_cast<const bdd::Call *>(node);
+    const call_t &call = map_get->get_call();
 
     if (call.function_name != "map_get") {
       return std::nullopt;
     }
 
     map_coalescing_data_t coalescing_data;
-    if (!can_place_cached_table(ep, call_node, coalescing_data)) {
+    if (!get_map_coalescing_data_from_map_op(ep, map_get, coalescing_data)) {
       return std::nullopt;
     }
 
-    std::vector<const bdd::Call *> future_map_puts;
-    if (is_map_get_followed_by_map_puts_on_miss(ep->get_bdd(), call_node,
-                                                future_map_puts)) {
-      // The cached table conditional write should deal with these cases.
+    if (!can_place_cached_table(ep, coalescing_data)) {
       return std::nullopt;
     }
 
-    cached_table_data_t cached_table_data =
-        get_cached_table_data(ep, call_node);
+    cached_table_data_t cached_table_data = get_cached_table_data(ep, map_get);
 
     std::vector<const bdd::Node *> vector_ops =
         get_future_vector_key_ops(ep, node, cached_table_data, coalescing_data);
@@ -106,27 +102,23 @@ protected:
       return products;
     }
 
-    const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
-    const call_t &call = call_node->get_call();
+    const bdd::Call *map_get = static_cast<const bdd::Call *>(node);
+    const call_t &call = map_get->get_call();
 
     if (call.function_name != "map_get") {
       return products;
     }
 
     map_coalescing_data_t coalescing_data;
-    if (!can_place_cached_table(ep, call_node, coalescing_data)) {
+    if (!get_map_coalescing_data_from_map_op(ep, map_get, coalescing_data)) {
       return products;
     }
 
-    std::vector<const bdd::Call *> future_map_puts;
-    if (is_map_get_followed_by_map_puts_on_miss(ep->get_bdd(), call_node,
-                                                future_map_puts)) {
-      // The cached table conditional write should deal with these cases.
+    if (!can_place_cached_table(ep, coalescing_data)) {
       return products;
     }
 
-    cached_table_data_t cached_table_data =
-        get_cached_table_data(ep, call_node);
+    cached_table_data_t cached_table_data = get_cached_table_data(ep, map_get);
 
     std::unordered_set<int> allowed_cache_capacities =
         enumerate_cache_table_capacities(cached_table_data.num_entries);
@@ -183,7 +175,7 @@ private:
     new_ep->process_leaf(ep_node, {leaf});
     new_ep->replace_bdd(bdd);
 
-    new_ep->inspect_debug();
+    // new_ep->inspect_debug();
 
     std::stringstream descr;
     descr << "cap=" << cached_table->cache_capacity;

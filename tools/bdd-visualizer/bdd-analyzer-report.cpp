@@ -39,6 +39,10 @@ void from_json(const json &j, bdd_profile_t &report) {
   from_json(j["counters"], report.counters);
 
   j.at("elapsed").get_to(report.elapsed);
+
+  constexpr int preamble = 8;
+  constexpr int ipg = 12;
+  report.avg_pkt_bytes = report.config.packet_sizes + preamble + ipg;
 }
 
 bdd_profile_t parse_bdd_profile(const std::string &filename) {

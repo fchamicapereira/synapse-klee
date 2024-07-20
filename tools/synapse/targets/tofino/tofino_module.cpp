@@ -44,6 +44,11 @@ std::unordered_set<DS *> TofinoModuleGenerator::get_vector_registers(
   std::unordered_set<DS *> regs;
 
   const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
+
+  if (!tofino_ctx->has_ds(data.obj)) {
+    return regs;
+  }
+
   const std::vector<DS *> &ds = tofino_ctx->get_ds(data.obj);
   assert(ds.size());
 
@@ -141,13 +146,8 @@ CachedTable *TofinoModuleGenerator::build_cached_table(
     keys_sizes.push_back(key->getWidth());
   }
 
-  std::vector<klee::ref<klee::Expr>> values =
-      Register::partition_value(properties, data.read_value);
-  assert(values.size() == 1);
-  bits_t value_size = data.read_value->getWidth();
-
-  CachedTable *cached_table = new CachedTable(
-      properties, id, cache_capacity, data.num_entries, keys_sizes, value_size);
+  CachedTable *cached_table = new CachedTable(properties, id, cache_capacity,
+                                              data.num_entries, keys_sizes);
 
   const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
   deps = tofino_ctx->get_stateful_deps(ep, node);
@@ -164,6 +164,11 @@ TofinoModuleGenerator::get_cached_table(const EP *ep, const bdd::Node *node,
                                         const cached_table_data_t &data,
                                         std::unordered_set<DS_ID> &deps) const {
   const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
+
+  if (!tofino_ctx->has_ds(data.obj)) {
+    return nullptr;
+  }
+
   const std::vector<DS *> &ds = tofino_ctx->get_ds(data.obj);
 
   assert(ds.size() == 1);
@@ -242,25 +247,12 @@ TofinoModuleGenerator::get_dataplane_state(const EP *ep,
 }
 
 bool TofinoModuleGenerator::can_place_cached_table(
-    const EP *ep, const bdd::Call *map_get,
-    map_coalescing_data_t &coalescing_data) const {
-  const call_t &call = map_get->get_call();
-
-  assert(call.args.find("map") != call.args.end());
-  klee::ref<klee::Expr> obj_expr = call.args.at("map").expr;
-
-  addr_t map_obj = kutil::expr_addr_to_obj_addr(obj_expr);
+    const EP *ep, const map_coalescing_data_t &coalescing_data) const {
+  addr_t map_obj = coalescing_data.map;
   addr_t dchain_obj = coalescing_data.dchain;
   addr_t vector_key_obj = coalescing_data.vector_key;
 
   const Context &ctx = ep->get_ctx();
-  std::optional<map_coalescing_data_t> data = ctx.get_coalescing_data(map_obj);
-
-  if (!data.has_value()) {
-    return false;
-  }
-
-  coalescing_data = data.value();
 
   return ctx.can_place(map_obj, PlacementDecision::Tofino_CachedTable) &&
          ctx.can_place(dchain_obj, PlacementDecision::Tofino_CachedTable) &&

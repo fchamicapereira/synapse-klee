@@ -11,8 +11,8 @@ static bits_t index_size_from_cache_capacity(int cache_capacity) {
 }
 
 static Table build_table(DS_ID id, int num_entries,
-                         const std::vector<bits_t> &keys, bits_t value) {
-  return Table(id + "_table", num_entries, keys, {value});
+                         const std::vector<bits_t> &keys) {
+  return Table(id + "_table", num_entries, keys, {});
 }
 
 static Register build_cache_expirator(const TNAProperties &properties, DS_ID id,
@@ -46,18 +46,17 @@ static std::vector<Register> build_cache_keys(const TNAProperties &properties,
 
 CachedTable::CachedTable(const TNAProperties &properties, DS_ID _id,
                          int _cache_capacity, int _num_entries,
-                         const std::vector<bits_t> &_keys, bits_t _value)
+                         const std::vector<bits_t> &_keys)
     : DS(DSType::CACHED_TABLE, _id), cache_capacity(_cache_capacity),
-      num_entries(_num_entries), keys(_keys), value(_value),
-      table(build_table(id, num_entries, keys, value)),
+      num_entries(_num_entries), keys(_keys),
+      table(build_table(id, num_entries, keys)),
       cache_expirator(build_cache_expirator(properties, _id, cache_capacity)),
       cache_keys(build_cache_keys(properties, id, keys, cache_capacity)) {}
 
 CachedTable::CachedTable(const CachedTable &other)
     : DS(DSType::CACHED_TABLE, other.id), cache_capacity(other.cache_capacity),
-      num_entries(other.num_entries), keys(other.keys), value(other.value),
-      table(other.table), cache_expirator(other.cache_expirator),
-      cache_keys(other.cache_keys) {}
+      num_entries(other.num_entries), keys(other.keys), table(other.table),
+      cache_expirator(other.cache_expirator), cache_keys(other.cache_keys) {}
 
 DS *CachedTable::clone() const { return new CachedTable(*this); }
 

@@ -37,8 +37,14 @@ TofinoContext::~TofinoContext() {
   id_to_ds.clear();
 }
 
+bool TofinoContext::has_ds(addr_t addr) const {
+  return obj_to_ds.find(addr) != obj_to_ds.end();
+}
+
 const std::vector<DS *> &TofinoContext::get_ds(addr_t addr) const {
-  return obj_to_ds.at(addr);
+  auto found_it = obj_to_ds.find(addr);
+  assert(found_it != obj_to_ds.end() && "Data structure not found");
+  return found_it->second;
 }
 
 void TofinoContext::save_ds(addr_t addr, DS *ds) {

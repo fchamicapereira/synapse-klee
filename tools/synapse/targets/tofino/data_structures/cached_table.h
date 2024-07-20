@@ -16,14 +16,13 @@ struct CachedTable : public DS {
   int cache_capacity;
   int num_entries;
   std::vector<bits_t> keys;
-  bits_t value;
 
   Table table;
   Register cache_expirator;
   std::vector<Register> cache_keys;
 
   CachedTable(const TNAProperties &properties, DS_ID id, int cache_capacity,
-              int num_entries, const std::vector<bits_t> &keys, bits_t value);
+              int num_entries, const std::vector<bits_t> &keys);
 
   CachedTable(const CachedTable &other);
 

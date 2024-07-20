@@ -116,10 +116,9 @@ Context::Context(const bdd::BDD *bdd,
       bdd::map_config_t cfg = bdd::get_map_config(*bdd, addr);
       map_configs[addr] = cfg;
 
-      std::optional<map_coalescing_data_t> candidate =
-          get_map_coalescing_data(bdd, addr);
-      if (candidate.has_value()) {
-        coalescing_candidates.push_back(*candidate);
+      map_coalescing_data_t candidate;
+      if (get_map_coalescing_data(bdd, addr, candidate)) {
+        coalescing_candidates.push_back(candidate);
       }
 
       continue;

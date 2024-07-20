@@ -16,6 +16,7 @@ enum class ScoreCategory {
   Recirculations,
   ReorderedNodes,
   SwitchNodes,
+  SwitchProgressionNodes,
   SwitchLeaves,
   Nodes,
   ControllerNodes,
@@ -73,6 +74,10 @@ public:
             {
                 ScoreCategory::SwitchNodes,
                 &Score::get_nr_switch_nodes,
+            },
+            {
+                ScoreCategory::SwitchProgressionNodes,
+                &Score::get_nr_switch_progression_nodes,
             },
             {
                 ScoreCategory::SwitchLeaves,
@@ -207,6 +212,7 @@ private:
   int64_t get_nr_nodes(const EP *ep) const;
   int64_t get_depth(const EP *ep) const;
   int64_t get_nr_switch_nodes(const EP *ep) const;
+  int64_t get_nr_switch_progression_nodes(const EP *ep) const;
   int64_t get_nr_controller_nodes(const EP *ep) const;
   int64_t get_nr_reordered_nodes(const EP *ep) const;
   int64_t get_nr_switch_leaves(const EP *ep) const;
