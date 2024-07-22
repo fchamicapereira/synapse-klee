@@ -207,6 +207,7 @@ const bdd::Branch *
 find_branch_checking_index_alloc(const EP *ep, const bdd::Node *node,
                                  const symbol_t &out_of_space);
 
+std::string int2hr(uint64_t value);
 std::string throughput2str(uint64_t thpt, const std::string &units,
                            bool human_readable = false);
 

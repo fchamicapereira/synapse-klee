@@ -70,9 +70,13 @@ private:
   size_t size;
   const HeuristicCfg *hcfg;
 
+  std::unordered_set<ss_node_id_t> last_eps;
+  bool backtrack;
+
 public:
   SearchSpace(const HeuristicCfg *_hcfg)
-      : root(nullptr), active_leaf(nullptr), size(0), hcfg(_hcfg) {}
+      : root(nullptr), active_leaf(nullptr), size(0), hcfg(_hcfg),
+        backtrack(false) {}
 
   SearchSpace(const SearchSpace &) = delete;
   SearchSpace(SearchSpace &&) = delete;
@@ -89,8 +93,7 @@ public:
   SSNode *get_root() const;
   size_t get_size() const;
   const HeuristicCfg *get_hcfg() const;
-
-  bool was_explored(ss_node_id_t node_id) const;
+  bool is_backtrack() const;
 };
 
 } // namespace synapse

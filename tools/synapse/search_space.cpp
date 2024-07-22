@@ -7,17 +7,16 @@ namespace synapse {
 static ss_node_id_t node_id_counter = 0;
 
 void SearchSpace::activate_leaf(const EP *ep) {
+  ep_id_t ep_id = ep->get_id();
+
   if (!root) {
     ss_node_id_t id = node_id_counter++;
-    ep_id_t ep_id = ep->get_id();
     Score score = hcfg->get_score(ep);
     TargetType target = ep->get_current_platform();
     root = new SSNode(id, ep_id, score, target);
     active_leaf = root;
     return;
   }
-
-  ep_id_t ep_id = ep->get_id();
 
   auto ss_node_matcher = [ep_id](const SSNode *node) {
     return node->ep_id == ep_id;
@@ -28,6 +27,9 @@ void SearchSpace::activate_leaf(const EP *ep) {
 
   active_leaf = *found_it;
   leaves.erase(found_it);
+
+  backtrack = (last_eps.find(ep_id) == last_eps.end());
+  last_eps.clear();
 }
 
 static std::string get_bdd_node_description(const bdd::Node *node) {
@@ -167,11 +169,13 @@ void SearchSpace::add_to_active_leaf(
     leaves.push_back(new_node);
 
     size++;
+    last_eps.insert(ep_id);
   }
 }
 
 SSNode *SearchSpace::get_root() const { return root; }
 size_t SearchSpace::get_size() const { return size; }
 const HeuristicCfg *SearchSpace::get_hcfg() const { return hcfg; }
+bool SearchSpace::is_backtrack() const { return backtrack; }
 
 } // namespace synapse

@@ -47,7 +47,7 @@ static std::vector<EP *> get_reordered(const EP *ep) {
 
   const bdd::Node *node = next->get_prev();
 
-  if (!node) {
+  if (!node || node->get_type() == bdd::NodeType::BRANCH) {
     return reordered;
   }
 

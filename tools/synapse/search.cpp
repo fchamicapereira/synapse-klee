@@ -14,7 +14,8 @@ template <class HCfg>
 SearchEngine<HCfg>::SearchEngine(const bdd::BDD *_bdd, Heuristic<HCfg> *_h,
                                  Profiler *_profiler,
                                  bool _allow_bdd_reordering,
-                                 const std::unordered_set<ep_id_t> &_peek)
+                                 const std::unordered_set<ep_id_t> &_peek,
+                                 bool _pause_and_show_on_backtrack)
     : bdd(new bdd::BDD(*_bdd)),
       targets({
           new tofino::TofinoTarget(tofino::TNAVersion::TNA2, _profiler),
@@ -22,12 +23,13 @@ SearchEngine<HCfg>::SearchEngine(const bdd::BDD *_bdd, Heuristic<HCfg> *_h,
           new x86::x86Target(),
       }),
       h(_h), profiler(new Profiler(*_profiler)),
-      allow_bdd_reordering(_allow_bdd_reordering), peek(_peek) {}
+      allow_bdd_reordering(_allow_bdd_reordering), peek(_peek),
+      pause_and_show_on_backtrack(_pause_and_show_on_backtrack) {}
 
 template <class HCfg>
 SearchEngine<HCfg>::SearchEngine(const bdd::BDD *_bdd, Heuristic<HCfg> *_h,
                                  Profiler *_profiler)
-    : SearchEngine(_bdd, _h, _profiler, true, {}) {}
+    : SearchEngine(_bdd, _h, _profiler, true, {}, false) {}
 
 template <class HCfg> SearchEngine<HCfg>::~SearchEngine() {
   for (const Target *target : targets) {
@@ -42,10 +44,11 @@ search_report_t::search_report_t(const EP *_ep,
                                  const SearchSpace *_search_space,
                                  const std::string &_heuristic_name,
                                  unsigned _random_seed, size_t _ss_size,
-                                 Score _winner_score, double _search_time)
+                                 Score _winner_score, double _search_time,
+                                 uint64_t _backtracks)
     : ep(_ep), search_space(_search_space), heuristic_name(_heuristic_name),
       random_seed(_random_seed), ss_size(_ss_size), winner_score(_winner_score),
-      search_time(_search_time) {}
+      search_time(_search_time), backtracks(_backtracks) {}
 
 search_report_t::search_report_t(search_report_t &&other)
     : ep(std::move(other.ep)), search_space(std::move(other.search_space)),
@@ -53,7 +56,8 @@ search_report_t::search_report_t(search_report_t &&other)
       random_seed(std::move(other.random_seed)),
       ss_size(std::move(other.ss_size)),
       winner_score(std::move(other.winner_score)),
-      search_time(std::move(other.search_time)) {}
+      search_time(std::move(other.search_time)),
+      backtracks(std::move(other.backtracks)) {}
 
 search_report_t::~search_report_t() {
   if (ep) {
@@ -161,8 +165,19 @@ static void peek_search_space(const std::vector<const EP *> &eps,
   }
 }
 
+static void peek_backtrack(const EP *ep, SearchSpace *search_space,
+                           bool pause_and_show_on_backtrack) {
+  if (pause_and_show_on_backtrack) {
+    Log::dbg() << "Backtracked to " << ep->get_id() << "\n";
+    bdd::BDDVisualizer::visualize(ep->get_bdd(), false);
+    // EPVisualizer::visualize(ep, false);
+    SSVisualizer::visualize(search_space, ep, true);
+  }
+}
+
 template <class HCfg> search_report_t SearchEngine<HCfg>::search() {
   auto start_search = std::chrono::steady_clock::now();
+  uint64_t backtracks = 0;
 
   SearchSpace *search_space = new SearchSpace(h->get_cfg());
 
@@ -171,6 +186,11 @@ template <class HCfg> search_report_t SearchEngine<HCfg>::search() {
   while (!h->finished()) {
     const EP *ep = h->pop();
     search_space->activate_leaf(ep);
+
+    if (search_space->is_backtrack()) {
+      backtracks++;
+      peek_backtrack(ep, search_space, pause_and_show_on_backtrack);
+    }
 
     size_t available = h->size();
     const bdd::Node *node = ep->get_next_node();
@@ -213,7 +233,7 @@ template <class HCfg> search_report_t SearchEngine<HCfg>::search() {
   const double search_time = search_dt;
 
   return search_report_t(winner, search_space, heuristic_name, random_seed,
-                         ss_size, winner_score, search_time);
+                         ss_size, winner_score, search_time, backtracks);
 }
 
 EXPLICIT_HEURISTIC_TEMPLATE_CLASS_INSTANTIATION(SearchEngine)

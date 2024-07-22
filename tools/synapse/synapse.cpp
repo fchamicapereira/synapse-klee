@@ -65,6 +65,12 @@ llvm::cl::opt<bool> ShowBDD("sbdd", llvm::cl::desc("Show the BDD's solution."),
                             llvm::cl::ValueDisallowed, llvm::cl::init(false),
                             llvm::cl::cat(SyNAPSE));
 
+llvm::cl::opt<bool> ShowBacktrack("backtrack",
+                                  llvm::cl::desc("Pause on backtrack."),
+                                  llvm::cl::ValueDisallowed,
+                                  llvm::cl::init(false),
+                                  llvm::cl::cat(SyNAPSE));
+
 llvm::cl::list<int>
     Peek("peek", llvm::cl::desc("Peek search space at these Execution Plans."),
          llvm::cl::Positional, llvm::cl::ZeroOrMore, llvm::cl::cat(SyNAPSE));
@@ -107,17 +113,20 @@ search_report_t search(const bdd::BDD *bdd, Profiler *profiler) {
   switch (ChosenHeuristic) {
   case HEURISTIC_BFS: {
     BFS heuristic(seed);
-    SearchEngine engine(bdd, &heuristic, profiler, !BDDNoReorder, peek);
+    SearchEngine engine(bdd, &heuristic, profiler, !BDDNoReorder, peek,
+                        ShowBacktrack);
     return engine.search();
   } break;
   case HEURISTIC_GALLIUM: {
     Gallium heuristic(seed);
-    SearchEngine engine(bdd, &heuristic, profiler, !BDDNoReorder, peek);
+    SearchEngine engine(bdd, &heuristic, profiler, !BDDNoReorder, peek,
+                        ShowBacktrack);
     return engine.search();
   } break;
   case HEURISTIC_MAX_THROUGHPUT: {
     MaxThroughput heuristic(seed);
-    SearchEngine engine(bdd, &heuristic, profiler, !BDDNoReorder, peek);
+    SearchEngine engine(bdd, &heuristic, profiler, !BDDNoReorder, peek,
+                        ShowBacktrack);
     return engine.search();
   } break;
   }
@@ -175,8 +184,9 @@ int main(int argc, char **argv) {
   Log::log() << "\n";
   Log::log() << "Search report:\n";
   Log::log() << "  Heuristic:   " << report.heuristic_name << "\n";
-  Log::log() << "  Random seed: " << report.random_seed << "\n";
-  Log::log() << "  SS size:     " << report.ss_size << "\n";
+  Log::log() << "  Random seed: " << int2hr(report.random_seed) << "\n";
+  Log::log() << "  SS size:     " << int2hr(report.ss_size) << "\n";
+  Log::log() << "  Backtracks:  " << int2hr(report.backtracks) << "\n";
   Log::log() << "  Winner:      " << report.winner_score << "\n";
   Log::log() << "  Search time: " << report.search_time << " s\n";
   Log::log() << "\n";

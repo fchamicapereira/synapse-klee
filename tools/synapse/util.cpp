@@ -1743,6 +1743,19 @@ static std::pair<double, std::string> n2hr(uint64_t n) {
   return {n / 1e12, "T"};
 }
 
+std::string int2hr(uint64_t value) {
+  std::stringstream ss;
+  std::string str = std::to_string(value);
+
+  // Add thousands separator
+  for (int i = str.size() - 3; i > 0; i -= 3) {
+    str.insert(i, ",");
+  }
+
+  ss << str;
+  return ss.str();
+}
+
 std::string throughput2str(uint64_t thpt, const std::string &units,
                            bool human_readable) {
   std::stringstream ss;

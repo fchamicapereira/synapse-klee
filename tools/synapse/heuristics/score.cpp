@@ -49,7 +49,7 @@ std::ostream &operator<<(std::ostream &os, ScoreCategory score_category) {
     os << "#SwitchNodes";
     break;
   case ScoreCategory::SwitchProgressionNodes:
-    os << "#SwitchProgressionNodes";
+    os << "#SNodes";
     break;
   case ScoreCategory::SwitchLeaves:
     os << "#SwitchLeaves";
@@ -73,7 +73,7 @@ std::ostream &operator<<(std::ostream &os, ScoreCategory score_category) {
     os << "BDDProgress";
     break;
   case ScoreCategory::ProcessedBDDPercentage:
-    os << "PercentualBDDProgress";
+    os << "Progress";
     break;
   case ScoreCategory::SwitchDataStructures:
     os << "#SwitchDS";

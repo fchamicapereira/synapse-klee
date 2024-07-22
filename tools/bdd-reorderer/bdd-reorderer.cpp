@@ -1292,6 +1292,22 @@ std::vector<reordered_bdd_t> reorder(const BDD *bdd, node_id_t anchor_id,
   return bdds;
 }
 
+std::vector<reordered_bdd_t> reorder(const BDD *bdd,
+                                     const anchor_info_t &anchor_info,
+                                     bool allow_shape_altering_ops) {
+  std::vector<reordered_bdd_t> bdds;
+
+  std::vector<reorder_op_t> ops =
+      get_reorder_ops(bdd, anchor_info, allow_shape_altering_ops);
+
+  for (const reorder_op_t &op : ops) {
+    BDD *new_bdd = reorder(bdd, op);
+    bdds.push_back({new_bdd, op, {}});
+  }
+
+  return bdds;
+}
+
 reordered_bdd_t try_reorder(const BDD *bdd, const anchor_info_t &anchor_info,
                             node_id_t candidate_id) {
   const Node *anchor = bdd->get_node_by_id(anchor_info.id);

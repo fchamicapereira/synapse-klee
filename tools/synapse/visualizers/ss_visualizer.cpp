@@ -35,6 +35,8 @@ static bool should_highlight(const SSNode *ssnode,
   return highlight.find(ssnode->ep_id) != highlight.end();
 }
 
+static std::string bold(const std::string &str) { return "<b>" + str + "</b>"; }
+
 static void visit_definitions(std::stringstream &ss,
                               const SearchSpace *search_space,
                               const SSNode *ssnode,
@@ -50,10 +52,14 @@ static void visit_definitions(std::stringstream &ss,
   indent(2);
   ss << "<table";
 
+  ss << " bgcolor=\"" << target_color << "\"";
+
   if (should_highlight(ssnode, highlight)) {
     ss << " border=\"4\"";
-    ss << " bgcolor=\"blue\"";
     ss << " color=\"" << selected_color << "\"";
+  } else {
+    ss << " border=\"2\"";
+    ss << " color=\"black\"";
   }
   ss << ">\n";
 
@@ -64,26 +70,20 @@ static void visit_definitions(std::stringstream &ss,
 
   indent(4);
   ss << "<td ";
-  ss << "bgcolor=\"" << target_color << "\"";
+  // ss << "bgcolor=\"" << target_color << "\"";
   ss << ">";
-  ss << "EP: " << ssnode->ep_id;
+  ss << bold("EP: ") << ssnode->ep_id;
   ss << "</td>\n";
-
-  if (ssnode->module_data) {
-    indent(4);
-    ss << "<td ";
-    ss << "bgcolor=\"" << target_color << "\"";
-    ss << ">";
-    ss << "HR: " << ssnode->module_data->hit_rate;
-    ss << "</td>\n";
-  }
 
   indent(4);
   ss << "<td ";
-  ss << "bgcolor=\"" << target_color << "\"";
+  // ss << "bgcolor=\"" << target_color << "\"";
   ss << ">";
-
-  ss << stringify_score(ssnode->score);
+  if (ssnode->module_data) {
+    ss << bold("HR: ") << ssnode->module_data->hit_rate;
+  } else {
+    ss << bold("HR: ") << "None";
+  }
   ss << "</td>\n";
 
   indent(3);
@@ -96,9 +96,28 @@ static void visit_definitions(std::stringstream &ss,
 
   indent(4);
   ss << "<td";
-  ss << " bgcolor=\"" << target_color << "\"";
-  ss << " colspan=\"3\"";
+  // ss << " bgcolor=\"" << target_color << "\"";
+  ss << " colspan=\"2\"";
   ss << ">";
+
+  ss << bold("Score: ");
+  ss << stringify_score(ssnode->score);
+  ss << "</td>\n";
+
+  indent(3);
+  ss << "</tr>\n";
+
+  // Third row
+
+  indent(3);
+  ss << "<tr>\n";
+
+  indent(4);
+  ss << "<td";
+  // ss << " bgcolor=\"" << target_color << "\"";
+  ss << " colspan=\"2\"";
+  ss << ">";
+  ss << bold("Module: ");
   if (ssnode->module_data) {
     ss << ssnode->module_data->name;
     ss << " ";
@@ -111,17 +130,18 @@ static void visit_definitions(std::stringstream &ss,
   indent(3);
   ss << "</tr>\n";
 
-  // Third row
+  // Forth row
 
   indent(3);
   ss << "<tr>\n";
 
   indent(4);
   ss << "<td ";
-  ss << " bgcolor=\"" << target_color << "\"";
-  ss << " colspan=\"3\"";
+  // ss << " bgcolor=\"" << target_color << "\"";
+  ss << " colspan=\"2\"";
   ss << ">";
   if (ssnode->bdd_node_data) {
+    ss << bold("Processed: ");
     ss << ssnode->bdd_node_data->description;
   }
   ss << "</td>\n";
@@ -129,7 +149,7 @@ static void visit_definitions(std::stringstream &ss,
   indent(3);
   ss << "</tr>\n";
 
-  // Fourth row
+  // Fifth row
 
   if (ssnode->next_bdd_node_data) {
     indent(3);
@@ -137,9 +157,10 @@ static void visit_definitions(std::stringstream &ss,
 
     indent(4);
     ss << "<td ";
-    ss << " bgcolor=\"" << target_color << "\"";
-    ss << " colspan=\"3\"";
+    // ss << " bgcolor=\"" << target_color << "\"";
+    ss << " colspan=\"2\"";
     ss << ">";
+    ss << bold("Next: ");
     ss << ssnode->next_bdd_node_data->description;
     ss << "</td>\n";
 
@@ -156,9 +177,10 @@ static void visit_definitions(std::stringstream &ss,
     indent(4);
 
     ss << "<td ";
-    ss << " bgcolor=\"" << target_color << "\"";
-    ss << " colspan=\"3\"";
+    // ss << " bgcolor=\"" << target_color << "\"";
+    ss << " colspan=\"2\"";
     ss << ">";
+    ss << bold("Metadata: ");
     ss << metadata;
     ss << "</td>\n";
 
