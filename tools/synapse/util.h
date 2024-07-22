@@ -34,6 +34,12 @@ struct modification_t {
 
 std::vector<modification_t> build_modifications(klee::ref<klee::Expr> before,
                                                 klee::ref<klee::Expr> after);
+std::vector<modification_t>
+build_vector_modifications(const bdd::Call *vector_borrow,
+                           const bdd::Call *vector_return);
+std::vector<modification_t>
+build_hdr_modifications(const bdd::Call *packet_borrow_next_chunk,
+                        const bdd::Call *packet_return_chunk);
 
 std::vector<modification_t>
 ignore_checksum_modifications(const std::vector<modification_t> &modifications);
@@ -42,15 +48,15 @@ symbol_t create_symbol(const std::string &label, bits_t size);
 
 bool query_contains_map_has_key(const bdd::Branch *node);
 
-klee::ref<klee::Expr> chunk_borrow_from_return(const EP *ep,
-                                               const bdd::Node *node);
+const bdd::Call *
+packet_borrow_from_return(const EP *ep, const bdd::Call *packet_return_chunk);
 
-std::vector<const bdd::Node *>
+std::vector<const bdd::Call *>
 get_prev_functions(const EP *ep, const bdd::Node *node,
                    const std::vector<std::string> &functions_names,
                    bool ignore_targets = false);
 
-std::vector<const bdd::Node *>
+std::vector<const bdd::Call *>
 get_future_functions(const bdd::Node *root,
                      const std::vector<std::string> &functions,
                      bool stop_on_branches = false);
@@ -104,7 +110,7 @@ bool is_vector_return_without_modifications(const EP *ep,
                                             const bdd::Node *node);
 bool is_vector_read(const bdd::Call *vector_borrow);
 
-std::vector<const bdd::Node *>
+std::vector<const bdd::Call *>
 get_future_vector_return(const bdd::Call *vector_borrow);
 
 // Get the data associated with this address.
@@ -126,7 +132,7 @@ bool get_map_coalescing_data_from_map_op(
     const EP *ep, const bdd::Call *map_op,
     map_coalescing_data_t &coalescing_data);
 
-std::vector<const bdd::Node *>
+std::vector<const bdd::Call *>
 get_coalescing_nodes_from_key(const bdd::BDD *bdd, const bdd::Node *node,
                               klee::ref<klee::Expr> key,
                               const map_coalescing_data_t &data);

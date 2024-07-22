@@ -391,14 +391,20 @@ private:
       bdd::Node *&new_on_cache_write_failed) const {
     const bdd::Node *on_cache_write_failed = cache_write_branch->get_on_false();
 
-    std::vector<const bdd::Node *> prev_borrows = get_prev_functions(
+    std::vector<const bdd::Call *> prev_borrows = get_prev_functions(
         ep, on_cache_write_failed, {"packet_borrow_next_chunk"});
 
     if (prev_borrows.empty()) {
       return;
     }
 
-    add_non_branch_nodes_to_bdd(ep, bdd, on_cache_write_failed, prev_borrows,
+    std::vector<const bdd::Node *> non_branch_nodes_to_add;
+    for (const bdd::Call *prev_borrow : prev_borrows) {
+      non_branch_nodes_to_add.push_back(prev_borrow);
+    }
+
+    add_non_branch_nodes_to_bdd(ep, bdd, on_cache_write_failed,
+                                non_branch_nodes_to_add,
                                 new_on_cache_write_failed);
   }
 
@@ -406,44 +412,39 @@ private:
       const EP *ep, const bdd::Node *on_success,
       const map_coalescing_data_t &coalescing_data,
       klee::ref<klee::Expr> key) const {
-    const bdd::BDD *bdd = ep->get_bdd();
+    std::vector<const bdd::Node *> nodes_to_ignore;
 
-    std::vector<const bdd::Node *> nodes_to_ignore =
+    const bdd::BDD *bdd = ep->get_bdd();
+    std::vector<const bdd::Call *> coalescing_nodes =
         get_coalescing_nodes_from_key(bdd, on_success, key, coalescing_data);
 
-    const bdd::Call *dchain_allocate_new_index = nullptr;
+    for (const bdd::Call *coalescing_node : coalescing_nodes) {
+      nodes_to_ignore.push_back(coalescing_node);
 
-    for (const bdd::Node *target : nodes_to_ignore) {
-      const bdd::Call *call_target = static_cast<const bdd::Call *>(target);
-      const call_t &call = call_target->get_call();
+      const call_t &call = coalescing_node->get_call();
 
       if (call.function_name == "dchain_allocate_new_index") {
-        dchain_allocate_new_index = call_target;
-        break;
-      }
-    }
+        symbol_t out_of_space;
+        bool found =
+            get_symbol(coalescing_node->get_locally_generated_symbols(),
+                       "out_of_space", out_of_space);
+        assert(found && "Symbol out_of_space not found");
 
-    if (dchain_allocate_new_index) {
-      symbol_t out_of_space;
-      bool found =
-          get_symbol(dchain_allocate_new_index->get_locally_generated_symbols(),
-                     "out_of_space", out_of_space);
-      assert(found && "Symbol out_of_space not found");
+        const bdd::Branch *branch =
+            find_branch_checking_index_alloc(ep, on_success, out_of_space);
 
-      const bdd::Branch *branch =
-          find_branch_checking_index_alloc(ep, on_success, out_of_space);
+        if (branch) {
+          nodes_to_ignore.push_back(branch);
 
-      if (branch) {
-        nodes_to_ignore.push_back(branch);
+          bool direction_to_keep = true;
+          const bdd::Node *next = direction_to_keep ? branch->get_on_false()
+                                                    : branch->get_on_true();
 
-        bool direction_to_keep = true;
-        const bdd::Node *next =
-            direction_to_keep ? branch->get_on_false() : branch->get_on_true();
-
-        next->visit_nodes([&nodes_to_ignore](const bdd::Node *node) {
-          nodes_to_ignore.push_back(node);
-          return bdd::NodeVisitAction::VISIT_CHILDREN;
-        });
+          next->visit_nodes([&nodes_to_ignore](const bdd::Node *node) {
+            nodes_to_ignore.push_back(node);
+            return bdd::NodeVisitAction::VISIT_CHILDREN;
+          });
+        }
       }
     }
 
@@ -454,7 +455,7 @@ private:
       const EP *ep, bdd::BDD *bdd, bdd::Node *on_success,
       const map_coalescing_data_t &coalescing_data, klee::ref<klee::Expr> key,
       std::optional<constraints_t> &deleted_branch_constraints) const {
-    const std::vector<const bdd::Node *> targets =
+    const std::vector<const bdd::Call *> targets =
         get_coalescing_nodes_from_key(bdd, on_success, key, coalescing_data);
 
     for (const bdd::Node *target : targets) {

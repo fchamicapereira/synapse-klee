@@ -7,6 +7,16 @@
 namespace kutil {
 
 std::vector<byte_read_t> get_bytes_read(klee::ref<klee::Expr> expr) {
+  static std::unordered_map<
+      unsigned, std::pair<klee::ref<klee::Expr>, std::vector<byte_read_t>>>
+      cache;
+
+  auto cache_found_it = cache.find(expr->hash());
+  if (cache_found_it != cache.end()) {
+    assert(expr == cache_found_it->second.first && "Hash collision");
+    return cache_found_it->second.second;
+  }
+
   std::vector<byte_read_t> bytes;
 
   switch (expr->getKind()) {
@@ -40,6 +50,8 @@ std::vector<byte_read_t> get_bytes_read(klee::ref<klee::Expr> expr) {
     // Nothing to do here.
     break;
   }
+
+  cache[expr->hash()] = {expr, bytes};
 
   return bytes;
 }

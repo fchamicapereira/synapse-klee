@@ -82,12 +82,12 @@ protected:
 
     cached_table_data_t cached_table_data = get_cached_table_data(ep, map_get);
 
-    std::vector<const bdd::Node *> vector_ops =
+    std::vector<const bdd::Call *> vector_ops =
         get_future_vector_key_ops(ep, node, cached_table_data, coalescing_data);
 
     Context new_ctx = ctx;
     speculation_t speculation(new_ctx);
-    for (const bdd::Node *vector_op : vector_ops) {
+    for (const bdd::Call *vector_op : vector_ops) {
       speculation.skip.insert(vector_op->get_id());
     }
 
@@ -222,18 +222,15 @@ private:
     return cached_table_data;
   }
 
-  std::vector<const bdd::Node *> get_future_vector_key_ops(
+  std::vector<const bdd::Call *> get_future_vector_key_ops(
       const EP *ep, const bdd::Node *node,
       const cached_table_data_t &cached_table_data,
       const map_coalescing_data_t &coalescing_data) const {
-    std::vector<const bdd::Node *> vector_ops =
+    std::vector<const bdd::Call *> vector_ops =
         get_future_functions(node, {"vector_borrow", "vector_return"});
 
-    for (const bdd::Node *vector_op : vector_ops) {
-      assert(vector_op->get_type() == bdd::NodeType::CALL);
-
-      const bdd::Call *vector_call = static_cast<const bdd::Call *>(vector_op);
-      const call_t &call = vector_call->get_call();
+    for (const bdd::Call *vector_op : vector_ops) {
+      const call_t &call = vector_op->get_call();
 
       klee::ref<klee::Expr> vector = call.args.at("vector").expr;
       klee::ref<klee::Expr> index = call.args.at("index").expr;
@@ -271,10 +268,10 @@ private:
       new_next = nullptr;
     }
 
-    std::vector<const bdd::Node *> vector_ops =
+    std::vector<const bdd::Call *> vector_ops =
         get_future_vector_key_ops(ep, node, cached_table_data, coalescing_data);
 
-    for (const bdd::Node *vector_op : vector_ops) {
+    for (const bdd::Call *vector_op : vector_ops) {
       bool replace_next = (vector_op == next);
       bdd::Node *replacement;
       delete_non_branch_node_from_bdd(ep, new_bdd, vector_op->get_id(),

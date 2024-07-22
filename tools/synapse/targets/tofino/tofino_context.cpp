@@ -246,7 +246,8 @@ bool TofinoContext::check_placement(
 
   if (status != PlacementStatus::SUCCESS) {
     TargetType target = ep->get_current_platform();
-    Log::dbg() << "[" << target << "] Cannot place obj (" << status << ")\n";
+    Log::dbg() << "[" << target << "] Cannot place ds " << ds->id << " ("
+               << status << ")\n";
   }
 
   return status == PlacementStatus::SUCCESS;
@@ -269,9 +270,6 @@ bool TofinoContext::check_many_placements(
     Log::dbg() << "  Deps:\n";
     for (DS_ID dep : deps) {
       Log::dbg() << "   * " << dep << "\n";
-    }
-    if (status == PlacementStatus::SELF_DEPENDENCE) {
-      assert(false);
     }
   }
 

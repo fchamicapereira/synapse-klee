@@ -198,7 +198,7 @@ CachedTable *TofinoModuleGenerator::get_or_build_cached_table(
     cached_table = get_cached_table(ep, node, data, deps);
     already_exists = true;
 
-    if (cached_table && cached_table->cache_capacity != cache_capacity) {
+    if (!cached_table || cached_table->cache_capacity != cache_capacity) {
       return nullptr;
     }
   } else {
@@ -221,7 +221,7 @@ bool TofinoModuleGenerator::can_get_or_build_cached_table(
   if (already_placed) {
     CachedTable *cached_table = get_cached_table(ep, node, data, deps);
 
-    if (cached_table && cached_table->cache_capacity != cache_capacity) {
+    if (!cached_table || cached_table->cache_capacity != cache_capacity) {
       return false;
     }
 

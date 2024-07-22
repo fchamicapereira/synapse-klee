@@ -35,6 +35,79 @@ std::vector<modification_t> build_modifications(klee::ref<klee::Expr> before,
   return _modifications;
 }
 
+// Only for pairs of std::hash-able types for simplicity.
+// You can of course template this struct to allow other hash functions
+struct pair_hash {
+  template <class T1, class T2>
+  std::size_t operator()(const std::pair<T1, T2> &p) const {
+    auto h1 = std::hash<T1>{}(p.first);
+    auto h2 = std::hash<T2>{}(p.second);
+
+    // Mainly for demonstration purposes, i.e. works but is overly simple
+    // In the real world, use sth. like boost.hash_combine
+    return h1 ^ h2;
+  }
+};
+
+std::vector<modification_t>
+build_vector_modifications(const bdd::Call *vector_borrow,
+                           const bdd::Call *vector_return) {
+  using vectors_pair = std::pair<bdd::node_id_t, bdd::node_id_t>;
+  using cache_t =
+      std::unordered_map<vectors_pair, std::vector<modification_t>, pair_hash>;
+  static cache_t cache;
+
+  auto cache_found_it =
+      cache.find({vector_borrow->get_id(), vector_return->get_id()});
+  if (cache_found_it != cache.end()) {
+    return cache_found_it->second;
+  }
+
+  const call_t &vb_call = vector_borrow->get_call();
+  const call_t &vr_call = vector_return->get_call();
+
+  assert(vb_call.function_name == "vector_borrow");
+  assert(vr_call.function_name == "vector_return");
+
+  klee::ref<klee::Expr> original_value =
+      vb_call.extra_vars.at("borrowed_cell").second;
+  klee::ref<klee::Expr> value = vr_call.args.at("value").in;
+
+  std::vector<modification_t> changes =
+      build_modifications(original_value, value);
+
+  cache[{vector_borrow->get_id(), vector_return->get_id()}] = changes;
+
+  return changes;
+}
+
+std::vector<modification_t>
+build_hdr_modifications(const bdd::Call *packet_borrow_next_chunk,
+                        const bdd::Call *packet_return_chunk) {
+  static std::unordered_map<bdd::node_id_t, std::vector<modification_t>> cache;
+
+  auto cache_found_it = cache.find(packet_return_chunk->get_id());
+  if (cache_found_it != cache.end()) {
+    return cache_found_it->second;
+  }
+
+  const call_t &ret_call = packet_return_chunk->get_call();
+  assert(ret_call.function_name == "packet_return_chunk");
+
+  const call_t &bor_call = packet_borrow_next_chunk->get_call();
+  assert(bor_call.function_name == "packet_borrow_next_chunk");
+
+  klee::ref<klee::Expr> borrowed = bor_call.extra_vars.at("the_chunk").second;
+  klee::ref<klee::Expr> returned = ret_call.args.at("the_chunk").in;
+  assert(borrowed->getWidth() == returned->getWidth());
+
+  std::vector<modification_t> changes = build_modifications(borrowed, returned);
+
+  cache[packet_return_chunk->get_id()] = changes;
+
+  return changes;
+}
+
 // This is somewhat of a hack... We assume that checksum expressions will only
 // be used to modify checksum fields of a packet, not other packet fields.
 std::vector<modification_t> ignore_checksum_modifications(
@@ -81,43 +154,30 @@ bool query_contains_map_has_key(const bdd::Branch *node) {
   return true;
 }
 
-klee::ref<klee::Expr>
-chunk_borrow_from_return(const EP *ep, const bdd::Node *target_packet_return) {
-  assert(target_packet_return->get_type() == bdd::NodeType::CALL);
+const bdd::Call *
+packet_borrow_from_return(const EP *ep, const bdd::Call *packet_return_chunk) {
+  const call_t &call = packet_return_chunk->get_call();
+  assert(call.function_name == "packet_return_chunk");
 
-  const bdd::Call *target_packet_return_call =
-      static_cast<const bdd::Call *>(target_packet_return);
-  assert(target_packet_return_call->get_call().function_name ==
-         "packet_return_chunk");
+  klee::ref<klee::Expr> chunk_returned = call.args.at("the_chunk").in;
 
-  klee::ref<klee::Expr> chunk_returned =
-      target_packet_return_call->get_call().args.at("the_chunk").in;
+  std::vector<const bdd::Call *> prev_borrows =
+      get_prev_functions(ep, packet_return_chunk, {"packet_borrow_next_chunk"});
 
-  std::vector<const bdd::Node *> prev_borrows = get_prev_functions(
-      ep, target_packet_return, {"packet_borrow_next_chunk"});
-
-  std::vector<const bdd::Node *> prev_returns =
-      get_prev_functions(ep, target_packet_return, {"packet_return_chunk"});
+  std::vector<const bdd::Call *> prev_returns =
+      get_prev_functions(ep, packet_return_chunk, {"packet_return_chunk"});
 
   assert(prev_borrows.size());
   assert(prev_borrows.size() > prev_returns.size());
 
-  const bdd::Node *target =
-      prev_borrows[prev_borrows.size() - 1 - prev_returns.size()];
-  const bdd::Call *call_node = static_cast<const bdd::Call *>(target);
-  const call_t &call = call_node->get_call();
-
-  klee::ref<klee::Expr> chunk_borrowed = call.extra_vars.at("the_chunk").second;
-  assert(chunk_borrowed->getWidth() == chunk_returned->getWidth());
-
-  return chunk_borrowed;
+  return prev_borrows[prev_borrows.size() - 1 - prev_returns.size()];
 }
 
-std::vector<const bdd::Node *>
+std::vector<const bdd::Call *>
 get_prev_functions(const EP *ep, const bdd::Node *node,
                    const std::vector<std::string> &fnames,
                    bool ignore_targets) {
-  std::vector<const bdd::Node *> prev_functions;
+  std::vector<const bdd::Call *> prev_functions;
 
   TargetType target = ep->get_current_platform();
   const bdd::nodes_t &roots = ep->get_target_roots(target);
@@ -134,7 +194,7 @@ get_prev_functions(const EP *ep, const bdd::Node *node,
 
       auto found_it = std::find(fnames.begin(), fnames.end(), fname);
       if (found_it != fnames.end()) {
-        prev_functions.insert(prev_functions.begin(), node);
+        prev_functions.insert(prev_functions.begin(), call_node);
       }
     }
 
@@ -146,11 +206,11 @@ get_prev_functions(const EP *ep, const bdd::Node *node,
   return prev_functions;
 }
 
-std::vector<const bdd::Node *>
+std::vector<const bdd::Call *>
 get_future_functions(const bdd::Node *root,
                      const std::vector<std::string> &wanted,
                      bool stop_on_branches) {
-  std::vector<const bdd::Node *> functions;
+  std::vector<const bdd::Call *> functions;
 
   root->visit_nodes([&functions, &wanted](const bdd::Node *node) {
     if (node->get_type() != bdd::NodeType::CALL) {
@@ -163,7 +223,7 @@ get_future_functions(const bdd::Node *root,
     auto found_it = std::find(wanted.begin(), wanted.end(), call.function_name);
 
     if (found_it != wanted.end()) {
-      functions.push_back(node);
+      functions.push_back(call_node);
     }
 
     return bdd::NodeVisitAction::VISIT_CHILDREN;
@@ -455,12 +515,11 @@ counter_data_t is_counter(const EP *ep, addr_t obj) {
   }
 
   const bdd::Node *root = bdd->get_root();
-  std::vector<const bdd::Node *> vector_borrows =
+  std::vector<const bdd::Call *> vector_borrows =
       get_future_functions(root, {"vector_borrow"});
 
-  for (const bdd::Node *vector_borrow : vector_borrows) {
-    const bdd::Call *call_node = static_cast<const bdd::Call *>(vector_borrow);
-    const call_t &call = call_node->get_call();
+  for (const bdd::Call *vector_borrow : vector_borrows) {
+    const call_t &call = vector_borrow->get_call();
 
     auto _vector = call.args.at("vector").expr;
     auto _vector_addr = kutil::expr_addr_to_obj_addr(_vector);
@@ -497,15 +556,13 @@ klee::ref<klee::Expr> get_original_vector_value(const EP *ep,
                                                 const bdd::Node *node,
                                                 addr_t target_addr,
                                                 const bdd::Node *&source) {
-  std::vector<const bdd::Node *> all_prev_vector_borrow =
+  std::vector<const bdd::Call *> all_prev_vector_borrow =
       get_prev_functions(ep, node, {"vector_borrow"}, true);
 
   klee::ref<klee::Expr> borrowed_cell;
 
-  for (const bdd::Node *prev_vector_borrow : all_prev_vector_borrow) {
-    const bdd::Call *call_node =
-        static_cast<const bdd::Call *>(prev_vector_borrow);
-    const call_t &call = call_node->get_call();
+  for (const bdd::Call *prev_vector_borrow : all_prev_vector_borrow) {
+    const call_t &call = prev_vector_borrow->get_call();
 
     klee::ref<klee::Expr> _vector = call.args.at("vector").expr;
     klee::ref<klee::Expr> _borrowed_cell =
@@ -528,9 +585,9 @@ klee::ref<klee::Expr> get_original_vector_value(const EP *ep,
   return borrowed_cell;
 }
 
-std::vector<const bdd::Node *>
+std::vector<const bdd::Call *>
 get_future_vector_return(const bdd::Call *vector_borrow) {
-  std::vector<const bdd::Node *> found;
+  std::vector<const bdd::Call *> found;
 
   const call_t &vb_call = vector_borrow->get_call();
   klee::ref<klee::Expr> target_addr_expr = vb_call.args.at("vector").expr;
@@ -538,13 +595,11 @@ get_future_vector_return(const bdd::Call *vector_borrow) {
   addr_t target_addr = kutil::expr_addr_to_obj_addr(target_addr_expr);
   klee::ref<klee::Expr> target_index = vb_call.args.at("index").expr;
 
-  std::vector<const bdd::Node *> vector_returns =
+  std::vector<const bdd::Call *> vector_returns =
       get_future_functions(vector_borrow, {"vector_return"});
 
-  for (const bdd::Node *vector_return : vector_returns) {
-    assert(vector_return->get_type() == bdd::NodeType::CALL);
-    const bdd::Call *call_node = static_cast<const bdd::Call *>(vector_return);
-    const call_t &call = call_node->get_call();
+  for (const bdd::Call *vector_return : vector_returns) {
+    const call_t &call = vector_return->get_call();
 
     klee::ref<klee::Expr> vector_addr_expr = call.args.at("vector").expr;
     klee::ref<klee::Expr> index = call.args.at("index").expr;
@@ -568,12 +623,12 @@ get_future_vector_return(const bdd::Call *vector_borrow) {
 klee::ref<klee::Expr> get_expr_from_addr(const EP *ep, addr_t addr) {
   const bdd::BDD *bdd = ep->get_bdd();
   const bdd::Node *root = bdd->get_root();
-  std::vector<const bdd::Node *> nodes =
+
+  std::vector<const bdd::Call *> nodes =
       get_future_functions(root, {"map_get"});
 
-  for (const bdd::Node *node : nodes) {
-    const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
-    const call_t &call = call_node->get_call();
+  for (const bdd::Call *node : nodes) {
+    const call_t &call = node->get_call();
 
     klee::ref<klee::Expr> key_addr = call.args.at("key").expr;
     klee::ref<klee::Expr> key = call.args.at("key").in;
@@ -718,13 +773,12 @@ static next_t get_next_maps_and_vectors(const bdd::Node *root,
 }
 
 static next_t
-get_allowed_coalescing_objs(std::vector<const bdd::Node *> index_allocators,
+get_allowed_coalescing_objs(std::vector<const bdd::Call *> index_allocators,
                             addr_t obj) {
   next_t candidates;
 
-  for (const bdd::Node *allocator : index_allocators) {
-    const bdd::Call *allocator_node = static_cast<const bdd::Call *>(allocator);
-    const call_t &allocator_call = allocator_node->get_call();
+  for (const bdd::Call *allocator : index_allocators) {
+    const call_t &allocator_call = allocator->get_call();
 
     klee::ref<klee::Expr> allocated_index =
         allocator_call.args.at("index_out").out;
@@ -738,7 +792,7 @@ get_allowed_coalescing_objs(std::vector<const bdd::Node *> index_allocators,
 
     next_t new_candidates =
         get_next_maps_and_vectors(allocator, allocated_index);
-    new_candidates.dchains.insert({dchain_addr, allocator_node});
+    new_candidates.dchains.insert({dchain_addr, allocator});
 
     if (!new_candidates.has_obj(obj)) {
       continue;
@@ -811,7 +865,7 @@ bool get_map_coalescing_data(const bdd::BDD *bdd, addr_t obj,
                              map_coalescing_data_t &data) {
   const bdd::Node *root = bdd->get_root();
 
-  std::vector<const bdd::Node *> index_allocators =
+  std::vector<const bdd::Call *> index_allocators =
       get_future_functions(root, {"dchain_allocate_new_index"});
 
   if (index_allocators.size() == 0) {
@@ -835,7 +889,7 @@ bool get_map_coalescing_data(const bdd::BDD *bdd, addr_t obj,
 }
 
 bool is_parser_condition(const bdd::Branch *branch) {
-  std::vector<const bdd::Node *> future_borrows =
+  std::vector<const bdd::Call *> future_borrows =
       get_future_functions(branch, {"packet_borrow_next_chunk"});
 
   if (future_borrows.size() == 0) {
@@ -902,7 +956,15 @@ symbols_t get_prev_symbols(const bdd::Node *node,
 
 bool is_vector_return_without_modifications(const EP *ep,
                                             const bdd::Node *node) {
+  static std::unordered_map<bdd::node_id_t, bool> cache;
+
+  auto found_cache_it = cache.find(node->get_id());
+  if (found_cache_it != cache.end()) {
+    return found_cache_it->second;
+  }
+
   if (node->get_type() != bdd::NodeType::CALL) {
+    cache[node->get_id()] = false;
     return false;
   }
 
@@ -910,6 +972,7 @@ bool is_vector_return_without_modifications(const EP *ep,
   const call_t &call = call_node->get_call();
 
   if (call.function_name != "vector_return") {
+    cache[node->get_id()] = false;
     return false;
   }
 
@@ -923,7 +986,10 @@ bool is_vector_return_without_modifications(const EP *ep,
   std::vector<modification_t> changes =
       build_modifications(original_value, value);
 
-  return changes.empty();
+  bool veredict = changes.empty();
+  cache[node->get_id()] = veredict;
+
+  return veredict;
 }
 
 bool is_vector_read(const bdd::Call *vector_borrow) {
@@ -936,7 +1002,7 @@ bool is_vector_read(const bdd::Call *vector_borrow) {
 
   addr_t vb_obj = kutil::expr_addr_to_obj_addr(vb_obj_expr);
 
-  std::vector<const bdd::Node *> vector_returns =
+  std::vector<const bdd::Call *> vector_returns =
       get_future_vector_return(vector_borrow);
 
   if (vector_returns.empty()) {
@@ -1058,13 +1124,12 @@ bool is_map_get_followed_by_map_puts_on_miss(
       map_has_this_key.expr, kutil::solver_toolbox.exprBuilder->Constant(
                                  0, map_has_this_key.expr->getWidth()));
 
-  std::vector<const bdd::Node *> future_map_puts =
+  std::vector<const bdd::Call *> future_map_puts =
       get_future_functions(map_get, {"map_put"});
 
   klee::ref<klee::Expr> value;
 
-  for (const bdd::Node *node : future_map_puts) {
-    const bdd::Call *map_put = static_cast<const bdd::Call *>(node);
+  for (const bdd::Call *map_put : future_map_puts) {
     const call_t &mp_call = map_put->get_call();
     assert(mp_call.function_name == "map_put");
 
@@ -1131,14 +1196,13 @@ bool is_map_update_with_dchain(const EP *ep,
           out_of_space.expr, kutil::solver_toolbox.exprBuilder->Constant(
                                  0, out_of_space.expr->getWidth()));
 
-  std::vector<const bdd::Node *> future_map_puts =
+  std::vector<const bdd::Call *> future_map_puts =
       get_future_functions(dchain_allocate_new_index, {"map_put"});
 
   klee::ref<klee::Expr> key;
   klee::ref<klee::Expr> value;
 
-  for (const bdd::Node *node : future_map_puts) {
-    const bdd::Call *map_put = static_cast<const bdd::Call *>(node);
+  for (const bdd::Call *map_put : future_map_puts) {
     const call_t &mp_call = map_put->get_call();
     assert(mp_call.function_name == "map_put");
 
@@ -1204,11 +1268,10 @@ bool is_map_get_followed_by_map_erases_on_hit(
           map_has_this_key.expr, kutil::solver_toolbox.exprBuilder->Constant(
                                      0, map_has_this_key.expr->getWidth()));
 
-  std::vector<const bdd::Node *> future_map_erases =
+  std::vector<const bdd::Call *> future_map_erases =
       get_future_functions(map_get, {"map_erase"});
 
-  for (const bdd::Node *node : future_map_erases) {
-    const bdd::Call *map_erase = static_cast<const bdd::Call *>(node);
+  for (const bdd::Call *map_erase : future_map_erases) {
     const call_t &me_call = map_erase->get_call();
     assert(me_call.function_name == "map_erase");
 
@@ -1515,7 +1578,7 @@ find_branch_checking_index_alloc(const EP *ep, const bdd::Node *node,
   return target_branch;
 }
 
-static std::vector<const bdd::Node *>
+static std::vector<const bdd::Call *>
 get_unfiltered_coalescing_nodes(const bdd::BDD *bdd, const bdd::Node *node,
                                 const map_coalescing_data_t &data) {
   std::vector<std::string> target_functions = {
@@ -1531,7 +1594,7 @@ get_unfiltered_coalescing_nodes(const bdd::BDD *bdd, const bdd::Node *node,
       "dchain_free_index",
   };
 
-  std::vector<const bdd::Node *> unfiltered_nodes =
+  std::vector<const bdd::Call *> unfiltered_nodes =
       get_future_functions(node, target_functions);
 
   auto filter_coalescing_data = [&data](const bdd::Node *node) {
@@ -1576,11 +1639,11 @@ get_unfiltered_coalescing_nodes(const bdd::BDD *bdd, const bdd::Node *node,
   return unfiltered_nodes;
 }
 
-std::vector<const bdd::Node *>
+std::vector<const bdd::Call *>
 get_coalescing_nodes_from_key(const bdd::BDD *bdd, const bdd::Node *node,
                               klee::ref<klee::Expr> target_key,
                               const map_coalescing_data_t &data) {
-  std::vector<const bdd::Node *> filtered_nodes =
+  std::vector<const bdd::Call *> filtered_nodes =
       get_unfiltered_coalescing_nodes(bdd, node, data);
 
   if (filtered_nodes.empty()) {

@@ -84,9 +84,9 @@ protected:
     assert(on_true);
     assert(on_false);
 
-    std::vector<const bdd::Node *> on_true_borrows =
+    std::vector<const bdd::Call *> on_true_borrows =
         get_future_functions(on_true, {"packet_borrow_next_chunk"}, true);
-    std::vector<const bdd::Node *> on_false_borrows =
+    std::vector<const bdd::Call *> on_false_borrows =
         get_future_functions(on_false, {"packet_borrow_next_chunk"}, true);
 
     // We are working under the assumption that before parsing a header we

@@ -132,11 +132,11 @@ protected:
 
     new_ctx.scale_profiler(constraints, chosen_success_estimation);
 
-    std::vector<const bdd::Node *> ignore_nodes = get_coalescing_nodes_from_key(
+    std::vector<const bdd::Call *> ignore_nodes = get_coalescing_nodes_from_key(
         ep->get_bdd(), node, cached_table_data.key, coalescing_data);
 
     speculation_t speculation(new_ctx);
-    for (const bdd::Node *op : ignore_nodes) {
+    for (const bdd::Call *op : ignore_nodes) {
       speculation.skip.insert(op->get_id());
     }
 
@@ -380,14 +380,20 @@ private:
     const bdd::Node *on_cache_delete_failed =
         cache_delete_branch->get_on_false();
 
-    std::vector<const bdd::Node *> prev_borrows = get_prev_functions(
+    std::vector<const bdd::Call *> prev_borrows = get_prev_functions(
         ep, on_cache_delete_failed, {"packet_borrow_next_chunk"});
 
     if (prev_borrows.empty()) {
       return;
     }
 
-    add_non_branch_nodes_to_bdd(ep, bdd, on_cache_delete_failed, prev_borrows,
+    std::vector<const bdd::Node *> non_branch_nodes_to_add;
+    for (const bdd::Call *prev_borrow : prev_borrows) {
+      non_branch_nodes_to_add.push_back(prev_borrow);
+    }
+
+    add_non_branch_nodes_to_bdd(ep, bdd, on_cache_delete_failed,
+                                non_branch_nodes_to_add,
                                 new_on_cache_delete_failed);
   }
 
@@ -395,7 +401,7 @@ private:
       const EP *ep, bdd::BDD *bdd, bdd::Node *on_success,
       const map_coalescing_data_t &coalescing_data,
       klee::ref<klee::Expr> key) const {
-    const std::vector<const bdd::Node *> targets =
+    const std::vector<const bdd::Call *> targets =
         get_coalescing_nodes_from_key(bdd, on_success, key, coalescing_data);
 
     for (const bdd::Node *target : targets) {

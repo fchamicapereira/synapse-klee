@@ -176,16 +176,13 @@ private:
     return vector_register_data;
   }
 
-  const bdd::Node *get_future_vector_return(const EP *ep, const bdd::Node *node,
+  const bdd::Call *get_future_vector_return(const EP *ep, const bdd::Node *node,
                                             addr_t vector) const {
-    std::vector<const bdd::Node *> ops =
+    std::vector<const bdd::Call *> ops =
         get_future_functions(node, {"vector_return"});
 
-    for (const bdd::Node *op : ops) {
-      assert(op->get_type() == bdd::NodeType::CALL);
-
-      const bdd::Call *call_node = static_cast<const bdd::Call *>(op);
-      const call_t &call = call_node->get_call();
+    for (const bdd::Call *op : ops) {
+      const call_t &call = op->get_call();
       assert(call.function_name == "vector_return");
 
       klee::ref<klee::Expr> obj_expr = call.args.at("vector").expr;
@@ -215,14 +212,11 @@ private:
       new_next = nullptr;
     }
 
-    std::vector<const bdd::Node *> ops =
+    std::vector<const bdd::Call *> ops =
         get_future_functions(node, {"vector_return"});
 
-    for (const bdd::Node *op : ops) {
-      assert(op->get_type() == bdd::NodeType::CALL);
-
-      const bdd::Call *call_node = static_cast<const bdd::Call *>(op);
-      const call_t &call = call_node->get_call();
+    for (const bdd::Call *op : ops) {
+      const call_t &call = op->get_call();
       assert(call.function_name == "vector_return");
 
       klee::ref<klee::Expr> obj_expr = call.args.at("vector").expr;

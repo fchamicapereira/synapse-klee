@@ -61,6 +61,10 @@ llvm::cl::opt<bool> ShowSS("ss",
                            llvm::cl::ValueDisallowed, llvm::cl::init(false),
                            llvm::cl::cat(SyNAPSE));
 
+llvm::cl::opt<bool> ShowBDD("sbdd", llvm::cl::desc("Show the BDD's solution."),
+                            llvm::cl::ValueDisallowed, llvm::cl::init(false),
+                            llvm::cl::cat(SyNAPSE));
+
 llvm::cl::list<int>
     Peek("peek", llvm::cl::desc("Peek search space at these Execution Plans."),
          llvm::cl::Positional, llvm::cl::ZeroOrMore, llvm::cl::cat(SyNAPSE));
@@ -187,6 +191,10 @@ int main(int argc, char **argv) {
 
   if (ShowSS) {
     SSVisualizer::visualize(report.search_space, report.ep, false);
+  }
+
+  if (ShowBDD) {
+    bdd::BDDVisualizer::visualize(report.ep->get_bdd(), false);
   }
 
   delete bdd;

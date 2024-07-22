@@ -233,15 +233,14 @@ private:
       return nullptr;
     }
 
-    std::vector<const bdd::Node *> ops =
+    std::vector<const bdd::Call *> future_map_erase =
         get_future_functions(dchain_free_index, {"map_erase"});
 
-    if (ops.empty()) {
+    if (future_map_erase.empty()) {
       return nullptr;
     }
 
-    for (const bdd::Node *op : ops) {
-      const bdd::Call *map_erase = static_cast<const bdd::Call *>(op);
+    for (const bdd::Call *map_erase : future_map_erase) {
       const call_t &map_erase_call = map_erase->get_call();
 
       klee::ref<klee::Expr> map_addr_expr = map_erase_call.args.at("map").expr;
@@ -279,16 +278,13 @@ private:
   std::vector<const bdd::Node *> get_future_related_nodes(
       const EP *ep, const bdd::Node *node,
       const map_coalescing_data_t &cached_table_data) const {
-    std::vector<const bdd::Node *> ops =
+    std::vector<const bdd::Call *> ops =
         get_future_functions(node, {"vector_borrow", "vector_return",
                                     "dchain_free_index", "map_erase"});
 
     std::vector<const bdd::Node *> related_ops;
-    for (const bdd::Node *op : ops) {
-      assert(op->get_type() == bdd::NodeType::CALL);
-
-      const bdd::Call *call_node = static_cast<const bdd::Call *>(op);
-      const call_t &call = call_node->get_call();
+    for (const bdd::Call *op : ops) {
+      const call_t &call = op->get_call();
 
       if (call.function_name == "dchain_free_index") {
         klee::ref<klee::Expr> obj_expr = call.args.at("chain").expr;

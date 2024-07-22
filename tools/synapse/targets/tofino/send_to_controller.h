@@ -93,9 +93,9 @@ private:
   bool replicate_hdr_parsing_ops(const EP *ep, const bdd::Node *node,
                                  bdd::BDD *&new_bdd,
                                  const bdd::Node *&next) const {
-    std::vector<const bdd::Node *> prev_borrows =
+    std::vector<const bdd::Call *> prev_borrows =
         get_prev_functions(ep, node, {"packet_borrow_next_chunk"});
-    std::vector<const bdd::Node *> prev_returns =
+    std::vector<const bdd::Call *> prev_returns =
         get_prev_functions(ep, node, {"packet_return_chunk"});
 
     std::vector<const bdd::Node *> hdr_parsing_ops;
