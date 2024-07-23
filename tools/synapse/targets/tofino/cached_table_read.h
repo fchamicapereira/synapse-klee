@@ -82,6 +82,11 @@ protected:
 
     cached_table_data_t cached_table_data = get_cached_table_data(ep, map_get);
 
+    std::unordered_set<DS_ID> deps;
+    if (!get_cached_table(ep, node, cached_table_data, deps)) {
+      return std::nullopt;
+    }
+
     std::vector<const bdd::Call *> vector_ops =
         get_future_vector_key_ops(ep, node, cached_table_data, coalescing_data);
 

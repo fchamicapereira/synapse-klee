@@ -115,12 +115,6 @@ protected:
       return std::nullopt;
     }
 
-    if (ep->get_id() == 161) {
-      std::cerr << "*** YES I CAN!\n";
-      auto tofino_ctx = get_tofino_ctx(ep);
-      tofino_ctx->get_tna().log_debug_placement();
-    }
-
     Context new_ctx = ctx;
     const Profiler *profiler = new_ctx.get_profiler();
     constraints_t constraints = node->get_ordered_branch_constraints();

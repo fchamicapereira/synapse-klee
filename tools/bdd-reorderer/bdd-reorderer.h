@@ -17,6 +17,9 @@ enum class ReorderingCandidateStatus {
   IMPOSSIBLE_CONDITION,
 };
 
+std::ostream &operator<<(std::ostream &os,
+                         const ReorderingCandidateStatus &status);
+
 struct candidate_info_t {
   node_id_t id;
   bool is_branch;

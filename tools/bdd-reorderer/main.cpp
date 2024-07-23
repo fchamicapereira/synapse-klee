@@ -196,7 +196,7 @@ int main(int argc, char **argv) {
 
   BDD *bdd = new BDD(InputBDDFile);
 
-  list_candidates(bdd, {5, true});
+  list_candidates(bdd, {20, true});
   // apply_reordering_ops(bdd, {
   //                               {{5, false}, 8},
   //                               {{8, true}, 9},

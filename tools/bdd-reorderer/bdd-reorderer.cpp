@@ -332,7 +332,7 @@ static bool check_obj(const Node *n0, const Node *n1,
   NodeType n0_type = n0->get_type();
   NodeType n1_type = n1->get_type();
 
-  if (n0_type != n1_type || n0_type != NodeType::CALL) {
+  if ((n0_type != n1_type) || (n0_type != NodeType::CALL)) {
     return true;
   }
 
@@ -359,8 +359,13 @@ static bool check_obj(const Node *n0, const Node *n1,
 static bool map_can_reorder(const BDD *bdd, const Node *anchor,
                             const Node *between, const Node *candidate,
                             klee::ref<klee::Expr> &condition) {
-  if (!check_no_side_effects(candidate)) {
+  if (check_no_side_effects(candidate)) {
     return true;
+  }
+
+  // Has side effects, but we encountered a branch condition in between.
+  if (between->get_type() == NodeType::BRANCH) {
+    return false;
   }
 
   if (!check_obj(between, candidate, "map")) {
@@ -381,8 +386,7 @@ static bool map_can_reorder(const BDD *bdd, const Node *anchor,
   auto between_key_it = between_call.args.find("key");
   auto candidate_key_it = candidate_call.args.find("key");
 
-  if (between_key_it == between_call.args.end() ||
-      candidate_key_it == candidate_call.args.end()) {
+  if (between_key_it == between_call.args.end()) {
     return false;
   }
 
@@ -410,19 +414,31 @@ static bool map_can_reorder(const BDD *bdd, const Node *anchor,
   return io_check(condition, anchor_symbols);
 }
 
-static bool dchain_can_reorder(const Node *anchor, const Node *between,
-                               const Node *candidate,
+static bool dchain_can_reorder(const BDD *bdd, const Node *anchor,
+                               const Node *between, const Node *candidate,
                                klee::ref<klee::Expr> &condition) {
-  if (check_no_side_effects(candidate))
+  if (check_no_side_effects(candidate)) {
     return true;
+  }
+
+  // Has side effects, but we encountered a branch condition in between.
+  if (between->get_type() == NodeType::BRANCH) {
+    return false;
+  }
+
   return !check_obj(between, candidate, "dchain");
 }
 
 static bool vector_can_reorder(const BDD *bdd, const Node *anchor,
                                const Node *between, const Node *candidate,
                                klee::ref<klee::Expr> &condition) {
-  if (!check_no_side_effects(candidate)) {
+  if (check_no_side_effects(candidate)) {
     return true;
+  }
+
+  // Has side effects, but we encountered a branch condition in between.
+  if (between->get_type() == NodeType::BRANCH) {
+    return false;
   }
 
   if (!check_obj(between, candidate, "vector")) {
@@ -439,6 +455,11 @@ static bool vector_can_reorder(const BDD *bdd, const Node *anchor,
 
   const call_t &between_call = between_call_node->get_call();
   const call_t &candidate_call = candidate_call_node->get_call();
+
+  auto between_index_it = between_call.args.find("index");
+  if (between_index_it == between_call.args.end()) {
+    return true;
+  }
 
   klee::ref<klee::Expr> between_index = between_call.args.at("index").expr;
   klee::ref<klee::Expr> candidate_index = candidate_call.args.at("index").expr;
@@ -466,19 +487,59 @@ static bool vector_can_reorder(const BDD *bdd, const Node *anchor,
   return io_check(condition, anchor_symbols);
 }
 
-static bool cht_can_reorder(const Node *anchor, const Node *between,
-                            const Node *candidate,
+static bool cht_can_reorder(const BDD *bdd, const Node *anchor,
+                            const Node *between, const Node *candidate,
                             klee::ref<klee::Expr> &condition) {
   return check_no_side_effects(candidate);
 }
 
-static bool sketch_can_reorder(const Node *anchor, const Node *between,
-                               const Node *candidate,
+static bool sketch_can_reorder(const BDD *bdd, const Node *anchor,
+                               const Node *between, const Node *candidate,
                                klee::ref<klee::Expr> &condition) {
   bool can_reorder = true;
   can_reorder &= check_no_side_effects(candidate);
   can_reorder &= !check_obj(between, candidate, "sketch");
   return can_reorder;
+}
+
+using can_reorder_stateful_op_fn = bool (*)(const BDD *bdd, const Node *anchor,
+                                            const Node *between,
+                                            const Node *candidate,
+                                            klee::ref<klee::Expr> &condition);
+
+const std::unordered_map<std::string, can_reorder_stateful_op_fn>
+    can_reorder_handlers{
+        {"vector_borrow", vector_can_reorder},
+        {"vector_return", vector_can_reorder},
+        {"map_get", map_can_reorder},
+        {"map_put", map_can_reorder},
+        {"map_erase", map_can_reorder},
+        {"dchain_allocate_new_index", dchain_can_reorder},
+        {"dchain_is_index_allocated", dchain_can_reorder},
+        {"dchain_free_index", dchain_can_reorder},
+        {"dchain_rejuvenate_index", dchain_can_reorder},
+        {"cht_find_preferred_available_backend", cht_can_reorder},
+        {"sketch_expire", sketch_can_reorder},
+        {"sketch_compute_hashes", sketch_can_reorder},
+        {"sketch_refresh", sketch_can_reorder},
+        {"sketch_fetch", sketch_can_reorder},
+        {"sketch_touch_buckets", sketch_can_reorder},
+    };
+
+static bool can_reorder_stateful_op(const BDD *bdd, const Node *anchor,
+                                    const Node *between, const Node *candidate,
+                                    klee::ref<klee::Expr> &condition) {
+  assert(candidate->get_type() == NodeType::CALL);
+
+  const Call *call_node = static_cast<const Call *>(candidate);
+  const call_t &call = call_node->get_call();
+
+  auto found_it = can_reorder_handlers.find(call.function_name);
+  if (found_it == can_reorder_handlers.end()) {
+    return true;
+  }
+
+  return found_it->second(bdd, anchor, between, candidate, condition);
 }
 
 static klee::ref<klee::Expr>
@@ -495,10 +556,6 @@ build_condition(const std::vector<klee::ref<klee::Expr>> &sub_conditions) {
   }
 
   return condition;
-}
-
-static bool both_call_nodes(const Node *n0, const Node *n1) {
-  return n0->get_type() == NodeType::CALL && n1->get_type() == NodeType::CALL;
 }
 
 static void
@@ -521,21 +578,8 @@ static bool rw_check(const BDD *bdd, const Node *anchor, const Node *candidate,
   std::vector<klee::ref<klee::Expr>> all_conditions;
 
   while (between != anchor) {
-
-    if (!both_call_nodes(between, candidate)) {
-      between = between->get_prev();
-      continue;
-    }
-
     klee::ref<klee::Expr> cond;
-    bool can_reorder = true;
-    can_reorder &= map_can_reorder(bdd, anchor, between, candidate, cond);
-    can_reorder &= dchain_can_reorder(anchor, between, candidate, cond);
-    can_reorder &= vector_can_reorder(bdd, anchor, between, candidate, cond);
-    can_reorder &= cht_can_reorder(anchor, between, candidate, cond);
-    can_reorder &= sketch_can_reorder(anchor, between, candidate, cond);
-
-    if (!can_reorder) {
+    if (!can_reorder_stateful_op(bdd, anchor, between, candidate, cond)) {
       return false;
     }
 
@@ -737,6 +781,11 @@ std::vector<reorder_op_t> get_reorder_ops(const BDD *bdd,
         allow_candidate(proposed_candidate)) {
       ops.push_back({anchor_info, next->get_id(), proposed_candidate});
     }
+
+    // if (proposed_candidate.id == 24) {
+    //   std::cerr << "Candidate: " << proposed_candidate.id << "\n";
+    //   std::cerr << "Status: " << proposed_candidate.status << "\n";
+    // }
 
     return NodeVisitAction::VISIT_CHILDREN;
   });
@@ -1401,6 +1450,37 @@ double estimate_reorder(const BDD *bdd) {
   double estimate = 1 + estimate_reorder(bdd, root);
   std::cerr << "\n";
   return estimate;
+}
+
+std::ostream &operator<<(std::ostream &os,
+                         const ReorderingCandidateStatus &status) {
+  switch (status) {
+  case ReorderingCandidateStatus::VALID:
+    os << "VALID";
+    break;
+  case ReorderingCandidateStatus::UNREACHABLE_CANDIDATE:
+    os << "UNREACHABLE_CANDIDATE";
+    break;
+  case ReorderingCandidateStatus::CANDIDATE_FOLLOWS_ANCHOR:
+    os << "CANDIDATE_FOLLOWS_ANCHOR";
+    break;
+  case ReorderingCandidateStatus::IO_CHECK_FAILED:
+    os << "IO_CHECK_FAILED";
+    break;
+  case ReorderingCandidateStatus::RW_CHECK_FAILED:
+    os << "RW_CHECK_FAILED";
+    break;
+  case ReorderingCandidateStatus::NOT_ALLOWED:
+    os << "NOT_ALLOWED";
+    break;
+  case ReorderingCandidateStatus::CONFLICTING_ROUTING:
+    os << "CONFLICTING_ROUTING";
+    break;
+  case ReorderingCandidateStatus::IMPOSSIBLE_CONDITION:
+    os << "IMPOSSIBLE_CONDITION";
+    break;
+  }
+  return os;
 }
 
 } // namespace bdd

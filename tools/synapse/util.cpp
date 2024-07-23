@@ -1191,10 +1191,14 @@ bool is_map_update_with_dchain(const EP *ep,
                  "out_of_space", out_of_space);
   assert(found && "Symbol out_of_space not found");
 
-  klee::ref<klee::Expr> not_out_of_space =
-      kutil::solver_toolbox.exprBuilder->Eq(
-          out_of_space.expr, kutil::solver_toolbox.exprBuilder->Constant(
-                                 0, out_of_space.expr->getWidth()));
+  const bdd::Branch *index_alloc_branch = find_branch_checking_index_alloc(
+      ep, dchain_allocate_new_index, out_of_space);
+
+  if (!index_alloc_branch) {
+    return false;
+  }
+
+  klee::ref<klee::Expr> condition = index_alloc_branch->get_condition();
 
   std::vector<const bdd::Call *> future_map_puts =
       get_future_functions(dchain_allocate_new_index, {"map_put"});
@@ -1229,8 +1233,7 @@ bool is_map_update_with_dchain(const EP *ep,
     }
 
     klee::ConstraintManager constraints = map_put->get_constraints();
-    if (!kutil::solver_toolbox.is_expr_always_true(constraints,
-                                                   not_out_of_space)) {
+    if (!kutil::solver_toolbox.is_expr_always_true(constraints, condition)) {
       return false;
     }
 
