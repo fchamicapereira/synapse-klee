@@ -36,6 +36,27 @@ static void build_node_translations(translator_t &next_nodes_translator,
   }
 }
 
+static bdd::anchor_info_t get_anchor_info(const EP *ep) {
+  const bdd::Node *next = ep->get_next_node();
+  assert(next);
+
+  const bdd::Node *anchor = next->get_prev();
+  assert(anchor);
+
+  if (anchor->get_type() != bdd::NodeType::BRANCH) {
+    return {anchor->get_id(), true};
+  }
+
+  const bdd::Branch *branch = static_cast<const bdd::Branch *>(anchor);
+
+  if (branch->get_on_true() == next) {
+    return {anchor->get_id(), true};
+  }
+
+  assert(branch->get_on_false() == next);
+  return {anchor->get_id(), false};
+}
+
 static std::vector<EP *> get_reordered(const EP *ep) {
   std::vector<EP *> reordered;
 
@@ -47,16 +68,17 @@ static std::vector<EP *> get_reordered(const EP *ep) {
 
   const bdd::Node *node = next->get_prev();
 
-  if (!node || node->get_type() == bdd::NodeType::BRANCH) {
+  if (!node) {
     return reordered;
   }
 
+  bdd::anchor_info_t anchor_info = get_anchor_info(ep);
+
   const bdd::BDD *bdd = ep->get_bdd();
-  bdd::node_id_t anchor_id = node->get_id();
   bool allow_shape_altering_ops = false;
 
   std::vector<bdd::reordered_bdd_t> new_bdds =
-      bdd::reorder(bdd, anchor_id, allow_shape_altering_ops);
+      bdd::reorder(bdd, anchor_info, allow_shape_altering_ops);
 
   for (const bdd::reordered_bdd_t &new_bdd : new_bdds) {
     bool is_ancestor = false;
@@ -67,10 +89,7 @@ static std::vector<EP *> get_reordered(const EP *ep) {
 
     build_node_translations(next_nodes_translator, processed_nodes_translator,
                             bdd, new_bdd.op);
-    if (new_bdd.op2.has_value()) {
-      build_node_translations(next_nodes_translator, processed_nodes_translator,
-                              bdd, *new_bdd.op2);
-    }
+    assert(!new_bdd.op2.has_value());
 
     new_ep->replace_bdd(new_bdd.bdd, next_nodes_translator,
                         processed_nodes_translator);
