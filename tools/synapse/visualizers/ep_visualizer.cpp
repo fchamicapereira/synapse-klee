@@ -99,20 +99,20 @@ void EPVisualizer::branch(const EPNode *ep_node, const bdd::Node *node,
 
 static void log_visualization(const EP *ep, const std::string &fname) {
   assert(ep);
-  std::cerr << "Visualizing EP";
-  std::cerr << " id=" << ep->get_id();
-  std::cerr << " file=" << fname;
-  std::cerr << " ancestors=[";
+  Log::log() << "Visualizing EP";
+  Log::log() << " id=" << ep->get_id();
+  Log::log() << " file=" << fname;
+  Log::log() << " ancestors=[";
   bool first = true;
   for (ep_id_t ancestor : ep->get_ancestors()) {
     if (!first) {
-      std::cerr << " ";
+      Log::log() << " ";
     }
-    std::cerr << ancestor;
+    Log::log() << ancestor;
     first = false;
   }
-  std::cerr << "]";
-  std::cerr << "\n";
+  Log::log() << "]";
+  Log::log() << "\n";
 }
 
 void EPVisualizer::visualize(const EP *ep, bool interrupt) {

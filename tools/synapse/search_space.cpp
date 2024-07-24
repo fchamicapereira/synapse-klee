@@ -83,11 +83,7 @@ static std::string get_bdd_node_description(const bdd::Node *node) {
   return node_str;
 }
 
-static std::string build_meta_throughput_estimate(const EP *ep) {
-  std::stringstream ss;
-
-  ss << "Throughput: ";
-
+std::string SearchSpace::build_meta_throughput_estimate(const EP *ep) {
   const Context &ctx = ep->get_ctx();
   const Profiler *profiler = ctx.get_profiler();
   int avg_pkt_size = profiler->get_avg_pkt_bytes();
@@ -95,6 +91,7 @@ static std::string build_meta_throughput_estimate(const EP *ep) {
   uint64_t estimate_pps = ep->estimate_throughput_pps();
   uint64_t estimate_bps = estimate_pps * avg_pkt_size * 8;
 
+  std::stringstream ss;
   ss << throughput2str(estimate_bps, "bps", true);
 
   ss << " (";
@@ -104,11 +101,7 @@ static std::string build_meta_throughput_estimate(const EP *ep) {
   return ss.str();
 }
 
-static std::string build_meta_throughput_speculation(const EP *ep) {
-  std::stringstream ss;
-
-  ss << "Speculation: ";
-
+std::string SearchSpace::build_meta_throughput_speculation(const EP *ep) {
   const Context &ctx = ep->get_ctx();
   const Profiler *profiler = ctx.get_profiler();
   int avg_pkt_size = profiler->get_avg_pkt_bytes();
@@ -116,6 +109,7 @@ static std::string build_meta_throughput_speculation(const EP *ep) {
   uint64_t speculation_pps = ep->speculate_throughput_pps();
   uint64_t speculation_bps = speculation_pps * avg_pkt_size * 8;
 
+  std::stringstream ss;
   ss << throughput2str(speculation_bps, "bps", true);
 
   ss << " (";
@@ -157,9 +151,9 @@ void SearchSpace::add_to_active_leaf(
       };
     }
 
-    std::vector<std::string> metadata = {
-        build_meta_throughput_estimate(product.ep),
-        build_meta_throughput_speculation(product.ep),
+    std::map<std::string, std::string> metadata = {
+        {"Throughput", build_meta_throughput_estimate(product.ep)},
+        {"Speculation", build_meta_throughput_speculation(product.ep)},
     };
 
     SSNode *new_node = new SSNode(id, ep_id, score, target, module_data,

@@ -11,26 +11,31 @@
 
 namespace synapse {
 
+struct search_config_t {
+  std::string heuristic;
+  unsigned random_seed;
+};
+
+struct search_meta_t {
+  size_t ss_size;
+  time_t elapsed_time;
+  uint64_t steps;
+  uint64_t backtracks;
+  float branching_factor;
+};
+
+struct search_solution_t {
+  EP *ep;
+  SearchSpace *search_space;
+  Score score;
+  std::string throughput_estimation;
+  std::string throughput_speculation;
+};
+
 struct search_report_t {
-  const EP *ep;
-  const SearchSpace *search_space;
-
-  const std::string heuristic_name;
-  const unsigned random_seed;
-  const size_t ss_size;
-  const Score winner_score;
-  const double search_time;
-  const uint64_t backtracks;
-
-  search_report_t(const EP *_ep, const SearchSpace *_search_space,
-                  const std::string &_heuristic_name, unsigned _random_seed,
-                  size_t _ss_size, Score _winner_score, double _search_time,
-                  uint64_t _backtracks);
-
-  search_report_t(const search_report_t &) = delete;
-  search_report_t(search_report_t &&other);
-
-  ~search_report_t();
+  const search_config_t config;
+  const search_solution_t solution;
+  const search_meta_t meta;
 };
 
 template <class HCfg> class SearchEngine {

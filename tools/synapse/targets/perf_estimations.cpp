@@ -67,51 +67,52 @@ void Context::print_speculations(
     const EP *ep,
     const std::vector<Context::node_speculation_t> &node_speculations,
     const speculation_t &speculation) const {
-  std::cerr << "\n";
-  std::cerr << "===============";
-  std::cerr << "SPECULATION EP " << ep->get_id();
-  std::cerr << "===============";
-  std::cerr << "\n";
+  Log::log() << "\n";
+  Log::log() << "===============";
+  Log::log() << "SPECULATION EP " << ep->get_id();
+  Log::log() << "===============";
+  Log::log() << "\n";
 
-  std::cerr << "EP: " << ep->get_id() << "\n";
+  Log::log() << "EP: " << ep->get_id() << "\n";
 
   for (const Context::node_speculation_t &node_speculation :
        node_speculations) {
-    std::cerr << "-----------------------\n";
-    std::cerr << "* Node:       " << node_speculation.node->dump(true, true)
-              << "\n";
-    std::cerr << "  Target:     " << node_speculation.target << "\n";
-    std::cerr << "  Module:     " << node_speculation.module_name << "\n";
-    std::cerr << "  Estimation: " << throughput2str(node_speculation.pps, "pps")
-              << "\n";
-    std::cerr << "  Traffic:    \n";
+    Log::log() << "-----------------------\n";
+    Log::log() << "* Node:       " << node_speculation.node->dump(true, true)
+               << "\n";
+    Log::log() << "  Target:     " << node_speculation.target << "\n";
+    Log::log() << "  Module:     " << node_speculation.module_name << "\n";
+    Log::log() << "  Estimation: "
+               << throughput2str(node_speculation.pps, "pps") << "\n";
+    Log::log() << "  Traffic:    \n";
     for (auto tf : node_speculation.speculation.ctx.get_traffic_fractions()) {
-      std::cerr << "    " << std::setfill('0') << std::setw(7) << std::fixed
-                << std::setprecision(5) << tf.second;
-      std::cerr << " [" << tf.first << "]\n";
+      Log::log() << "    " << std::setfill('0') << std::setw(7) << std::fixed
+                 << std::setprecision(5) << tf.second;
+      Log::log() << " [" << tf.first << "]\n";
     }
-    std::cerr << "  Skip: ";
+    Log::log() << "  Skip: ";
     for (bdd::node_id_t skip : node_speculation.speculation.skip) {
-      std::cerr << skip << " ";
+      Log::log() << skip << " ";
     }
-    std::cerr << "\n";
+    Log::log() << "\n";
   }
 
   uint64_t final_pps = estimate_throughput_pps_from_ctx(speculation.ctx);
 
-  std::cerr << "-----------------------\n";
+  Log::log() << "-----------------------\n";
 
-  std::cerr << "\n";
-  std::cerr << "Final estimation: " << throughput2str(final_pps, "pps") << "\n";
-  std::cerr << "Traffic:    \n";
+  Log::log() << "\n";
+  Log::log() << "Final estimation: " << throughput2str(final_pps, "pps")
+             << "\n";
+  Log::log() << "Traffic:    \n";
   for (auto tf : speculation.ctx.get_traffic_fractions()) {
-    std::cerr << "  " << std::setfill('0') << std::setw(7) << std::fixed
-              << std::setprecision(5) << tf.second;
-    std::cerr << " [" << tf.first << "]\n";
+    Log::log() << "  " << std::setfill('0') << std::setw(7) << std::fixed
+               << std::setprecision(5) << tf.second;
+    Log::log() << " [" << tf.first << "]\n";
   }
-  std::cerr << "\n";
+  Log::log() << "\n";
 
-  std::cerr << "========================================\n";
+  Log::log() << "========================================\n";
 }
 
 speculation_t Context::peek_speculation_for_future_nodes(

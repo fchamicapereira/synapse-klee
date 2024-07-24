@@ -170,7 +170,7 @@ static void visit_definitions(std::stringstream &ss,
 
   // Metadata rows
 
-  for (const std::string &metadata : ssnode->metadata) {
+  for (const auto &[name, value] : ssnode->metadata) {
     indent(3);
     ss << "<tr>\n";
 
@@ -180,8 +180,8 @@ static void visit_definitions(std::stringstream &ss,
     // ss << " bgcolor=\"" << target_color << "\"";
     ss << " colspan=\"2\"";
     ss << ">";
-    ss << bold("Metadata: ");
-    ss << metadata;
+    ss << bold(name + ": ");
+    ss << value;
     ss << "</td>\n";
 
     indent(3);
@@ -239,11 +239,11 @@ static void log_visualization(const SearchSpace *search_space,
                               const std::string &fname,
                               const EP *ep = nullptr) {
   assert(search_space);
-  std::cerr << "Visualizing SS";
-  std::cerr << " file=" << fname;
+  Log::log() << "Visualizing SS";
+  Log::log() << " file=" << fname;
   if (ep)
-    std::cerr << " highlight=" << ep->get_id();
-  std::cerr << "\n";
+    Log::log() << " highlight=" << ep->get_id();
+  Log::log() << "\n";
 }
 
 void SSVisualizer::visualize(const SearchSpace *search_space, bool interrupt) {

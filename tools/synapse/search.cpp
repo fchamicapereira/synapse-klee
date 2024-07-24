@@ -40,38 +40,7 @@ template <class HCfg> SearchEngine<HCfg>::~SearchEngine() {
   }
 }
 
-search_report_t::search_report_t(const EP *_ep,
-                                 const SearchSpace *_search_space,
-                                 const std::string &_heuristic_name,
-                                 unsigned _random_seed, size_t _ss_size,
-                                 Score _winner_score, double _search_time,
-                                 uint64_t _backtracks)
-    : ep(_ep), search_space(_search_space), heuristic_name(_heuristic_name),
-      random_seed(_random_seed), ss_size(_ss_size), winner_score(_winner_score),
-      search_time(_search_time), backtracks(_backtracks) {}
-
-search_report_t::search_report_t(search_report_t &&other)
-    : ep(std::move(other.ep)), search_space(std::move(other.search_space)),
-      heuristic_name(std::move(other.heuristic_name)),
-      random_seed(std::move(other.random_seed)),
-      ss_size(std::move(other.ss_size)),
-      winner_score(std::move(other.winner_score)),
-      search_time(std::move(other.search_time)),
-      backtracks(std::move(other.backtracks)) {}
-
-search_report_t::~search_report_t() {
-  if (ep) {
-    delete ep;
-    ep = nullptr;
-  }
-
-  if (search_space) {
-    delete search_space;
-    search_space = nullptr;
-  }
-}
-
-struct search_it_report_t {
+struct search_step_report_t {
   int available_execution_plans;
   const EP *chosen;
   const bdd::Node *current;
@@ -80,8 +49,8 @@ struct search_it_report_t {
   std::vector<std::string> name;
   std::vector<std::vector<ep_id_t>> gen_ep_ids;
 
-  search_it_report_t(int _available_execution_plans, const EP *_chosen,
-                     const bdd::Node *_current)
+  search_step_report_t(int _available_execution_plans, const EP *_chosen,
+                       const bdd::Node *_current)
       : available_execution_plans(_available_execution_plans), chosen(_chosen),
         current(_current) {}
 
@@ -103,7 +72,8 @@ struct search_it_report_t {
   }
 };
 
-static void log_search_iteration(const search_it_report_t &report) {
+static void log_search_iteration(const search_step_report_t &report,
+                                 const search_meta_t &search_meta) {
   TargetType platform = report.chosen->get_current_platform();
   const EPLeaf *leaf = report.chosen->get_active_leaf();
   const EPMeta &meta = report.chosen->get_meta();
@@ -113,8 +83,6 @@ static void log_search_iteration(const search_it_report_t &report) {
 
   Log::dbg() << "EP ID:      " << report.chosen->get_id() << "\n";
   Log::dbg() << "Target:     " << platform << "\n";
-  Log::dbg() << "Progress:   " << std::fixed << std::setprecision(2)
-             << 100 * meta.get_bdd_progress() << " %\n";
   Log::dbg() << "Available:  " << report.available_execution_plans << "\n";
   if (leaf && leaf->node) {
     const Module *module = leaf->node->get_module();
@@ -142,6 +110,15 @@ static void log_search_iteration(const search_it_report_t &report) {
                << " -> " << report.gen_ep_ids[i].size() << " (" << ep_ids.str()
                << ") EPs\n";
   }
+
+  Log::dbg() << "------------------------------------------\n";
+  Log::dbg() << "Progress:         " << std::fixed << std::setprecision(2)
+             << 100 * meta.get_bdd_progress() << " %\n";
+  Log::dbg() << "Elapsed:          " << search_meta.elapsed_time << " s\n";
+  Log::dbg() << "Backtracks:       " << int2hr(search_meta.backtracks) << "\n";
+  Log::dbg() << "Branching factor: " << search_meta.branching_factor << "\n";
+  Log::dbg() << "SS size:          " << int2hr(search_meta.ss_size) << "\n";
+  Log::dbg() << "Search Steps:     " << int2hr(search_meta.steps) << "\n";
 
   if (report.targets.size() == 0) {
     Log::dbg() << "\n";
@@ -176,25 +153,38 @@ static void peek_backtrack(const EP *ep, SearchSpace *search_space,
 }
 
 template <class HCfg> search_report_t SearchEngine<HCfg>::search() {
+  search_meta_t meta = {
+      .ss_size = 0,
+      .elapsed_time = 0,
+      .steps = 0,
+      .backtracks = 0,
+      .branching_factor = 0,
+  };
+
   auto start_search = std::chrono::steady_clock::now();
-  uint64_t backtracks = 0;
 
   SearchSpace *search_space = new SearchSpace(h->get_cfg());
 
   h->add({new EP(bdd, targets, profiler)});
 
   while (!h->finished()) {
+    meta.ss_size = search_space->get_size();
+    meta.elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(
+                            std::chrono::steady_clock::now() - start_search)
+                            .count();
+    meta.steps++;
+    meta.branching_factor = meta.ss_size / (float)meta.steps;
+
     const EP *ep = h->pop();
     search_space->activate_leaf(ep);
 
     if (search_space->is_backtrack()) {
-      backtracks++;
+      meta.backtracks++;
       peek_backtrack(ep, search_space, pause_and_show_on_backtrack);
     }
 
-    size_t available = h->size();
     const bdd::Node *node = ep->get_next_node();
-    search_it_report_t report(available, ep, node);
+    search_step_report_t report(h->size(), ep, node);
 
     std::vector<const EP *> new_eps;
 
@@ -213,27 +203,36 @@ template <class HCfg> search_report_t SearchEngine<HCfg>::search() {
 
     h->add(new_eps);
 
-    log_search_iteration(report);
+    log_search_iteration(report, meta);
     peek_search_space(new_eps, peek, search_space);
 
     delete ep;
   }
 
-  auto end_search = std::chrono::steady_clock::now();
-  auto search_dt = std::chrono::duration_cast<std::chrono::seconds>(
-                       end_search - start_search)
-                       .count();
-
   EP *winner = new EP(*h->get());
 
-  const std::string heuristic_name = h->get_cfg()->name;
-  const unsigned random_seed = h->get_random_seed();
-  const size_t ss_size = search_space->get_size();
-  const Score winner_score = h->get_score(winner);
-  const double search_time = search_dt;
+  const search_config_t config = {
+      .heuristic = h->get_cfg()->name,
+      .random_seed = h->get_random_seed(),
+  };
 
-  return search_report_t(winner, search_space, heuristic_name, random_seed,
-                         ss_size, winner_score, search_time, backtracks);
+  const search_solution_t solution = {
+      .ep = winner,
+      .search_space = search_space,
+      .score = h->get_score(winner),
+      .throughput_estimation =
+          SearchSpace::build_meta_throughput_estimate(winner),
+      .throughput_speculation =
+          SearchSpace::build_meta_throughput_speculation(winner),
+  };
+
+  search_report_t report = {
+      .config = config,
+      .solution = solution,
+      .meta = meta,
+  };
+
+  return report;
 }
 
 EXPLICIT_HEURISTIC_TEMPLATE_CLASS_INSTANTIATION(SearchEngine)

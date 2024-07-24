@@ -182,13 +182,23 @@ int main(int argc, char **argv) {
   // }
 
   Log::log() << "\n";
-  Log::log() << "Search report:\n";
-  Log::log() << "  Heuristic:   " << report.heuristic_name << "\n";
-  Log::log() << "  Random seed: " << int2hr(report.random_seed) << "\n";
-  Log::log() << "  SS size:     " << int2hr(report.ss_size) << "\n";
-  Log::log() << "  Backtracks:  " << int2hr(report.backtracks) << "\n";
-  Log::log() << "  Winner:      " << report.winner_score << "\n";
-  Log::log() << "  Search time: " << report.search_time << " s\n";
+  Log::log() << "Params:\n";
+  Log::log() << "  Heuristic:        " << report.config.heuristic << "\n";
+  Log::log() << "  Random seed:      " << int2hr(report.config.random_seed)
+             << "\n";
+  Log::log() << "Search:\n";
+  Log::log() << "  Search time:      " << report.meta.elapsed_time << " s\n";
+  Log::log() << "  SS size:          " << int2hr(report.meta.ss_size) << "\n";
+  Log::log() << "  Steps:            " << int2hr(report.meta.steps) << "\n";
+  Log::log() << "  Backtracks:       " << int2hr(report.meta.backtracks)
+             << "\n";
+  Log::log() << "  Branching factor: " << report.meta.branching_factor << "\n";
+  Log::log() << "Solution:\n";
+  Log::log() << "  Winner:           " << report.solution.score << "\n";
+  Log::log() << "  Throughput:       " << report.solution.throughput_estimation
+             << "\n";
+  Log::log() << "  Speculation:      " << report.solution.throughput_speculation
+             << "\n";
   Log::log() << "\n";
 
   // if (synthesis_dt >= 0) {
@@ -196,15 +206,24 @@ int main(int argc, char **argv) {
   // }
 
   if (ShowEP) {
-    EPVisualizer::visualize(report.ep, false);
+    EPVisualizer::visualize(report.solution.ep, false);
   }
 
   if (ShowSS) {
-    SSVisualizer::visualize(report.search_space, report.ep, false);
+    SSVisualizer::visualize(report.solution.search_space, report.solution.ep,
+                            false);
   }
 
   if (ShowBDD) {
-    bdd::BDDVisualizer::visualize(report.ep->get_bdd(), false);
+    bdd::BDDVisualizer::visualize(report.solution.ep->get_bdd(), false);
+  }
+
+  if (report.solution.ep) {
+    delete report.solution.ep;
+  }
+
+  if (report.solution.search_space) {
+    delete report.solution.search_space;
   }
 
   delete bdd;
