@@ -3,6 +3,12 @@
 #include <assert.h>
 #include <memory>
 
+#define DECLARE_VISIT(M)                                                       \
+  void visit(const EP *ep, const EPNode *ep_node, const M *node) override;
+
+#define VISIT_NOP(M)                                                           \
+  virtual void visit(const EP *ep, const EPNode *ep_node, const M *m) {}
+
 #define VISIT_TODO(M)                                                          \
   virtual void visit(const EP *ep, const EPNode *ep_node, const M *m) {        \
     assert(false && "TODO");                                                   \
@@ -17,6 +23,7 @@ namespace tofino {
 class SendToController;
 class Recirculate;
 class Ignore;
+class IfSimple;
 class If;
 class ParserCondition;
 class Then;
@@ -29,11 +36,11 @@ class ModifyHeader;
 class SimpleTableLookup;
 class VectorRegisterLookup;
 class VectorRegisterUpdate;
-class CachedTableRead;
-class CachedTableReadOrWrite;
-class CachedTableWrite;
-class CachedTableConditionalDelete;
-class CachedTableDelete;
+class TTLCachedTableRead;
+class TTLCachedTableReadOrWrite;
+class TTLCachedTableWrite;
+class TTLCachedTableConditionalDelete;
+class TTLCachedTableDelete;
 } // namespace tofino
 
 namespace tofino_cpu {
@@ -68,9 +75,9 @@ class SketchTouchBuckets;
 class SimpleTableDelete;
 class VectorRegisterLookup;
 class VectorRegisterUpdate;
-class CachedTableRead;
-class CachedTableWrite;
-class CachedTableDelete;
+class TTLCachedTableRead;
+class TTLCachedTableWrite;
+class TTLCachedTableDelete;
 } // namespace tofino_cpu
 
 namespace x86 {
@@ -115,26 +122,27 @@ public:
    *
    * **********************************/
 
-  VISIT_TODO(tofino::SendToController)
-  VISIT_TODO(tofino::Ignore)
-  VISIT_TODO(tofino::If)
-  VISIT_TODO(tofino::ParserCondition)
-  VISIT_TODO(tofino::Then)
-  VISIT_TODO(tofino::Else)
-  VISIT_TODO(tofino::Forward)
-  VISIT_TODO(tofino::Drop)
-  VISIT_TODO(tofino::Broadcast)
-  VISIT_TODO(tofino::ParserExtraction)
-  VISIT_TODO(tofino::ModifyHeader)
-  VISIT_TODO(tofino::SimpleTableLookup)
-  VISIT_TODO(tofino::VectorRegisterLookup)
-  VISIT_TODO(tofino::VectorRegisterUpdate)
-  VISIT_TODO(tofino::CachedTableRead)
-  VISIT_TODO(tofino::CachedTableReadOrWrite)
-  VISIT_TODO(tofino::CachedTableWrite)
-  VISIT_TODO(tofino::CachedTableConditionalDelete)
-  VISIT_TODO(tofino::CachedTableDelete)
-  VISIT_TODO(tofino::Recirculate)
+  VISIT_NOP(tofino::SendToController)
+  VISIT_NOP(tofino::Ignore)
+  VISIT_NOP(tofino::IfSimple)
+  VISIT_NOP(tofino::If)
+  VISIT_NOP(tofino::ParserCondition)
+  VISIT_NOP(tofino::Then)
+  VISIT_NOP(tofino::Else)
+  VISIT_NOP(tofino::Forward)
+  VISIT_NOP(tofino::Drop)
+  VISIT_NOP(tofino::Broadcast)
+  VISIT_NOP(tofino::ParserExtraction)
+  VISIT_NOP(tofino::ModifyHeader)
+  VISIT_NOP(tofino::SimpleTableLookup)
+  VISIT_NOP(tofino::VectorRegisterLookup)
+  VISIT_NOP(tofino::VectorRegisterUpdate)
+  VISIT_NOP(tofino::TTLCachedTableRead)
+  VISIT_NOP(tofino::TTLCachedTableReadOrWrite)
+  VISIT_NOP(tofino::TTLCachedTableWrite)
+  VISIT_NOP(tofino::TTLCachedTableConditionalDelete)
+  VISIT_NOP(tofino::TTLCachedTableDelete)
+  VISIT_NOP(tofino::Recirculate)
 
   /*************************************
    *
@@ -142,40 +150,40 @@ public:
    *
    * **********************************/
 
-  VISIT_TODO(tofino_cpu::Ignore)
-  VISIT_TODO(tofino_cpu::ParseHeader)
-  VISIT_TODO(tofino_cpu::ModifyHeader)
-  VISIT_TODO(tofino_cpu::ChecksumUpdate)
-  VISIT_TODO(tofino_cpu::If)
-  VISIT_TODO(tofino_cpu::Then)
-  VISIT_TODO(tofino_cpu::Else)
-  VISIT_TODO(tofino_cpu::Forward)
-  VISIT_TODO(tofino_cpu::Broadcast)
-  VISIT_TODO(tofino_cpu::Drop)
-  VISIT_TODO(tofino_cpu::SimpleTableLookup)
-  VISIT_TODO(tofino_cpu::SimpleTableUpdate)
-  VISIT_TODO(tofino_cpu::SimpleTableDelete)
-  VISIT_TODO(tofino_cpu::DchainAllocateNewIndex)
-  VISIT_TODO(tofino_cpu::DchainRejuvenateIndex)
-  VISIT_TODO(tofino_cpu::DchainIsIndexAllocated)
-  VISIT_TODO(tofino_cpu::DchainFreeIndex)
-  VISIT_TODO(tofino_cpu::VectorRead)
-  VISIT_TODO(tofino_cpu::VectorWrite)
-  VISIT_TODO(tofino_cpu::MapGet)
-  VISIT_TODO(tofino_cpu::MapPut)
-  VISIT_TODO(tofino_cpu::MapErase)
-  VISIT_TODO(tofino_cpu::ChtFindBackend)
-  VISIT_TODO(tofino_cpu::HashObj)
-  VISIT_TODO(tofino_cpu::SketchComputeHashes)
-  VISIT_TODO(tofino_cpu::SketchExpire)
-  VISIT_TODO(tofino_cpu::SketchFetch)
-  VISIT_TODO(tofino_cpu::SketchRefresh)
-  VISIT_TODO(tofino_cpu::SketchTouchBuckets)
-  VISIT_TODO(tofino_cpu::VectorRegisterLookup)
-  VISIT_TODO(tofino_cpu::VectorRegisterUpdate)
-  VISIT_TODO(tofino_cpu::CachedTableRead)
-  VISIT_TODO(tofino_cpu::CachedTableWrite)
-  VISIT_TODO(tofino_cpu::CachedTableDelete)
+  VISIT_NOP(tofino_cpu::Ignore)
+  VISIT_NOP(tofino_cpu::ParseHeader)
+  VISIT_NOP(tofino_cpu::ModifyHeader)
+  VISIT_NOP(tofino_cpu::ChecksumUpdate)
+  VISIT_NOP(tofino_cpu::If)
+  VISIT_NOP(tofino_cpu::Then)
+  VISIT_NOP(tofino_cpu::Else)
+  VISIT_NOP(tofino_cpu::Forward)
+  VISIT_NOP(tofino_cpu::Broadcast)
+  VISIT_NOP(tofino_cpu::Drop)
+  VISIT_NOP(tofino_cpu::SimpleTableLookup)
+  VISIT_NOP(tofino_cpu::SimpleTableUpdate)
+  VISIT_NOP(tofino_cpu::SimpleTableDelete)
+  VISIT_NOP(tofino_cpu::DchainAllocateNewIndex)
+  VISIT_NOP(tofino_cpu::DchainRejuvenateIndex)
+  VISIT_NOP(tofino_cpu::DchainIsIndexAllocated)
+  VISIT_NOP(tofino_cpu::DchainFreeIndex)
+  VISIT_NOP(tofino_cpu::VectorRead)
+  VISIT_NOP(tofino_cpu::VectorWrite)
+  VISIT_NOP(tofino_cpu::MapGet)
+  VISIT_NOP(tofino_cpu::MapPut)
+  VISIT_NOP(tofino_cpu::MapErase)
+  VISIT_NOP(tofino_cpu::ChtFindBackend)
+  VISIT_NOP(tofino_cpu::HashObj)
+  VISIT_NOP(tofino_cpu::SketchComputeHashes)
+  VISIT_NOP(tofino_cpu::SketchExpire)
+  VISIT_NOP(tofino_cpu::SketchFetch)
+  VISIT_NOP(tofino_cpu::SketchRefresh)
+  VISIT_NOP(tofino_cpu::SketchTouchBuckets)
+  VISIT_NOP(tofino_cpu::VectorRegisterLookup)
+  VISIT_NOP(tofino_cpu::VectorRegisterUpdate)
+  VISIT_NOP(tofino_cpu::TTLCachedTableRead)
+  VISIT_NOP(tofino_cpu::TTLCachedTableWrite)
+  VISIT_NOP(tofino_cpu::TTLCachedTableDelete)
 
   /*************************************
    *
@@ -183,34 +191,34 @@ public:
    *
    * **********************************/
 
-  VISIT_TODO(x86::Ignore)
-  VISIT_TODO(x86::If)
-  VISIT_TODO(x86::Then)
-  VISIT_TODO(x86::Else)
-  VISIT_TODO(x86::Forward)
-  VISIT_TODO(x86::Broadcast)
-  VISIT_TODO(x86::Drop)
-  VISIT_TODO(x86::ParseHeader)
-  VISIT_TODO(x86::ModifyHeader)
-  VISIT_TODO(x86::MapGet)
-  VISIT_TODO(x86::ExpireItemsSingleMap)
-  VISIT_TODO(x86::ExpireItemsSingleMapIteratively)
-  VISIT_TODO(x86::DchainRejuvenateIndex)
-  VISIT_TODO(x86::VectorRead)
-  VISIT_TODO(x86::VectorWrite)
-  VISIT_TODO(x86::DchainAllocateNewIndex)
-  VISIT_TODO(x86::MapPut)
-  VISIT_TODO(x86::ChecksumUpdate)
-  VISIT_TODO(x86::DchainIsIndexAllocated)
-  VISIT_TODO(x86::SketchComputeHashes)
-  VISIT_TODO(x86::SketchExpire)
-  VISIT_TODO(x86::SketchFetch)
-  VISIT_TODO(x86::SketchRefresh)
-  VISIT_TODO(x86::SketchTouchBuckets)
-  VISIT_TODO(x86::MapErase)
-  VISIT_TODO(x86::DchainFreeIndex)
-  VISIT_TODO(x86::ChtFindBackend)
-  VISIT_TODO(x86::HashObj)
+  VISIT_NOP(x86::Ignore)
+  VISIT_NOP(x86::If)
+  VISIT_NOP(x86::Then)
+  VISIT_NOP(x86::Else)
+  VISIT_NOP(x86::Forward)
+  VISIT_NOP(x86::Broadcast)
+  VISIT_NOP(x86::Drop)
+  VISIT_NOP(x86::ParseHeader)
+  VISIT_NOP(x86::ModifyHeader)
+  VISIT_NOP(x86::MapGet)
+  VISIT_NOP(x86::ExpireItemsSingleMap)
+  VISIT_NOP(x86::ExpireItemsSingleMapIteratively)
+  VISIT_NOP(x86::DchainRejuvenateIndex)
+  VISIT_NOP(x86::VectorRead)
+  VISIT_NOP(x86::VectorWrite)
+  VISIT_NOP(x86::DchainAllocateNewIndex)
+  VISIT_NOP(x86::MapPut)
+  VISIT_NOP(x86::ChecksumUpdate)
+  VISIT_NOP(x86::DchainIsIndexAllocated)
+  VISIT_NOP(x86::SketchComputeHashes)
+  VISIT_NOP(x86::SketchExpire)
+  VISIT_NOP(x86::SketchFetch)
+  VISIT_NOP(x86::SketchRefresh)
+  VISIT_NOP(x86::SketchTouchBuckets)
+  VISIT_NOP(x86::MapErase)
+  VISIT_NOP(x86::DchainFreeIndex)
+  VISIT_NOP(x86::ChtFindBackend)
+  VISIT_NOP(x86::HashObj)
 
 protected:
   virtual void log(const EPNode *ep_node) const;

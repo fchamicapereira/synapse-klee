@@ -30,6 +30,7 @@
 #include "visualizers/ss_visualizer.h"
 #include "heuristics/heuristics.h"
 #include "search.h"
+#include "synthesizers/synthesizers.h"
 
 using namespace synapse;
 
@@ -37,11 +38,12 @@ namespace {
 llvm::cl::OptionCategory SyNAPSE("SyNAPSE specific options");
 
 llvm::cl::opt<std::string> InputBDDFile("in", llvm::cl::desc("Input BDD."),
+                                        llvm::cl::Required,
                                         llvm::cl::cat(SyNAPSE));
 
 llvm::cl::opt<std::string>
     Out("out", llvm::cl::desc("Output directory for every generated file."),
-        llvm::cl::cat(SyNAPSE));
+        llvm::cl::Required, llvm::cl::cat(SyNAPSE));
 
 llvm::cl::opt<int> Seed("seed", llvm::cl::desc("Random seed."),
                         llvm::cl::ValueRequired, llvm::cl::Optional,
@@ -52,7 +54,7 @@ llvm::cl::opt<bool> BDDNoReorder("no-reorder",
                                  llvm::cl::ValueDisallowed,
                                  llvm::cl::init(false), llvm::cl::cat(SyNAPSE));
 
-llvm::cl::opt<bool> ShowEP("s", llvm::cl::desc("Show winner Execution Plan."),
+llvm::cl::opt<bool> ShowEP("ep", llvm::cl::desc("Show winner Execution Plan."),
                            llvm::cl::ValueDisallowed, llvm::cl::init(false),
                            llvm::cl::cat(SyNAPSE));
 
@@ -61,7 +63,7 @@ llvm::cl::opt<bool> ShowSS("ss",
                            llvm::cl::ValueDisallowed, llvm::cl::init(false),
                            llvm::cl::cat(SyNAPSE));
 
-llvm::cl::opt<bool> ShowBDD("sbdd", llvm::cl::desc("Show the BDD's solution."),
+llvm::cl::opt<bool> ShowBDD("bdd", llvm::cl::desc("Show the BDD's solution."),
                             llvm::cl::ValueDisallowed, llvm::cl::init(false),
                             llvm::cl::cat(SyNAPSE));
 
@@ -101,7 +103,8 @@ llvm::cl::opt<bool> Verbose("v", llvm::cl::desc("Verbose mode."),
                             llvm::cl::cat(SyNAPSE));
 } // namespace
 
-search_report_t search(const bdd::BDD *bdd, Profiler *profiler) {
+search_report_t search(const bdd::BDD *bdd, Profiler *profiler,
+                       const targets_t &targets) {
   unsigned seed = (Seed >= 0) ? Seed : std::random_device()();
 
   std::unordered_set<ep_id_t> peek;
@@ -113,19 +116,19 @@ search_report_t search(const bdd::BDD *bdd, Profiler *profiler) {
   switch (ChosenHeuristic) {
   case HEURISTIC_BFS: {
     BFS heuristic(seed);
-    SearchEngine engine(bdd, &heuristic, profiler, !BDDNoReorder, peek,
+    SearchEngine engine(bdd, &heuristic, profiler, targets, !BDDNoReorder, peek,
                         ShowBacktrack);
     return engine.search();
   } break;
   case HEURISTIC_GALLIUM: {
     Gallium heuristic(seed);
-    SearchEngine engine(bdd, &heuristic, profiler, !BDDNoReorder, peek,
+    SearchEngine engine(bdd, &heuristic, profiler, targets, !BDDNoReorder, peek,
                         ShowBacktrack);
     return engine.search();
   } break;
   case HEURISTIC_MAX_THROUGHPUT: {
     MaxThroughput heuristic(seed);
-    SearchEngine engine(bdd, &heuristic, profiler, !BDDNoReorder, peek,
+    SearchEngine engine(bdd, &heuristic, profiler, targets, !BDDNoReorder, peek,
                         ShowBacktrack);
     return engine.search();
   } break;
@@ -133,11 +136,6 @@ search_report_t search(const bdd::BDD *bdd, Profiler *profiler) {
 
   assert(false && "Unknown heuristic");
 }
-
-// void synthesize(const std::string &fname, const EP*ep) {
-//   CodeGenerator code_generator(Out, fname);
-//   code_generator.generate(ep);
-// }
 
 std::string nf_name_from_bdd(const std::string &bdd_fname) {
   std::string nf_name = bdd_fname;
@@ -165,21 +163,10 @@ int main(int argc, char **argv) {
   }
 
   profiler->log_debug();
+  targets_t targets = build_targets(profiler);
 
-  std::string nf_name = nf_name_from_bdd(InputBDDFile);
-
-  search_report_t report = search(bdd, profiler);
-
-  // int64_t synthesis_dt = -1;
-  // if (Out.size()) {
-  //   auto start_synthesis = std::chrono::steady_clock::now();
-  //   synthesize(nf_name, search_results.first);
-  //   auto end_synthesis = std::chrono::steady_clock::now();
-
-  //   synthesis_dt = std::chrono::duration_cast<std::chrono::seconds>(
-  //                      end_synthesis - start_synthesis)
-  //                      .count();
-  // }
+  // std::string nf_name = nf_name_from_bdd(InputBDDFile);
+  search_report_t report = search(bdd, profiler, targets);
 
   Log::log() << "\n";
   Log::log() << "Params:\n";
@@ -201,10 +188,6 @@ int main(int argc, char **argv) {
              << "\n";
   Log::log() << "\n";
 
-  // if (synthesis_dt >= 0) {
-  //   Log::log() << "Generation time: " << synthesis_dt << " s\n";
-  // }
-
   if (ShowEP) {
     EPVisualizer::visualize(report.solution.ep, false);
   }
@@ -218,6 +201,8 @@ int main(int argc, char **argv) {
     bdd::BDDVisualizer::visualize(report.solution.ep->get_bdd(), false);
   }
 
+  synthesize(report.solution.ep, std::string(Out));
+
   if (report.solution.ep) {
     delete report.solution.ep;
   }
@@ -227,6 +212,8 @@ int main(int argc, char **argv) {
   }
 
   delete bdd;
+
+  delete_targets(targets);
 
   return 0;
 }

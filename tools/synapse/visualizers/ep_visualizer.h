@@ -8,9 +8,6 @@
 
 #include <vector>
 
-#define DECLARE_VISIT(M)                                                       \
-  void visit(const EP *ep, const EPNode *ep_node, const M *node) override;
-
 namespace synapse {
 
 class EPVisualizer : public EPVisitor, public Graphviz {
@@ -31,6 +28,7 @@ public:
   DECLARE_VISIT(tofino::SendToController)
   DECLARE_VISIT(tofino::Recirculate)
   DECLARE_VISIT(tofino::Ignore)
+  DECLARE_VISIT(tofino::IfSimple)
   DECLARE_VISIT(tofino::If)
   DECLARE_VISIT(tofino::ParserCondition)
   DECLARE_VISIT(tofino::Then)
@@ -43,11 +41,11 @@ public:
   DECLARE_VISIT(tofino::SimpleTableLookup)
   DECLARE_VISIT(tofino::VectorRegisterLookup)
   DECLARE_VISIT(tofino::VectorRegisterUpdate)
-  DECLARE_VISIT(tofino::CachedTableRead)
-  DECLARE_VISIT(tofino::CachedTableReadOrWrite)
-  DECLARE_VISIT(tofino::CachedTableWrite)
-  DECLARE_VISIT(tofino::CachedTableConditionalDelete)
-  DECLARE_VISIT(tofino::CachedTableDelete)
+  DECLARE_VISIT(tofino::TTLCachedTableRead)
+  DECLARE_VISIT(tofino::TTLCachedTableReadOrWrite)
+  DECLARE_VISIT(tofino::TTLCachedTableWrite)
+  DECLARE_VISIT(tofino::TTLCachedTableConditionalDelete)
+  DECLARE_VISIT(tofino::TTLCachedTableDelete)
 
   /********************************************
    *
@@ -86,9 +84,9 @@ public:
   DECLARE_VISIT(tofino_cpu::SketchTouchBuckets)
   DECLARE_VISIT(tofino_cpu::VectorRegisterLookup)
   DECLARE_VISIT(tofino_cpu::VectorRegisterUpdate)
-  DECLARE_VISIT(tofino_cpu::CachedTableRead)
-  DECLARE_VISIT(tofino_cpu::CachedTableWrite)
-  DECLARE_VISIT(tofino_cpu::CachedTableDelete)
+  DECLARE_VISIT(tofino_cpu::TTLCachedTableRead)
+  DECLARE_VISIT(tofino_cpu::TTLCachedTableWrite)
+  DECLARE_VISIT(tofino_cpu::TTLCachedTableDelete)
 
   /********************************************
    *

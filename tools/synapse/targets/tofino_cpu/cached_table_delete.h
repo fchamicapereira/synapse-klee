@@ -7,17 +7,17 @@ namespace tofino_cpu {
 
 using namespace synapse::tofino;
 
-class CachedTableDelete : public TofinoCPUModule {
+class TTLCachedTableDelete : public TofinoCPUModule {
 private:
   DS_ID id;
   addr_t obj;
   std::vector<klee::ref<klee::Expr>> keys;
 
 public:
-  CachedTableDelete(const bdd::Node *node, DS_ID _id, addr_t _obj,
-                    const std::vector<klee::ref<klee::Expr>> &_keys)
-      : TofinoCPUModule(ModuleType::TofinoCPU_CachedTableDelete,
-                        "CachedTableDelete", node),
+  TTLCachedTableDelete(const bdd::Node *node, DS_ID _id, addr_t _obj,
+                       const std::vector<klee::ref<klee::Expr>> &_keys)
+      : TofinoCPUModule(ModuleType::TofinoCPU_TTLCachedTableDelete,
+                        "TTLCachedTableDelete", node),
         id(_id), obj(_obj), keys(_keys) {}
 
   virtual void visit(EPVisitor &visitor, const EP *ep,
@@ -26,7 +26,8 @@ public:
   }
 
   virtual Module *clone() const {
-    CachedTableDelete *cloned = new CachedTableDelete(node, id, obj, keys);
+    TTLCachedTableDelete *cloned =
+        new TTLCachedTableDelete(node, id, obj, keys);
     return cloned;
   }
 
@@ -35,11 +36,11 @@ public:
   const std::vector<klee::ref<klee::Expr>> &get_keys() const { return keys; }
 };
 
-class CachedTableDeleteGenerator : public TofinoCPUModuleGenerator {
+class TTLCachedTableDeleteGenerator : public TofinoCPUModuleGenerator {
 public:
-  CachedTableDeleteGenerator()
-      : TofinoCPUModuleGenerator(ModuleType::TofinoCPU_CachedTableDelete,
-                                 "CachedTableDelete") {}
+  TTLCachedTableDeleteGenerator()
+      : TofinoCPUModuleGenerator(ModuleType::TofinoCPU_TTLCachedTableDelete,
+                                 "TTLCachedTableDelete") {}
 
 protected:
   virtual std::optional<speculation_t>
@@ -57,7 +58,7 @@ protected:
     }
 
     if (!can_place(ep, call_node, "map",
-                   PlacementDecision::Tofino_CachedTable)) {
+                   PlacementDecision::Tofino_TTLCachedTable)) {
       return std::nullopt;
     }
 
@@ -80,7 +81,7 @@ protected:
     }
 
     if (!check_placement(ep, call_node, "map",
-                         PlacementDecision::Tofino_CachedTable)) {
+                         PlacementDecision::Tofino_TTLCachedTable)) {
       return products;
     }
 
@@ -90,7 +91,7 @@ protected:
 
     DS_ID id = get_cached_table_id(ep, obj);
 
-    Module *module = new CachedTableDelete(node, id, obj, keys);
+    Module *module = new TTLCachedTableDelete(node, id, obj, keys);
     EPNode *ep_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);

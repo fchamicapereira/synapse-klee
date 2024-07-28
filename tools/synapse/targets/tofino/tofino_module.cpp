@@ -130,7 +130,7 @@ void TofinoModuleGenerator::place_vector_registers(
   tofino_ctx->get_tna().log_debug_placement();
 }
 
-CachedTable *TofinoModuleGenerator::build_cached_table(
+TTLCachedTable *TofinoModuleGenerator::build_cached_table(
     const EP *ep, const bdd::Node *node, const cached_table_data_t &data,
     int cache_capacity, std::unordered_set<DS_ID> &deps) const {
   const TNA &tna = get_tna(ep);
@@ -146,8 +146,8 @@ CachedTable *TofinoModuleGenerator::build_cached_table(
     keys_sizes.push_back(key->getWidth());
   }
 
-  CachedTable *cached_table = new CachedTable(properties, id, cache_capacity,
-                                              data.num_entries, keys_sizes);
+  TTLCachedTable *cached_table = new TTLCachedTable(
+      properties, id, cache_capacity, data.num_entries, keys_sizes);
 
   const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
   deps = tofino_ctx->get_stateful_deps(ep, node);
@@ -159,7 +159,7 @@ CachedTable *TofinoModuleGenerator::build_cached_table(
   return cached_table;
 }
 
-CachedTable *
+TTLCachedTable *
 TofinoModuleGenerator::get_cached_table(const EP *ep, const bdd::Node *node,
                                         const cached_table_data_t &data,
                                         std::unordered_set<DS_ID> &deps) const {
@@ -174,7 +174,7 @@ TofinoModuleGenerator::get_cached_table(const EP *ep, const bdd::Node *node,
   assert(ds.size() == 1);
   assert(ds[0]->type == DSType::CACHED_TABLE);
 
-  CachedTable *cached_table = static_cast<CachedTable *>(ds[0]);
+  TTLCachedTable *cached_table = static_cast<TTLCachedTable *>(ds[0]);
 
   deps = tofino_ctx->get_stateful_deps(ep, node);
   if (!tofino_ctx->check_placement(ep, cached_table, deps)) {
@@ -184,15 +184,15 @@ TofinoModuleGenerator::get_cached_table(const EP *ep, const bdd::Node *node,
   return cached_table;
 }
 
-CachedTable *TofinoModuleGenerator::get_or_build_cached_table(
+TTLCachedTable *TofinoModuleGenerator::get_or_build_cached_table(
     const EP *ep, const bdd::Node *node, const cached_table_data_t &data,
     int cache_capacity, bool &already_exists,
     std::unordered_set<DS_ID> &deps) const {
-  CachedTable *cached_table = nullptr;
+  TTLCachedTable *cached_table = nullptr;
 
   const Context &ctx = ep->get_ctx();
   bool already_placed =
-      ctx.check_placement(data.obj, PlacementDecision::Tofino_CachedTable);
+      ctx.check_placement(data.obj, PlacementDecision::Tofino_TTLCachedTable);
 
   if (already_placed) {
     cached_table = get_cached_table(ep, node, data, deps);
@@ -216,10 +216,10 @@ bool TofinoModuleGenerator::can_get_or_build_cached_table(
 
   const Context &ctx = ep->get_ctx();
   bool already_placed =
-      ctx.check_placement(data.obj, PlacementDecision::Tofino_CachedTable);
+      ctx.check_placement(data.obj, PlacementDecision::Tofino_TTLCachedTable);
 
   if (already_placed) {
-    CachedTable *cached_table = get_cached_table(ep, node, data, deps);
+    TTLCachedTable *cached_table = get_cached_table(ep, node, data, deps);
 
     if (!cached_table || (cached_table->cache_capacity != cache_capacity)) {
       return false;
@@ -228,7 +228,7 @@ bool TofinoModuleGenerator::can_get_or_build_cached_table(
     return true;
   }
 
-  CachedTable *cached_table =
+  TTLCachedTable *cached_table =
       build_cached_table(ep, node, data, cache_capacity, deps);
 
   if (!cached_table) {
@@ -254,19 +254,20 @@ bool TofinoModuleGenerator::can_place_cached_table(
 
   const Context &ctx = ep->get_ctx();
 
-  return ctx.can_place(map_obj, PlacementDecision::Tofino_CachedTable) &&
-         ctx.can_place(dchain_obj, PlacementDecision::Tofino_CachedTable) &&
-         ctx.can_place(vector_key_obj, PlacementDecision::Tofino_CachedTable);
+  return ctx.can_place(map_obj, PlacementDecision::Tofino_TTLCachedTable) &&
+         ctx.can_place(dchain_obj, PlacementDecision::Tofino_TTLCachedTable) &&
+         ctx.can_place(vector_key_obj,
+                       PlacementDecision::Tofino_TTLCachedTable);
 }
 
 void TofinoModuleGenerator::place_cached_table(
-    EP *ep, const map_coalescing_data_t &coalescing_data, CachedTable *ds,
+    EP *ep, const map_coalescing_data_t &coalescing_data, TTLCachedTable *ds,
     const std::unordered_set<DS_ID> &deps) const {
   assert(ds->type == DSType::CACHED_TABLE);
-  CachedTable *cached_table = static_cast<CachedTable *>(ds);
+  TTLCachedTable *cached_table = static_cast<TTLCachedTable *>(ds);
 
   addr_t map_obj = coalescing_data.map;
-  place(ep, map_obj, PlacementDecision::Tofino_CachedTable);
+  place(ep, map_obj, PlacementDecision::Tofino_TTLCachedTable);
 
   TofinoContext *tofino_ctx = get_mutable_tofino_ctx(ep);
   tofino_ctx->place(ep, map_obj, cached_table, deps);

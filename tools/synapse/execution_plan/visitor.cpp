@@ -17,16 +17,9 @@ void EPVisitor::visit(const EP *ep) {
 }
 
 void EPVisitor::visit(const EP *ep, const EPNode *node) {
-  const Module *module = node->get_module();
-  const std::vector<EPNode *> &children = node->get_children();
-
   log(node);
-
+  const Module *module = node->get_module();
   module->visit(*this, ep, node);
-
-  for (EPNode *child : children) {
-    child->visit(*this, ep);
-  }
 }
 
 void EPVisitor::log(const EPNode *node) const {

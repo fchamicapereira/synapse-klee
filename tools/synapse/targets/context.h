@@ -10,17 +10,16 @@
 #include "../log.h"
 #include "../profiler.h"
 #include "../execution_plan/node.h"
+#include "target.h"
 
 namespace synapse {
 
 class EP;
-class Target;
-enum class TargetType;
 
 enum class PlacementDecision {
   Tofino_SimpleTable,
   Tofino_VectorRegister,
-  Tofino_CachedTable,
+  Tofino_TTLCachedTable,
   TofinoCPU_Map,
   TofinoCPU_Vector,
   TofinoCPU_Dchain,
@@ -72,7 +71,7 @@ private:
   uint64_t throughput_speculation_pps;
 
 public:
-  Context(const bdd::BDD *bdd, const std::vector<const Target *> &targets,
+  Context(const bdd::BDD *bdd, const targets_t &targets,
           const TargetType initial_target, std::shared_ptr<Profiler> profiler);
   Context(const Context &other);
   Context(Context &&other);
@@ -134,21 +133,17 @@ private:
 
   node_speculation_t
   get_best_speculation(const EP *ep, const bdd::Node *node,
-                       const std::vector<const Target *> &targets,
-                       TargetType current_target,
+                       const targets_t &targets, TargetType current_target,
                        const speculation_t &current_speculation) const;
 
-  speculation_t
-  peek_speculation_for_future_nodes(const speculation_t &base_speculation,
-                                    const EP *ep, const bdd::Node *anchor,
-                                    bdd::nodes_t future_nodes,
-                                    const std::vector<const Target *> &targets,
-                                    TargetType current_target) const;
+  speculation_t peek_speculation_for_future_nodes(
+      const speculation_t &base_speculation, const EP *ep,
+      const bdd::Node *anchor, bdd::nodes_t future_nodes,
+      const targets_t &targets, TargetType current_target) const;
 
   bool is_better_speculation(const speculation_t &old_speculation,
                              const speculation_t &new_speculation, const EP *ep,
-                             const bdd::Node *node,
-                             const std::vector<const Target *> &targets,
+                             const bdd::Node *node, const targets_t &targets,
                              TargetType current_target) const;
 };
 

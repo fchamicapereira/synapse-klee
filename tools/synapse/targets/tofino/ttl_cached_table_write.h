@@ -10,7 +10,7 @@
 namespace synapse {
 namespace tofino {
 
-class CachedTableWrite : public TofinoModule {
+class TTLCachedTableWrite : public TofinoModule {
 private:
   DS_ID cached_table_id;
   std::unordered_set<DS_ID> cached_table_byproducts;
@@ -21,13 +21,13 @@ private:
   symbol_t cache_write_failed;
 
 public:
-  CachedTableWrite(const bdd::Node *node, DS_ID _cached_table_id,
-                   const std::unordered_set<DS_ID> &_cached_table_byproducts,
-                   addr_t _obj, klee::ref<klee::Expr> _key,
-                   klee::ref<klee::Expr> _write_value,
-                   const symbol_t &_cache_write_failed)
-      : TofinoModule(ModuleType::Tofino_CachedTableWrite, "CachedTableWrite",
-                     node),
+  TTLCachedTableWrite(const bdd::Node *node, DS_ID _cached_table_id,
+                      const std::unordered_set<DS_ID> &_cached_table_byproducts,
+                      addr_t _obj, klee::ref<klee::Expr> _key,
+                      klee::ref<klee::Expr> _write_value,
+                      const symbol_t &_cache_write_failed)
+      : TofinoModule(ModuleType::Tofino_TTLCachedTableWrite,
+                     "TTLCachedTableWrite", node),
         cached_table_id(_cached_table_id),
         cached_table_byproducts(_cached_table_byproducts), obj(_obj), key(_key),
         write_value(_write_value), cache_write_failed(_cache_write_failed) {}
@@ -39,8 +39,8 @@ public:
 
   virtual Module *clone() const override {
     Module *cloned =
-        new CachedTableWrite(node, cached_table_id, cached_table_byproducts,
-                             obj, key, write_value, cache_write_failed);
+        new TTLCachedTableWrite(node, cached_table_id, cached_table_byproducts,
+                                obj, key, write_value, cache_write_failed);
     return cloned;
   }
 
@@ -55,11 +55,11 @@ public:
   }
 };
 
-class CachedTableWriteGenerator : public TofinoModuleGenerator {
+class TTLCachedTableWriteGenerator : public TofinoModuleGenerator {
 public:
-  CachedTableWriteGenerator()
-      : TofinoModuleGenerator(ModuleType::Tofino_CachedTableWrite,
-                              "CachedTableWrite") {}
+  TTLCachedTableWriteGenerator()
+      : TofinoModuleGenerator(ModuleType::Tofino_TTLCachedTableWrite,
+                              "TTLCachedTableWrite") {}
 
 protected:
   virtual std::optional<speculation_t>
@@ -202,7 +202,7 @@ private:
     std::unordered_set<DS_ID> deps;
     bool already_exists;
 
-    CachedTable *cached_table = get_or_build_cached_table(
+    TTLCachedTable *cached_table = get_or_build_cached_table(
         ep, node, cached_table_data, cache_capacity, already_exists, deps);
 
     if (!cached_table) {
@@ -215,10 +215,10 @@ private:
     klee::ref<klee::Expr> cache_write_success_condition =
         build_cache_write_success_condition(cache_write_failed);
 
-    Module *module =
-        new CachedTableWrite(node, cached_table->id, byproducts,
-                             cached_table_data.obj, cached_table_data.key,
-                             cached_table_data.write_value, cache_write_failed);
+    Module *module = new TTLCachedTableWrite(
+        node, cached_table->id, byproducts, cached_table_data.obj,
+        cached_table_data.key, cached_table_data.write_value,
+        cache_write_failed);
     EPNode *cached_table_write_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
@@ -311,7 +311,7 @@ private:
   }
 
   std::unordered_set<DS_ID>
-  get_cached_table_byproducts(CachedTable *cached_table) const {
+  get_cached_table_byproducts(TTLCachedTable *cached_table) const {
     std::unordered_set<DS_ID> byproducts;
 
     std::vector<std::unordered_set<const DS *>> internal_ds =

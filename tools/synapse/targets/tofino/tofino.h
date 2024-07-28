@@ -5,6 +5,7 @@
 #include "send_to_controller.h"
 #include "recirculate.h"
 #include "ignore.h"
+#include "if_simple.h"
 #include "if.h"
 #include "then.h"
 #include "else.h"
@@ -17,11 +18,11 @@
 #include "simple_table_lookup.h"
 #include "vector_register_lookup.h"
 #include "vector_register_update.h"
-#include "cached_table_read.h"
-#include "cached_table_read_or_write.h"
-#include "cached_table_write.h"
-#include "cached_table_cond_delete.h"
-#include "cached_table_delete.h"
+#include "ttl_cached_table_read.h"
+#include "ttl_cached_table_read_or_write.h"
+#include "ttl_cached_table_write.h"
+#include "ttl_cached_table_cond_delete.h"
+#include "ttl_cached_table_delete.h"
 
 #include "tofino_context.h"
 #include "../../profiler.h"
@@ -36,6 +37,7 @@ struct TofinoTarget : public Target {
                    new SendToControllerGenerator(),
                    new RecirculateGenerator(),
                    new IgnoreGenerator(),
+                   new IfSimpleGenerator(),
                    new IfGenerator(),
                    new ParserConditionGenerator(),
                    new ThenGenerator(),
@@ -48,11 +50,11 @@ struct TofinoTarget : public Target {
                    new SimpleTableLookupGenerator(),
                    new VectorRegisterLookupGenerator(),
                    new VectorRegisterUpdateGenerator(),
-                   new CachedTableReadGenerator(),
-                   new CachedTableReadOrWriteGenerator(),
-                   new CachedTableWriteGenerator(),
-                   new CachedTableConditionalDeleteGenerator(),
-                   new CachedTableDeleteGenerator(),
+                   new TTLCachedTableReadGenerator(),
+                   new TTLCachedTableReadOrWriteGenerator(),
+                   new TTLCachedTableWriteGenerator(),
+                   new TTLCachedTableConditionalDeleteGenerator(),
+                   new TTLCachedTableDeleteGenerator(),
                },
                new TofinoContext(version, profiler)) {}
 };

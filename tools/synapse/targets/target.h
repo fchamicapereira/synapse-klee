@@ -31,4 +31,6 @@ struct Target {
   virtual ~Target();
 };
 
+typedef std::vector<const Target *> targets_t;
+
 } // namespace synapse

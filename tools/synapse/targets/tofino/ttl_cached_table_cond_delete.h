@@ -10,7 +10,7 @@
 namespace synapse {
 namespace tofino {
 
-class CachedTableConditionalDelete : public TofinoModule {
+class TTLCachedTableConditionalDelete : public TofinoModule {
 private:
   DS_ID cached_table_id;
   std::unordered_set<DS_ID> cached_table_byproducts;
@@ -22,13 +22,13 @@ private:
   symbol_t cache_delete_failed;
 
 public:
-  CachedTableConditionalDelete(
+  TTLCachedTableConditionalDelete(
       const bdd::Node *node, DS_ID _cached_table_id,
       const std::unordered_set<DS_ID> &_cached_table_byproducts, addr_t _obj,
       klee::ref<klee::Expr> _key, klee::ref<klee::Expr> _read_value,
       const symbol_t &_map_has_this_key, const symbol_t &_cache_delete_failed)
-      : TofinoModule(ModuleType::Tofino_CachedTableConditionalDelete,
-                     "CachedTableConditionalDelete", node),
+      : TofinoModule(ModuleType::Tofino_TTLCachedTableConditionalDelete,
+                     "TTLCachedTableConditionalDelete", node),
         cached_table_id(_cached_table_id),
         cached_table_byproducts(_cached_table_byproducts), obj(_obj), key(_key),
         read_value(_read_value), map_has_this_key(_map_has_this_key),
@@ -40,7 +40,7 @@ public:
   }
 
   virtual Module *clone() const override {
-    Module *cloned = new CachedTableConditionalDelete(
+    Module *cloned = new TTLCachedTableConditionalDelete(
         node, cached_table_id, cached_table_byproducts, obj, key, read_value,
         map_has_this_key, cache_delete_failed);
     return cloned;
@@ -60,11 +60,12 @@ public:
   }
 };
 
-class CachedTableConditionalDeleteGenerator : public TofinoModuleGenerator {
+class TTLCachedTableConditionalDeleteGenerator : public TofinoModuleGenerator {
 public:
-  CachedTableConditionalDeleteGenerator()
-      : TofinoModuleGenerator(ModuleType::Tofino_CachedTableConditionalDelete,
-                              "CachedTableConditionalDelete") {}
+  TTLCachedTableConditionalDeleteGenerator()
+      : TofinoModuleGenerator(
+            ModuleType::Tofino_TTLCachedTableConditionalDelete,
+            "TTLCachedTableConditionalDelete") {}
 
 protected:
   virtual std::optional<speculation_t>
@@ -203,7 +204,7 @@ private:
     std::unordered_set<DS_ID> deps;
     bool already_exists;
 
-    CachedTable *cached_table = get_or_build_cached_table(
+    TTLCachedTable *cached_table = get_or_build_cached_table(
         ep, node, cached_table_data, cache_capacity, already_exists, deps);
 
     if (!cached_table) {
@@ -213,7 +214,7 @@ private:
     std::unordered_set<DS_ID> byproducts =
         get_cached_table_byproducts(cached_table);
 
-    Module *module = new CachedTableConditionalDelete(
+    Module *module = new TTLCachedTableConditionalDelete(
         node, cached_table->id, byproducts, cached_table_data.obj,
         cached_table_data.key, cached_table_data.read_value,
         cached_table_data.map_has_this_key, cache_delete_failed);
@@ -312,7 +313,7 @@ private:
   }
 
   std::unordered_set<DS_ID>
-  get_cached_table_byproducts(CachedTable *cached_table) const {
+  get_cached_table_byproducts(TTLCachedTable *cached_table) const {
     std::unordered_set<DS_ID> byproducts;
 
     std::vector<std::unordered_set<const DS *>> internal_ds =

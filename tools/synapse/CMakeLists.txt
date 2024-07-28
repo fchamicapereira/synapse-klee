@@ -7,10 +7,7 @@
 #
 #===------------------------------------------------------------------------===#
 file(GLOB_RECURSE synapse-sources "*.cpp")
-list(FILTER synapse-sources EXCLUDE REGEX ".*boilerplate.*$")
-list(FILTER synapse-sources EXCLUDE REGEX ".*transpiler.*")
-list(REMOVE_ITEM synapse-sources "/home/fcp/Documents/synapse/deps/klee/tools/synapse/code_generator.cpp")
-list(REMOVE_ITEM synapse-sources "/home/fcp/Documents/synapse/deps/klee/tools/synapse/synthesizers/tofino/util.cpp")
+list(FILTER synapse-sources EXCLUDE REGEX ".*templates.*$")
 
 file(GLOB_RECURSE load-call-paths-sources "../load-call-paths*.cpp")
 list(FILTER load-call-paths-sources EXCLUDE REGEX ".*main\\.cpp$")

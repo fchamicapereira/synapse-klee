@@ -36,7 +36,7 @@ private:
   std::vector<EPLeaf> leaves;
 
   const TargetType initial_target;
-  const std::vector<const Target *> targets;
+  const targets_t targets;
   const std::set<ep_id_t> ancestors;
 
   std::unordered_map<TargetType, bdd::nodes_t> targets_roots;
@@ -45,8 +45,7 @@ private:
   EPMeta meta;
 
 public:
-  EP(std::shared_ptr<const bdd::BDD> bdd,
-     const std::vector<const Target *> &targets,
+  EP(std::shared_ptr<const bdd::BDD> bdd, const targets_t &targets,
      std::shared_ptr<Profiler> profiler);
 
   EP(const EP &other, bool is_ancestor = true);
@@ -69,7 +68,7 @@ public:
   const bdd::BDD *get_bdd() const;
   const EPNode *get_root() const;
   const std::vector<EPLeaf> &get_leaves() const;
-  const std::vector<const Target *> &get_targets() const;
+  const targets_t &get_targets() const;
   const bdd::nodes_t &get_target_roots(TargetType target) const;
   const std::set<ep_id_t> &get_ancestors() const;
   const Context &get_ctx() const;

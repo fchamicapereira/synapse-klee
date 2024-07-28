@@ -286,7 +286,7 @@ int64_t Score::get_nr_switch_data_structures(const EP *ep) const {
 
   std::unordered_set<PlacementDecision> switch_placements{
       PlacementDecision::Tofino_SimpleTable,
-      PlacementDecision::Tofino_CachedTable,
+      PlacementDecision::Tofino_TTLCachedTable,
       PlacementDecision::Tofino_VectorRegister,
   };
 

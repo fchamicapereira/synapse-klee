@@ -137,12 +137,13 @@ void EPVisualizer::visit(const EP *ep) {
 
 void EPVisualizer::visit(const EP *ep, const EPNode *node) {
   assert(ep);
-  if (should_ignore_node(node)) {
-    EPVisitor::visit(ep, node);
-    return;
+
+  bool ignore = should_ignore_node(node);
+
+  if (!ignore) {
+    ss << node->get_id() << " ";
   }
 
-  ss << node->get_id() << " ";
   EPVisitor::visit(ep, node);
 
   const std::vector<EPNode *> &children = node->get_children();
@@ -160,8 +161,12 @@ void EPVisualizer::visit(const EP *ep, const EPNode *node) {
       continue;
     }
 
-    ss << node->get_id() << " -> " << child->get_id() << ";"
-       << "\n";
+    child->visit(*this, ep);
+
+    if (!ignore) {
+      ss << node->get_id() << " -> " << child->get_id() << ";"
+         << "\n";
+    }
   }
 }
 

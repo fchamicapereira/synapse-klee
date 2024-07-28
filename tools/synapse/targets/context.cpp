@@ -93,8 +93,7 @@ build_expiration_data(const bdd::BDD *bdd) {
   return expiration_data;
 }
 
-Context::Context(const bdd::BDD *bdd,
-                 const std::vector<const Target *> &targets,
+Context::Context(const bdd::BDD *bdd, const targets_t &targets,
                  const TargetType initial_target,
                  std::shared_ptr<Profiler> _profiler)
     : profiler(_profiler), profiler_mutations_allowed(false),
@@ -464,8 +463,8 @@ std::ostream &operator<<(std::ostream &os, PlacementDecision decision) {
   case PlacementDecision::Tofino_VectorRegister:
     os << "Tofino::Register";
     break;
-  case PlacementDecision::Tofino_CachedTable:
-    os << "Tofino::CachedTable";
+  case PlacementDecision::Tofino_TTLCachedTable:
+    os << "Tofino::TTLCachedTable";
     break;
   case PlacementDecision::TofinoCPU_Dchain:
     os << "TofinoCPU::Dchain";

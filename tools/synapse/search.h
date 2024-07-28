@@ -25,8 +25,8 @@ struct search_meta_t {
 };
 
 struct search_solution_t {
-  EP *ep;
-  SearchSpace *search_space;
+  const EP *ep;
+  const SearchSpace *search_space;
   Score score;
   std::string throughput_estimation;
   std::string throughput_speculation;
@@ -41,28 +41,27 @@ struct search_report_t {
 template <class HCfg> class SearchEngine {
 private:
   std::shared_ptr<bdd::BDD> bdd;
-  std::vector<const Target *> targets;
   Heuristic<HCfg> *h;
   std::shared_ptr<Profiler> profiler;
+  const targets_t targets;
 
-  bool allow_bdd_reordering;
-  std::unordered_set<ep_id_t> peek;
-  bool pause_and_show_on_backtrack;
+  const bool allow_bdd_reordering;
+  const std::unordered_set<ep_id_t> peek;
+  const bool pause_and_show_on_backtrack;
 
 public:
   SearchEngine(const bdd::BDD *bdd, Heuristic<HCfg> *h, Profiler *profiler,
-               bool allow_bdd_reordering,
+               const targets_t &targets, bool allow_bdd_reordering,
                const std::unordered_set<ep_id_t> &peek,
                bool _pause_and_show_on_backtrack);
 
-  SearchEngine(const bdd::BDD *bdd, Heuristic<HCfg> *h, Profiler *profiler);
+  SearchEngine(const bdd::BDD *bdd, Heuristic<HCfg> *h, Profiler *profiler,
+               const targets_t &_targets);
 
   SearchEngine(const SearchEngine &) = delete;
   SearchEngine(SearchEngine &&) = delete;
 
   SearchEngine &operator=(const SearchEngine &) = delete;
-
-  ~SearchEngine();
 
   search_report_t search();
 };

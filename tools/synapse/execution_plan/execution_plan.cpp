@@ -10,7 +10,7 @@ namespace synapse {
 static ep_id_t counter = 0;
 
 static std::unordered_set<TargetType>
-get_target_types(const std::vector<const Target *> &targets) {
+get_target_types(const targets_t &targets) {
   assert(targets.size());
   std::unordered_set<TargetType> targets_types;
 
@@ -21,14 +21,12 @@ get_target_types(const std::vector<const Target *> &targets) {
   return targets_types;
 }
 
-static TargetType
-get_initial_target(const std::vector<const Target *> &targets) {
+static TargetType get_initial_target(const targets_t &targets) {
   assert(targets.size());
   return targets[0]->type;
 }
 
-EP::EP(std::shared_ptr<const bdd::BDD> _bdd,
-       const std::vector<const Target *> &_targets,
+EP::EP(std::shared_ptr<const bdd::BDD> _bdd, const targets_t &_targets,
        std::shared_ptr<Profiler> _profiler)
     : id(counter++), bdd(_bdd), root(nullptr),
       initial_target(get_initial_target(_targets)), targets(_targets),
@@ -92,7 +90,7 @@ EPNode *EP::get_mutable_root() { return root; }
 
 const std::vector<EPLeaf> &EP::get_leaves() const { return leaves; }
 
-const std::vector<const Target *> &EP::get_targets() const { return targets; }
+const targets_t &EP::get_targets() const { return targets; }
 
 const bdd::nodes_t &EP::get_target_roots(TargetType target) const {
   assert(targets_roots.find(target) != targets_roots.end() &&

@@ -118,8 +118,7 @@ void Context::print_speculations(
 speculation_t Context::peek_speculation_for_future_nodes(
     const speculation_t &base_speculation, const EP *ep,
     const bdd::Node *anchor, bdd::nodes_t future_nodes,
-    const std::vector<const Target *> &targets,
-    TargetType current_target) const {
+    const targets_t &targets, TargetType current_target) const {
   future_nodes.erase(anchor->get_id());
 
   if (future_nodes.empty()) {
@@ -178,7 +177,7 @@ static bdd::nodes_t filter_away_nodes(const bdd::nodes_t &nodes,
 bool Context::is_better_speculation(const speculation_t &old_speculation,
                                     const speculation_t &new_speculation,
                                     const EP *ep, const bdd::Node *node,
-                                    const std::vector<const Target *> &targets,
+                                    const targets_t &targets,
                                     TargetType current_target) const {
   bdd::nodes_t old_future_nodes =
       filter_away_nodes(new_speculation.skip, old_speculation.skip);
@@ -197,11 +196,9 @@ bool Context::is_better_speculation(const speculation_t &old_speculation,
   return new_pps > old_pps;
 }
 
-Context::node_speculation_t
-Context::get_best_speculation(const EP *ep, const bdd::Node *node,
-                              const std::vector<const Target *> &targets,
-                              TargetType current_target,
-                              const speculation_t &current_speculation) const {
+Context::node_speculation_t Context::get_best_speculation(
+    const EP *ep, const bdd::Node *node, const targets_t &targets,
+    TargetType current_target, const speculation_t &current_speculation) const {
   std::optional<speculation_t> best_local_speculation;
   std::string best_local_module;
 
@@ -262,7 +259,7 @@ Context::get_best_speculation(const EP *ep, const bdd::Node *node,
 
 void Context::update_throughput_speculation(const EP *ep) {
   const std::vector<EPLeaf> &leaves = ep->get_leaves();
-  const std::vector<const Target *> &targets = ep->get_targets();
+  const targets_t &targets = ep->get_targets();
 
   speculation_t speculation(*this);
   std::vector<Context::node_speculation_t> nodes_speculations;

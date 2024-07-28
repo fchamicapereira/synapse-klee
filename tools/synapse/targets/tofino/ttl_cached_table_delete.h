@@ -5,7 +5,7 @@
 namespace synapse {
 namespace tofino {
 
-class CachedTableDelete : public TofinoModule {
+class TTLCachedTableDelete : public TofinoModule {
 private:
   DS_ID cached_table_id;
   std::unordered_set<DS_ID> cached_table_byproducts;
@@ -16,13 +16,13 @@ private:
   symbol_t map_has_this_key;
 
 public:
-  CachedTableDelete(const bdd::Node *node, DS_ID _cached_table_id,
-                    const std::unordered_set<DS_ID> &_cached_table_byproducts,
-                    addr_t _obj, klee::ref<klee::Expr> _key,
-                    klee::ref<klee::Expr> _value,
-                    const symbol_t &_map_has_this_key)
-      : TofinoModule(ModuleType::Tofino_CachedTableDelete, "CachedTableDelete",
-                     node),
+  TTLCachedTableDelete(
+      const bdd::Node *node, DS_ID _cached_table_id,
+      const std::unordered_set<DS_ID> &_cached_table_byproducts, addr_t _obj,
+      klee::ref<klee::Expr> _key, klee::ref<klee::Expr> _value,
+      const symbol_t &_map_has_this_key)
+      : TofinoModule(ModuleType::Tofino_TTLCachedTableDelete,
+                     "TTLCachedTableDelete", node),
         cached_table_id(_cached_table_id),
         cached_table_byproducts(_cached_table_byproducts), obj(_obj), key(_key),
         value(_value), map_has_this_key(_map_has_this_key) {}
@@ -34,8 +34,8 @@ public:
 
   virtual Module *clone() const override {
     Module *cloned =
-        new CachedTableDelete(node, cached_table_id, cached_table_byproducts,
-                              obj, key, value, map_has_this_key);
+        new TTLCachedTableDelete(node, cached_table_id, cached_table_byproducts,
+                                 obj, key, value, map_has_this_key);
     return cloned;
   }
 
@@ -50,11 +50,11 @@ public:
   }
 };
 
-class CachedTableDeleteGenerator : public TofinoModuleGenerator {
+class TTLCachedTableDeleteGenerator : public TofinoModuleGenerator {
 public:
-  CachedTableDeleteGenerator()
-      : TofinoModuleGenerator(ModuleType::Tofino_CachedTableDelete,
-                              "CachedTableDelete") {}
+  TTLCachedTableDeleteGenerator()
+      : TofinoModuleGenerator(ModuleType::Tofino_TTLCachedTableDelete,
+                              "TTLCachedTableDelete") {}
 
 protected:
   virtual std::optional<speculation_t>
@@ -144,7 +144,7 @@ protected:
     // A bit too strict, but I don't want to build the cached table ds in this
     // module because we don't have a value.
     if (!check_placement(ep, map_erase, "map",
-                         PlacementDecision::Tofino_CachedTable)) {
+                         PlacementDecision::Tofino_TTLCachedTable)) {
       return products;
     }
 
@@ -166,7 +166,7 @@ private:
       const EP *ep, const bdd::Node *node,
       const cached_table_data_t &cached_table_data) const {
     std::unordered_set<DS_ID> deps;
-    CachedTable *cached_table =
+    TTLCachedTable *cached_table =
         get_cached_table(ep, node, cached_table_data, deps);
 
     if (!cached_table) {
@@ -176,7 +176,7 @@ private:
     std::unordered_set<DS_ID> byproducts =
         get_cached_table_byproducts(cached_table);
 
-    Module *module = new CachedTableDelete(
+    Module *module = new TTLCachedTableDelete(
         node, cached_table->id, byproducts, cached_table_data.obj,
         cached_table_data.key, cached_table_data.read_value,
         cached_table_data.map_has_this_key);
@@ -201,7 +201,7 @@ private:
   }
 
   std::unordered_set<DS_ID>
-  get_cached_table_byproducts(CachedTable *cached_table) const {
+  get_cached_table_byproducts(TTLCachedTable *cached_table) const {
     std::unordered_set<DS_ID> byproducts;
 
     std::vector<std::unordered_set<const DS *>> internal_ds =

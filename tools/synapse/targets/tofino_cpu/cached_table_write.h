@@ -7,7 +7,7 @@ namespace tofino_cpu {
 
 using namespace synapse::tofino;
 
-class CachedTableWrite : public TofinoCPUModule {
+class TTLCachedTableWrite : public TofinoCPUModule {
 private:
   DS_ID id;
   addr_t obj;
@@ -15,11 +15,11 @@ private:
   klee::ref<klee::Expr> value;
 
 public:
-  CachedTableWrite(const bdd::Node *node, DS_ID _id, addr_t _obj,
-                   const std::vector<klee::ref<klee::Expr>> &_keys,
-                   klee::ref<klee::Expr> _value)
-      : TofinoCPUModule(ModuleType::TofinoCPU_CachedTableWrite,
-                        "CachedTableWrite", node),
+  TTLCachedTableWrite(const bdd::Node *node, DS_ID _id, addr_t _obj,
+                      const std::vector<klee::ref<klee::Expr>> &_keys,
+                      klee::ref<klee::Expr> _value)
+      : TofinoCPUModule(ModuleType::TofinoCPU_TTLCachedTableWrite,
+                        "TTLCachedTableWrite", node),
         id(_id), obj(_obj), keys(_keys), value(_value) {}
 
   virtual void visit(EPVisitor &visitor, const EP *ep,
@@ -28,7 +28,8 @@ public:
   }
 
   virtual Module *clone() const {
-    CachedTableWrite *cloned = new CachedTableWrite(node, id, obj, keys, value);
+    TTLCachedTableWrite *cloned =
+        new TTLCachedTableWrite(node, id, obj, keys, value);
     return cloned;
   }
 
@@ -38,11 +39,11 @@ public:
   klee::ref<klee::Expr> get_value() const { return value; }
 };
 
-class CachedTableWriteGenerator : public TofinoCPUModuleGenerator {
+class TTLCachedTableWriteGenerator : public TofinoCPUModuleGenerator {
 public:
-  CachedTableWriteGenerator()
-      : TofinoCPUModuleGenerator(ModuleType::TofinoCPU_CachedTableWrite,
-                                 "CachedTableWrite") {}
+  TTLCachedTableWriteGenerator()
+      : TofinoCPUModuleGenerator(ModuleType::TofinoCPU_TTLCachedTableWrite,
+                                 "TTLCachedTableWrite") {}
 
 protected:
   virtual std::optional<speculation_t>
@@ -60,7 +61,7 @@ protected:
     }
 
     if (!can_place(ep, call_node, "map",
-                   PlacementDecision::Tofino_CachedTable)) {
+                   PlacementDecision::Tofino_TTLCachedTable)) {
       return std::nullopt;
     }
 
@@ -83,7 +84,7 @@ protected:
     }
 
     if (!check_placement(ep, call_node, "map",
-                         PlacementDecision::Tofino_CachedTable)) {
+                         PlacementDecision::Tofino_TTLCachedTable)) {
       return products;
     }
 
@@ -94,7 +95,7 @@ protected:
 
     DS_ID id = get_cached_table_id(ep, obj);
 
-    Module *module = new CachedTableWrite(node, id, obj, keys, value);
+    Module *module = new TTLCachedTableWrite(node, id, obj, keys, value);
     EPNode *ep_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
