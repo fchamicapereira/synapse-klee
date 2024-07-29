@@ -73,6 +73,11 @@ protected:
     klee::ref<klee::Expr> condition = branch_node->get_condition();
     std::vector<klee::ref<klee::Expr>> conditions = split_condition(condition);
 
+    if (conditions.size() == 1) {
+      // Should be implemented by the Simple If module.
+      return products;
+    }
+
     for (klee::ref<klee::Expr> sub_condition : conditions) {
       if (!tna.condition_meets_phv_limit(sub_condition)) {
         assert(false && "TODO: deal with this");

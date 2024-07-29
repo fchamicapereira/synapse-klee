@@ -25,13 +25,14 @@ class Recirculate;
 class Ignore;
 class IfSimple;
 class If;
-class ParserCondition;
 class Then;
 class Else;
 class Forward;
 class Drop;
 class Broadcast;
 class ParserExtraction;
+class ParserCondition;
+class ParserReject;
 class ModifyHeader;
 class SimpleTableLookup;
 class VectorRegisterLookup;
@@ -126,13 +127,14 @@ public:
   VISIT_NOP(tofino::Ignore)
   VISIT_NOP(tofino::IfSimple)
   VISIT_NOP(tofino::If)
-  VISIT_NOP(tofino::ParserCondition)
   VISIT_NOP(tofino::Then)
   VISIT_NOP(tofino::Else)
   VISIT_NOP(tofino::Forward)
   VISIT_NOP(tofino::Drop)
   VISIT_NOP(tofino::Broadcast)
   VISIT_NOP(tofino::ParserExtraction)
+  VISIT_NOP(tofino::ParserCondition)
+  VISIT_NOP(tofino::ParserReject)
   VISIT_NOP(tofino::ModifyHeader)
   VISIT_NOP(tofino::SimpleTableLookup)
   VISIT_NOP(tofino::VectorRegisterLookup)

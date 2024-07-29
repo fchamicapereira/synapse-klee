@@ -16,7 +16,7 @@ code_t Transpiler::transpile(klee::ref<klee::Expr> expr) {
   bool is_constant = kutil::is_constant(expr);
 
   if (is_constant) {
-    builder << kutil::get_constant_signed(expr);
+    builder << kutil::solver_toolbox.value_from_expr(expr);
   } else {
     visit(expr);
 
@@ -37,9 +37,9 @@ klee::ExprVisitor::Action Transpiler::visitRead(const klee::ReadExpr &e) {
 
   code_builder_t &builder = builders.top();
 
-  code_t var;
+  TofinoSynthesizer::var_t var;
   if (synthesizer->get_var(expr, var)) {
-    builder << var;
+    builder << var.name;
     return klee::ExprVisitor::Action::skipChildren();
   }
 
@@ -66,9 +66,9 @@ klee::ExprVisitor::Action Transpiler::visitConcat(const klee::ConcatExpr &e) {
 
   code_builder_t &builder = builders.top();
 
-  code_t var;
+  TofinoSynthesizer::var_t var;
   if (synthesizer->get_var(expr, var)) {
-    builder << var;
+    builder << var.name;
     return klee::ExprVisitor::Action::skipChildren();
   }
 
@@ -202,6 +202,31 @@ klee::ExprVisitor::Action Transpiler::visitEq(const klee::EqExpr &e) {
   klee::ref<klee::Expr> lhs = e.getKid(0);
   klee::ref<klee::Expr> rhs = e.getKid(1);
 
+  // Kind of a hack, but we need to handle the case where we have a comparison
+  // with booleans.
+  TofinoSynthesizer::var_t var;
+
+  klee::ref<klee::Expr> var_expr;
+  klee::ref<klee::Expr> const_expr;
+
+  if (kutil::is_constant(lhs)) {
+    const_expr = lhs;
+    var_expr = rhs;
+  } else {
+    const_expr = rhs;
+    var_expr = lhs;
+  }
+
+  if (kutil::is_constant(const_expr) && synthesizer->get_var(var_expr, var) &&
+      var.is_bool) {
+    uint64_t value = kutil::solver_toolbox.value_from_expr(const_expr);
+    if (value == 0) {
+      builder << "!";
+    }
+    builder << var.name;
+    return klee::ExprVisitor::Action::skipChildren();
+  }
+
   builder << transpile(lhs);
   builder << " == ";
   builder << transpile(rhs);
@@ -214,6 +239,31 @@ klee::ExprVisitor::Action Transpiler::visitNe(const klee::NeExpr &e) {
 
   klee::ref<klee::Expr> lhs = e.getKid(0);
   klee::ref<klee::Expr> rhs = e.getKid(1);
+
+  // Kind of a hack, but we need to handle the case where we have a comparison
+  // with booleans.
+  TofinoSynthesizer::var_t var;
+
+  klee::ref<klee::Expr> var_expr;
+  klee::ref<klee::Expr> const_expr;
+
+  if (kutil::is_constant(lhs)) {
+    const_expr = lhs;
+    var_expr = rhs;
+  } else {
+    const_expr = rhs;
+    var_expr = lhs;
+  }
+
+  if (kutil::is_constant(const_expr) && synthesizer->get_var(var_expr, var) &&
+      var.is_bool) {
+    uint64_t value = kutil::solver_toolbox.value_from_expr(const_expr);
+    if (value != 0) {
+      builder << "!";
+    }
+    builder << var.name;
+    return klee::ExprVisitor::Action::skipChildren();
+  }
 
   builder << transpile(lhs);
   builder << " != ";

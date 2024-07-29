@@ -22,12 +22,15 @@ private:
     code_t name;
     klee::ref<klee::Expr> expr;
     std::optional<symbol_t> symbol;
+    bool is_bool;
 
-    var_t(const code_t &name, const symbol_t &symbol)
-        : name(name), expr(symbol.expr), symbol(symbol) {}
+    var_t() {}
 
-    var_t(const code_t &name, klee::ref<klee::Expr> expr)
-        : name(name), expr(expr) {}
+    var_t(const code_t &name, const symbol_t &symbol, bool _is_bool = false)
+        : name(name), expr(symbol.expr), symbol(symbol), is_bool(_is_bool) {}
+
+    var_t(const code_t &name, klee::ref<klee::Expr> expr, bool _is_bool = false)
+        : name(name), expr(expr), is_bool(_is_bool) {}
   };
 
   typedef std::vector<var_t> vars_t;
@@ -35,6 +38,7 @@ private:
 private:
   std::unordered_map<code_t, int> var_prefix_usage;
   std::vector<vars_t> var_stacks;
+  std::vector<var_t> hdrs;
   Transpiler transpiler;
 
 public:
@@ -48,13 +52,14 @@ public:
   DECLARE_VISIT(tofino::Ignore)
   DECLARE_VISIT(tofino::IfSimple)
   DECLARE_VISIT(tofino::If)
-  DECLARE_VISIT(tofino::ParserCondition)
   DECLARE_VISIT(tofino::Then)
   DECLARE_VISIT(tofino::Else)
   DECLARE_VISIT(tofino::Forward)
   DECLARE_VISIT(tofino::Drop)
   DECLARE_VISIT(tofino::Broadcast)
+  DECLARE_VISIT(tofino::ParserCondition)
   DECLARE_VISIT(tofino::ParserExtraction)
+  DECLARE_VISIT(tofino::ParserReject)
   DECLARE_VISIT(tofino::ModifyHeader)
   DECLARE_VISIT(tofino::SimpleTableLookup)
   DECLARE_VISIT(tofino::VectorRegisterLookup)
@@ -70,8 +75,10 @@ private:
   code_t type_from_expr(klee::ref<klee::Expr> expr) const;
 
   code_t get_unique_var_name(const code_t &prefix);
-  bool get_var(klee::ref<klee::Expr> expr, code_t &out_var) const;
+  bool get_var(klee::ref<klee::Expr> expr, var_t &out_var) const;
+  bool get_hdr_var(klee::ref<klee::Expr> expr, var_t &out_var) const;
 
+  void transpile_parser(const Parser &parser);
   void transpile_table(code_builder_t &builder, const Table *table,
                        const std::vector<klee::ref<klee::Expr>> &keys,
                        const std::vector<klee::ref<klee::Expr>> &values);

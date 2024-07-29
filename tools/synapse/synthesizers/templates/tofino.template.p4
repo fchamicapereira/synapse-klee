@@ -87,7 +87,7 @@ parser IngressParser(
 
         transition select(ig_intr_md.ingress_port) {
             CPU_PCIE_PORT: parse_cpu;
-            default: parse_init;
+            default: parser_init;
         }
     }
 
@@ -161,7 +161,7 @@ parser EgressParser(
     packet_in pkt,
 
     /* User */
-    out my_egress_header_t hdr,
+    out my_egress_headers_t hdr,
     out my_egress_metadata_t eg_md,
 
     /* Intrinsic */
@@ -178,7 +178,7 @@ parser EgressParser(
 
 control Egress(
     /* User */
-    inout my_egress_header_t hdr,
+    inout my_egress_headers_t hdr,
     inout my_egress_metadata_t eg_md,
 
     /* Intrinsic */
@@ -194,7 +194,7 @@ control EgressDeparser(
     packet_out pkt,
 
     /* User */
-    inout my_egress_header_t hdr,
+    inout my_egress_headers_t hdr,
     in    my_egress_metadata_t eg_md,
 
     /* Intrinsic */

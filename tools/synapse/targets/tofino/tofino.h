@@ -14,6 +14,7 @@
 #include "broadcast.h"
 #include "parser_extraction.h"
 #include "parser_condition.h"
+#include "parser_reject.h"
 #include "modify_header.h"
 #include "simple_table_lookup.h"
 #include "vector_register_lookup.h"
@@ -39,13 +40,14 @@ struct TofinoTarget : public Target {
                    new IgnoreGenerator(),
                    new IfSimpleGenerator(),
                    new IfGenerator(),
-                   new ParserConditionGenerator(),
                    new ThenGenerator(),
                    new ElseGenerator(),
                    new ForwardGenerator(),
                    new DropGenerator(),
                    new BroadcastGenerator(),
                    new ParserExtractionGenerator(),
+                   new ParserConditionGenerator(),
+                   new ParserRejectGenerator(),
                    new ModifyHeaderGenerator(),
                    new SimpleTableLookupGenerator(),
                    new VectorRegisterLookupGenerator(),

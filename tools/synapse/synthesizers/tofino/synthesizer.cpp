@@ -23,6 +23,13 @@ static const DS *get_tofino_ds(const EP *ep, DS_ID id) {
   return ds;
 }
 
+static const Parser &get_tofino_parser(const EP *ep) {
+  const Context &ctx = ep->get_ctx();
+  const TofinoContext *tofino_ctx = ctx.get_target_ctx<TofinoContext>();
+  const TNA &tna = tofino_ctx->get_tna();
+  return tna.parser;
+}
+
 TofinoSynthesizer::TofinoSynthesizer(const std::filesystem::path &out_dir,
                                      const bdd::BDD *bdd)
     : Synthesizer(TEMPLATE_FILENAME,
@@ -53,6 +60,11 @@ TofinoSynthesizer::TofinoSynthesizer(const std::filesystem::path &out_dir,
 
 void TofinoSynthesizer::visit(const EP *ep) {
   EPVisitor::visit(ep);
+
+  // Transpile the parser after the whole EP has been visited so we have all the
+  // headers available.
+  transpile_parser(get_tofino_parser(ep));
+
   Synthesizer::dump();
 }
 
@@ -66,6 +78,135 @@ void TofinoSynthesizer::visit(const EP *ep, const EPNode *node) {
   const std::vector<EPNode *> &children = node->get_children();
   for (const EPNode *child : children) {
     visit(ep, child);
+  }
+}
+
+static code_t get_parser_state_name(const ParserState *state, bool state_init) {
+  code_builder_t builder;
+
+  if (state_init) {
+    builder << "parser_init";
+    return builder.dump();
+  }
+
+  builder << "parser_";
+  bool first = true;
+  for (bdd::node_id_t id : state->ids) {
+    if (!first) {
+      builder << "_";
+    } else {
+      first = false;
+    }
+    builder << id;
+  }
+
+  return builder.dump();
+}
+
+void TofinoSynthesizer::transpile_parser(const Parser &parser) {
+  code_builder_t &ingress_parser = get(MARKER_INGRESS_PARSER);
+
+  std::vector<const ParserState *> states{parser.get_initial_state()};
+  bool state_init = true;
+
+  while (!states.empty()) {
+    const ParserState *state = states.front();
+    states.erase(states.begin());
+
+    switch (state->type) {
+    case ParserStateType::EXTRACT: {
+      const ParserStateExtract *extract =
+          static_cast<const ParserStateExtract *>(state);
+
+      code_t state_name = get_parser_state_name(state, state_init);
+
+      var_t hdr_var;
+      bool hdr_found = get_hdr_var(extract->hdr, hdr_var);
+      assert(hdr_found && "Header not found");
+
+      assert(extract->next);
+      code_t next_state = get_parser_state_name(extract->next, false);
+
+      ingress_parser.indent();
+      ingress_parser << "state " << state_name << " {\n";
+
+      ingress_parser.inc();
+      ingress_parser.indent();
+      ingress_parser << "pkt.extract(" << hdr_var.name << ");\n";
+
+      ingress_parser.indent();
+      ingress_parser << "transition " << next_state << ";\n";
+
+      ingress_parser.dec();
+      ingress_parser.indent();
+      ingress_parser << "}\n";
+
+      states.push_back(extract->next);
+    } break;
+    case ParserStateType::SELECT: {
+      const ParserStateSelect *select =
+          static_cast<const ParserStateSelect *>(state);
+
+      code_t state_name = get_parser_state_name(state, state_init);
+
+      ingress_parser.indent();
+      ingress_parser << "state " << state_name << " {\n";
+
+      ingress_parser.inc();
+      ingress_parser.indent();
+      ingress_parser << "transition select ("
+                     << transpiler.transpile(select->field) << ") {\n";
+
+      ingress_parser.inc();
+
+      code_t next_true = get_parser_state_name(select->on_true, false);
+      code_t next_false = get_parser_state_name(select->on_false, false);
+
+      for (int value : select->values) {
+        ingress_parser.indent();
+        ingress_parser << value << ": " << next_true << ";\n";
+      }
+
+      ingress_parser.indent();
+      ingress_parser << "default: " << next_false << ";\n";
+
+      ingress_parser.dec();
+      ingress_parser.indent();
+      ingress_parser << "}\n";
+
+      ingress_parser.dec();
+      ingress_parser.indent();
+      ingress_parser << "}\n";
+
+      states.push_back(select->on_true);
+      states.push_back(select->on_false);
+    } break;
+    case ParserStateType::TERMINATE: {
+      const ParserStateTerminate *terminate =
+          static_cast<const ParserStateTerminate *>(state);
+
+      code_t state_name = get_parser_state_name(state, state_init);
+
+      ingress_parser.indent();
+      ingress_parser << "state " << state_name << " {\n";
+
+      ingress_parser.inc();
+      ingress_parser.indent();
+      ingress_parser << "transition ";
+      if (terminate->accept) {
+        ingress_parser << "accept";
+      } else {
+        ingress_parser << "reject";
+      }
+      ingress_parser << ";\n";
+
+      ingress_parser.dec();
+      ingress_parser.indent();
+      ingress_parser << "}\n";
+    } break;
+    }
+
+    state_init = false;
   }
 }
 
@@ -87,12 +228,12 @@ code_t TofinoSynthesizer::type_from_expr(klee::ref<klee::Expr> expr) const {
 }
 
 bool TofinoSynthesizer::get_var(klee::ref<klee::Expr> expr,
-                                code_t &out_var) const {
+                                var_t &out_var) const {
   for (auto it = var_stacks.rbegin(); it != var_stacks.rend(); ++it) {
     const vars_t &vars = *it;
     for (const var_t &var : vars) {
       if (kutil::solver_toolbox.are_exprs_always_equal(var.expr, expr)) {
-        out_var = var.name;
+        out_var = var;
         return true;
       }
 
@@ -109,9 +250,41 @@ bool TofinoSynthesizer::get_var(klee::ref<klee::Expr> expr,
                                                        expr_bits);
 
         if (kutil::solver_toolbox.are_exprs_always_equal(var_slice, expr)) {
-          out_var = slice_var(var, offset, expr_bits);
+          out_var = var;
+          out_var.name = slice_var(var, offset, expr_bits);
           return true;
         }
+      }
+    }
+  }
+
+  return false;
+}
+
+bool TofinoSynthesizer::get_hdr_var(klee::ref<klee::Expr> expr,
+                                    var_t &out_var) const {
+  for (const var_t &var : hdrs) {
+    if (kutil::solver_toolbox.are_exprs_always_equal(var.expr, expr)) {
+      out_var = var;
+      return true;
+    }
+
+    klee::Expr::Width expr_bits = expr->getWidth();
+    klee::Expr::Width var_bits = var.expr->getWidth();
+
+    if (expr_bits > var_bits) {
+      continue;
+    }
+
+    for (bits_t offset = 0; offset <= var_bits - expr_bits; offset += 8) {
+      klee::ref<klee::Expr> var_slice =
+          kutil::solver_toolbox.exprBuilder->Extract(var.expr, offset,
+                                                     expr_bits);
+
+      if (kutil::solver_toolbox.are_exprs_always_equal(var_slice, expr)) {
+        out_var = var;
+        out_var.name = slice_var(var, offset, expr_bits);
+        return true;
       }
     }
   }
@@ -123,7 +296,9 @@ void TofinoSynthesizer::visit(const EP *ep, const EPNode *ep_node,
                               const tofino::SendToController *node) {
   code_builder_t &ingress = get(MARKER_INGRESS_CONTROL_APPLY);
   ingress.indent();
-  ingress << "send_to_controller();\n";
+  ingress << "send_to_controller(";
+  ingress << ep_node->get_id();
+  ingress << ");\n";
 }
 
 void TofinoSynthesizer::visit(const EP *ep, const EPNode *ep_node,
@@ -260,6 +435,9 @@ void TofinoSynthesizer::visit(const EP *ep, const EPNode *ep_node,
 }
 
 void TofinoSynthesizer::visit(const EP *ep, const EPNode *ep_node,
+                              const tofino::ParserReject *node) {}
+
+void TofinoSynthesizer::visit(const EP *ep, const EPNode *ep_node,
                               const tofino::Broadcast *node) {
   // TODO:
   assert(false && "TODO");
@@ -287,13 +465,28 @@ void TofinoSynthesizer::visit(const EP *ep, const EPNode *ep_node,
   ingress_hdrs << hdr_name << "_h " << hdr_name << ";\n";
 
   var_stacks.back().emplace_back("hdr." + hdr_name + ".data", hdr);
+  hdrs.emplace_back("hdr." + hdr_name, hdr);
 }
 
 void TofinoSynthesizer::visit(const EP *ep, const EPNode *ep_node,
                               const tofino::ModifyHeader *node) {
-  code_builder_t &ingress = get(MARKER_INGRESS_CONTROL_APPLY);
+  code_builder_t &ingress_apply = get(MARKER_INGRESS_CONTROL_APPLY);
+
+  klee::ref<klee::Expr> hdr = node->get_hdr();
+
+  var_t hdr_var;
+  bool found = get_var(hdr, hdr_var);
+  assert(found && "Header not found");
 
   const std::vector<modification_t> &changes = node->get_changes();
+  for (const modification_t &mod : changes) {
+    klee::ref<klee::Expr> expr = mod.expr;
+    ingress_apply.indent();
+    ingress_apply << hdr_var.name;
+    ingress_apply << " = ";
+    ingress_apply << transpiler.transpile(expr);
+    ingress_apply << ";\n";
+  }
 }
 
 void TofinoSynthesizer::visit(const EP *ep, const EPNode *ep_node,
@@ -315,14 +508,15 @@ void TofinoSynthesizer::visit(const EP *ep, const EPNode *ep_node,
 
   if (hit) {
     code_t hit_var_name = "hit_" + table_id;
+    var_stacks.back().emplace_back(hit_var_name, hit.value(), true);
     ingress_apply << "bool " << hit_var_name << " = ";
-    var_stacks.back().emplace_back(hit_var_name, hit.value());
   }
 
-  ingress_apply << "table_" << table_id << "a.apply()";
+  ingress_apply << table_id << ".apply()";
   if (hit) {
     ingress_apply << ".hit";
   }
+  ingress_apply << ";";
   ingress_apply << "\n";
 }
 

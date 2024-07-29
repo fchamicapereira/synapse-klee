@@ -5,10 +5,10 @@
 namespace synapse {
 namespace tofino {
 
-class Drop : public TofinoModule {
+class ParserReject : public TofinoModule {
 public:
-  Drop(const bdd::Node *node)
-      : TofinoModule(ModuleType::Tofino_Drop, "Drop", node) {}
+  ParserReject(const bdd::Node *node)
+      : TofinoModule(ModuleType::Tofino_ParserReject, "ParserReject", node) {}
 
   virtual void visit(EPVisitor &visitor, const EP *ep,
                      const EPNode *ep_node) const override {
@@ -16,14 +16,16 @@ public:
   }
 
   virtual Module *clone() const {
-    Drop *cloned = new Drop(node);
+    ParserReject *cloned = new ParserReject(node);
     return cloned;
   }
 };
 
-class DropGenerator : public TofinoModuleGenerator {
+class ParserRejectGenerator : public TofinoModuleGenerator {
 public:
-  DropGenerator() : TofinoModuleGenerator(ModuleType::Tofino_Drop, "Drop") {}
+  ParserRejectGenerator()
+      : TofinoModuleGenerator(ModuleType::Tofino_ParserReject, "ParserReject") {
+  }
 
 protected:
   virtual std::optional<speculation_t>
@@ -58,21 +60,21 @@ protected:
       return products;
     }
 
-    EP *new_ep = new EP(*ep);
-    products.emplace_back(new_ep);
-
-    if (is_parser_reject(ep)) {
+    if (!is_parser_reject(ep)) {
       return products;
     }
 
-    Module *module = new Drop(node);
+    EP *new_ep = new EP(*ep);
+    products.emplace_back(new_ep);
+
+    Module *module = new ParserReject(node);
     EPNode *ep_node = new EPNode(module);
 
     EPLeaf leaf(ep_node, node->get_next());
     new_ep->process_leaf(ep_node, {leaf});
 
     TofinoContext *tofino_ctx = get_mutable_tofino_ctx(new_ep);
-    tofino_ctx->parser_accept(ep, node);
+    tofino_ctx->parser_reject(ep, node);
 
     return products;
   }

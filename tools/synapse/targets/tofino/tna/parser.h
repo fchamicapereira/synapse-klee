@@ -245,13 +245,15 @@ public:
     bdd::nodes_t freed;
 
     // The states data structure can have duplicates, so we need to make sure
-    for (auto &kv : states) {
-      if (freed.find(kv.first) == freed.end()) {
-        freed.insert(kv.second->ids.begin(), kv.second->ids.end());
-        delete kv.second;
+    for (const auto &[node_id, state] : states) {
+      if (freed.find(node_id) == freed.end()) {
+        freed.insert(state->ids.begin(), state->ids.end());
+        delete state;
       }
     }
   }
+
+  const ParserState *get_initial_state() const { return initial_state; }
 
   void add_extract(bdd::node_id_t leaf_id, bdd::node_id_t id,
                    klee::ref<klee::Expr> hdr, std::optional<bool> direction) {

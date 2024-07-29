@@ -26,7 +26,7 @@ void TofinoSynthesizer::transpile_table(
 
   if (!values.empty()) {
     builder.indent();
-    builder << action_name << "(";
+    builder << "action " << action_name << "(";
 
     for (size_t i = 0; i < total_values; i++) {
       klee::ref<klee::Expr> value = values[i];

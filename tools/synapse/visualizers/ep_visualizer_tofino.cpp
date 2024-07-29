@@ -37,6 +37,7 @@ VISIT_BRANCH(tofino::IfSimple)
 VISIT_BRANCH(tofino::If)
 VISIT_BRANCH(tofino::ParserCondition)
 
+SHOW_MODULE_NAME(tofino::ParserReject)
 SHOW_MODULE_NAME(tofino::SendToController)
 SHOW_MODULE_NAME(tofino::Drop)
 SHOW_MODULE_NAME(tofino::Broadcast)
