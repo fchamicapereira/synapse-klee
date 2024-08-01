@@ -58,12 +58,12 @@ protected:
       return products;
     }
 
-    EP *new_ep = new EP(*ep);
-    products.emplace_back(new_ep);
-
     if (is_parser_reject(ep)) {
       return products;
     }
+
+    EP *new_ep = new EP(*ep);
+    products.emplace_back(new_ep);
 
     Module *module = new Drop(node);
     EPNode *ep_node = new EPNode(module);

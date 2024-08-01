@@ -46,20 +46,12 @@ protected:
   process_node(const EP *ep, const bdd::Node *node) const override {
     std::vector<__generator_product_t> products;
 
-    // We can always recirculate, with a small exception: if we have just
-    // recirculated, and did nothing meanwhile.
+    const TofinoContext *tofino_ctx = get_tofino_ctx(ep);
+    std::unordered_set<DS_ID> deps = tofino_ctx->get_stateful_deps(ep, node);
 
-    const EPLeaf *active_leaf = ep->get_active_leaf();
-    const EPNode *active_node = active_leaf->node;
-
-    if (!active_node) {
-      // Root leaf.
-      return products;
-    }
-
-    const Module *active_module = active_node->get_module();
-
-    if (active_module->get_type() == ModuleType::Tofino_Recirculate) {
+    // We can only recirculate if a stateful operation was implemented since the
+    // last recirculation.
+    if (deps.empty()) {
       return products;
     }
 
