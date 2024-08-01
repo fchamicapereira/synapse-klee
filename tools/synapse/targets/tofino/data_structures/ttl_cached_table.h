@@ -17,7 +17,7 @@ struct TTLCachedTable : public DS {
   int num_entries;
   std::vector<bits_t> keys;
 
-  Table table;
+  std::vector<Table> tables;
   Register cache_expirator;
   std::vector<Register> cache_keys;
 

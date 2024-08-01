@@ -49,13 +49,17 @@ TTLCachedTable::TTLCachedTable(const TNAProperties &properties, DS_ID _id,
                                const std::vector<bits_t> &_keys)
     : DS(DSType::CACHED_TABLE, _id), cache_capacity(_cache_capacity),
       num_entries(_num_entries), keys(_keys),
-      table(build_table(id, num_entries, keys)),
+      tables({
+          build_table(id + "_0", num_entries, keys),
+          build_table(id + "_1", num_entries, keys),
+          build_table(id + "_2", num_entries, keys),
+      }),
       cache_expirator(build_cache_expirator(properties, _id, cache_capacity)),
       cache_keys(build_cache_keys(properties, id, keys, cache_capacity)) {}
 
 TTLCachedTable::TTLCachedTable(const TTLCachedTable &other)
     : DS(DSType::CACHED_TABLE, other.id), cache_capacity(other.cache_capacity),
-      num_entries(other.num_entries), keys(other.keys), table(other.table),
+      num_entries(other.num_entries), keys(other.keys), tables(other.tables),
       cache_expirator(other.cache_expirator), cache_keys(other.cache_keys) {}
 
 DS *TTLCachedTable::clone() const { return new TTLCachedTable(*this); }
@@ -66,7 +70,9 @@ void TTLCachedTable::log_debug() const {
   Log::dbg() << "ID:      " << id << "\n";
   Log::dbg() << "Entries: " << num_entries << "\n";
   Log::dbg() << "Cache:   " << cache_capacity << "\n";
-  table.log_debug();
+  for (const Table &table : tables) {
+    table.log_debug();
+  }
   cache_expirator.log_debug();
   for (const Register &cache_key : cache_keys) {
     cache_key.log_debug();
@@ -81,7 +87,8 @@ TTLCachedTable::get_internal_ds() const {
   std::vector<std::unordered_set<const DS *>> internal_ds;
 
   internal_ds.emplace_back();
-  internal_ds.back().insert(&table);
+  for (const Table &table : tables)
+    internal_ds.back().insert(&table);
 
   internal_ds.emplace_back();
   internal_ds.back().insert(&cache_expirator);
