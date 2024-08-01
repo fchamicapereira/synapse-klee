@@ -227,6 +227,14 @@ code_t TofinoSynthesizer::type_from_expr(klee::ref<klee::Expr> expr) const {
   return builder.dump();
 }
 
+code_t TofinoSynthesizer::type_from_var(const var_t &var) const {
+  if (var.is_bool) {
+    return "bool";
+  }
+
+  return type_from_expr(var.expr);
+}
+
 bool TofinoSynthesizer::get_var(klee::ref<klee::Expr> expr,
                                 var_t &out_var) const {
   for (auto it = var_stacks.rbegin(); it != var_stacks.rend(); ++it) {
@@ -294,11 +302,40 @@ bool TofinoSynthesizer::get_hdr_var(klee::ref<klee::Expr> expr,
 
 void TofinoSynthesizer::visit(const EP *ep, const EPNode *ep_node,
                               const tofino::SendToController *node) {
-  code_builder_t &ingress = get(MARKER_INGRESS_CONTROL_APPLY);
-  ingress.indent();
-  ingress << "send_to_controller(";
-  ingress << ep_node->get_id();
-  ingress << ");\n";
+  code_builder_t &ingress_apply = get(MARKER_INGRESS_CONTROL_APPLY);
+  code_builder_t &cpu_hdr = get(MARKER_CPU_HEADER);
+
+  const symbols_t &symbols = node->get_symbols();
+
+  for (const symbol_t &symbol : symbols) {
+    var_t var;
+    bool found = get_var(symbol.expr, var);
+    assert(found && "Symbol not found");
+
+    ingress_apply.indent();
+    ingress_apply << "hdr.cpu.";
+    ingress_apply << var.name;
+    ingress_apply << " = ";
+    ingress_apply << var.name;
+    ingress_apply << ";\n";
+
+    if (var.is_bool) {
+      cpu_hdr.indent();
+      cpu_hdr << "@padding bit<7> pad_";
+      cpu_hdr << var.name;
+      cpu_hdr << ";\n";
+    }
+
+    cpu_hdr.indent();
+    cpu_hdr << type_from_var(var);
+    cpu_hdr << " ";
+    cpu_hdr << var.name << ";\n";
+  }
+
+  ingress_apply.indent();
+  ingress_apply << "send_to_controller(";
+  ingress_apply << ep_node->get_id();
+  ingress_apply << ");\n";
 }
 
 void TofinoSynthesizer::visit(const EP *ep, const EPNode *ep_node,

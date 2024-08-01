@@ -937,6 +937,14 @@ symbols_t get_prev_symbols(const bdd::Node *node,
                            const bdd::nodes_t &stop_nodes) {
   symbols_t symbols;
 
+  assert(node);
+  node = node->get_prev();
+
+  std::unordered_set<std::string> ignoring_symbols = {
+      "packet_chunks",
+      "out_of_space",
+  };
+
   while (node) {
     if (stop_nodes.find(node->get_id()) != stop_nodes.end()) {
       break;
@@ -945,7 +953,14 @@ symbols_t get_prev_symbols(const bdd::Node *node,
     if (node->get_type() == bdd::NodeType::CALL) {
       const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
       symbols_t local_symbols = call_node->get_locally_generated_symbols();
-      symbols.insert(local_symbols.begin(), local_symbols.end());
+
+      for (const symbol_t &symbol : local_symbols) {
+        if (ignoring_symbols.find(symbol.base) != ignoring_symbols.end()) {
+          continue;
+        }
+
+        symbols.insert(symbol);
+      }
     }
 
     node = node->get_prev();

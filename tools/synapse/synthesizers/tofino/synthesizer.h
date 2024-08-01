@@ -73,6 +73,7 @@ public:
 private:
   code_t slice_var(const var_t &var, unsigned offset, bits_t size) const;
   code_t type_from_expr(klee::ref<klee::Expr> expr) const;
+  code_t type_from_var(const var_t &var) const;
 
   code_t get_unique_var_name(const code_t &prefix);
   bool get_var(klee::ref<klee::Expr> expr, var_t &out_var) const;
@@ -82,6 +83,11 @@ private:
   void transpile_table(code_builder_t &builder, const Table *table,
                        const std::vector<klee::ref<klee::Expr>> &keys,
                        const std::vector<klee::ref<klee::Expr>> &values);
+  void
+  transpile_ttl_cached_table(code_builder_t &builder,
+                             const TTLCachedTable *table,
+                             const std::vector<klee::ref<klee::Expr>> &keys,
+                             const std::vector<klee::ref<klee::Expr>> &values);
 
   void dbg_vars() const;
 

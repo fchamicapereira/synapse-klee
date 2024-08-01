@@ -94,9 +94,6 @@ void Synthesizer::dump() const {
     marker_t marker = MARKER_AFFIX + marker_label + MARKER_SUFFIX;
     code_t code = builder.stream.str();
 
-    std::cerr << "Marker: " << marker << std::endl;
-    std::cerr << "Code:\n" << code << std::endl;
-
     size_t pos = template_str.find(marker);
     assert(pos != std::string::npos);
 

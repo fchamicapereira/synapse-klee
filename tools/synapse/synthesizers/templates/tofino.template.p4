@@ -13,13 +13,15 @@
 typedef bit<9> port_t;
 typedef bit<7> port_pad_t;
 
+typedef bit<8> match_counter_t;
+
 header cpu_h {
     bit<16> code_path;
     
-    @padding port_pad_t pad0;
+    @padding port_pad_t pad_in_port;
     port_t in_port;
 
-    @padding port_pad_t pad1;
+    @padding port_pad_t pad_out_port;
     port_t out_port;
 
 /*@{CPU_HEADER}@*/
@@ -126,7 +128,6 @@ control Ingress(
     }
 
 /*@{INGRESS_CONTROL}@*/
-
     apply {
 /*@{INGRESS_CONTROL_APPLY}@*/
     }

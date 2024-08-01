@@ -25,7 +25,7 @@ public:
     return cloned;
   }
 
-  symbols_t get_symbols() const { return symbols; }
+  const symbols_t &get_symbols() const { return symbols; }
 };
 
 class SendToControllerGenerator : public TofinoModuleGenerator {

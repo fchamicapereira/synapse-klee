@@ -102,5 +102,10 @@ void TofinoSynthesizer::transpile_table(
   builder << "\n";
 }
 
+void TofinoSynthesizer::transpile_ttl_cached_table(
+    code_builder_t &builder, const TTLCachedTable *table,
+    const std::vector<klee::ref<klee::Expr>> &keys,
+    const std::vector<klee::ref<klee::Expr>> &values) {}
+
 } // namespace tofino
 } // namespace synapse
