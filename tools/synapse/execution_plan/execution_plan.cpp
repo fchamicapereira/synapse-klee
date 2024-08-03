@@ -315,7 +315,7 @@ void EP::log_debug_hit_rate() const {
   profiler->log_debug();
 }
 
-void EP::inspect_debug() const {
+void EP::inspect() const {
   if (!Log::is_debug_active()) {
     return;
   }
@@ -360,6 +360,8 @@ void EP::inspect_debug() const {
     const bdd::Node *found_next = bdd->get_node_by_id(next->get_id());
     assert(next == found_next);
   }
+
+  bdd->inspect();
 }
 
 constraints_t EP::get_active_leaf_constraints() const {

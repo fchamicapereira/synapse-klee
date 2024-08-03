@@ -224,13 +224,25 @@ Context::node_speculation_t Context::get_best_speculation(
         continue;
       }
 
-      // bool is_better =
-      //     is_better_speculation(*best_local_speculation, *new_speculation,
-      //     ep,
-      //                           node, targets, current_target);
       bool is_better =
-          estimate_throughput_pps_from_ctx(new_speculation->ctx) >
-          estimate_throughput_pps_from_ctx(best_local_speculation->ctx);
+          is_better_speculation(*best_local_speculation, *new_speculation, ep,
+                                node, targets, current_target);
+
+      // if (ep->get_id() == 43 && node->get_id() == 45) {
+      //   std::cerr << "Module: " << modgen->get_name() << "\n";
+      //   std::cerr << "Skip: ";
+      //   for (bdd::node_id_t skip : new_speculation->skip) {
+      //     std::cerr << skip << " ";
+      //   }
+      //   std::cerr << "\n";
+      //   std::cerr << "Throughput: "
+      //             << estimate_throughput_pps_from_ctx(new_speculation->ctx)
+      //             << "\n";
+      // }
+
+      // bool is_better =
+      //     estimate_throughput_pps_from_ctx(new_speculation->ctx) >
+      //     estimate_throughput_pps_from_ctx(best_local_speculation->ctx);
 
       if (is_better) {
         best_local_speculation = new_speculation;
@@ -302,10 +314,11 @@ void Context::update_throughput_speculation(const EP *ep) {
     });
   }
 
-  // if (ep->get_id() == 51 || ep->get_id() == 75) {
-  //   print_speculations(ep, nodes_speculations, speculation);
-  //   bdd::BDDVisualizer::visualize(ep->get_bdd(), true);
-  // }
+  if (ep->get_id() == 45) {
+    print_speculations(ep, nodes_speculations, speculation);
+    // bdd::BDDVisualizer::visualize(ep->get_bdd(), true);
+    DEBUG_PAUSE
+  }
 
   throughput_speculation_pps =
       estimate_throughput_pps_from_ctx(speculation.ctx);

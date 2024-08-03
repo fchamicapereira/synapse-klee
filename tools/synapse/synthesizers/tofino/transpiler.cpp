@@ -43,7 +43,7 @@ klee::ExprVisitor::Action Transpiler::visitRead(const klee::ReadExpr &e) {
     return klee::ExprVisitor::Action::skipChildren();
   }
 
-  std::cerr << kutil::expr_to_string(expr) << "\n";
+  Log::dbg() << kutil::expr_to_string(expr) << "\n";
   synthesizer->dbg_vars();
 
   assert(false && "TODO");
@@ -72,7 +72,7 @@ klee::ExprVisitor::Action Transpiler::visitConcat(const klee::ConcatExpr &e) {
     return klee::ExprVisitor::Action::skipChildren();
   }
 
-  std::cerr << kutil::expr_to_string(expr) << "\n";
+  Log::dbg() << kutil::expr_to_string(expr) << "\n";
   synthesizer->dbg_vars();
 
   assert(false && "TODO");

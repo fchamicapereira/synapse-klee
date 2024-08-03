@@ -1377,8 +1377,11 @@ void add_non_branch_nodes_to_bdd(
 
     clone->set_prev(anchor);
     clone->set_next(anchor_next);
+    anchor_next->set_prev(clone);
     anchor = clone;
   }
+
+  // bdd->inspect();
 }
 
 static bdd::Branch *create_new_branch(bdd::BDD *bdd, const bdd::Node *current,
@@ -1445,6 +1448,8 @@ void add_branch_to_bdd(const EP *ep, bdd::BDD *bdd, const bdd::Node *current,
   }
 
   new_branch->set_prev(anchor);
+
+  // bdd->inspect();
 }
 
 void delete_non_branch_node_from_bdd(const EP *ep, bdd::BDD *bdd,
@@ -1485,6 +1490,8 @@ void delete_non_branch_node_from_bdd(const EP *ep, bdd::BDD *bdd,
 
   new_current->set_prev(anchor);
   manager.free_node(anchor_next);
+
+  // bdd->inspect();
 }
 
 void delete_branch_node_from_bdd(const EP *ep, bdd::BDD *bdd,
@@ -1539,6 +1546,8 @@ void delete_branch_node_from_bdd(const EP *ep, bdd::BDD *bdd,
 
   new_current->set_prev(anchor);
   manager.free_node(anchor_next);
+
+  // bdd->inspect();
 }
 
 static std::unordered_set<std::string>

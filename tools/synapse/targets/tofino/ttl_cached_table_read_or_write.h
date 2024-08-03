@@ -102,6 +102,7 @@ protected:
 
     double chosen_success_estimation = 0;
     int chosen_cache_capacity = 0;
+    bool successfully_placed = false;
 
     // We can use a different method for picking the right estimation depending
     // on the time it takes to find a solution.
@@ -109,14 +110,20 @@ protected:
       double success_estimation = get_cache_write_success_estimation_rel(
           ep, node, cache_capacity, cached_table_data.num_entries);
 
+      if (!can_get_or_build_cached_table(ep, node, cached_table_data,
+                                         chosen_cache_capacity)) {
+        continue;
+      }
+
       if (success_estimation > chosen_success_estimation) {
         chosen_success_estimation = success_estimation;
         chosen_cache_capacity = cache_capacity;
       }
+
+      successfully_placed = true;
     }
 
-    if (!can_get_or_build_cached_table(ep, node, cached_table_data,
-                                       chosen_cache_capacity)) {
+    if (!successfully_placed) {
       return std::nullopt;
     }
 
@@ -272,6 +279,11 @@ private:
       new_ep->remove_hit_rate_node(deleted_branch_constraints.value());
     }
 
+    // new_bdd->inspect();
+    // bdd::BDDVisualizer::visualize(new_bdd, false);
+    // ProfilerVisualizer::visualize(new_bdd, new_ep->get_ctx().get_profiler(),
+    //                               true);
+
     if (!already_exists) {
       place_cached_table(new_ep, coalescing_data, cached_table, deps);
     }
@@ -285,7 +297,7 @@ private:
         {on_cache_write_success_leaf, on_cache_write_failed_leaf});
     new_ep->replace_bdd(new_bdd);
 
-    // new_ep->inspect_debug();
+    new_ep->inspect();
 
     std::stringstream descr;
     descr << "cap=" << cache_capacity;
@@ -515,10 +527,13 @@ private:
     bdd::Branch *cache_write_branch;
     add_branch_to_bdd(ep, new_bdd, next, cache_write_success_condition,
                       cache_write_branch);
-    on_cache_write_success = cache_write_branch->get_mutable_on_true();
 
+    on_cache_write_success = cache_write_branch->get_mutable_on_true();
     add_map_get_clone_on_cache_write_failed(
         ep, new_bdd, map_get, cache_write_branch, on_cache_write_failed);
+
+    new_bdd->inspect();
+
     replicate_hdr_parsing_ops_on_cache_write_failed(
         ep, new_bdd, cache_write_branch, on_cache_write_failed);
 

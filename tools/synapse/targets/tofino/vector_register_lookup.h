@@ -145,7 +145,7 @@ protected:
     new_ep->process_leaf(ep_node, {leaf});
     new_ep->replace_bdd(bdd);
 
-    // new_ep->inspect_debug();
+    new_ep->inspect();
 
     return products;
   }

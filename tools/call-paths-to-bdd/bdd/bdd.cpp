@@ -560,4 +560,30 @@ BDD::BDD(const call_paths_t &call_paths) : id(0) {
 
 BDD::BDD(const std::string &file_path) : id(0) { deserialize(file_path); }
 
+void BDD::inspect() const {
+  assert(root);
+  root->visit_nodes([](const Node *node) {
+    assert(node);
+    switch (node->get_type()) {
+    case NodeType::BRANCH: {
+      const Branch *branch = static_cast<const Branch *>(node);
+      const Node *on_true = branch->get_on_true();
+      const Node *on_false = branch->get_on_false();
+      assert(on_true);
+      assert(on_false);
+      assert(on_true->get_prev() == node);
+      assert(on_false->get_prev() == node);
+      break;
+    } break;
+    case NodeType::CALL:
+    case NodeType::ROUTE: {
+      if (node->get_next()) {
+        assert(node->get_next()->get_prev() == node);
+      }
+    } break;
+    }
+    return NodeVisitAction::VISIT_CHILDREN;
+  });
+}
+
 } // namespace bdd

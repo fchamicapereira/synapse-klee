@@ -87,9 +87,6 @@ protected:
       return std::nullopt;
     }
 
-    // get_tofino_ctx(ep)->get_tna().log_debug_placement();
-    // DEBUG_PAUSE
-
     std::vector<const bdd::Call *> vector_ops =
         get_future_vector_key_ops(ep, node, cached_table_data, coalescing_data);
 
@@ -183,7 +180,7 @@ private:
     new_ep->process_leaf(ep_node, {leaf});
     new_ep->replace_bdd(bdd);
 
-    // new_ep->inspect_debug();
+    new_ep->inspect();
 
     std::stringstream descr;
     descr << "cap=" << cached_table->cache_capacity;

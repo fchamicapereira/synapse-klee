@@ -99,6 +99,7 @@ protected:
 
     double chosen_success_estimation = 0;
     int chosen_cache_capacity = 0;
+    bool successfully_placed = false;
 
     // We can use a different method for picking the right estimation depending
     // on the time it takes to find a solution.
@@ -106,14 +107,20 @@ protected:
       double success_estimation = get_cache_delete_success_estimation_rel(
           ep, node, cache_capacity, cached_table_data.num_entries);
 
+      if (!can_get_or_build_cached_table(ep, node, cached_table_data,
+                                         chosen_cache_capacity)) {
+        continue;
+      }
+
       if (success_estimation > chosen_success_estimation) {
         chosen_success_estimation = success_estimation;
         chosen_cache_capacity = cache_capacity;
       }
+
+      successfully_placed = true;
     }
 
-    if (!can_get_or_build_cached_table(ep, node, cached_table_data,
-                                       chosen_cache_capacity)) {
+    if (!successfully_placed) {
       return std::nullopt;
     }
 
@@ -277,7 +284,7 @@ private:
         {on_cache_delete_success_leaf, on_cache_delete_failed_leaf});
     new_ep->replace_bdd(new_bdd);
 
-    // new_ep->inspect_debug();
+    new_ep->inspect();
 
     std::stringstream descr;
     descr << "cap=" << cache_capacity;

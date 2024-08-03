@@ -28,6 +28,7 @@
 #include "log.h"
 #include "visualizers/ep_visualizer.h"
 #include "visualizers/ss_visualizer.h"
+#include "visualizers/profiler_visualizer.h"
 #include "heuristics/heuristics.h"
 #include "search.h"
 #include "synthesizers/synthesizers.h"
@@ -162,7 +163,9 @@ int main(int argc, char **argv) {
     profiler = new Profiler(bdd, Seed);
   }
 
-  profiler->log_debug();
+  // profiler->log_debug();
+  // ProfilerVisualizer::visualize(bdd, profiler, true);
+
   targets_t targets = build_targets(profiler);
 
   // std::string nf_name = nf_name_from_bdd(InputBDDFile);
@@ -201,7 +204,7 @@ int main(int argc, char **argv) {
     bdd::BDDVisualizer::visualize(report.solution.ep->get_bdd(), false);
   }
 
-  synthesize(report.solution.ep, std::string(Out));
+  // synthesize(report.solution.ep, std::string(Out));
 
   if (report.solution.ep) {
     delete report.solution.ep;

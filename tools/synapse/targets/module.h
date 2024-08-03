@@ -4,6 +4,7 @@
 #include "bdd-visualizer.h"
 
 #include "../visualizers/ep_visualizer.h"
+#include "../visualizers/profiler_visualizer.h"
 #include "../execution_plan/visitor.h"
 #include "../log.h"
 

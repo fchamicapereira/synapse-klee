@@ -114,7 +114,7 @@ public:
 
   void log_debug_placements() const;
   void log_debug_hit_rate() const;
-  void inspect_debug() const;
+  void inspect() const;
 
 private:
   EPLeaf *get_mutable_active_leaf();

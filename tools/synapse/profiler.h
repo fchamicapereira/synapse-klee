@@ -50,6 +50,7 @@ public:
   void remove(const constraints_t &constraints);
   void scale(const constraints_t &constraints, double factor);
 
+  const ProfilerNode *get_root() const { return root; }
   std::optional<double> get_fraction(const constraints_t &constraints) const;
   void log_debug() const;
 

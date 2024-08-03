@@ -4,6 +4,7 @@
 #include "bdd-visualizer.h"
 
 #include "ep_visualizer.h"
+#include "profiler_visualizer.h"
 #include "../search_space.h"
 
 #include <vector>

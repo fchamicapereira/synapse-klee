@@ -53,19 +53,25 @@ ProfilerNode *ProfilerNode::clone(bool keep_bdd_info) const {
   return new_node;
 }
 
-void ProfilerNode::log_debug(int lvl) const {
-  Log::dbg() << "<";
-  Log::dbg() << "fraction=" << fraction;
-  if (bdd_node_id) {
-    Log::dbg() << ", ";
-    Log::dbg() << "bdd_node=" << *bdd_node_id;
+std::ostream &operator<<(std::ostream &os, const ProfilerNode &node) {
+  os << "<";
+  os << "fraction=" << node.fraction;
+  if (node.bdd_node_id) {
+    os << ", ";
+    os << "bdd_node=" << *node.bdd_node_id;
   } else {
-    if (!constraint.isNull()) {
-      Log::dbg() << ", ";
-      Log::dbg() << "cond=" << kutil::expr_to_string(constraint, true);
+    if (!node.constraint.isNull()) {
+      os << ", ";
+      os << "cond=" << kutil::expr_to_string(node.constraint, true);
     }
   }
-  Log::dbg() << ">";
+  os << ">";
+
+  return os;
+}
+
+void ProfilerNode::log_debug(int lvl) const {
+  Log::dbg() << *this;
   Log::dbg() << "\n";
 
   if (on_true) {
@@ -300,12 +306,12 @@ ProfilerNode *Profiler::get_node(const constraints_t &constraints) const {
     bool on_false = kutil::solver_toolbox.are_exprs_always_equal(
         not_constraint, current->constraint);
 
+    assert(on_true || on_false);
+
     if (on_true) {
       current = current->on_true;
-    } else if (on_false) {
-      current = current->on_false;
     } else {
-      return nullptr;
+      current = current->on_false;
     }
   }
 
