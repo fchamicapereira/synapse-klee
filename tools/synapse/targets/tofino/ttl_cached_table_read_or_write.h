@@ -296,8 +296,7 @@ private:
         cached_table_cond_write_node,
         {on_cache_write_success_leaf, on_cache_write_failed_leaf});
     new_ep->replace_bdd(new_bdd);
-
-    new_ep->inspect();
+    // new_ep->inspect();
 
     std::stringstream descr;
     descr << "cap=" << cache_capacity;
@@ -531,8 +530,6 @@ private:
     on_cache_write_success = cache_write_branch->get_mutable_on_true();
     add_map_get_clone_on_cache_write_failed(
         ep, new_bdd, map_get, cache_write_branch, on_cache_write_failed);
-
-    new_bdd->inspect();
 
     replicate_hdr_parsing_ops_on_cache_write_failed(
         ep, new_bdd, cache_write_branch, on_cache_write_failed);

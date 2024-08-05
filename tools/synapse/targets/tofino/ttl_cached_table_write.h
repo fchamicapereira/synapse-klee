@@ -288,8 +288,7 @@ private:
     new_ep->process_leaf(cached_table_write_node, {on_cache_write_success_leaf,
                                                    on_cache_write_failed_leaf});
     new_ep->replace_bdd(new_bdd);
-
-    new_ep->inspect();
+    // new_ep->inspect();
 
     std::stringstream descr;
     descr << "cap=" << cache_capacity;

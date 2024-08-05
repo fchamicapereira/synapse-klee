@@ -287,8 +287,7 @@ private:
         cached_table_delete_node,
         {on_cache_delete_success_leaf, on_cache_delete_failed_leaf});
     new_ep->replace_bdd(new_bdd);
-
-    new_ep->inspect();
+    // new_ep->inspect();
 
     std::stringstream descr;
     descr << "cap=" << cached_table->cache_capacity;
