@@ -1,6 +1,7 @@
 #pragma once
 
 #include "call-paths-to-bdd.h"
+#include "bdd-analyzer-report.h"
 
 #include <optional>
 
@@ -28,10 +29,11 @@ struct ProfilerNode {
 
 class Profiler {
 private:
+  bdd_profile_t bdd_profile;
   ProfilerNode *root;
-  int avg_pkt_bytes;
 
 public:
+  Profiler(const bdd::BDD *bdd, const bdd_profile_t &_bdd_profile);
   Profiler(const bdd::BDD *bdd, unsigned random_seed);
   Profiler(const bdd::BDD *bdd, const std::string &bdd_profile_fname);
 

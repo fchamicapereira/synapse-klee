@@ -29,18 +29,16 @@ extern "C" {
 #include <rte_mbuf.h>
 #include <rte_random.h>
 
-#include <getopt.h>
 #include <pcap.h>
 #include <stdbool.h>
 #include <unistd.h>
 
 #include <fstream>
+#include <filesystem>
 #include <nlohmann/json.hpp>
 #include <vector>
 
 using json = nlohmann::json;
-
-#define REPORT_NAME "bdd-analysis"
 
 #define NF_INFO(text, ...)                                                     \
   printf(text "\n", ##__VA_ARGS__);                                            \
@@ -60,28 +58,8 @@ using json = nlohmann::json;
 #define MIN_PKT_SIZE 64   // With CRC
 #define MAX_PKT_SIZE 1518 // With CRC
 
-#define ARG_HELP "help"
-#define ARG_DEVICE "device"
-#define ARG_PCAP "pcap"
-#define ARG_TOTAL_PACKETS "packets"
-#define ARG_TOTAL_FLOWS "flows"
-#define ARG_TOTAL_CHURN_FPM "churn"
-#define ARG_TOTAL_RATE_PPS "pps"
-#define ARG_PACKET_SIZES "size"
-#define ARG_TRAFFIC_UNIFORM "uniform"
-#define ARG_TRAFFIC_ZIPF "zipf"
-#define ARG_TRAFFIC_ZIPF_PARAM "zipf-param"
-#define ARG_RANDOM_SEED "seed"
-
-#define DEFAULT_DEVICE 0
-#define DEFAULT_TOTAL_PACKETS 1000000lu
-#define DEFAULT_TOTAL_FLOWS 65536lu
-#define DEFAULT_TOTAL_CHURN_FPM 0lu
-#define DEFAULT_TOTAL_RATE_PPS 150'000'000lu
-#define DEFAULT_PACKET_SIZES MIN_PKT_SIZE
-#define DEFAULT_TRAFFIC_UNIFORM true
-#define DEFAULT_TRAFFIC_ZIPF false
-#define DEFAULT_TRAFFIC_ZIPF_PARAMETER 1.26 // From Castan [SIGCOMM'18]
+#define DEFAULT_SRC_MAC "90:e2:ba:8e:4f:6c"
+#define DEFAULT_DST_MAC "90:e2:ba:8e:4f:6d"
 
 #define PARSE_ERROR(argv, format, ...)                                         \
   nf_config_usage(argv);                                                       \
@@ -91,24 +69,6 @@ using json = nlohmann::json;
 #define PARSER_ASSERT(cond, fmt, ...)                                          \
   if (!(cond))                                                                 \
     rte_exit(EXIT_FAILURE, fmt, ##__VA_ARGS__);
-
-enum {
-  /* long options mapped to short options: first long only option value must
-   * be >= 256, so that it does not conflict with short options.
-   */
-  ARG_HELP_NUM = 256,
-  ARG_DEVICE_NUM,
-  ARG_PCAP_NUM,
-  ARG_TOTAL_PACKETS_NUM,
-  ARG_TOTAL_FLOWS_NUM,
-  ARG_TOTAL_CHURN_FPM_NUM,
-  ARG_TOTAL_RATE_PPS_NUM,
-  ARG_PACKET_SIZES_NUM,
-  ARG_TRAFFIC_UNIFORM_NUM,
-  ARG_TRAFFIC_ZIPF_NUM,
-  ARG_TRAFFIC_ZIPF_PARAM_NUM,
-  ARG_RANDOM_SEED_NUM,
-};
 
 bool nf_init(void);
 int nf_process(uint16_t device, uint8_t *buffer, uint16_t packet_length,
@@ -127,20 +87,11 @@ uintmax_t nf_util_parse_int(const char *str, const char *name, int base,
   return result;
 }
 
-struct flow_t {
-  uint32_t src_ip;
-  uint32_t dst_ip;
-  uint16_t src_port;
-  uint16_t dst_port;
-};
-
-flow_t generate_random_flow() {
-  flow_t flow;
-  flow.src_ip = rte_rand();
-  flow.dst_ip = rte_rand();
-  flow.src_port = rte_rand();
-  flow.dst_port = rte_rand();
-  return flow;
+bool nf_parse_etheraddr(const char *str, struct rte_ether_addr *addr) {
+  return sscanf(str, "%02hhX:%02hhX:%02hhX:%02hhX:%02hhX:%02hhX",
+                addr->addr_bytes + 0, addr->addr_bytes + 1,
+                addr->addr_bytes + 2, addr->addr_bytes + 3,
+                addr->addr_bytes + 4, addr->addr_bytes + 5) == 6;
 }
 
 struct pkt_t {
@@ -149,164 +100,189 @@ struct pkt_t {
   time_ns_t ts;
 };
 
+struct dev_pcap_t {
+  uint16_t device;
+  std::filesystem::path pcap;
+};
+
 struct config_t {
   std::string nf_name;
-  uint16_t device;
-  const char *pcap;
-  uint64_t total_packets;
-  uint64_t total_flows;
-  uint64_t churn_fpm;
-  uint64_t rate_pps;
-  uint16_t packet_sizes;
-  bool traffic_uniform;
-  bool traffic_zipf;
-  float traffic_zipf_param;
+  std::vector<dev_pcap_t> pcaps;
 } config;
 
-class PacketGenerator {
+struct pcap_data_t {
+  const u_char *data;
+  const struct pcap_pkthdr *header;
+};
+
+class PcapReader {
 private:
-  config_t config;
+  std::unordered_map<uint16_t, pcap_t *> pcaps;
+  std::unordered_map<uint16_t, bool> assume_ip;
+  std::unordered_map<uint16_t, long> pcaps_start;
+  std::unordered_map<uint16_t, pkt_t> pending_packets_per_dev;
 
-  pcap_t *pcap;
-  long pcap_start;
-
+  // Meta
   uint64_t total_packets;
-  uint64_t generated_packets;
-  time_ns_t last_time;
-  time_ns_t churn_alarm;
-  time_ns_t churn_alarm_delta;
-  std::vector<flow_t> flows;
+  uint64_t total_bytes;
+  uint64_t processed_packets;
   int last_percentage_report;
 
 public:
-  PacketGenerator(const config_t &_config)
-      : config(_config), pcap(NULL), total_packets(config.total_packets),
-        generated_packets(0), last_time(0),
-        churn_alarm_delta(
-            config.churn_fpm == 0 ? 0 : ((1e9 * 60) / config.churn_fpm)),
-        churn_alarm(0), last_percentage_report(-1) {
-    if (!config.pcap) {
-      return;
-    }
+  PcapReader() {}
 
-    char errbuf[PCAP_ERRBUF_SIZE];
-    pcap = pcap_open_offline(config.pcap, errbuf);
+  uint64_t get_total_packets() { return total_packets; }
+  uint64_t get_total_bytes() { return total_bytes; }
 
-    if (pcap == NULL) {
-      rte_exit(EXIT_FAILURE, "pcap_open_offline() failed: %s\n", errbuf);
-    }
-
-    // Get the total number of packets inside the pcap file first.
-    FILE *pcap_fptr = pcap_file(pcap);
-    assert(pcap_fptr && "Invalid pcap file pointer");
-    pcap_start = ftell(pcap_fptr);
-
-    struct pcap_pkthdr *hdr;
-    const u_char *pcap_pkt;
-    int success;
+  void setup(const std::vector<dev_pcap_t> &_pcaps) {
     total_packets = 0;
-    while ((success = pcap_next_ex(pcap, &hdr, &pcap_pkt)) == 1) {
-      total_packets++;
-    }
+    total_bytes = 0;
+    processed_packets = 0;
+    last_percentage_report = -1;
 
-    // Then rewind.
-    fseek(pcap_fptr, pcap_start, SEEK_SET);
+    for (const auto &dev_pcap : _pcaps) {
+      char errbuf[PCAP_ERRBUF_SIZE];
+      pcap_t *pcap = pcap_open_offline(dev_pcap.pcap.c_str(), errbuf);
+
+      if (pcap == NULL) {
+        rte_exit(EXIT_FAILURE, "pcap_open_offline() failed: %s\n", errbuf);
+      }
+
+      int link_hdr_type = pcap_datalink(pcap);
+
+      switch (link_hdr_type) {
+      case DLT_EN10MB:
+        // Normal ethernet, as expected.
+        assume_ip[dev_pcap.device] = false;
+        break;
+      case DLT_RAW:
+        // Contains raw IP packets.
+        assume_ip[dev_pcap.device] = true;
+        break;
+      default: {
+        fprintf(stderr, "Unknown header type (%d)", link_hdr_type);
+        exit(1);
+      }
+      }
+
+      pcaps[dev_pcap.device] = pcap;
+
+      FILE *pcap_fptr = pcap_file(pcap);
+      assert(pcap_fptr && "Invalid pcap file pointer");
+      pcaps_start[dev_pcap.device] = ftell(pcap_fptr);
+
+      accumulate_stats(dev_pcap.device);
+
+      pkt_t pkt;
+      if (read(dev_pcap.device, pkt)) {
+        pending_packets_per_dev[dev_pcap.device] = pkt;
+      }
+    }
   }
 
-  bool generate(pkt_t &pkt) {
-    return pcap ? generate_with_pcap(pkt) : generate_without_pcap(pkt);
+  bool get_next_packet(uint16_t &dev, pkt_t &pkt) {
+    bool set = false;
+
+    for (const auto &dev_pkt : pending_packets_per_dev) {
+      if (!set || dev_pkt.second.ts < pkt.ts) {
+        dev = dev_pkt.first;
+        pkt = dev_pkt.second;
+        set = true;
+      }
+    }
+
+    if (set) {
+      pkt_t new_pkt;
+      if (read(dev, new_pkt)) {
+        pending_packets_per_dev[dev] = new_pkt;
+      } else {
+        pending_packets_per_dev.erase(dev);
+      }
+    }
+
+    update_and_show_progress();
+
+    return set;
   }
 
 private:
-  bool generate_with_pcap(pkt_t &pkt) {
-    if (generated_packets >= total_packets) {
+  bool read(uint16_t dev, pkt_t &pkt) {
+    pcap_t *pd = pcaps[dev];
+
+    const u_char *data;
+    struct pcap_pkthdr *hdr;
+
+    if (pcap_next_ex(pd, &hdr, &data) != 1) {
       return false;
     }
 
-    struct pcap_pkthdr *hdr;
-    const u_char *pcap_pkt;
+    u_char *pkt_data = pkt.data;
 
-    int success = pcap_next_ex(pcap, &hdr, &pcap_pkt);
-    assert(success >= 0 && "Error reading pcap file");
+    if (assume_ip[dev]) {
+      struct rte_ether_hdr *eth_hdr = (struct rte_ether_hdr *)pkt_data;
+      nf_parse_etheraddr(DEFAULT_DST_MAC, &eth_hdr->d_addr);
+      nf_parse_etheraddr(DEFAULT_SRC_MAC, &eth_hdr->s_addr);
+      eth_hdr->ether_type = rte_bswap16(RTE_ETHER_TYPE_IPV4);
+      pkt_data += sizeof(struct rte_ether_hdr);
+    }
 
-    memcpy(pkt.data, pcap_pkt, hdr->len);
+    memcpy(pkt_data, data, hdr->len);
     pkt.len = hdr->len;
     pkt.ts = hdr->ts.tv_sec * 1e9 + hdr->ts.tv_usec * 1e3;
 
-    update_and_show_progress();
     return true;
   }
 
-  bool generate_without_pcap(pkt_t &pkt) {
-    if (generated_packets >= total_packets) {
-      return false;
+  // WARNING: this does not work on windows!
+  // https://winpcap-users.winpcap.narkive.com/scCKD3x2/packet-random-access-using-file-seek
+  void rewind(uint16_t dev) {
+    pcap_t *pd = pcaps[dev];
+    long pcap_start = pcaps_start[dev];
+    FILE *pcap_fptr = pcap_file(pd);
+    fseek(pcap_fptr, pcap_start, SEEK_SET);
+  }
+
+  void accumulate_stats(uint16_t dev) {
+    pcap_t *pd = pcaps[dev];
+
+    pkt_t pkt;
+    while (read(dev, pkt)) {
+      total_packets++;
+      uint8_t *data = pkt.data;
+
+      if (!assume_ip[dev]) {
+        struct rte_ether_hdr *eth_hdr = (struct rte_ether_hdr *)data;
+        data += sizeof(struct rte_ether_hdr);
+        if (eth_hdr->ether_type != rte_bswap16(RTE_ETHER_TYPE_IPV4)) {
+          total_bytes += pkt.len;
+          continue;
+        }
+      }
+
+      struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(data);
+
+      uint16_t len =
+          rte_bswap16(ip_hdr->total_length) + sizeof(struct rte_ether_hdr);
+
+      total_bytes += len;
     }
 
-    const flow_t &flow = get_next_flow();
-
-    // Generate a packet
-    pkt.len = config.packet_sizes;
-    pkt.ts = last_time + 1e9 / config.rate_pps;
-
-    last_time = pkt.ts;
-
-    struct rte_ether_hdr *eth_hdr = (struct rte_ether_hdr *)pkt.data;
-    struct rte_ipv4_hdr *ip_hdr = (struct rte_ipv4_hdr *)(eth_hdr + 1);
-    struct rte_udp_hdr *udp_hdr = (struct rte_udp_hdr *)(ip_hdr + 1);
-
-    eth_hdr->ether_type = rte_bswap16(RTE_ETHER_TYPE_IPV4);
-
-    ip_hdr->version_ihl = RTE_IPV4_VHL_DEF;
-    ip_hdr->total_length = rte_bswap16(pkt.len - sizeof(struct rte_ether_hdr));
-    ip_hdr->next_proto_id = IPPROTO_UDP;
-    ip_hdr->src_addr = flow.src_ip;
-    ip_hdr->dst_addr = flow.dst_ip;
-
-    udp_hdr->src_port = flow.src_port;
-    udp_hdr->dst_port = flow.dst_port;
-
-    update_and_show_progress();
-    return true;
+    rewind(dev);
   }
 
   void update_and_show_progress() {
-    generated_packets++;
-    int percentage = 100 * generated_packets / (double)total_packets;
+    processed_packets++;
+    int progress = 100.0 * processed_packets / total_packets;
 
-    if (percentage == last_percentage_report) {
+    if (progress <= last_percentage_report) {
       return;
     }
 
-    last_percentage_report = percentage;
-    printf("\rProcessing packets %lu/%lu (%d%%) ...", generated_packets,
-           total_packets, percentage);
-
-    if (generated_packets == total_packets) {
+    last_percentage_report = progress;
+    printf("\r[Progress %3d%%]", progress);
+    if (progress == 100)
       printf("\n");
-    }
-
     fflush(stdout);
-  }
-
-  const flow_t &get_next_flow() {
-    if (config.traffic_uniform) {
-      if (generated_packets < config.total_flows) {
-        flow_t random_flow = generate_random_flow();
-        flows.push_back(random_flow);
-        return flows[generated_packets];
-      }
-
-      int curr_flow_i = generated_packets % config.total_flows;
-
-      if (churn_alarm_delta > 0 && last_time >= churn_alarm) {
-        flows[curr_flow_i] = generate_random_flow();
-        churn_alarm = last_time + churn_alarm_delta;
-      }
-
-      return flows[curr_flow_i];
-    }
-
-    assert(false && "Zipf traffic not implemented");
   }
 };
 
@@ -333,158 +309,99 @@ void nf_log_pkt(time_ns_t time, uint16_t device, uint8_t *packet,
 }
 
 void nf_config_usage(char **argv) {
-  NF_INFO(
-      "Usage: %s\n"
-      "\t [--" ARG_DEVICE " <dev> (default=%u)]\n"
-      "\t [--" ARG_PCAP " <pcap>]\n"
-      "\t [--" ARG_TOTAL_PACKETS " <#packets> (default=%lu)]\n"
-      "\t [--" ARG_TOTAL_FLOWS " <#flows> (default=%lu)]\n"
-      "\t [--" ARG_TOTAL_CHURN_FPM " <fpm> (default=%lu)]\n"
-      "\t [--" ARG_TOTAL_RATE_PPS " <pps> (default=%lu)]\n"
-      "\t [--" ARG_PACKET_SIZES " <bytes> (default=%u)]\n"
-      "\t [--" ARG_TRAFFIC_UNIFORM " (default=%s)]\n"
-      "\t [--" ARG_TRAFFIC_ZIPF " (default=%s)]\n"
-      "\t [--" ARG_TRAFFIC_ZIPF_PARAM " <param> (default=%f)]\n"
-      "\t [--" ARG_RANDOM_SEED " <seed> (default set by DPDK)]\n"
-      "\t [--" ARG_HELP "]\n"
-      "\n"
-      "Argument descriptions:\n"
-      "\t " ARG_DEVICE ": networking device to be analyzed\n"
-      "\t " ARG_PCAP ": traffic trace to analyze (using this argument makes "
-      "the program ignore all the other ones, as those are extracted "
-      "directly from the pcap)\n"
-      "\t " ARG_TOTAL_PACKETS ": total number of packets to generate\n"
-      "\t " ARG_TOTAL_FLOWS ": total number of flows to generate\n"
-      "\t " ARG_TOTAL_CHURN_FPM ": flow churn (fpm)\n"
-      "\t " ARG_TOTAL_RATE_PPS ": packet rate (pps)\n"
-      "\t " ARG_PACKET_SIZES ": packet sizes (bytes)\n"
-      "\t " ARG_RANDOM_SEED ": random seed\n"
-      "\t " ARG_HELP ": show this menu\n",
-      argv[0], DEFAULT_DEVICE, DEFAULT_TOTAL_PACKETS, DEFAULT_TOTAL_FLOWS,
-      DEFAULT_TOTAL_CHURN_FPM, DEFAULT_TOTAL_RATE_PPS, DEFAULT_PACKET_SIZES,
-      DEFAULT_TRAFFIC_UNIFORM ? "true" : "false",
-      DEFAULT_TRAFFIC_ZIPF ? "true" : "false", DEFAULT_TRAFFIC_ZIPF_PARAMETER);
+  NF_INFO("Usage: %s [dev0:pcap0] [dev1:pcap1] ...\n", argv[0]);
 }
 
 void nf_config_print(void) {
   NF_INFO("----- Config -----");
-  NF_INFO("device:     %u", config.device);
-  if (config.pcap) {
-    NF_INFO("pcap:       %s", config.pcap);
-  } else {
-    NF_INFO("#packets:   %lu", config.total_packets);
-    NF_INFO("#flows:     %lu", config.total_flows);
-    NF_INFO("churn:      %lu fpm", config.churn_fpm);
-    NF_INFO("rate:       %lu pps", config.rate_pps);
-    NF_INFO("pkt sizes:  %u bytes", config.packet_sizes);
-    if (config.traffic_uniform) {
-      NF_INFO("traffic:    uniform");
-    } else if (config.traffic_zipf) {
-      NF_INFO("traffic:    zipf");
-      NF_INFO("zipf param: %f", config.traffic_zipf_param);
-    }
+  for (const auto &dev_pcap : config.pcaps) {
+    NF_INFO("device: %u, pcap: %s", dev_pcap.device,
+            dev_pcap.pcap.filename().c_str());
   }
   NF_INFO("--- ---------- ---");
 }
 
 std::string nf_name_from_executable(const char *argv0) {
-  std::string nf_name = argv0;
-  size_t last_slash = nf_name.find_last_of('/');
-  if (last_slash != std::string::npos) {
-    nf_name = nf_name.substr(last_slash + 1);
-  }
-  return nf_name;
+  std::filesystem::path nf_name = std::string(argv0);
+  return nf_name.filename().stem();
 }
 
 void nf_config_init(int argc, char **argv) {
+  if (argc < 2) {
+    PARSE_ERROR(argv, "Insufficient arguments.\n");
+  }
+
   config.nf_name = nf_name_from_executable(argv[0]);
-  config.device = DEFAULT_DEVICE;
-  config.pcap = NULL;
-  config.total_packets = DEFAULT_TOTAL_PACKETS;
-  config.total_flows = DEFAULT_TOTAL_FLOWS;
-  config.churn_fpm = DEFAULT_TOTAL_CHURN_FPM;
-  config.rate_pps = DEFAULT_TOTAL_RATE_PPS;
-  config.packet_sizes = DEFAULT_PACKET_SIZES;
-  config.traffic_uniform = DEFAULT_TRAFFIC_UNIFORM;
-  config.traffic_zipf = DEFAULT_TRAFFIC_ZIPF;
-  config.traffic_zipf_param = DEFAULT_TRAFFIC_ZIPF_PARAMETER;
 
-  const char short_options[] = "";
+  // split the arguments into device and pcap pairs joined by a :
+  for (int i = 1; i < argc; i++) {
+    char *arg = argv[i];
+    char *device_str = strtok(arg, ":");
+    char *pcap_str = strtok(NULL, ":");
 
-  struct option long_options[] = {
-      {ARG_DEVICE, required_argument, NULL, ARG_DEVICE_NUM},
-      {ARG_PCAP, required_argument, NULL, ARG_PCAP_NUM},
-      {ARG_TOTAL_PACKETS, required_argument, NULL, ARG_TOTAL_PACKETS_NUM},
-      {ARG_TOTAL_FLOWS, required_argument, NULL, ARG_TOTAL_FLOWS_NUM},
-      {ARG_TOTAL_CHURN_FPM, required_argument, NULL, ARG_TOTAL_CHURN_FPM_NUM},
-      {ARG_TOTAL_RATE_PPS, required_argument, NULL, ARG_TOTAL_RATE_PPS_NUM},
-      {ARG_PACKET_SIZES, required_argument, NULL, ARG_PACKET_SIZES_NUM},
-      {ARG_TRAFFIC_UNIFORM, no_argument, NULL, ARG_TRAFFIC_UNIFORM_NUM},
-      {ARG_TRAFFIC_ZIPF, no_argument, NULL, ARG_TRAFFIC_ZIPF_NUM},
-      {ARG_TRAFFIC_ZIPF_PARAM, required_argument, NULL,
-       ARG_TRAFFIC_ZIPF_PARAM_NUM},
-      {ARG_RANDOM_SEED, required_argument, NULL, ARG_RANDOM_SEED_NUM},
-      {ARG_HELP, no_argument, NULL, ARG_HELP_NUM},
-      {NULL, 0, NULL, 0}};
-
-  int opt;
-
-  while ((opt = getopt_long(argc, argv, short_options, long_options, NULL)) !=
-         EOF) {
-    switch (opt) {
-    case ARG_HELP_NUM: {
+    if (!device_str || !pcap_str) {
       nf_config_usage(argv);
-      exit(EXIT_SUCCESS);
-    } break;
-    case ARG_DEVICE_NUM: {
-      config.device = nf_util_parse_int(optarg, "device", 10, '\0');
-    } break;
-    case ARG_PCAP_NUM: {
-      config.pcap = optarg;
-    } break;
-    case ARG_TOTAL_PACKETS_NUM: {
-      config.total_packets = nf_util_parse_int(optarg, "packets", 10, '\0');
-    } break;
-    case ARG_TOTAL_FLOWS_NUM: {
-      config.total_flows = nf_util_parse_int(optarg, "flows", 10, '\0');
-    } break;
-    case ARG_TOTAL_CHURN_FPM_NUM: {
-      config.churn_fpm = nf_util_parse_int(optarg, "churn", 10, '\0');
-    } break;
-    case ARG_TOTAL_RATE_PPS_NUM: {
-      config.rate_pps = nf_util_parse_int(optarg, "pps", 10, '\0');
-    } break;
-    case ARG_PACKET_SIZES_NUM: {
-      config.packet_sizes = nf_util_parse_int(optarg, "size", 10, '\0');
-      PARSER_ASSERT(config.packet_sizes >= MIN_PKT_SIZE &&
-                        config.packet_sizes <= MAX_PKT_SIZE,
-                    "Packet size must be in the interval [%u-%" PRIu16
-                    "] (requested %u).\n",
-                    MIN_PKT_SIZE, MAX_PKT_SIZE, config.packet_sizes);
-    } break;
-    case ARG_TRAFFIC_UNIFORM_NUM: {
-      config.traffic_uniform = true;
-      config.traffic_zipf = false;
-    } break;
-    case ARG_TRAFFIC_ZIPF_NUM: {
-      config.traffic_uniform = false;
-      config.traffic_zipf = true;
-    } break;
-    case ARG_TRAFFIC_ZIPF_PARAM_NUM: {
-      config.traffic_zipf_param = strtof(optarg, NULL);
-    } break;
-    case ARG_RANDOM_SEED_NUM: {
-      uint32_t seed = nf_util_parse_int(optarg, "seed", 10, '\0');
-      rte_srand(seed);
-    } break;
-    default:
-      PARSE_ERROR(argv, "Unknown option.\n");
+      PARSE_ERROR(argv, "Invalid argument format: %s\n", arg);
     }
+
+    dev_pcap_t dev_pcap;
+    dev_pcap.device = nf_util_parse_int(device_str, "device", 10, '\0');
+    dev_pcap.pcap = pcap_str;
+
+    config.pcaps.push_back(dev_pcap);
   }
 
   nf_config_print();
 }
 
+struct Stats {
+  struct key_t {
+    uint8_t *data;
+    uint32_t len;
+
+    key_t(const uint8_t *_data, uint32_t _len) : len(_len) {
+      data = new uint8_t[len];
+      memcpy(data, _data, len);
+    }
+
+    key_t(const key_t &other) : len(other.len) {
+      data = new uint8_t[len];
+      memcpy(data, other.data, len);
+    }
+
+    bool operator==(const key_t &other) const {
+      return len == other.len && memcmp(data, other.data, len) == 0;
+    }
+
+    ~key_t() { delete[] data; }
+  };
+
+  struct KeyHasher {
+    std::size_t operator()(const key_t &key) const {
+      return hash_obj((void *)key.data, key.len);
+    }
+  };
+
+  std::unordered_map<key_t, uint64_t, KeyHasher> stats;
+
+  Stats() : stats() {}
+
+  void update(const void *key, uint32_t len) {
+    key_t k((uint8_t *)key, len);
+    stats[k]++;
+  }
+};
+
+struct MapStats {
+  std::unordered_map<int, Stats> stats_per_map_op;
+
+  void update(int op, const void *key, uint32_t len) {
+    stats_per_map_op[op].update(key, len);
+  }
+};
+
+PcapReader reader;
+MapStats map_stats;
 uint64_t *path_profiler_counter_ptr;
 uint64_t path_profiler_counter_sz;
 time_ns_t elapsed_time;
@@ -493,18 +410,12 @@ void generate_report() {
   json report;
 
   report["config"] = json();
-  report["config"]["device"] = config.device;
-  if (config.pcap) {
-    report["config"]["pcap"] = config.pcap;
-  } else {
-    report["config"]["total_packets"] = config.total_packets;
-    report["config"]["total_flows"] = config.total_flows;
-    report["config"]["churn_fpm"] = config.churn_fpm;
-    report["config"]["rate_pps"] = config.rate_pps;
-    report["config"]["packet_sizes"] = config.packet_sizes;
-    report["config"]["traffic_uniform"] = config.traffic_uniform;
-    report["config"]["traffic_zipf"] = config.traffic_zipf;
-    report["config"]["traffic_zipf_param"] = config.traffic_zipf_param;
+  report["config"]["pcaps"] = json::array();
+  for (const auto &dev_pcap : config.pcaps) {
+    json dev_pcap_elem;
+    dev_pcap_elem["device"] = dev_pcap.device;
+    dev_pcap_elem["pcap"] = dev_pcap.pcap;
+    report["config"]["pcaps"].push_back(dev_pcap_elem);
   }
 
   report["elapsed"] = elapsed_time;
@@ -514,27 +425,40 @@ void generate_report() {
     report["counters"][std::to_string(i)] = path_profiler_counter_ptr[i];
   }
 
+  report["meta"] = json();
+  report["meta"]["total_packets"] = reader.get_total_packets();
+  report["meta"]["total_bytes"] = reader.get_total_bytes();
+  report["meta"]["avg_pkt_size"] =
+      reader.get_total_bytes() / reader.get_total_packets();
+
+  report["map_stats"] = json::array();
+  for (const auto &[map_op, stats] : map_stats.stats_per_map_op) {
+    json map_op_stats_json;
+    map_op_stats_json["node"] = map_op;
+    map_op_stats_json["packets_per_flow"] = json::array();
+    map_op_stats_json["total_flows"] = stats.stats.size();
+
+    uint64_t total_packets = 0;
+    for (const auto &map_key_stats : stats.stats) {
+      map_op_stats_json["packets_per_flow"].push_back(map_key_stats.second);
+      total_packets += map_key_stats.second;
+    }
+
+    map_op_stats_json["total_packets"] = total_packets;
+    map_op_stats_json["avg_pkts_per_flow"] = total_packets / stats.stats.size();
+
+    report["map_stats"].push_back(map_op_stats_json);
+  }
+
   std::stringstream report_fname_ss;
   report_fname_ss << config.nf_name;
-  report_fname_ss << "-" << REPORT_NAME;
-  report_fname_ss << "-dev-" << config.device;
-  if (config.pcap) {
-    report_fname_ss << "-pcap-" << config.pcap;
-  } else {
-    report_fname_ss << "-packets-" << config.total_packets;
-    report_fname_ss << "-flows-" << config.total_flows;
-    report_fname_ss << "-churn-" << config.churn_fpm;
-    report_fname_ss << "-rate-" << config.rate_pps;
-    report_fname_ss << "-size-" << config.packet_sizes;
-    if (config.traffic_uniform) {
-      report_fname_ss << "-uniform";
-    } else if (config.traffic_zipf) {
-      report_fname_ss << "-zipf-param-" << config.traffic_zipf_param;
-    }
+  for (const auto &dev_pcap : config.pcaps) {
+    report_fname_ss << "-dev-" << dev_pcap.device;
+    report_fname_ss << "-pcap-" << dev_pcap.pcap.filename().stem().string();
   }
   report_fname_ss << ".json";
 
-  auto report_fname = report_fname_ss.str();
+  std::filesystem::path report_fname = report_fname_ss.str();
   std::ofstream(report_fname) << report.dump(2);
 
   NF_INFO("Generated report %s", report_fname.c_str());
@@ -546,11 +470,13 @@ static void worker_main() {
     rte_exit(EXIT_FAILURE, "Error initializing NF");
   }
 
-  PacketGenerator pkt_gen(config);
+  reader.setup(config.pcaps);
+
+  uint16_t dev;
   pkt_t pkt;
 
   // Generate the first packet manually to record the starting time
-  bool success = pkt_gen.generate(pkt);
+  bool success = reader.get_next_packet(dev, pkt);
   assert(success && "Failed to generate the first packet");
 
   time_ns_t start_time = pkt.ts;
@@ -558,12 +484,13 @@ static void worker_main() {
 
   do {
     // Ignore destination device, we don't forward anywhere
-    nf_process(config.device, pkt.data, pkt.len, pkt.ts);
+    nf_process(dev, pkt.data, pkt.len, pkt.ts);
     last_time = pkt.ts;
-  } while (pkt_gen.generate(pkt));
+  } while (reader.get_next_packet(dev, pkt));
 
   elapsed_time = last_time - start_time;
-  NF_INFO("Elapsed time: %lf s", (double)elapsed_time / 1e9);
+
+  NF_INFO("Elapsed virtual time: %lf s", (double)elapsed_time / 1e9);
 }
 
 int main(int argc, char **argv) {

@@ -9,27 +9,35 @@
 
 #include "call-paths-to-bdd.h"
 
-struct config_t {
+struct dev_pcap_t {
   uint16_t device;
   std::string pcap;
-  uint64_t total_packets;
-  uint64_t total_flows;
-  uint64_t churn_fpm;
-  uint64_t rate_pps;
-  uint16_t packet_sizes;
-  bool traffic_uniform;
-  bool traffic_zipf;
-  float traffic_zipf_param;
 };
 
-typedef std::unordered_map<bdd::node_id_t, uint64_t> bdd_node_counters;
 typedef uint64_t time_ns_t;
 
 struct bdd_profile_t {
-  config_t config;
-  bdd_node_counters counters;
-  time_ns_t elapsed;
-  int avg_pkt_bytes;
+  struct config_t {
+    std::vector<dev_pcap_t> pcaps;
+  } config;
+
+  struct meta_t {
+    uint64_t total_packets;
+    uint64_t total_bytes;
+    int avg_pkt_size;
+  } meta;
+
+  struct map_stats_t {
+    bdd::node_id_t node;
+    uint64_t total_packets;
+    uint64_t total_flows;
+    uint64_t avg_pkts_per_flow;
+    std::vector<uint64_t> packets_per_flow;
+  };
+
+  std::vector<map_stats_t> map_stats;
+
+  std::unordered_map<bdd::node_id_t, uint64_t> counters;
 };
 
 bdd_profile_t parse_bdd_profile(const std::string &filename);

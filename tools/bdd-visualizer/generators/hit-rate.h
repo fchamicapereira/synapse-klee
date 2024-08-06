@@ -15,8 +15,9 @@ typedef float hit_rate_t;
 
 class HitRateGraphvizGenerator : public BDDVisualizer {
 public:
-  HitRateGraphvizGenerator(const std::string &fname,
-                           const bdd_node_counters &counters)
+  HitRateGraphvizGenerator(
+      const std::string &fname,
+      const std::unordered_map<node_id_t, uint64_t> &counters)
       : BDDVisualizer() {
     opts.fname = fname;
     opts.colors_per_node = get_colors_per_node(counters);
@@ -25,7 +26,8 @@ public:
     opts.default_color.second = hit_rate_to_color(0);
   }
 
-  static void visualize(const BDD *bdd, const bdd_node_counters &counters,
+  static void visualize(const BDD *bdd,
+                        const std::unordered_map<node_id_t, uint64_t> &counters,
                         bool interrupt) {
     bdd_visualizer_opts_t opts;
 
@@ -38,7 +40,8 @@ public:
   }
 
 private:
-  static uint64_t get_total_counter(const bdd_node_counters &counters) {
+  static uint64_t
+  get_total_counter(const std::unordered_map<node_id_t, uint64_t> &counters) {
     uint64_t total_counter = 0;
     for (auto it = counters.begin(); it != counters.end(); it++) {
       total_counter = std::max(total_counter, it->second);
@@ -46,8 +49,8 @@ private:
     return total_counter;
   }
 
-  static std::unordered_map<node_id_t, std::string>
-  get_annocations_per_node(const bdd_node_counters &counters) {
+  static std::unordered_map<node_id_t, std::string> get_annocations_per_node(
+      const std::unordered_map<node_id_t, uint64_t> &counters) {
     uint64_t total_counter = get_total_counter(counters);
     std::unordered_map<node_id_t, std::string> annocations_per_node;
 
@@ -66,7 +69,7 @@ private:
   }
 
   static std::unordered_map<node_id_t, std::string>
-  get_colors_per_node(const bdd_node_counters &counters) {
+  get_colors_per_node(const std::unordered_map<node_id_t, uint64_t> &counters) {
     uint64_t total_counter = get_total_counter(counters);
     std::unordered_map<node_id_t, std::string> colors_per_node;
 

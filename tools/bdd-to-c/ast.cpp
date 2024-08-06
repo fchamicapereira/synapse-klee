@@ -1267,6 +1267,18 @@ Node_ptr AST::node_from_call(const bdd::Call *bdd_call, TargetOption target) {
     VariableDecl_ptr value_out_decl = VariableDecl::build(value_out);
     exprs.push_back(value_out_decl);
 
+    if (target == BDD_PATH_PROFILER) {
+      Expr_ptr node_id = Constant::build(PrimitiveType::PrimitiveKind::INT16_T,
+                                         bdd_call->get_id());
+      Expr_ptr len = Constant::build(PrimitiveType::PrimitiveKind::INT16_T,
+                                     key_klee_expr->getWidth() / 8);
+      Type_ptr stats_ret_type =
+          PrimitiveType::build(PrimitiveType::PrimitiveKind::VOID);
+      FunctionCall_ptr map_stats_fcall = FunctionCall::build(
+          "map_stats.update", {node_id, key, len}, stats_ret_type);
+      exprs.push_back(map_stats_fcall);
+    }
+
     args =
         std::vector<ExpressionType_ptr>{map, key, AddressOf::build(value_out)};
     ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::INT);
@@ -1394,6 +1406,19 @@ Node_ptr AST::node_from_call(const bdd::Call *bdd_call, TargetOption target) {
 
     Expr_ptr value = transpile(this, call.args["value"].expr, true);
     assert(value);
+
+    if (target == BDD_PATH_PROFILER) {
+      Expr_ptr node_id = Constant::build(PrimitiveType::PrimitiveKind::INT16_T,
+                                         bdd_call->get_id());
+      Expr_ptr len = Constant::build(PrimitiveType::PrimitiveKind::INT16_T,
+                                     call.args["key"].in->getWidth() / 8);
+      Type_ptr stats_ret_type =
+          PrimitiveType::build(PrimitiveType::PrimitiveKind::VOID);
+      FunctionCall_ptr map_stats_fcall = FunctionCall::build(
+          "map_stats.update", {node_id, vector_return_value, len},
+          stats_ret_type);
+      exprs.push_back(map_stats_fcall);
+    }
 
     args = std::vector<ExpressionType_ptr>{map, vector_return_value, value};
     ret_type = PrimitiveType::build(PrimitiveType::PrimitiveKind::VOID);
@@ -1629,6 +1654,18 @@ Node_ptr AST::node_from_call(const bdd::Call *bdd_call, TargetOption target) {
         PrimitiveType::build(PrimitiveType::PrimitiveKind::VOID)));
     Expr_ptr trash_arg = AddressOf::build(trash);
     Cast_ptr trash_cast = Cast::build(trash_arg, trash_type_arg);
+
+    if (target == BDD_PATH_PROFILER) {
+      Expr_ptr node_id = Constant::build(PrimitiveType::PrimitiveKind::INT16_T,
+                                         bdd_call->get_id());
+      Expr_ptr len = Constant::build(PrimitiveType::PrimitiveKind::INT16_T,
+                                     call.args["key"].in->getWidth() / 8);
+      Type_ptr stats_ret_type =
+          PrimitiveType::build(PrimitiveType::PrimitiveKind::VOID);
+      FunctionCall_ptr map_stats_fcall = FunctionCall::build(
+          "map_stats.update", {node_id, key, len}, stats_ret_type);
+      exprs.push_back(map_stats_fcall);
+    }
 
     args =
         std::vector<ExpressionType_ptr>{map, AddressOf::build(key), trash_cast};

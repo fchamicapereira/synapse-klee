@@ -1,8 +1,9 @@
 #include "profiler.h"
 #include "klee-util.h"
-#include "bdd-analyzer-report.h"
 #include "random_engine.h"
 #include "log.h"
+
+#include "bdd-visualizer.h"
 
 #include <iomanip>
 
@@ -99,9 +100,10 @@ void ProfilerNode::log_debug(int lvl) const {
   }
 }
 
-static ProfilerNode *build_hit_fraction_tree(const bdd::Node *node,
-                                             const bdd_node_counters &counters,
-                                             uint64_t max_count) {
+static ProfilerNode *build_hit_fraction_tree(
+    const bdd::Node *node,
+    const std::unordered_map<bdd::node_id_t, uint64_t> &counters,
+    uint64_t max_count) {
   ProfilerNode *result = nullptr;
 
   if (!node) {
@@ -162,121 +164,96 @@ static ProfilerNode *build_hit_fraction_tree(const bdd::Node *node,
   return result;
 }
 
-static ProfilerNode *
-build_random_hit_fraction_tree(const bdd::Node *node,
-                               RandomEngine &random_percent_engine,
-                               double parent_fraction = 1.0) {
-  ProfilerNode *result = nullptr;
+static bdd_profile_t build_random_bdd_profile(const bdd::BDD *bdd,
+                                              unsigned random_seed) {
+  bdd_profile_t bdd_profile;
 
-  if (!node) {
-    return nullptr;
-  }
+  RandomEngine random_engine(random_seed, 1, INT32_MAX);
 
-  node->visit_nodes([&random_percent_engine, parent_fraction,
-                     &result](const bdd::Node *node) {
-    if (node->get_type() != bdd::NodeType::BRANCH) {
-      return bdd::NodeVisitAction::VISIT_CHILDREN;
+  bdd_profile.meta.total_packets = 100'000;
+  bdd_profile.meta.total_bytes = std::max(64, random_engine.generate() % 1500);
+  bdd_profile.meta.avg_pkt_size =
+      bdd_profile.meta.total_packets / bdd_profile.meta.total_bytes;
+
+  const bdd::Node *root = bdd->get_root();
+  bdd_profile.counters[root->get_id()] = bdd_profile.meta.total_packets;
+
+  root->visit_nodes([&bdd_profile, &random_engine](const bdd::Node *node) {
+    assert(bdd_profile.counters.find(node->get_id()) !=
+           bdd_profile.counters.end());
+    uint64_t current_counter = bdd_profile.counters[node->get_id()];
+
+    switch (node->get_type()) {
+    case bdd::NodeType::BRANCH: {
+      const bdd::Branch *branch = static_cast<const bdd::Branch *>(node);
+
+      const bdd::Node *on_true = branch->get_on_true();
+      const bdd::Node *on_false = branch->get_on_false();
+
+      assert(on_true);
+      assert(on_false);
+
+      uint64_t on_true_counter =
+          random_engine.generate() % (current_counter + 1);
+      uint64_t on_false_counter = current_counter - on_true_counter;
+
+      bdd_profile.counters[on_true->get_id()] = on_true_counter;
+      bdd_profile.counters[on_false->get_id()] = on_false_counter;
+    } break;
+    case bdd::NodeType::CALL: {
+      const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
+      const call_t &call = call_node->get_call();
+
+      if (call.function_name == "map_get" || call.function_name == "map_put" ||
+          call.function_name == "map_erase") {
+        bdd_profile_t::map_stats_t map_stats;
+        map_stats.node = node->get_id();
+        map_stats.total_packets = current_counter;
+        map_stats.total_flows = random_engine.generate() % current_counter;
+        map_stats.avg_pkts_per_flow = current_counter / map_stats.total_flows;
+        for (uint64_t i = 0; i < map_stats.total_flows; i++) {
+          map_stats.packets_per_flow.push_back(map_stats.avg_pkts_per_flow);
+        }
+        bdd_profile.map_stats.push_back(map_stats);
+      }
+
+      if (node->get_next()) {
+        const bdd::Node *next = node->get_next();
+        bdd_profile.counters[next->get_id()] = current_counter;
+      }
+    } break;
+    case bdd::NodeType::ROUTE: {
+      if (node->get_next()) {
+        const bdd::Node *next = node->get_next();
+        bdd_profile.counters[next->get_id()] = current_counter;
+      }
+    } break;
     }
 
-    const bdd::Branch *branch = static_cast<const bdd::Branch *>(node);
-
-    klee::ref<klee::Expr> condition = branch->get_condition();
-    bdd::node_id_t bdd_node_id = node->get_id();
-
-    ProfilerNode *new_node =
-        new ProfilerNode(condition, parent_fraction, bdd_node_id);
-
-    const bdd::Node *on_true = branch->get_on_true();
-    const bdd::Node *on_false = branch->get_on_false();
-
-    int relative_percent_on_true = random_percent_engine.generate();
-    double relative_fraction_on_true = normalize_fraction(
-        static_cast<double>(relative_percent_on_true) / 100.0);
-
-    double on_true_fraction =
-        normalize_fraction(parent_fraction * relative_fraction_on_true);
-    double on_false_fraction =
-        normalize_fraction(parent_fraction - on_true_fraction);
-
-    new_node->on_true = build_random_hit_fraction_tree(
-        on_true, random_percent_engine, on_true_fraction);
-    new_node->on_false = build_random_hit_fraction_tree(
-        on_false, random_percent_engine, on_false_fraction);
-
-    if (!new_node->on_true && on_true) {
-      new_node->on_true =
-          new ProfilerNode(nullptr, on_true_fraction, on_true->get_id());
-    }
-
-    if (!new_node->on_false && on_false) {
-      new_node->on_false =
-          new ProfilerNode(nullptr, on_false_fraction, on_false->get_id());
-    }
-
-    if (new_node->on_true) {
-      new_node->on_true->prev = new_node;
-    }
-
-    if (new_node->on_false) {
-      new_node->on_false->prev = new_node;
-    }
-
-    result = new_node;
-    return bdd::NodeVisitAction::STOP;
+    return bdd::NodeVisitAction::VISIT_CHILDREN;
   });
 
-  return result;
+  return bdd_profile;
 }
 
-static int get_random_avg_pkt_bytes(unsigned random_seed) {
-  constexpr int min_frame = 64;
-  constexpr int max_frame = 1500;
-  constexpr int preamble = 8;
-  constexpr int ipg = 12;
-
-  int min_size = preamble + min_frame + ipg;
-  int max_size = preamble + max_frame + ipg;
-
-  RandomEngine random_percent_engine(random_seed, min_size, max_size);
-  return random_percent_engine.generate();
-}
+Profiler::Profiler(const bdd::BDD *bdd, const bdd_profile_t &_bdd_profile)
+    : bdd_profile(_bdd_profile),
+      root(build_hit_fraction_tree(
+          bdd->get_root(), bdd_profile.counters,
+          bdd_profile.counters[bdd->get_root()->get_id()])) {}
 
 Profiler::Profiler(const bdd::BDD *bdd, unsigned random_seed)
-    : root(nullptr), avg_pkt_bytes(get_random_avg_pkt_bytes(random_seed)) {
-  const bdd::Node *bdd_root = bdd->get_root();
-
-  RandomEngine random_percent_engine(random_seed, 1, 100);
-  root = build_random_hit_fraction_tree(bdd_root, random_percent_engine);
-}
+    : Profiler(bdd, build_random_bdd_profile(bdd, random_seed)) {}
 
 Profiler::Profiler(const bdd::BDD *bdd, const std::string &bdd_profile_fname)
-    : root(nullptr) {
-  bdd_profile_t bdd_profile = parse_bdd_profile(bdd_profile_fname);
-
-  const bdd::Node *bdd_root = bdd->get_root();
-  uint64_t max_count = bdd_profile.counters[bdd_root->get_id()];
-
-  root = build_hit_fraction_tree(bdd_root, bdd_profile.counters, max_count);
-  avg_pkt_bytes = bdd_profile.avg_pkt_bytes;
-
-  int min_frame = 64;
-  int max_frame = 1500;
-  int preamble = 8;
-  int ipg = 12;
-
-  int min_size = preamble + min_frame + ipg;
-  int max_size = preamble + max_frame + ipg;
-
-  assert(avg_pkt_bytes >= min_size);
-  assert(avg_pkt_bytes <= max_size);
-}
+    : Profiler(bdd, parse_bdd_profile(bdd_profile_fname)) {}
 
 Profiler::Profiler(const Profiler &other)
-    : root(other.root ? other.root->clone(true) : nullptr),
-      avg_pkt_bytes(other.avg_pkt_bytes) {}
+    : bdd_profile(other.bdd_profile),
+      root(other.root ? other.root->clone(true) : nullptr) {}
 
 Profiler::Profiler(Profiler &&other)
-    : root(std::move(other.root)), avg_pkt_bytes(other.avg_pkt_bytes) {
+    : bdd_profile(std::move(bdd_profile)), root(std::move(other.root)) {
   other.root = nullptr;
 }
 
@@ -286,7 +263,9 @@ Profiler::~Profiler() {
   }
 }
 
-int Profiler::get_avg_pkt_bytes() const { return avg_pkt_bytes; }
+int Profiler::get_avg_pkt_bytes() const {
+  return bdd_profile.meta.avg_pkt_size;
+}
 
 ProfilerNode *Profiler::get_node(const constraints_t &constraints) const {
   ProfilerNode *current = root;

@@ -90,5 +90,7 @@ int main(int argc, char **argv) {
   if (OutputBDDFile.size())
     bdd.serialize(OutputBDDFile);
 
+  std::cout << "BDD size: " << bdd.size() << "\n";
+
   return 0;
 }
