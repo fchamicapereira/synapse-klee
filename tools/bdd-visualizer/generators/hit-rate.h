@@ -18,13 +18,13 @@ public:
   HitRateGraphvizGenerator(
       const std::string &fname,
       const std::unordered_map<node_id_t, uint64_t> &counters)
-      : BDDVisualizer() {
-    opts.fname = fname;
-    opts.colors_per_node = get_colors_per_node(counters);
-    opts.default_color.first = true;
-    opts.annotations_per_node = get_annocations_per_node(counters);
-    opts.default_color.second = hit_rate_to_color(0);
-  }
+      : BDDVisualizer(bdd_visualizer_opts_t{
+            .fname = fname,
+            .colors_per_node = get_colors_per_node(counters),
+            .default_color = {true, hit_rate_to_color(0)},
+            .annotations_per_node = get_annocations_per_node(counters),
+            .processed = processed_t(),
+        }) {}
 
   static void visualize(const BDD *bdd,
                         const std::unordered_map<node_id_t, uint64_t> &counters,

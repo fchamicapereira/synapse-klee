@@ -120,8 +120,9 @@ static void visit_definitions(std::stringstream &ss,
   ss << bold("Module: ");
   if (ssnode->module_data) {
     ss << ssnode->module_data->name;
-    ss << " ";
+    ss << " (";
     ss << ssnode->module_data->description;
+    ss << ")";
   } else {
     ss << "ROOT";
   }

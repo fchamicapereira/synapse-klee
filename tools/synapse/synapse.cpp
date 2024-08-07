@@ -105,9 +105,7 @@ llvm::cl::opt<bool> Verbose("v", llvm::cl::desc("Verbose mode."),
 } // namespace
 
 search_report_t search(const bdd::BDD *bdd, Profiler *profiler,
-                       const targets_t &targets) {
-  unsigned seed = (Seed >= 0) ? Seed : std::random_device()();
-
+                       const targets_t &targets, unsigned seed) {
   std::unordered_set<ep_id_t> peek;
   for (ep_id_t ep_id : Peek) {
     peek.insert(ep_id);
@@ -155,21 +153,22 @@ int main(int argc, char **argv) {
   }
 
   bdd::BDD *bdd = new bdd::BDD(InputBDDFile);
+  unsigned seed = (Seed >= 0) ? Seed : std::random_device()();
 
   Profiler *profiler = nullptr;
   if (!BDDProfile.empty()) {
     profiler = new Profiler(bdd, BDDProfile);
   } else {
-    profiler = new Profiler(bdd, Seed);
+    profiler = new Profiler(bdd, seed);
   }
 
-  // profiler->log_debug();
+  profiler->log_debug();
   // ProfilerVisualizer::visualize(bdd, profiler, true);
 
   targets_t targets = build_targets(profiler);
 
   // std::string nf_name = nf_name_from_bdd(InputBDDFile);
-  search_report_t report = search(bdd, profiler, targets);
+  search_report_t report = search(bdd, profiler, targets, seed);
 
   Log::log() << "\n";
   Log::log() << "Params:\n";

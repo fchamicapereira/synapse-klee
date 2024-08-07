@@ -12,6 +12,7 @@
 struct dev_pcap_t {
   uint16_t device;
   std::string pcap;
+  bool warmup;
 };
 
 typedef uint64_t time_ns_t;

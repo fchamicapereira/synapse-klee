@@ -290,7 +290,7 @@ private:
     // new_ep->inspect();
 
     std::stringstream descr;
-    descr << "cap=" << cached_table->cache_capacity;
+    descr << "capacity=" << cached_table->cache_capacity;
 
     return __generator_product_t(new_ep, descr.str());
   }

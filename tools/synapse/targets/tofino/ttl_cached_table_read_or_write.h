@@ -107,8 +107,8 @@ protected:
     // We can use a different method for picking the right estimation depending
     // on the time it takes to find a solution.
     for (int cache_capacity : allowed_cache_capacities) {
-      double success_estimation = get_cache_write_success_estimation_rel(
-          ep, node, cache_capacity, cached_table_data.num_entries);
+      double success_estimation = get_cache_success_estimation_rel(
+          ep, node, cached_table_data.key, cache_capacity);
 
       if (!can_get_or_build_cached_table(ep, node, cached_table_data,
                                          chosen_cache_capacity)) {
@@ -266,8 +266,8 @@ private:
     send_to_controller_node->set_prev(else_node);
 
     double cache_write_success_estimation_rel =
-        get_cache_write_success_estimation_rel(ep, node, cache_capacity,
-                                               cached_table_data.num_entries);
+        get_cache_success_estimation_rel(ep, node, cached_table_data.key,
+                                         cache_capacity);
 
     new_ep->update_node_constraints(then_node, else_node,
                                     cache_write_success_condition);
@@ -280,7 +280,11 @@ private:
     }
 
     // new_bdd->inspect();
+
     // bdd::BDDVisualizer::visualize(new_bdd, false);
+    // ProfilerVisualizer::visualize(ep->get_bdd(),
+    // ep->get_ctx().get_profiler(),
+    //                               false);
     // ProfilerVisualizer::visualize(new_bdd, new_ep->get_ctx().get_profiler(),
     //                               true);
 
@@ -299,15 +303,15 @@ private:
     // new_ep->inspect();
 
     std::stringstream descr;
-    descr << "cap=" << cache_capacity;
+    descr << "capacity=" << cache_capacity;
+    descr << " hit-rate=" << cache_write_success_estimation_rel;
 
     return __generator_product_t(new_ep, descr.str());
   }
 
-  double get_cache_write_success_estimation_rel(const EP *ep,
-                                                const bdd::Node *node,
-                                                int cache_capacity,
-                                                int num_entries) const {
+  double get_cache_success_estimation_rel(const EP *ep, const bdd::Node *node,
+                                          klee::ref<klee::Expr> key,
+                                          int cache_capacity) const {
     const Context &ctx = ep->get_ctx();
     const Profiler *profiler = ctx.get_profiler();
     constraints_t constraints = node->get_ordered_branch_constraints();
@@ -315,18 +319,37 @@ private:
     std::optional<double> fraction = profiler->get_fraction(constraints);
     assert(fraction.has_value());
 
+    std::optional<FlowStats> flow_stats =
+        profiler->get_flow_stats(constraints, key);
+    assert(flow_stats.has_value());
+
     rw_fractions_t rw_fractions =
         get_cond_map_put_rw_profile_fractions(ep, node);
 
     double relative_write_fraction = rw_fractions.write / *fraction;
     double relative_read_fraction = rw_fractions.read / *fraction;
 
-    double cache_update_success_fraction =
-        static_cast<double>(cache_capacity) / num_entries;
+    uint64_t cached_packets =
+        std::min(flow_stats->total_packets,
+                 flow_stats->avg_pkts_per_flow * cache_capacity);
+    double expected_cached_fraction =
+        cached_packets / static_cast<double>(flow_stats->total_packets);
 
     double relative_cache_success_fraction =
         relative_read_fraction +
-        relative_write_fraction * cache_update_success_fraction;
+        relative_write_fraction * expected_cached_fraction;
+
+    // std::cerr << "Reads: " << relative_read_fraction << std::endl;
+    // std::cerr << "Writes: " << relative_write_fraction << std::endl;
+    // std::cerr << "Avg pkts per flow: " << flow_stats->avg_pkts_per_flow
+    //           << std::endl;
+    // std::cerr << "Total flows: " << flow_stats->total_flows << std::endl;
+    // std::cerr << "Total packets: " << flow_stats->total_packets << std::endl;
+    // std::cerr << "Cached packets: " << cached_packets << std::endl;
+    // std::cerr << "Expected cached fraction: " << expected_cached_fraction
+    //           << std::endl;
+    // std::cerr << "Relative cache success fraction: "
+    //           << relative_cache_success_fraction << std::endl;
 
     return relative_cache_success_fraction;
   }

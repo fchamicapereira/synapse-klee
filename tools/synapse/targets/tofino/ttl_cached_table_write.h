@@ -79,6 +79,8 @@ protected:
       return std::nullopt;
     }
 
+    assert(!future_map_puts.empty());
+
     map_coalescing_data_t coalescing_data;
     if (!get_map_coalescing_data_from_dchain_op(ep, dchain_allocate_new_index,
                                                 coalescing_data)) {
@@ -102,8 +104,8 @@ protected:
     // We can use a different method for picking the right estimation depending
     // on the time it takes to find a solution.
     for (int cache_capacity : allowed_cache_capacities) {
-      double success_estimation = get_cache_write_success_estimation_rel(
-          ep, node, cache_capacity, cached_table_data.num_entries);
+      double success_estimation = get_cache_success_estimation_rel(
+          ep, node, future_map_puts[0], cached_table_data.key, cache_capacity);
 
       if (!can_get_or_build_cached_table(ep, node, cached_table_data,
                                          chosen_cache_capacity)) {
@@ -167,6 +169,8 @@ protected:
       return products;
     }
 
+    assert(!future_map_puts.empty());
+
     map_coalescing_data_t coalescing_data;
     if (!get_map_coalescing_data_from_dchain_op(ep, dchain_allocate_new_index,
                                                 coalescing_data)) {
@@ -189,7 +193,7 @@ protected:
       std::optional<__generator_product_t> product =
           concretize_cached_table_write(ep, node, coalescing_data,
                                         cached_table_data, cache_write_failed,
-                                        cache_capacity);
+                                        cache_capacity, future_map_puts);
 
       if (product.has_value()) {
         products.push_back(*product);
@@ -200,12 +204,12 @@ protected:
   }
 
 private:
-  std::optional<__generator_product_t>
-  concretize_cached_table_write(const EP *ep, const bdd::Node *node,
-                                const map_coalescing_data_t &coalescing_data,
-                                const cached_table_data_t &cached_table_data,
-                                const symbol_t &cache_write_failed,
-                                int cache_capacity) const {
+  std::optional<__generator_product_t> concretize_cached_table_write(
+      const EP *ep, const bdd::Node *node,
+      const map_coalescing_data_t &coalescing_data,
+      const cached_table_data_t &cached_table_data,
+      const symbol_t &cache_write_failed, int cache_capacity,
+      const std::vector<const bdd::Call *> &future_map_puts) const {
     std::unordered_set<DS_ID> deps;
     bool already_exists;
 
@@ -264,8 +268,8 @@ private:
     send_to_controller_node->set_prev(else_node);
 
     double cache_write_success_estimation_rel =
-        get_cache_write_success_estimation_rel(ep, node, cache_capacity,
-                                               cached_table_data.num_entries);
+        get_cache_success_estimation_rel(ep, node, future_map_puts[0],
+                                         cached_table_data.key, cache_capacity);
 
     new_ep->update_node_constraints(then_node, else_node,
                                     cache_write_success_condition);
@@ -291,15 +295,16 @@ private:
     // new_ep->inspect();
 
     std::stringstream descr;
-    descr << "cap=" << cache_capacity;
+    descr << "capacity=" << cache_capacity;
+    descr << " hit-rate=" << cache_write_success_estimation_rel;
 
     return __generator_product_t(new_ep, descr.str());
   }
 
-  double get_cache_write_success_estimation_rel(const EP *ep,
-                                                const bdd::Node *node,
-                                                int cache_capacity,
-                                                int num_entries) const {
+  double get_cache_success_estimation_rel(const EP *ep, const bdd::Node *node,
+                                          const bdd::Node *map_put,
+                                          klee::ref<klee::Expr> key,
+                                          int cache_capacity) const {
     const Context &ctx = ep->get_ctx();
     const Profiler *profiler = ctx.get_profiler();
     constraints_t constraints = node->get_ordered_branch_constraints();
@@ -307,13 +312,19 @@ private:
     std::optional<double> fraction = profiler->get_fraction(constraints);
     assert(fraction.has_value());
 
-    double cache_update_success_fraction =
-        static_cast<double>(cache_capacity) / num_entries;
+    constraints_t full_write_constraints =
+        map_put->get_ordered_branch_constraints();
+    std::optional<FlowStats> flow_stats =
+        profiler->get_flow_stats(full_write_constraints, key);
+    assert(flow_stats.has_value());
 
-    double relative_cache_success_fraction =
-        *fraction * cache_update_success_fraction;
+    uint64_t cached_packets =
+        std::min(flow_stats->total_packets,
+                 flow_stats->avg_pkts_per_flow * cache_capacity);
+    double expected_cached_fraction =
+        cached_packets / static_cast<double>(flow_stats->total_packets);
 
-    return relative_cache_success_fraction;
+    return fraction.value() * expected_cached_fraction;
   }
 
   std::unordered_set<DS_ID>

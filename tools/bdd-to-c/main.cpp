@@ -54,20 +54,14 @@ llvm::cl::opt<TargetOption>
 } // namespace
 
 Node_ptr update_path_profiler_rate(AST &ast, uint64_t node_id) {
-  auto path_profiler_counter = ast.get_from_state("path_profiler_counter");
-  assert(path_profiler_counter);
-
-  auto byte = PrimitiveType::build(PrimitiveType::PrimitiveKind::UINT8_T);
-  auto idx = Constant::build(PrimitiveType::PrimitiveKind::INT, node_id);
-  auto path_profiler_counter_byte =
-      Read::build(path_profiler_counter, byte, idx);
-  auto assignment = Assignment::build(
-      path_profiler_counter_byte,
-      Add::build(path_profiler_counter_byte,
-                 Constant::build(PrimitiveType::PrimitiveKind::INT, 1)));
-  assignment->set_terminate_line(true);
-
-  return assignment;
+  Expr_ptr node_id_expr =
+      Constant::build(PrimitiveType::PrimitiveKind::INT16_T, node_id);
+  Type_ptr void_ret_type =
+      PrimitiveType::build(PrimitiveType::PrimitiveKind::VOID);
+  FunctionCall_ptr inc_path_counter =
+      FunctionCall::build("inc_path_counter", {node_id_expr}, void_ret_type);
+  inc_path_counter->set_terminate_line(true);
+  return inc_path_counter;
 }
 
 Node_ptr build_ast(AST &ast, const bdd::Node *root, TargetOption target) {

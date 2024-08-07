@@ -11,6 +11,7 @@ void from_json(const json &j, bdd_profile_t::config_t &config) {
     dev_pcap_t elem;
     dev_pcap.at("device").get_to(elem.device);
     dev_pcap.at("pcap").get_to(elem.pcap);
+    dev_pcap.at("warmup").get_to(elem.warmup);
     config.pcaps.push_back(elem);
   }
 }

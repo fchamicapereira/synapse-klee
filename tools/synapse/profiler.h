@@ -9,10 +9,19 @@ namespace synapse {
 
 typedef std::vector<klee::ref<klee::Expr>> constraints_t;
 
+struct FlowStats {
+  klee::ref<klee::Expr> flow_id;
+  uint64_t total_packets;
+  uint64_t total_flows;
+  uint64_t avg_pkts_per_flow;
+  std::vector<uint64_t> packets_per_flow;
+};
+
 struct ProfilerNode {
   klee::ref<klee::Expr> constraint;
   double fraction;
   std::optional<bdd::node_id_t> bdd_node_id;
+  std::vector<FlowStats> flows_stats;
 
   ProfilerNode *on_true;
   ProfilerNode *on_false;
@@ -25,6 +34,9 @@ struct ProfilerNode {
 
   ProfilerNode *clone(bool keep_bdd_info) const;
   void log_debug(int lvl = 0) const;
+
+  bool get_flow_stats(klee::ref<klee::Expr> flow_id,
+                      FlowStats &flow_stats) const;
 };
 
 class Profiler {
@@ -54,6 +66,9 @@ public:
 
   const ProfilerNode *get_root() const { return root; }
   std::optional<double> get_fraction(const constraints_t &constraints) const;
+  std::optional<FlowStats> get_flow_stats(const constraints_t &constraints,
+                                          klee::ref<klee::Expr> flow_id) const;
+
   void log_debug() const;
 
 private:

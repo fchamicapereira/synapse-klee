@@ -34,6 +34,7 @@ int main(int argc, char **argv) {
     if (OutputDot.size()) {
       bdd::HitRateGraphvizGenerator generator(OutputDot, report.counters);
       generator.visit(bdd);
+      generator.write();
     }
 
     if (Show) {

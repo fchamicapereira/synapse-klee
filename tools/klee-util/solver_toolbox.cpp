@@ -66,7 +66,23 @@ solver_toolbox_t::create_new_symbol(const std::string &symbol_name,
 
 bool solver_toolbox_t::is_expr_always_true(klee::ref<klee::Expr> expr) const {
   klee::ConstraintManager no_constraints;
-  return is_expr_always_true(no_constraints, expr);
+
+  struct expr_hash_t {
+    std::size_t operator()(klee::ref<klee::Expr> expr) const {
+      return expr->hash();
+    }
+  };
+
+  static std::unordered_map<klee::ref<klee::Expr>, bool, expr_hash_t> cache;
+  auto it = cache.find(expr);
+  if (it != cache.end()) {
+    return it->second;
+  }
+
+  bool res = is_expr_always_true(no_constraints, expr);
+  cache[expr] = res;
+
+  return res;
 }
 
 bool solver_toolbox_t::is_expr_always_true(
@@ -200,7 +216,23 @@ bool solver_toolbox_t::are_exprs_always_not_equal(
 
 bool solver_toolbox_t::is_expr_always_false(klee::ref<klee::Expr> expr) const {
   klee::ConstraintManager no_constraints;
-  return is_expr_always_false(no_constraints, expr);
+
+  struct expr_hash_t {
+    std::size_t operator()(klee::ref<klee::Expr> expr) const {
+      return expr->hash();
+    }
+  };
+
+  static std::unordered_map<klee::ref<klee::Expr>, bool, expr_hash_t> cache;
+  auto it = cache.find(expr);
+  if (it != cache.end()) {
+    return it->second;
+  }
+
+  bool res = is_expr_always_false(no_constraints, expr);
+  cache[expr] = res;
+
+  return res;
 }
 
 bool solver_toolbox_t::is_expr_always_false(
@@ -299,6 +331,18 @@ uint64_t solver_toolbox_t::value_from_expr(klee::ref<klee::Expr> expr) const {
     return constant_expr->getZExtValue();
   }
 
+  struct expr_hash_t {
+    std::size_t operator()(klee::ref<klee::Expr> expr) const {
+      return expr->hash();
+    }
+  };
+
+  static std::unordered_map<klee::ref<klee::Expr>, uint64_t, expr_hash_t> cache;
+  auto it = cache.find(expr);
+  if (it != cache.end()) {
+    return it->second;
+  }
+
   klee::ConstraintManager no_constraints;
   klee::Query sat_query(no_constraints, expr);
 
@@ -306,7 +350,10 @@ uint64_t solver_toolbox_t::value_from_expr(klee::ref<klee::Expr> expr) const {
   bool success = solver->getValue(sat_query, value_expr);
 
   assert(success);
-  return value_expr->getZExtValue();
+  uint64_t res = value_expr->getZExtValue();
+  cache[expr] = res;
+
+  return res;
 }
 
 uint64_t solver_toolbox_t::value_from_expr(
