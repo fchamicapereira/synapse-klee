@@ -461,9 +461,17 @@ void generate_report() {
     map_op_stats_json["total_flows"] = stats.stats.size();
 
     uint64_t total_packets = 0;
+    std::vector<uint64_t> packets_per_flow;
     for (const auto &map_key_stats : stats.stats) {
-      map_op_stats_json["packets_per_flow"].push_back(map_key_stats.second);
+      packets_per_flow.push_back(map_key_stats.second);
       total_packets += map_key_stats.second;
+    }
+
+    std::sort(packets_per_flow.begin(), packets_per_flow.end(),
+              std::greater<>());
+
+    for (uint64_t packets : packets_per_flow) {
+      map_op_stats_json["packets_per_flow"].push_back(packets);
     }
 
     map_op_stats_json["total_packets"] = total_packets;
@@ -473,6 +481,7 @@ void generate_report() {
   }
 
   std::stringstream report_fname_ss;
+
   report_fname_ss << config.nf_name;
   for (const auto &dev_pcap : config.pcaps) {
     report_fname_ss << "-dev-" << dev_pcap.device;
@@ -482,7 +491,11 @@ void generate_report() {
   report_fname_ss << ".json";
 
   std::filesystem::path report_fname = report_fname_ss.str();
-  std::ofstream(report_fname) << report.dump(2);
+
+  std::ofstream os = std::ofstream(report_fname_ss.str());
+  os << report.dump(2);
+  os.flush();
+  os.close();
 
   NF_INFO("Generated report %s", report_fname.c_str());
 }
