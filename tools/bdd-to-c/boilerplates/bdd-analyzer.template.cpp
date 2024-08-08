@@ -107,7 +107,7 @@ struct dev_pcap_t {
 };
 
 struct config_t {
-  std::string nf_name;
+  std::string report_fname;
   std::vector<dev_pcap_t> pcaps;
 } config;
 
@@ -310,12 +310,14 @@ void nf_log_pkt(time_ns_t time, uint16_t device, uint8_t *packet,
 }
 
 void nf_config_usage(char **argv) {
-  NF_INFO("Usage: %s [[--warmup] dev0:pcap0] [[--warmup] dev1:pcap1] ...\n",
+  NF_INFO("Usage: %s <JSON output filename> [[--warmup] dev0:pcap0] "
+          "[[--warmup] dev1:pcap1] ...\n",
           argv[0]);
 }
 
 void nf_config_print(void) {
   NF_INFO("----- Config -----");
+  NF_INFO("report: %s", config.report_fname.c_str());
   for (const auto &dev_pcap : config.pcaps) {
     NF_INFO("device: %u, pcap: %s warmup: %d", dev_pcap.device,
             dev_pcap.pcap.filename().c_str(), dev_pcap.warmup);
@@ -323,21 +325,17 @@ void nf_config_print(void) {
   NF_INFO("--- ---------- ---");
 }
 
-std::string nf_name_from_executable(const char *argv0) {
-  std::filesystem::path nf_name = std::string(argv0);
-  return nf_name.filename().stem().string();
-}
-
 void nf_config_init(int argc, char **argv) {
-  if (argc < 2) {
+  if (argc < 3) {
     PARSE_ERROR(argv, "Insufficient arguments.\n");
   }
 
-  config.nf_name = nf_name_from_executable(argv[0]);
+  config.report_fname = argv[1];
+
   bool incoming_warmup = false;
 
   // split the arguments into device and pcap pairs joined by a :
-  for (int i = 1; i < argc; i++) {
+  for (int i = 2; i < argc; i++) {
     char *arg = argv[i];
 
     if (strcmp(arg, "--warmup") == 0) {
@@ -480,24 +478,12 @@ void generate_report() {
     report["map_stats"].push_back(map_op_stats_json);
   }
 
-  std::stringstream report_fname_ss;
-
-  report_fname_ss << config.nf_name;
-  for (const auto &dev_pcap : config.pcaps) {
-    report_fname_ss << "-dev-" << dev_pcap.device;
-    report_fname_ss << "-pcap-" << dev_pcap.pcap.filename().stem().string();
-    report_fname_ss << (dev_pcap.warmup ? "-warmup" : "");
-  }
-  report_fname_ss << ".json";
-
-  std::filesystem::path report_fname = report_fname_ss.str();
-
-  std::ofstream os = std::ofstream(report_fname_ss.str());
+  std::ofstream os = std::ofstream(config.report_fname);
   os << report.dump(2);
   os.flush();
   os.close();
 
-  NF_INFO("Generated report %s", report_fname.c_str());
+  NF_INFO("Generated report %s", config.report_fname.c_str());
 }
 
 // Main worker method (for now used on a single thread...)
