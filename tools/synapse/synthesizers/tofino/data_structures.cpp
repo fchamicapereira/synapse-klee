@@ -102,8 +102,8 @@ void TofinoSynthesizer::transpile_table(
   builder << "\n";
 }
 
-void TofinoSynthesizer::transpile_ttl_cached_table(
-    code_builder_t &builder, const TTLCachedTable *table,
+void TofinoSynthesizer::transpile_fcfs_cached_table(
+    code_builder_t &builder, const FCFSCachedTable *table,
     const std::vector<klee::ref<klee::Expr>> &keys,
     const std::vector<klee::ref<klee::Expr>> &values) {}
 

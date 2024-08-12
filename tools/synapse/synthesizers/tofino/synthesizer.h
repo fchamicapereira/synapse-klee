@@ -64,11 +64,11 @@ public:
   DECLARE_VISIT(tofino::SimpleTableLookup)
   DECLARE_VISIT(tofino::VectorRegisterLookup)
   DECLARE_VISIT(tofino::VectorRegisterUpdate)
-  DECLARE_VISIT(tofino::TTLCachedTableRead)
-  DECLARE_VISIT(tofino::TTLCachedTableReadOrWrite)
-  DECLARE_VISIT(tofino::TTLCachedTableWrite)
-  DECLARE_VISIT(tofino::TTLCachedTableConditionalDelete)
-  DECLARE_VISIT(tofino::TTLCachedTableDelete)
+  DECLARE_VISIT(tofino::FCFSCachedTableRead)
+  DECLARE_VISIT(tofino::FCFSCachedTableReadOrWrite)
+  DECLARE_VISIT(tofino::FCFSCachedTableWrite)
+  DECLARE_VISIT(tofino::FCFSCachedTableConditionalDelete)
+  DECLARE_VISIT(tofino::FCFSCachedTableDelete)
 
 private:
   code_t slice_var(const var_t &var, unsigned offset, bits_t size) const;
@@ -84,10 +84,10 @@ private:
                        const std::vector<klee::ref<klee::Expr>> &keys,
                        const std::vector<klee::ref<klee::Expr>> &values);
   void
-  transpile_ttl_cached_table(code_builder_t &builder,
-                             const TTLCachedTable *table,
-                             const std::vector<klee::ref<klee::Expr>> &keys,
-                             const std::vector<klee::ref<klee::Expr>> &values);
+  transpile_fcfs_cached_table(code_builder_t &builder,
+                              const FCFSCachedTable *table,
+                              const std::vector<klee::ref<klee::Expr>> &keys,
+                              const std::vector<klee::ref<klee::Expr>> &values);
 
   void dbg_vars() const;
 

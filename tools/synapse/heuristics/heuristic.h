@@ -15,12 +15,11 @@ struct HeuristicCfg {
   HeuristicCfg(const std::string &_name) : name(_name) {}
 
   virtual Score get_score(const EP *e) const = 0;
+  virtual bool terminate_on_first_solution() const = 0;
 
   virtual bool operator()(const EP *e1, const EP *e2) const {
     return get_score(e1) > get_score(e2);
   }
-
-  virtual bool terminate_on_first_solution() const = 0;
 };
 
 template <class HCfg> class Heuristic {
@@ -28,20 +27,17 @@ template <class HCfg> class Heuristic {
                 "HCfg must inherit from HeuristicCfg");
 
 protected:
-  std::multiset<const EP *, HCfg> execution_plans;
   HCfg configuration;
-
-  RandomEngine random_engine;
+  std::multiset<const EP *, HCfg> execution_plans;
   typename std::set<const EP *, HCfg>::iterator best_it;
 
 public:
-  Heuristic(unsigned _rand_seed) : random_engine(_rand_seed, 0, 1) {}
+  Heuristic() {}
 
   ~Heuristic() {
     for (const EP *ep : execution_plans) {
       if (ep) {
         delete ep;
-        ep = nullptr;
       }
     }
   }
@@ -62,8 +58,6 @@ public:
 
     return nullptr;
   }
-
-  unsigned get_random_seed() const { return random_engine.get_seed(); }
 
   std::vector<const EP *> get_all() const {
     std::vector<const EP *> eps;
@@ -117,7 +111,7 @@ private:
         best_it = execution_plans.begin();
       }
 
-      if (random_engine.generate()) {
+      if (RandomEngine::generate() % 2 == 0) {
         break;
       }
 

@@ -5,8 +5,8 @@
 
 #include "node.h"
 #include "../targets/target.h"
-
 #include "../profiler.h"
+#include "../random_engine.h"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -27,9 +27,13 @@ struct EPMeta {
   std::unordered_set<ep_node_id_t> visited_ep_nodes;
   bdd::nodes_t processed_nodes;
 
+  // Useful for uniquely identifying/classifying this EP.
+  int64_t random_number;
+
   EPMeta(const bdd::BDD *bdd, const std::unordered_set<TargetType> &targets,
          const TargetType initial_target)
-      : total_bdd_nodes(bdd->size()), depth(0), nodes(0), reordered_nodes(0) {
+      : total_bdd_nodes(bdd->size()), depth(0), nodes(0), reordered_nodes(0),
+        random_number(RandomEngine::generate()) {
     for (TargetType target : targets) {
       nodes_per_target[target] = 0;
       bdd_nodes_per_target[target] = 0;
@@ -41,14 +45,16 @@ struct EPMeta {
         nodes(other.nodes), reordered_nodes(other.reordered_nodes),
         nodes_per_target(other.nodes_per_target),
         bdd_nodes_per_target(other.bdd_nodes_per_target),
-        processed_nodes(other.processed_nodes) {}
+        processed_nodes(other.processed_nodes),
+        random_number(RandomEngine::generate()) {}
 
   EPMeta(EPMeta &&other)
       : total_bdd_nodes(other.total_bdd_nodes), depth(other.depth),
         nodes(other.nodes), reordered_nodes(other.reordered_nodes),
         nodes_per_target(std::move(other.nodes_per_target)),
         bdd_nodes_per_target(std::move(other.bdd_nodes_per_target)),
-        processed_nodes(std::move(other.processed_nodes)) {}
+        processed_nodes(std::move(other.processed_nodes)),
+        random_number(RandomEngine::generate()) {}
 
   EPMeta &operator=(const EPMeta &other) {
     if (this == &other) {
@@ -61,6 +67,7 @@ struct EPMeta {
     nodes_per_target = other.nodes_per_target;
     bdd_nodes_per_target = other.bdd_nodes_per_target;
     processed_nodes = other.processed_nodes;
+    random_number = RandomEngine::generate();
 
     return *this;
   }

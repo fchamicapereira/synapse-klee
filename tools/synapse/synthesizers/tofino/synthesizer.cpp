@@ -570,32 +570,32 @@ void TofinoSynthesizer::visit(const EP *ep, const EPNode *ep_node,
 }
 
 void TofinoSynthesizer::visit(const EP *ep, const EPNode *ep_node,
-                              const tofino::TTLCachedTableRead *node) {
+                              const tofino::FCFSCachedTableRead *node) {
   // TODO:
   assert(false && "TODO");
 }
 
 void TofinoSynthesizer::visit(const EP *ep, const EPNode *ep_node,
-                              const tofino::TTLCachedTableReadOrWrite *node) {
+                              const tofino::FCFSCachedTableReadOrWrite *node) {
   // TODO:
   assert(false && "TODO");
 }
 
 void TofinoSynthesizer::visit(const EP *ep, const EPNode *ep_node,
-                              const tofino::TTLCachedTableWrite *node) {
+                              const tofino::FCFSCachedTableWrite *node) {
   // TODO:
   assert(false && "TODO");
 }
 
 void TofinoSynthesizer::visit(
     const EP *ep, const EPNode *ep_node,
-    const tofino::TTLCachedTableConditionalDelete *node) {
+    const tofino::FCFSCachedTableConditionalDelete *node) {
   // TODO:
   assert(false && "TODO");
 }
 
 void TofinoSynthesizer::visit(const EP *ep, const EPNode *ep_node,
-                              const tofino::TTLCachedTableDelete *node) {
+                              const tofino::FCFSCachedTableDelete *node) {
   // TODO:
   assert(false && "TODO");
 }

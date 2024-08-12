@@ -463,8 +463,8 @@ std::ostream &operator<<(std::ostream &os, PlacementDecision decision) {
   case PlacementDecision::Tofino_VectorRegister:
     os << "Tofino::Register";
     break;
-  case PlacementDecision::Tofino_TTLCachedTable:
-    os << "Tofino::TTLCachedTable";
+  case PlacementDecision::Tofino_FCFSCachedTable:
+    os << "Tofino::FCFSCachedTable";
     break;
   case PlacementDecision::TofinoCPU_Dchain:
     os << "TofinoCPU::Dchain";

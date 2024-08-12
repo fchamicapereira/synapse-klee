@@ -62,8 +62,8 @@ SHOW_MODULE_NAME(tofino_cpu::SketchRefresh)
 SHOW_MODULE_NAME(tofino_cpu::SketchTouchBuckets)
 SHOW_MODULE_NAME(tofino_cpu::VectorRegisterLookup)
 SHOW_MODULE_NAME(tofino_cpu::VectorRegisterUpdate)
-SHOW_MODULE_NAME(tofino_cpu::TTLCachedTableRead)
-SHOW_MODULE_NAME(tofino_cpu::TTLCachedTableWrite)
-SHOW_MODULE_NAME(tofino_cpu::TTLCachedTableDelete)
+SHOW_MODULE_NAME(tofino_cpu::FCFSCachedTableRead)
+SHOW_MODULE_NAME(tofino_cpu::FCFSCachedTableWrite)
+SHOW_MODULE_NAME(tofino_cpu::FCFSCachedTableDelete)
 
 } // namespace synapse

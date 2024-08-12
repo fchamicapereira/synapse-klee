@@ -13,7 +13,6 @@ namespace synapse {
 
 struct search_config_t {
   std::string heuristic;
-  unsigned random_seed;
 };
 
 struct search_meta_t {
@@ -21,7 +20,19 @@ struct search_meta_t {
   time_t elapsed_time;
   uint64_t steps;
   uint64_t backtracks;
+  std::unordered_map<bdd::node_id_t, int> visits_per_node;
+  std::unordered_map<bdd::node_id_t, float> avg_children_per_node;
+  uint64_t avg_bdd_size;
   float branching_factor;
+  float total_ss_size_estimation;
+  int solutions;
+
+  search_meta_t()
+      : ss_size(0), elapsed_time(0), steps(0), backtracks(0), avg_bdd_size(0),
+        branching_factor(0), total_ss_size_estimation(0), solutions(0) {}
+
+  search_meta_t(const search_meta_t &other) = default;
+  search_meta_t(search_meta_t &&other) = default;
 };
 
 struct search_solution_t {

@@ -72,6 +72,7 @@ public:
 
   const Node *get_node_by_id(node_id_t _id) const;
   Node *get_mutable_node_by_id(node_id_t _id);
+  int get_node_depth(node_id_t _id) const;
 
   NodeManager &get_mutable_manager() { return manager; }
 };

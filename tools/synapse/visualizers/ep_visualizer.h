@@ -42,11 +42,11 @@ public:
   DECLARE_VISIT(tofino::SimpleTableLookup)
   DECLARE_VISIT(tofino::VectorRegisterLookup)
   DECLARE_VISIT(tofino::VectorRegisterUpdate)
-  DECLARE_VISIT(tofino::TTLCachedTableRead)
-  DECLARE_VISIT(tofino::TTLCachedTableReadOrWrite)
-  DECLARE_VISIT(tofino::TTLCachedTableWrite)
-  DECLARE_VISIT(tofino::TTLCachedTableConditionalDelete)
-  DECLARE_VISIT(tofino::TTLCachedTableDelete)
+  DECLARE_VISIT(tofino::FCFSCachedTableRead)
+  DECLARE_VISIT(tofino::FCFSCachedTableReadOrWrite)
+  DECLARE_VISIT(tofino::FCFSCachedTableWrite)
+  DECLARE_VISIT(tofino::FCFSCachedTableConditionalDelete)
+  DECLARE_VISIT(tofino::FCFSCachedTableDelete)
 
   /********************************************
    *
@@ -85,9 +85,9 @@ public:
   DECLARE_VISIT(tofino_cpu::SketchTouchBuckets)
   DECLARE_VISIT(tofino_cpu::VectorRegisterLookup)
   DECLARE_VISIT(tofino_cpu::VectorRegisterUpdate)
-  DECLARE_VISIT(tofino_cpu::TTLCachedTableRead)
-  DECLARE_VISIT(tofino_cpu::TTLCachedTableWrite)
-  DECLARE_VISIT(tofino_cpu::TTLCachedTableDelete)
+  DECLARE_VISIT(tofino_cpu::FCFSCachedTableRead)
+  DECLARE_VISIT(tofino_cpu::FCFSCachedTableWrite)
+  DECLARE_VISIT(tofino_cpu::FCFSCachedTableDelete)
 
   /********************************************
    *

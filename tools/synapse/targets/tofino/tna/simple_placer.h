@@ -52,7 +52,7 @@ private:
 
   void place(const Table *table, const std::unordered_set<DS_ID> &deps);
   void place(const Register *reg, const std::unordered_set<DS_ID> &deps);
-  void place(const TTLCachedTable *cached_table,
+  void place(const FCFSCachedTable *cached_table,
              const std::unordered_set<DS_ID> &deps);
 
   bool is_already_placed(DS_ID ds_id) const;
@@ -65,7 +65,7 @@ private:
                             const std::unordered_set<DS_ID> &deps) const;
   PlacementStatus can_place(const Register *reg,
                             const std::unordered_set<DS_ID> &deps) const;
-  PlacementStatus can_place(const TTLCachedTable *cached_table,
+  PlacementStatus can_place(const FCFSCachedTable *cached_table,
                             const std::unordered_set<DS_ID> &deps) const;
 
   PlacementStatus find_placements(const Table *table,

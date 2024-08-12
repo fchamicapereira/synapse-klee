@@ -12,7 +12,7 @@
 namespace synapse {
 namespace tofino {
 
-struct TTLCachedTable : public DS {
+struct FCFSCachedTable : public DS {
   int cache_capacity;
   int num_entries;
   std::vector<bits_t> keys;
@@ -21,10 +21,10 @@ struct TTLCachedTable : public DS {
   Register cache_expirator;
   std::vector<Register> cache_keys;
 
-  TTLCachedTable(const TNAProperties &properties, DS_ID id, int cache_capacity,
-                 int num_entries, const std::vector<bits_t> &keys);
+  FCFSCachedTable(const TNAProperties &properties, DS_ID id, int cache_capacity,
+                  int num_entries, const std::vector<bits_t> &keys);
 
-  TTLCachedTable(const TTLCachedTable &other);
+  FCFSCachedTable(const FCFSCachedTable &other);
 
   DS *clone() const override;
   void log_debug() const override;

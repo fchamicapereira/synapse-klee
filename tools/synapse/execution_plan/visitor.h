@@ -37,11 +37,11 @@ class ModifyHeader;
 class SimpleTableLookup;
 class VectorRegisterLookup;
 class VectorRegisterUpdate;
-class TTLCachedTableRead;
-class TTLCachedTableReadOrWrite;
-class TTLCachedTableWrite;
-class TTLCachedTableConditionalDelete;
-class TTLCachedTableDelete;
+class FCFSCachedTableRead;
+class FCFSCachedTableReadOrWrite;
+class FCFSCachedTableWrite;
+class FCFSCachedTableConditionalDelete;
+class FCFSCachedTableDelete;
 } // namespace tofino
 
 namespace tofino_cpu {
@@ -76,9 +76,9 @@ class SketchTouchBuckets;
 class SimpleTableDelete;
 class VectorRegisterLookup;
 class VectorRegisterUpdate;
-class TTLCachedTableRead;
-class TTLCachedTableWrite;
-class TTLCachedTableDelete;
+class FCFSCachedTableRead;
+class FCFSCachedTableWrite;
+class FCFSCachedTableDelete;
 } // namespace tofino_cpu
 
 namespace x86 {
@@ -139,11 +139,11 @@ public:
   VISIT_NOP(tofino::SimpleTableLookup)
   VISIT_NOP(tofino::VectorRegisterLookup)
   VISIT_NOP(tofino::VectorRegisterUpdate)
-  VISIT_NOP(tofino::TTLCachedTableRead)
-  VISIT_NOP(tofino::TTLCachedTableReadOrWrite)
-  VISIT_NOP(tofino::TTLCachedTableWrite)
-  VISIT_NOP(tofino::TTLCachedTableConditionalDelete)
-  VISIT_NOP(tofino::TTLCachedTableDelete)
+  VISIT_NOP(tofino::FCFSCachedTableRead)
+  VISIT_NOP(tofino::FCFSCachedTableReadOrWrite)
+  VISIT_NOP(tofino::FCFSCachedTableWrite)
+  VISIT_NOP(tofino::FCFSCachedTableConditionalDelete)
+  VISIT_NOP(tofino::FCFSCachedTableDelete)
   VISIT_NOP(tofino::Recirculate)
 
   /*************************************
@@ -183,9 +183,9 @@ public:
   VISIT_NOP(tofino_cpu::SketchTouchBuckets)
   VISIT_NOP(tofino_cpu::VectorRegisterLookup)
   VISIT_NOP(tofino_cpu::VectorRegisterUpdate)
-  VISIT_NOP(tofino_cpu::TTLCachedTableRead)
-  VISIT_NOP(tofino_cpu::TTLCachedTableWrite)
-  VISIT_NOP(tofino_cpu::TTLCachedTableDelete)
+  VISIT_NOP(tofino_cpu::FCFSCachedTableRead)
+  VISIT_NOP(tofino_cpu::FCFSCachedTableWrite)
+  VISIT_NOP(tofino_cpu::FCFSCachedTableDelete)
 
   /*************************************
    *

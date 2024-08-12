@@ -87,14 +87,14 @@ protected:
     int num_entries;
   };
 
-  TTLCachedTable *build_cached_table(const EP *ep, const bdd::Node *node,
-                                     const cached_table_data_t &data,
-                                     int cache_capacity,
-                                     std::unordered_set<DS_ID> &deps) const;
-  TTLCachedTable *get_cached_table(const EP *ep, const bdd::Node *node,
-                                   const cached_table_data_t &data,
-                                   std::unordered_set<DS_ID> &deps) const;
-  TTLCachedTable *
+  FCFSCachedTable *build_cached_table(const EP *ep, const bdd::Node *node,
+                                      const cached_table_data_t &data,
+                                      int cache_capacity,
+                                      std::unordered_set<DS_ID> &deps) const;
+  FCFSCachedTable *get_cached_table(const EP *ep, const bdd::Node *node,
+                                    const cached_table_data_t &data,
+                                    std::unordered_set<DS_ID> &deps) const;
+  FCFSCachedTable *
   get_or_build_cached_table(const EP *ep, const bdd::Node *node,
                             const cached_table_data_t &data, int cache_capacity,
                             bool &already_exists,
@@ -107,7 +107,7 @@ protected:
   can_place_cached_table(const EP *ep,
                          const map_coalescing_data_t &coalescing_data) const;
   void place_cached_table(EP *ep, const map_coalescing_data_t &coalescing_data,
-                          TTLCachedTable *ds,
+                          FCFSCachedTable *ds,
                           const std::unordered_set<DS_ID> &deps) const;
   std::unordered_set<int>
   enumerate_cache_table_capacities(int num_entries) const;

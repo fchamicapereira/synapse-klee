@@ -77,9 +77,9 @@ struct TofinoCPUTarget : public Target {
                    new SketchTouchBucketsGenerator(),
                    new VectorRegisterLookupGenerator(),
                    new VectorRegisterUpdateGenerator(),
-                   new TTLCachedTableReadGenerator(),
-                   new TTLCachedTableWriteGenerator(),
-                   new TTLCachedTableDeleteGenerator(),
+                   new FCFSCachedTableReadGenerator(),
+                   new FCFSCachedTableWriteGenerator(),
+                   new FCFSCachedTableDeleteGenerator(),
                },
                new TofinoCPUContext()) {}
 };

@@ -151,6 +151,42 @@ Node *BDD::get_mutable_node_by_id(node_id_t _id) {
   return root ? root->get_mutable_node_by_id(_id) : nullptr;
 }
 
+int BDD::get_node_depth(node_id_t _id) const {
+  int depth = -1;
+
+  if (!root) {
+    return depth;
+  }
+
+  struct depth_tracker_t : cookie_t {
+    int depth;
+
+    depth_tracker_t() : depth(0) {}
+
+    cookie_t *clone() const override {
+      depth_tracker_t *new_cookie = new depth_tracker_t();
+      new_cookie->depth = depth;
+      return new_cookie;
+    }
+  };
+
+  root->visit_nodes(
+      [_id, &depth](const Node *node, cookie_t *cookie) {
+        depth_tracker_t *depth_tracker = static_cast<depth_tracker_t *>(cookie);
+
+        if (node->get_id() == _id) {
+          depth = depth_tracker->depth;
+          return NodeVisitAction::STOP;
+        }
+
+        depth_tracker->depth++;
+        return NodeVisitAction::VISIT_CHILDREN;
+      },
+      std::make_unique<depth_tracker_t>());
+
+  return depth;
+}
+
 static bool is_bdd_symbol(const std::string &symbol) {
   return bdd_symbols.find(symbol) != bdd_symbols.end();
 }

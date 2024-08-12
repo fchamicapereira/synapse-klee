@@ -84,18 +84,22 @@ llvm::cl::opt<std::string> BDDProfile("prof",
                                       llvm::cl::Optional,
                                       llvm::cl::cat(SyNAPSE));
 
-enum HeuristicOption {
-  HEURISTIC_BFS,
-  HEURISTIC_GALLIUM,
-  HEURISTIC_MAX_THROUGHPUT,
+enum class HeuristicOption {
+  BFS,
+  DFS,
+  RANDOM,
+  GALLIUM,
+  MAX_THROUGHPUT,
 };
 
 llvm::cl::opt<HeuristicOption> ChosenHeuristic(
     "heuristic", llvm::cl::desc("Chosen heuristic."),
-    llvm::cl::values(clEnumValN(HEURISTIC_BFS, "bfs", "BFS"),
-                     clEnumValN(HEURISTIC_GALLIUM, "gallium", "Gallium"),
-                     clEnumValN(HEURISTIC_MAX_THROUGHPUT, "max-throughput",
-                                "Maximize throughput"),
+    llvm::cl::values(clEnumValN(HeuristicOption::BFS, "bfs", "BFS"),
+                     clEnumValN(HeuristicOption::DFS, "dfs", "DFS"),
+                     clEnumValN(HeuristicOption::RANDOM, "random", "Random"),
+                     clEnumValN(HeuristicOption::GALLIUM, "gallium", "Gallium"),
+                     clEnumValN(HeuristicOption::MAX_THROUGHPUT,
+                                "max-throughput", "Maximize throughput"),
                      clEnumValEnd),
     llvm::cl::Required, llvm::cl::cat(SyNAPSE));
 
@@ -105,7 +109,7 @@ llvm::cl::opt<bool> Verbose("v", llvm::cl::desc("Verbose mode."),
 } // namespace
 
 search_report_t search(const bdd::BDD *bdd, Profiler *profiler,
-                       const targets_t &targets, unsigned seed) {
+                       const targets_t &targets) {
   std::unordered_set<ep_id_t> peek;
   for (ep_id_t ep_id : Peek) {
     peek.insert(ep_id);
@@ -113,20 +117,32 @@ search_report_t search(const bdd::BDD *bdd, Profiler *profiler,
 
   // A bit disgusting, but oh well...
   switch (ChosenHeuristic) {
-  case HEURISTIC_BFS: {
-    BFS heuristic(seed);
+  case HeuristicOption::BFS: {
+    BFS heuristic;
     SearchEngine engine(bdd, &heuristic, profiler, targets, !BDDNoReorder, peek,
                         ShowBacktrack);
     return engine.search();
   } break;
-  case HEURISTIC_GALLIUM: {
-    Gallium heuristic(seed);
+  case HeuristicOption::DFS: {
+    DFS heuristic;
     SearchEngine engine(bdd, &heuristic, profiler, targets, !BDDNoReorder, peek,
                         ShowBacktrack);
     return engine.search();
   } break;
-  case HEURISTIC_MAX_THROUGHPUT: {
-    MaxThroughput heuristic(seed);
+  case HeuristicOption::RANDOM: {
+    Random heuristic;
+    SearchEngine engine(bdd, &heuristic, profiler, targets, !BDDNoReorder, peek,
+                        ShowBacktrack);
+    return engine.search();
+  } break;
+  case HeuristicOption::GALLIUM: {
+    Gallium heuristic;
+    SearchEngine engine(bdd, &heuristic, profiler, targets, !BDDNoReorder, peek,
+                        ShowBacktrack);
+    return engine.search();
+  } break;
+  case HeuristicOption::MAX_THROUGHPUT: {
+    MaxThroughput heuristic;
     SearchEngine engine(bdd, &heuristic, profiler, targets, !BDDNoReorder, peek,
                         ShowBacktrack);
     return engine.search();
@@ -153,13 +169,15 @@ int main(int argc, char **argv) {
   }
 
   bdd::BDD *bdd = new bdd::BDD(InputBDDFile);
+
   unsigned seed = (Seed >= 0) ? Seed : std::random_device()();
+  RandomEngine::seed(seed);
 
   Profiler *profiler = nullptr;
   if (!BDDProfile.empty()) {
     profiler = new Profiler(bdd, BDDProfile);
   } else {
-    profiler = new Profiler(bdd, seed);
+    profiler = new Profiler(bdd);
   }
 
   profiler->log_debug();
@@ -168,13 +186,12 @@ int main(int argc, char **argv) {
   targets_t targets = build_targets(profiler);
 
   // std::string nf_name = nf_name_from_bdd(InputBDDFile);
-  search_report_t report = search(bdd, profiler, targets, seed);
+  search_report_t report = search(bdd, profiler, targets);
 
   Log::log() << "\n";
   Log::log() << "Params:\n";
   Log::log() << "  Heuristic:        " << report.config.heuristic << "\n";
-  Log::log() << "  Random seed:      " << int2hr(report.config.random_seed)
-             << "\n";
+  Log::log() << "  Random seed:      " << seed << "\n";
   Log::log() << "Search:\n";
   Log::log() << "  Search time:      " << report.meta.elapsed_time << " s\n";
   Log::log() << "  SS size:          " << int2hr(report.meta.ss_size) << "\n";
@@ -182,7 +199,10 @@ int main(int argc, char **argv) {
   Log::log() << "  Backtracks:       " << int2hr(report.meta.backtracks)
              << "\n";
   Log::log() << "  Branching factor: " << report.meta.branching_factor << "\n";
-  Log::log() << "Solution:\n";
+  Log::log() << "  Avg BDD size:     " << int2hr(report.meta.avg_bdd_size)
+             << "\n";
+  Log::log() << "  Solutions:        " << int2hr(report.meta.solutions) << "\n";
+  Log::log() << "Winner EP:\n";
   Log::log() << "  Winner:           " << report.solution.score << "\n";
   Log::log() << "  Throughput:       " << report.solution.throughput_estimation
              << "\n";

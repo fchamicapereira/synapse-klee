@@ -1,4 +1,4 @@
-#include "ttl_cached_table.h"
+#include "fcfs_cached_table.h"
 
 namespace synapse {
 namespace tofino {
@@ -44,9 +44,9 @@ static std::vector<Register> build_cache_keys(const TNAProperties &properties,
   return cache_keys;
 }
 
-TTLCachedTable::TTLCachedTable(const TNAProperties &properties, DS_ID _id,
-                               int _cache_capacity, int _num_entries,
-                               const std::vector<bits_t> &_keys)
+FCFSCachedTable::FCFSCachedTable(const TNAProperties &properties, DS_ID _id,
+                                 int _cache_capacity, int _num_entries,
+                                 const std::vector<bits_t> &_keys)
     : DS(DSType::CACHED_TABLE, _id), cache_capacity(_cache_capacity),
       num_entries(_num_entries), keys(_keys),
       tables({
@@ -57,14 +57,14 @@ TTLCachedTable::TTLCachedTable(const TNAProperties &properties, DS_ID _id,
       cache_expirator(build_cache_expirator(properties, _id, cache_capacity)),
       cache_keys(build_cache_keys(properties, id, keys, cache_capacity)) {}
 
-TTLCachedTable::TTLCachedTable(const TTLCachedTable &other)
+FCFSCachedTable::FCFSCachedTable(const FCFSCachedTable &other)
     : DS(DSType::CACHED_TABLE, other.id), cache_capacity(other.cache_capacity),
       num_entries(other.num_entries), keys(other.keys), tables(other.tables),
       cache_expirator(other.cache_expirator), cache_keys(other.cache_keys) {}
 
-DS *TTLCachedTable::clone() const { return new TTLCachedTable(*this); }
+DS *FCFSCachedTable::clone() const { return new FCFSCachedTable(*this); }
 
-void TTLCachedTable::log_debug() const {
+void FCFSCachedTable::log_debug() const {
   Log::dbg() << "\n";
   Log::dbg() << "======== CACHED TABLE ========\n";
   Log::dbg() << "ID:      " << id << "\n";
@@ -81,7 +81,7 @@ void TTLCachedTable::log_debug() const {
 }
 
 std::vector<std::unordered_set<const DS *>>
-TTLCachedTable::get_internal_ds() const {
+FCFSCachedTable::get_internal_ds() const {
   // Access to the table comes first, then the expirator, and finally the keys.
 
   std::vector<std::unordered_set<const DS *>> internal_ds;

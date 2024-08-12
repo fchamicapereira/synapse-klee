@@ -19,7 +19,7 @@ class EP;
 enum class PlacementDecision {
   Tofino_SimpleTable,
   Tofino_VectorRegister,
-  Tofino_TTLCachedTable,
+  Tofino_FCFSCachedTable,
   TofinoCPU_Map,
   TofinoCPU_Vector,
   TofinoCPU_Dchain,

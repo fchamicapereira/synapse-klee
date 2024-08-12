@@ -5,7 +5,7 @@
 namespace synapse {
 namespace tofino {
 
-class TTLCachedTableDelete : public TofinoModule {
+class FCFSCachedTableDelete : public TofinoModule {
 private:
   DS_ID cached_table_id;
   std::unordered_set<DS_ID> cached_table_byproducts;
@@ -15,12 +15,12 @@ private:
   symbol_t cached_delete_failed;
 
 public:
-  TTLCachedTableDelete(
+  FCFSCachedTableDelete(
       const bdd::Node *node, DS_ID _cached_table_id,
       const std::unordered_set<DS_ID> &_cached_table_byproducts, addr_t _obj,
       klee::ref<klee::Expr> _key, const symbol_t &_cached_delete_failed)
-      : TofinoModule(ModuleType::Tofino_TTLCachedTableDelete,
-                     "TTLCachedTableDelete", node),
+      : TofinoModule(ModuleType::Tofino_FCFSCachedTableDelete,
+                     "FCFSCachedTableDelete", node),
         cached_table_id(_cached_table_id),
         cached_table_byproducts(_cached_table_byproducts), obj(_obj), key(_key),
         cached_delete_failed(_cached_delete_failed) {}
@@ -31,9 +31,9 @@ public:
   }
 
   virtual Module *clone() const override {
-    Module *cloned =
-        new TTLCachedTableDelete(node, cached_table_id, cached_table_byproducts,
-                                 obj, key, cached_delete_failed);
+    Module *cloned = new FCFSCachedTableDelete(node, cached_table_id,
+                                               cached_table_byproducts, obj,
+                                               key, cached_delete_failed);
     return cloned;
   }
 
@@ -49,11 +49,11 @@ public:
   }
 };
 
-class TTLCachedTableDeleteGenerator : public TofinoModuleGenerator {
+class FCFSCachedTableDeleteGenerator : public TofinoModuleGenerator {
 public:
-  TTLCachedTableDeleteGenerator()
-      : TofinoModuleGenerator(ModuleType::Tofino_TTLCachedTableDelete,
-                              "TTLCachedTableDelete") {}
+  FCFSCachedTableDeleteGenerator()
+      : TofinoModuleGenerator(ModuleType::Tofino_FCFSCachedTableDelete,
+                              "FCFSCachedTableDelete") {}
 
 protected:
   virtual std::optional<speculation_t>
@@ -183,7 +183,7 @@ protected:
     // A bit too strict, but I don't want to build the cached table ds in this
     // module because we don't have a value.
     if (!check_placement(ep, map_erase, "map",
-                         PlacementDecision::Tofino_TTLCachedTable)) {
+                         PlacementDecision::Tofino_FCFSCachedTable)) {
       return products;
     }
 
@@ -211,7 +211,7 @@ private:
       const symbol_t &cache_delete_failed) const {
     std::unordered_set<DS_ID> deps;
 
-    TTLCachedTable *cached_table =
+    FCFSCachedTable *cached_table =
         get_cached_table(ep, map_erase, cached_table_data, deps);
 
     if (!cached_table) {
@@ -224,7 +224,7 @@ private:
     klee::ref<klee::Expr> cache_delete_success_condition =
         build_cache_delete_success_condition(cache_delete_failed);
 
-    Module *module = new TTLCachedTableDelete(
+    Module *module = new FCFSCachedTableDelete(
         node, cached_table->id, byproducts, cached_table_data.obj,
         cached_table_data.key, cache_delete_failed);
     EPNode *cached_table_delete_node = new EPNode(module);
@@ -324,7 +324,7 @@ private:
   }
 
   std::unordered_set<DS_ID>
-  get_cached_table_byproducts(TTLCachedTable *cached_table) const {
+  get_cached_table_byproducts(FCFSCachedTable *cached_table) const {
     std::unordered_set<DS_ID> byproducts;
 
     std::vector<std::unordered_set<const DS *>> internal_ds =

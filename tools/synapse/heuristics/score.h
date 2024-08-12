@@ -7,6 +7,7 @@
 #include "../execution_plan/execution_plan.h"
 #include "../execution_plan/node.h"
 #include "../targets/targets.h"
+#include "../random_engine.h"
 #include "../log.h"
 
 namespace synapse {
@@ -28,6 +29,7 @@ enum class ScoreCategory {
   ProcessedBDDPercentage,
   Throughput,
   SpeculativeThroughput,
+  Random,
 };
 
 enum class ScoreObjective { MIN, MAX };
@@ -118,6 +120,10 @@ public:
             {
                 ScoreCategory::SpeculativeThroughput,
                 &Score::get_throughput_speculation,
+            },
+            {
+                ScoreCategory::Random,
+                &Score::get_random,
             },
         }) {
     for (const auto &category_objective : categories_objectives) {
@@ -225,6 +231,7 @@ private:
   int64_t get_nr_recirculations(const EP *ep) const;
   int64_t get_throughput_prediction(const EP *ep) const;
   int64_t get_throughput_speculation(const EP *ep) const;
+  int64_t get_random(const EP *ep) const;
 };
 
 std::ostream &operator<<(std::ostream &os, const Score &score);

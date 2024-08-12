@@ -102,8 +102,13 @@ static void log_search_iteration(const search_step_report_t &report,
   Log::dbg() << "Elapsed:          " << search_meta.elapsed_time << " s\n";
   Log::dbg() << "Backtracks:       " << int2hr(search_meta.backtracks) << "\n";
   Log::dbg() << "Branching factor: " << search_meta.branching_factor << "\n";
-  Log::dbg() << "SS size:          " << int2hr(search_meta.ss_size) << "\n";
+  Log::dbg() << "Avg BDD size:     " << int2hr(search_meta.avg_bdd_size)
+             << "\n";
+  Log::dbg() << "SS size (est):    "
+             << int2hr(search_meta.total_ss_size_estimation) << "\n";
+  Log::dbg() << "Current SS size:  " << int2hr(search_meta.ss_size) << "\n";
   Log::dbg() << "Search Steps:     " << int2hr(search_meta.steps) << "\n";
+  Log::dbg() << "Solutions:        " << int2hr(search_meta.solutions) << "\n";
 
   if (report.targets.size() == 0) {
     Log::dbg() << "\n";
@@ -138,30 +143,35 @@ static void peek_backtrack(const EP *ep, SearchSpace *search_space,
 }
 
 template <class HCfg> search_report_t SearchEngine<HCfg>::search() {
-  search_meta_t meta = {
-      .ss_size = 0,
-      .elapsed_time = 0,
-      .steps = 0,
-      .backtracks = 0,
-      .branching_factor = 0,
-  };
-
+  search_meta_t meta;
   auto start_search = std::chrono::steady_clock::now();
-
   SearchSpace *search_space = new SearchSpace(h->get_cfg());
 
   h->add({new EP(bdd, targets, profiler)});
 
+  std::unordered_map<bdd::node_id_t, int> node_depth;
+
+  bdd->get_root()->visit_nodes(
+      [this, &meta, &node_depth](const bdd::Node *node) {
+        bdd::node_id_t id = node->get_id();
+        meta.avg_children_per_node[id] = 0;
+        meta.visits_per_node[id] = 0;
+        node_depth[id] = this->bdd->get_node_depth(id);
+        return bdd::NodeVisitAction::VISIT_CHILDREN;
+      });
+
   while (!h->finished()) {
-    meta.ss_size = search_space->get_size();
     meta.elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(
                             std::chrono::steady_clock::now() - start_search)
                             .count();
-    meta.steps++;
-    meta.branching_factor = meta.ss_size / (float)meta.steps;
 
     const EP *ep = h->pop();
     search_space->activate_leaf(ep);
+
+    meta.avg_bdd_size *= meta.steps;
+    meta.avg_bdd_size += ep->get_bdd()->size();
+    meta.steps++;
+    meta.avg_bdd_size /= meta.steps;
 
     if (search_space->is_backtrack()) {
       meta.backtracks++;
@@ -171,8 +181,12 @@ template <class HCfg> search_report_t SearchEngine<HCfg>::search() {
     const bdd::Node *node = ep->get_next_node();
     search_step_report_t report(h->size(), ep, node);
 
+    float &avg_node_children = meta.avg_children_per_node[node->get_id()];
+    int &node_visits = meta.visits_per_node[node->get_id()];
+
     std::vector<const EP *> new_eps;
 
+    uint64_t children = 0;
     for (const Target *target : targets) {
       for (const ModuleGenerator *modgen : target->module_generators) {
         std::vector<generator_product_t> modgen_products =
@@ -183,8 +197,32 @@ template <class HCfg> search_report_t SearchEngine<HCfg>::search() {
         for (const generator_product_t &product : modgen_products) {
           new_eps.push_back(product.ep);
         }
+
+        if (target->type == TargetType::Tofino) {
+          children += modgen_products.size();
+        }
       }
     }
+
+    if (children > 1) {
+      avg_node_children *= node_visits;
+      avg_node_children += children;
+      node_visits++;
+      avg_node_children /= node_visits;
+
+      meta.branching_factor = 0;
+      for (const auto &kv : meta.avg_children_per_node)
+        meta.branching_factor += std::max(1.0f, kv.second);
+      meta.branching_factor /= meta.avg_children_per_node.size();
+
+      meta.total_ss_size_estimation = 0;
+      for (const auto &[id, depth] : node_depth) {
+        meta.total_ss_size_estimation += pow(meta.branching_factor, depth + 1);
+      }
+    }
+
+    meta.ss_size = search_space->get_size();
+    meta.solutions = h->size();
 
     h->add(new_eps);
 
@@ -194,11 +232,13 @@ template <class HCfg> search_report_t SearchEngine<HCfg>::search() {
     delete ep;
   }
 
+  meta.ss_size = search_space->get_size();
+  meta.solutions = h->size();
+
   EP *winner = new EP(*h->get());
 
   const search_config_t config = {
       .heuristic = h->get_cfg()->name,
-      .random_seed = h->get_random_seed(),
   };
 
   const search_solution_t solution = {

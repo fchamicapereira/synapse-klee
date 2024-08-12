@@ -109,7 +109,7 @@ private:
     if (!ctx.check_placement(coalescing_data->map,
                              PlacementDecision::Tofino_SimpleTable) &&
         !ctx.check_placement(coalescing_data->map,
-                             PlacementDecision::Tofino_TTLCachedTable)) {
+                             PlacementDecision::Tofino_FCFSCachedTable)) {
       return false;
     }
 

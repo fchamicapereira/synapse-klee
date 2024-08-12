@@ -19,11 +19,11 @@
 #include "simple_table_lookup.h"
 #include "vector_register_lookup.h"
 #include "vector_register_update.h"
-#include "ttl_cached_table_read.h"
-#include "ttl_cached_table_read_or_write.h"
-#include "ttl_cached_table_write.h"
-#include "ttl_cached_table_cond_delete.h"
-#include "ttl_cached_table_delete.h"
+#include "fcfs_cached_table_read.h"
+#include "fcfs_cached_table_read_or_write.h"
+#include "fcfs_cached_table_write.h"
+#include "fcfs_cached_table_cond_delete.h"
+#include "fcfs_cached_table_delete.h"
 
 #include "tofino_context.h"
 #include "../../profiler.h"
@@ -52,11 +52,11 @@ struct TofinoTarget : public Target {
                    new SimpleTableLookupGenerator(),
                    new VectorRegisterLookupGenerator(),
                    new VectorRegisterUpdateGenerator(),
-                   new TTLCachedTableReadGenerator(),
-                   new TTLCachedTableReadOrWriteGenerator(),
-                   new TTLCachedTableWriteGenerator(),
-                   new TTLCachedTableConditionalDeleteGenerator(),
-                   new TTLCachedTableDeleteGenerator(),
+                   new FCFSCachedTableReadGenerator(),
+                   new FCFSCachedTableReadOrWriteGenerator(),
+                   new FCFSCachedTableWriteGenerator(),
+                   new FCFSCachedTableConditionalDeleteGenerator(),
+                   new FCFSCachedTableDeleteGenerator(),
                },
                new TofinoContext(version, profiler)) {}
 };

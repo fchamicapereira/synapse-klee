@@ -181,21 +181,18 @@ static ProfilerNode *build_profiler_tree(const bdd::Node *node,
   return result;
 }
 
-static bdd_profile_t build_random_bdd_profile(const bdd::BDD *bdd,
-                                              unsigned random_seed) {
+static bdd_profile_t build_random_bdd_profile(const bdd::BDD *bdd) {
   bdd_profile_t bdd_profile;
 
-  RandomEngine random_engine(random_seed, 1, INT32_MAX);
-
   bdd_profile.meta.total_packets = 100'000;
-  bdd_profile.meta.total_bytes = std::max(64, random_engine.generate() % 1500);
+  bdd_profile.meta.total_bytes = std::max(64, RandomEngine::generate() % 1500);
   bdd_profile.meta.avg_pkt_size =
       bdd_profile.meta.total_packets / bdd_profile.meta.total_bytes;
 
   const bdd::Node *root = bdd->get_root();
   bdd_profile.counters[root->get_id()] = bdd_profile.meta.total_packets;
 
-  root->visit_nodes([&bdd_profile, &random_engine](const bdd::Node *node) {
+  root->visit_nodes([&bdd_profile](const bdd::Node *node) {
     assert(bdd_profile.counters.find(node->get_id()) !=
            bdd_profile.counters.end());
     uint64_t current_counter = bdd_profile.counters[node->get_id()];
@@ -211,7 +208,7 @@ static bdd_profile_t build_random_bdd_profile(const bdd::BDD *bdd,
       assert(on_false);
 
       uint64_t on_true_counter =
-          random_engine.generate() % (current_counter + 1);
+          RandomEngine::generate() % (current_counter + 1);
       uint64_t on_false_counter = current_counter - on_true_counter;
 
       bdd_profile.counters[on_true->get_id()] = on_true_counter;
@@ -226,7 +223,7 @@ static bdd_profile_t build_random_bdd_profile(const bdd::BDD *bdd,
         bdd_profile_t::map_stats_t map_stats;
         map_stats.node = node->get_id();
         map_stats.total_packets = current_counter;
-        map_stats.total_flows = random_engine.generate() % current_counter;
+        map_stats.total_flows = RandomEngine::generate() % current_counter;
         map_stats.avg_pkts_per_flow = current_counter / map_stats.total_flows;
         for (uint64_t i = 0; i < map_stats.total_flows; i++) {
           map_stats.packets_per_flow.push_back(map_stats.avg_pkts_per_flow);
@@ -293,8 +290,8 @@ Profiler::Profiler(const bdd::BDD *bdd, const bdd_profile_t &_bdd_profile)
   }
 }
 
-Profiler::Profiler(const bdd::BDD *bdd, unsigned random_seed)
-    : Profiler(bdd, build_random_bdd_profile(bdd, random_seed)) {}
+Profiler::Profiler(const bdd::BDD *bdd)
+    : Profiler(bdd, build_random_bdd_profile(bdd)) {}
 
 Profiler::Profiler(const bdd::BDD *bdd, const std::string &bdd_profile_fname)
     : Profiler(bdd, parse_bdd_profile(bdd_profile_fname)) {}

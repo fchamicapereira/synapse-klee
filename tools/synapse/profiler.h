@@ -46,8 +46,8 @@ private:
 
 public:
   Profiler(const bdd::BDD *bdd, const bdd_profile_t &_bdd_profile);
-  Profiler(const bdd::BDD *bdd, unsigned random_seed);
-  Profiler(const bdd::BDD *bdd, const std::string &bdd_profile_fname);
+  Profiler(const bdd::BDD *bdd, const std::string &_bdd_profile_fname);
+  Profiler(const bdd::BDD *bdd);
 
   Profiler(const Profiler &other);
   Profiler(Profiler &&other);

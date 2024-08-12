@@ -84,6 +84,8 @@ std::ostream &operator<<(std::ostream &os, ScoreCategory score_category) {
   case ScoreCategory::SpeculativeThroughput:
     os << "T*(pps)";
     break;
+  case ScoreCategory::Random:
+    os << "Random";
   }
   return os;
 }
@@ -286,7 +288,7 @@ int64_t Score::get_nr_switch_data_structures(const EP *ep) const {
 
   std::unordered_set<PlacementDecision> switch_placements{
       PlacementDecision::Tofino_SimpleTable,
-      PlacementDecision::Tofino_TTLCachedTable,
+      PlacementDecision::Tofino_FCFSCachedTable,
       PlacementDecision::Tofino_VectorRegister,
   };
 
@@ -311,6 +313,11 @@ int64_t Score::get_throughput_prediction(const EP *ep) const {
 
 int64_t Score::get_throughput_speculation(const EP *ep) const {
   return ep->speculate_throughput_pps();
+}
+
+int64_t Score::get_random(const EP *ep) const {
+  const EPMeta &meta = ep->get_meta();
+  return meta.random_number;
 }
 
 } // namespace synapse

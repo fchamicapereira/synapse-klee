@@ -7,7 +7,7 @@ namespace tofino_cpu {
 
 using namespace synapse::tofino;
 
-class TTLCachedTableRead : public TofinoCPUModule {
+class FCFSCachedTableRead : public TofinoCPUModule {
 private:
   DS_ID id;
   addr_t obj;
@@ -16,12 +16,12 @@ private:
   std::optional<symbol_t> found;
 
 public:
-  TTLCachedTableRead(const bdd::Node *node, DS_ID _id, addr_t _obj,
-                     const std::vector<klee::ref<klee::Expr>> &_keys,
-                     klee::ref<klee::Expr> _value,
-                     const std::optional<symbol_t> &_found)
-      : TofinoCPUModule(ModuleType::TofinoCPU_TTLCachedTableRead,
-                        "TTLCachedTableRead", node),
+  FCFSCachedTableRead(const bdd::Node *node, DS_ID _id, addr_t _obj,
+                      const std::vector<klee::ref<klee::Expr>> &_keys,
+                      klee::ref<klee::Expr> _value,
+                      const std::optional<symbol_t> &_found)
+      : TofinoCPUModule(ModuleType::TofinoCPU_FCFSCachedTableRead,
+                        "FCFSCachedTableRead", node),
         id(_id), obj(_obj), keys(_keys), value(_value), found(_found) {}
 
   virtual void visit(EPVisitor &visitor, const EP *ep,
@@ -30,7 +30,7 @@ public:
   }
 
   virtual Module *clone() const override {
-    Module *cloned = new TTLCachedTableRead(node, id, obj, keys, value, found);
+    Module *cloned = new FCFSCachedTableRead(node, id, obj, keys, value, found);
     return cloned;
   }
 
@@ -41,11 +41,11 @@ public:
   const std::optional<symbol_t> &get_found() const { return found; }
 };
 
-class TTLCachedTableReadGenerator : public TofinoCPUModuleGenerator {
+class FCFSCachedTableReadGenerator : public TofinoCPUModuleGenerator {
 public:
-  TTLCachedTableReadGenerator()
-      : TofinoCPUModuleGenerator(ModuleType::TofinoCPU_TTLCachedTableRead,
-                                 "TTLCachedTableRead") {}
+  FCFSCachedTableReadGenerator()
+      : TofinoCPUModuleGenerator(ModuleType::TofinoCPU_FCFSCachedTableRead,
+                                 "FCFSCachedTableRead") {}
 
 protected:
   virtual std::optional<speculation_t>
@@ -63,7 +63,7 @@ protected:
     }
 
     if (!can_place(ep, call_node, "map",
-                   PlacementDecision::Tofino_TTLCachedTable)) {
+                   PlacementDecision::Tofino_FCFSCachedTable)) {
       return std::nullopt;
     }
 
@@ -86,7 +86,7 @@ protected:
     }
 
     if (!check_placement(ep, call_node, "map",
-                         PlacementDecision::Tofino_TTLCachedTable)) {
+                         PlacementDecision::Tofino_FCFSCachedTable)) {
       return products;
     }
 
@@ -98,7 +98,7 @@ protected:
 
     DS_ID id = get_cached_table_id(ep, obj);
 
-    Module *module = new TTLCachedTableRead(node, id, obj, keys, value, found);
+    Module *module = new FCFSCachedTableRead(node, id, obj, keys, value, found);
     EPNode *ep_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
