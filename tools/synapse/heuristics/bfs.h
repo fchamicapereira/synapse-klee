@@ -14,8 +14,6 @@ struct BFSComparator : public HeuristicCfg {
                     });
     return score;
   }
-
-  bool terminate_on_first_solution() const override { return true; }
 };
 
 using BFS = Heuristic<BFSComparator>;

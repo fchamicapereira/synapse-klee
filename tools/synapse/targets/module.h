@@ -37,7 +37,6 @@ enum class ModuleType {
   Tofino_FCFSCachedTableRead,
   Tofino_FCFSCachedTableReadOrWrite,
   Tofino_FCFSCachedTableWrite,
-  Tofino_FCFSCachedTableConditionalDelete,
   Tofino_FCFSCachedTableDelete,
   Tofino_Recirculate,
   TofinoCPU_Ignore,

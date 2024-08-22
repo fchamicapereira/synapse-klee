@@ -22,7 +22,6 @@
 #include "fcfs_cached_table_read.h"
 #include "fcfs_cached_table_read_or_write.h"
 #include "fcfs_cached_table_write.h"
-#include "fcfs_cached_table_cond_delete.h"
 #include "fcfs_cached_table_delete.h"
 
 #include "tofino_context.h"
@@ -55,7 +54,6 @@ struct TofinoTarget : public Target {
                    new FCFSCachedTableReadGenerator(),
                    new FCFSCachedTableReadOrWriteGenerator(),
                    new FCFSCachedTableWriteGenerator(),
-                   new FCFSCachedTableConditionalDeleteGenerator(),
                    new FCFSCachedTableDeleteGenerator(),
                },
                new TofinoContext(version, profiler)) {}

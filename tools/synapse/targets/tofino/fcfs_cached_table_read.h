@@ -71,24 +71,24 @@ protected:
       return std::nullopt;
     }
 
-    map_coalescing_data_t coalescing_data;
-    if (!get_map_coalescing_data_from_map_op(ep, map_get, coalescing_data)) {
+    map_coalescing_objs_t map_objs;
+    if (!get_map_coalescing_objs_from_map_op(ep, map_get, map_objs)) {
       return std::nullopt;
     }
 
-    if (!can_place_cached_table(ep, coalescing_data)) {
+    if (!can_place_fcfs_cached_table(ep, map_objs)) {
       return std::nullopt;
     }
 
-    cached_table_data_t cached_table_data = get_cached_table_data(ep, map_get);
+    fcfs_cached_table_data_t cached_table_data =
+        get_cached_table_data(ep, map_get);
 
-    std::unordered_set<DS_ID> deps;
-    if (!get_cached_table(ep, node, cached_table_data, deps)) {
+    if (!get_fcfs_cached_table(ep, node, cached_table_data.obj)) {
       return std::nullopt;
     }
 
     std::vector<const bdd::Call *> vector_ops =
-        get_future_vector_key_ops(ep, node, cached_table_data, coalescing_data);
+        get_future_vector_key_ops(ep, node, cached_table_data, map_objs);
 
     Context new_ctx = ctx;
     speculation_t speculation(new_ctx);
@@ -114,24 +114,25 @@ protected:
       return products;
     }
 
-    map_coalescing_data_t coalescing_data;
-    if (!get_map_coalescing_data_from_map_op(ep, map_get, coalescing_data)) {
+    map_coalescing_objs_t map_objs;
+    if (!get_map_coalescing_objs_from_map_op(ep, map_get, map_objs)) {
       return products;
     }
 
-    if (!can_place_cached_table(ep, coalescing_data)) {
+    if (!can_place_fcfs_cached_table(ep, map_objs)) {
       return products;
     }
 
-    cached_table_data_t cached_table_data = get_cached_table_data(ep, map_get);
+    fcfs_cached_table_data_t cached_table_data =
+        get_cached_table_data(ep, map_get);
 
     std::unordered_set<int> allowed_cache_capacities =
-        enumerate_cache_table_capacities(cached_table_data.num_entries);
+        enumerate_fcfs_cache_table_capacities(cached_table_data.num_entries);
 
     for (int cache_capacity : allowed_cache_capacities) {
       std::optional<__generator_product_t> product =
-          concretize_cached_table_read(ep, node, coalescing_data,
-                                       cached_table_data, cache_capacity);
+          concretize_cached_table_read(ep, node, map_objs, cached_table_data,
+                                       cache_capacity);
 
       if (product.has_value()) {
         products.push_back(*product);
@@ -142,16 +143,22 @@ protected:
   }
 
 private:
-  std::optional<__generator_product_t>
-  concretize_cached_table_read(const EP *ep, const bdd::Node *node,
-                               const map_coalescing_data_t &coalescing_data,
-                               const cached_table_data_t &cached_table_data,
-                               int cache_capacity) const {
-    std::unordered_set<DS_ID> deps;
-    bool already_exists;
+  struct fcfs_cached_table_data_t {
+    addr_t obj;
+    klee::ref<klee::Expr> key;
+    klee::ref<klee::Expr> read_value;
+    symbol_t map_has_this_key;
+    int num_entries;
+  };
 
-    FCFSCachedTable *cached_table = get_or_build_cached_table(
-        ep, node, cached_table_data, cache_capacity, already_exists, deps);
+  std::optional<__generator_product_t> concretize_cached_table_read(
+      const EP *ep, const bdd::Node *node,
+      const map_coalescing_objs_t &map_objs,
+      const fcfs_cached_table_data_t &cached_table_data,
+      int cache_capacity) const {
+    FCFSCachedTable *cached_table = build_or_reuse_fcfs_cached_table(
+        ep, node, cached_table_data.obj, cached_table_data.key,
+        cached_table_data.num_entries, cache_capacity);
 
     if (!cached_table) {
       return std::nullopt;
@@ -170,11 +177,9 @@ private:
 
     const bdd::Node *new_next;
     bdd::BDD *bdd = delete_future_vector_key_ops(
-        new_ep, node, cached_table_data, coalescing_data, new_next);
+        new_ep, node, cached_table_data, map_objs, new_next);
 
-    if (!already_exists) {
-      place_cached_table(new_ep, coalescing_data, cached_table, deps);
-    }
+    place_fcfs_cached_table(new_ep, node, map_objs, cached_table);
 
     EPLeaf leaf(ep_node, new_next);
     new_ep->process_leaf(ep_node, {leaf});
@@ -202,9 +207,9 @@ private:
     return byproducts;
   }
 
-  cached_table_data_t get_cached_table_data(const EP *ep,
-                                            const bdd::Call *map_get) const {
-    cached_table_data_t cached_table_data;
+  fcfs_cached_table_data_t
+  get_cached_table_data(const EP *ep, const bdd::Call *map_get) const {
+    fcfs_cached_table_data_t cached_table_data;
 
     const call_t &call = map_get->get_call();
     symbols_t symbols = map_get->get_locally_generated_symbols();
@@ -226,10 +231,10 @@ private:
     return cached_table_data;
   }
 
-  std::vector<const bdd::Call *> get_future_vector_key_ops(
-      const EP *ep, const bdd::Node *node,
-      const cached_table_data_t &cached_table_data,
-      const map_coalescing_data_t &coalescing_data) const {
+  std::vector<const bdd::Call *>
+  get_future_vector_key_ops(const EP *ep, const bdd::Node *node,
+                            const fcfs_cached_table_data_t &cached_table_data,
+                            const map_coalescing_objs_t &map_objs) const {
     std::vector<const bdd::Call *> vector_ops =
         get_future_functions(node, {"vector_borrow", "vector_return"});
 
@@ -241,7 +246,7 @@ private:
 
       addr_t vector_addr = kutil::expr_addr_to_obj_addr(vector);
 
-      if (vector_addr != coalescing_data.vector_key) {
+      if (vector_addr != map_objs.vector_key) {
         continue;
       }
 
@@ -256,11 +261,10 @@ private:
     return vector_ops;
   }
 
-  bdd::BDD *
-  delete_future_vector_key_ops(EP *ep, const bdd::Node *node,
-                               const cached_table_data_t &cached_table_data,
-                               const map_coalescing_data_t &coalescing_data,
-                               const bdd::Node *&new_next) const {
+  bdd::BDD *delete_future_vector_key_ops(
+      EP *ep, const bdd::Node *node,
+      const fcfs_cached_table_data_t &cached_table_data,
+      const map_coalescing_objs_t &map_objs, const bdd::Node *&new_next) const {
     const bdd::BDD *old_bdd = ep->get_bdd();
     bdd::BDD *new_bdd = new bdd::BDD(*old_bdd);
 
@@ -273,7 +277,7 @@ private:
     }
 
     std::vector<const bdd::Call *> vector_ops =
-        get_future_vector_key_ops(ep, node, cached_table_data, coalescing_data);
+        get_future_vector_key_ops(ep, node, cached_table_data, map_objs);
 
     for (const bdd::Call *vector_op : vector_ops) {
       bool replace_next = (vector_op == next);

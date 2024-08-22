@@ -98,17 +98,17 @@ private:
     klee::ref<klee::Expr> chain = call.args.at("chain").expr;
     addr_t chain_addr = kutil::expr_addr_to_obj_addr(chain);
 
-    std::optional<map_coalescing_data_t> coalescing_data =
-        ctx.get_coalescing_data(chain_addr);
+    std::optional<map_coalescing_objs_t> map_objs =
+        ctx.get_map_coalescing_objs(chain_addr);
 
-    if (!coalescing_data.has_value()) {
+    if (!map_objs.has_value()) {
       return false;
     }
 
     // These are the data structures that can perform rejuvenations.
-    if (!ctx.check_placement(coalescing_data->map,
+    if (!ctx.check_placement(map_objs->map,
                              PlacementDecision::Tofino_SimpleTable) &&
-        !ctx.check_placement(coalescing_data->map,
+        !ctx.check_placement(map_objs->map,
                              PlacementDecision::Tofino_FCFSCachedTable)) {
       return false;
     }

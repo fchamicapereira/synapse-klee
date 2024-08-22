@@ -45,7 +45,6 @@ public:
   DECLARE_VISIT(tofino::FCFSCachedTableRead)
   DECLARE_VISIT(tofino::FCFSCachedTableReadOrWrite)
   DECLARE_VISIT(tofino::FCFSCachedTableWrite)
-  DECLARE_VISIT(tofino::FCFSCachedTableConditionalDelete)
   DECLARE_VISIT(tofino::FCFSCachedTableDelete)
 
   /********************************************

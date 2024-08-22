@@ -83,20 +83,20 @@ protected:
       return std::nullopt;
     }
 
-    map_coalescing_data_t coalescing_data;
-    if (!get_map_coalescing_data_from_map_op(ep, map_erase, coalescing_data)) {
+    map_coalescing_objs_t map_objs;
+    if (!get_map_coalescing_objs_from_map_op(ep, map_erase, map_objs)) {
       return std::nullopt;
     }
 
-    if (!can_place_cached_table(ep, coalescing_data)) {
+    if (!can_place_fcfs_cached_table(ep, map_objs)) {
       return std::nullopt;
     }
 
-    cached_table_data_t cached_table_data =
+    fcfs_cached_table_data_t cached_table_data =
         get_cached_table_data(ep, map_erase);
 
     std::unordered_set<int> allowed_cache_capacities =
-        enumerate_cache_table_capacities(cached_table_data.num_entries);
+        enumerate_fcfs_cache_table_capacities(cached_table_data.num_entries);
 
     double chosen_success_estimation = 0;
     int chosen_cache_capacity = 0;
@@ -108,8 +108,9 @@ protected:
       double success_estimation = get_cache_delete_success_estimation_rel(
           ep, node, cache_capacity, cached_table_data.num_entries);
 
-      if (!can_get_or_build_cached_table(ep, node, cached_table_data,
-                                         chosen_cache_capacity)) {
+      if (!can_get_or_build_fcfs_cached_table(
+              ep, node, cached_table_data.obj, cached_table_data.key,
+              cached_table_data.num_entries, chosen_cache_capacity)) {
         continue;
       }
 
@@ -140,7 +141,7 @@ protected:
     new_ctx.scale_profiler(constraints, chosen_success_estimation);
 
     std::vector<const bdd::Node *> ignore_nodes =
-        get_future_related_nodes(ep, node, coalescing_data);
+        get_future_related_nodes(ep, node, map_objs);
 
     speculation_t speculation(new_ctx);
     for (const bdd::Node *op : ignore_nodes) {
@@ -187,32 +188,48 @@ protected:
       return products;
     }
 
-    cached_table_data_t cached_table_data =
+    fcfs_cached_table_data_t cached_table_data =
         get_cached_table_data(ep, map_erase);
 
     symbol_t cache_delete_failed = create_symbol("cache_delete_failed", 32);
 
-    std::optional<__generator_product_t> product =
-        concretize_cached_table_delete(ep, node, map_erase, dchain_free_index,
-                                       cached_table_data, cache_delete_failed);
+    std::unordered_set<int> allowed_cache_capacities =
+        enumerate_fcfs_cache_table_capacities(cached_table_data.num_entries);
 
-    if (product.has_value()) {
-      products.push_back(*product);
+    for (int cache_capacity : allowed_cache_capacities) {
+      std::optional<__generator_product_t> product =
+          concretize_cached_table_delete(ep, node, map_erase, dchain_free_index,
+                                         cached_table_data, cache_delete_failed,
+                                         cache_capacity);
+
+      if (product.has_value()) {
+        products.push_back(*product);
+      }
     }
 
     return products;
   }
 
 private:
-  std::optional<__generator_product_t> concretize_cached_table_delete(
-      const EP *ep, const bdd::Node *node, const bdd::Node *map_erase,
-      const std::optional<const bdd::Node *> &dchain_free_index,
-      const cached_table_data_t &cached_table_data,
-      const symbol_t &cache_delete_failed) const {
-    std::unordered_set<DS_ID> deps;
+  struct fcfs_cached_table_data_t {
+    addr_t obj;
+    klee::ref<klee::Expr> key;
+    int num_entries;
+  };
 
-    FCFSCachedTable *cached_table =
-        get_cached_table(ep, map_erase, cached_table_data, deps);
+  std::optional<__generator_product_t> concretize_cached_table_delete(
+      const EP *ep, const bdd::Node *node, const bdd::Call *map_erase,
+      const std::optional<const bdd::Node *> &dchain_free_index,
+      const fcfs_cached_table_data_t &cached_table_data,
+      const symbol_t &cache_delete_failed, int cache_capacity) const {
+    map_coalescing_objs_t map_objs;
+    if (!get_map_coalescing_objs_from_map_op(ep, map_erase, map_objs)) {
+      return std::nullopt;
+    }
+
+    FCFSCachedTable *cached_table = build_or_reuse_fcfs_cached_table(
+        ep, map_erase, cached_table_data.obj, cached_table_data.key,
+        cached_table_data.num_entries, cache_capacity);
 
     if (!cached_table) {
       return std::nullopt;
@@ -278,6 +295,8 @@ private:
     if (deleted_branch_constraints.has_value()) {
       new_ep->remove_hit_rate_node(deleted_branch_constraints.value());
     }
+
+    place_fcfs_cached_table(new_ep, node, map_objs, cached_table);
 
     EPLeaf on_cache_delete_success_leaf(then_node, on_cache_delete_success);
     EPLeaf on_cache_delete_failed_leaf(send_to_controller_node,
@@ -349,10 +368,10 @@ private:
     addr_t chain_obj = kutil::expr_addr_to_obj_addr(chain_addr_expr);
 
     const Context &ctx = ep->get_ctx();
-    std::optional<map_coalescing_data_t> cached_table_data =
-        ctx.get_coalescing_data(chain_obj);
+    std::optional<map_coalescing_objs_t> map_objs =
+        ctx.get_map_coalescing_objs(chain_obj);
 
-    if (!cached_table_data.has_value()) {
+    if (!map_objs.has_value()) {
       return nullptr;
     }
 
@@ -369,7 +388,7 @@ private:
       klee::ref<klee::Expr> map_addr_expr = map_erase_call.args.at("map").expr;
       addr_t map_obj = kutil::expr_addr_to_obj_addr(map_addr_expr);
 
-      if (map_obj == cached_table_data->map) {
+      if (map_obj == map_objs->map) {
         return map_erase;
       }
     }
@@ -377,9 +396,9 @@ private:
     return nullptr;
   }
 
-  cached_table_data_t get_cached_table_data(const EP *ep,
-                                            const bdd::Call *map_erase) const {
-    cached_table_data_t cached_table_data;
+  fcfs_cached_table_data_t
+  get_cached_table_data(const EP *ep, const bdd::Call *map_erase) const {
+    fcfs_cached_table_data_t cached_table_data;
 
     const call_t &call = map_erase->get_call();
     assert(call.function_name == "map_erase");
@@ -400,7 +419,7 @@ private:
 
   std::vector<const bdd::Node *> get_future_related_nodes(
       const EP *ep, const bdd::Node *node,
-      const map_coalescing_data_t &cached_table_data) const {
+      const map_coalescing_objs_t &cached_table_data) const {
     std::vector<const bdd::Call *> ops =
         get_future_functions(node, {"dchain_free_index", "map_erase"});
 
@@ -488,8 +507,8 @@ private:
   void delete_future_related_nodes(const EP *ep, bdd::BDD *bdd,
                                    bdd::Node *&node, addr_t map_obj) const {
     const Context &ctx = ep->get_ctx();
-    std::optional<map_coalescing_data_t> cached_table_data =
-        ctx.get_coalescing_data(map_obj);
+    std::optional<map_coalescing_objs_t> cached_table_data =
+        ctx.get_map_coalescing_objs(map_obj);
     assert(cached_table_data.has_value());
 
     std::vector<const bdd::Node *> ops =
@@ -510,7 +529,7 @@ private:
   bdd::BDD *branch_bdd_on_cache_delete_success(
       const EP *ep, const bdd::Node *node, const bdd::Node *map_erase,
       const std::optional<const bdd::Node *> &dchain_free_index,
-      const cached_table_data_t &cached_table_data,
+      const fcfs_cached_table_data_t &cached_table_data,
       klee::ref<klee::Expr> cache_delete_success_condition,
       bdd::Node *&on_cache_delete_success, bdd::Node *&on_cache_delete_failed,
       std::optional<constraints_t> &deleted_branch_constraints) const {

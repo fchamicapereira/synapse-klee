@@ -18,6 +18,7 @@ struct module_data_t {
   ModuleType type;
   std::string name;
   std::string description;
+  bool bdd_reordered;
   double hit_rate;
 };
 

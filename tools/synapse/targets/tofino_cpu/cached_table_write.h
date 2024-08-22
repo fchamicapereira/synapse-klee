@@ -114,7 +114,7 @@ private:
         ctx.get_target_ctx<tofino::TofinoContext>();
     const std::vector<tofino::DS *> &data_structures = tofino_ctx->get_ds(obj);
     assert(data_structures.size() == 1);
-    assert(data_structures[0]->type == tofino::DSType::CACHED_TABLE);
+    assert(data_structures[0]->type == tofino::DSType::FCFS_CACHED_TABLE);
     return data_structures[0]->id;
   }
 

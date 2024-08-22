@@ -24,9 +24,14 @@ struct speculation_t {
 struct generator_product_t {
   const EP *ep;
   const std::string description;
+  const bool bdd_reordered;
 
   generator_product_t(const EP *_ep, const std::string &_description)
-      : ep(_ep), description(_description) {}
+      : ep(_ep), description(_description), bdd_reordered(false) {}
+
+  generator_product_t(const EP *_ep, const std::string &_description,
+                      bool _bdd_reordered)
+      : ep(_ep), description(_description), bdd_reordered(_bdd_reordered) {}
 };
 
 class ModuleGenerator {

@@ -343,7 +343,7 @@ void SimplePlacer::place(const DS *ds, const std::unordered_set<DS_ID> &deps) {
   case DSType::REGISTER:
     place(static_cast<const Register *>(ds), deps);
     break;
-  case DSType::CACHED_TABLE:
+  case DSType::FCFS_CACHED_TABLE:
     place(static_cast<const FCFSCachedTable *>(ds), deps);
     break;
   }
@@ -384,7 +384,7 @@ SimplePlacer::can_place(const Register *reg,
 PlacementStatus
 SimplePlacer::can_place(const FCFSCachedTable *cached_table,
                         const std::unordered_set<DS_ID> &_deps) const {
-  SimplePlacer snapshot(*this);
+  SimplePlacer snapshot = *this;
 
   std::vector<std::unordered_set<const DS *>> candidates =
       cached_table->get_internal_ds();
@@ -423,7 +423,7 @@ SimplePlacer::can_place(const DS *ds,
   case DSType::REGISTER:
     status = can_place(static_cast<const Register *>(ds), deps);
     break;
-  case DSType::CACHED_TABLE:
+  case DSType::FCFS_CACHED_TABLE:
     status = can_place(static_cast<const FCFSCachedTable *>(ds), deps);
     break;
   }

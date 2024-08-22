@@ -7,9 +7,9 @@
 namespace synapse {
 
 static void log_bdd_pre_processing(
-    const std::vector<map_coalescing_data_t> &coalescing_candidates) {
+    const std::vector<map_coalescing_objs_t> &coalescing_candidates) {
   Log::dbg() << "***** BDD pre-processing: *****\n";
-  for (const map_coalescing_data_t &candidate : coalescing_candidates) {
+  for (const map_coalescing_objs_t &candidate : coalescing_candidates) {
     std::stringstream ss;
     ss << "Coalescing candidate:";
     ss << " map=" << candidate.map;
@@ -115,8 +115,8 @@ Context::Context(const bdd::BDD *bdd, const targets_t &targets,
       bdd::map_config_t cfg = bdd::get_map_config(*bdd, addr);
       map_configs[addr] = cfg;
 
-      map_coalescing_data_t candidate;
-      if (get_map_coalescing_data(bdd, addr, candidate)) {
+      map_coalescing_objs_t candidate;
+      if (get_map_coalescing_objs_from_bdd(bdd, addr, candidate)) {
         coalescing_candidates.push_back(candidate);
       }
 
@@ -265,9 +265,9 @@ const bdd::cht_config_t &Context::get_cht_config(addr_t addr) const {
   return cht_configs.at(addr);
 }
 
-std::optional<map_coalescing_data_t>
-Context::get_coalescing_data(addr_t obj) const {
-  for (const map_coalescing_data_t &candidate : coalescing_candidates) {
+std::optional<map_coalescing_objs_t>
+Context::get_map_coalescing_objs(addr_t obj) const {
+  for (const map_coalescing_objs_t &candidate : coalescing_candidates) {
     if (candidate.map == obj || candidate.dchain == obj ||
         candidate.vector_key == obj ||
         candidate.vectors_values.find(obj) != candidate.vectors_values.end()) {

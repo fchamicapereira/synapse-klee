@@ -14,9 +14,8 @@ struct RandomComparator : public HeuristicCfg {
                     });
     return score;
   }
-
-  bool terminate_on_first_solution() const override { return false; }
 };
 
 using Random = Heuristic<RandomComparator>;
+
 } // namespace synapse

@@ -861,8 +861,8 @@ static void differentiate_vectors(const next_t &candidates, addr_t &vector_key,
   assert(candidates.vectors.size() == vectors_values.size() + 1);
 }
 
-bool get_map_coalescing_data(const bdd::BDD *bdd, addr_t obj,
-                             map_coalescing_data_t &data) {
+bool get_map_coalescing_objs_from_bdd(const bdd::BDD *bdd, addr_t obj,
+                                      map_coalescing_objs_t &data) {
   const bdd::Node *root = bdd->get_root();
 
   std::vector<const bdd::Call *> index_allocators =
@@ -1194,9 +1194,9 @@ bool is_map_update_with_dchain(const EP *ep,
     return false;
   }
 
-  map_coalescing_data_t coalescing_data;
-  if (!get_map_coalescing_data_from_dchain_op(ep, dchain_allocate_new_index,
-                                              coalescing_data)) {
+  map_coalescing_objs_t map_objs;
+  if (!get_map_coalescing_objs_from_dchain_op(ep, dchain_allocate_new_index,
+                                              map_objs)) {
     return false;
   }
 
@@ -1231,7 +1231,7 @@ bool is_map_update_with_dchain(const EP *ep,
 
     addr_t map = kutil::expr_addr_to_obj_addr(map_expr);
 
-    if (map != coalescing_data.map) {
+    if (map != map_objs.map) {
       continue;
     }
 
@@ -1607,7 +1607,7 @@ find_branch_checking_index_alloc(const EP *ep, const bdd::Node *node,
 
 static std::vector<const bdd::Call *>
 get_unfiltered_coalescing_nodes(const bdd::BDD *bdd, const bdd::Node *node,
-                                const map_coalescing_data_t &data) {
+                                const map_coalescing_objs_t &data) {
   std::vector<std::string> target_functions = {
       "map_get",
       "map_put",
@@ -1624,7 +1624,7 @@ get_unfiltered_coalescing_nodes(const bdd::BDD *bdd, const bdd::Node *node,
   std::vector<const bdd::Call *> unfiltered_nodes =
       get_future_functions(node, target_functions);
 
-  auto filter_coalescing_data = [&data](const bdd::Node *node) {
+  auto filter_map_objs = [&data](const bdd::Node *node) {
     assert(node->get_type() == bdd::NodeType::CALL);
 
     const bdd::Call *call_node = static_cast<const bdd::Call *>(node);
@@ -1660,7 +1660,7 @@ get_unfiltered_coalescing_nodes(const bdd::BDD *bdd, const bdd::Node *node,
 
   unfiltered_nodes.erase(std::remove_if(unfiltered_nodes.begin(),
                                         unfiltered_nodes.end(),
-                                        filter_coalescing_data),
+                                        filter_map_objs),
                          unfiltered_nodes.end());
 
   return unfiltered_nodes;
@@ -1669,7 +1669,7 @@ get_unfiltered_coalescing_nodes(const bdd::BDD *bdd, const bdd::Node *node,
 std::vector<const bdd::Call *>
 get_coalescing_nodes_from_key(const bdd::BDD *bdd, const bdd::Node *node,
                               klee::ref<klee::Expr> target_key,
-                              const map_coalescing_data_t &data) {
+                              const map_coalescing_objs_t &data) {
   std::vector<const bdd::Call *> filtered_nodes =
       get_unfiltered_coalescing_nodes(bdd, node, data);
 
@@ -1812,9 +1812,9 @@ std::string throughput2str(uint64_t thpt, const std::string &units,
   return ss.str();
 }
 
-bool get_map_coalescing_data_from_dchain_op(
-    const EP *ep, const bdd::Call *dchain_op,
-    map_coalescing_data_t &coalescing_data) {
+bool get_map_coalescing_objs_from_dchain_op(const EP *ep,
+                                            const bdd::Call *dchain_op,
+                                            map_coalescing_objs_t &map_objs) {
   const call_t &call = dchain_op->get_call();
 
   assert(call.args.find("chain") != call.args.end());
@@ -1823,19 +1823,18 @@ bool get_map_coalescing_data_from_dchain_op(
   addr_t obj = kutil::expr_addr_to_obj_addr(obj_expr);
 
   const Context &ctx = ep->get_ctx();
-  std::optional<map_coalescing_data_t> data = ctx.get_coalescing_data(obj);
+  std::optional<map_coalescing_objs_t> data = ctx.get_map_coalescing_objs(obj);
 
   if (!data.has_value()) {
     return false;
   }
 
-  coalescing_data = data.value();
+  map_objs = data.value();
   return true;
 }
 
-bool get_map_coalescing_data_from_map_op(
-    const EP *ep, const bdd::Call *map_op,
-    map_coalescing_data_t &coalescing_data) {
+bool get_map_coalescing_objs_from_map_op(const EP *ep, const bdd::Call *map_op,
+                                         map_coalescing_objs_t &map_objs) {
   const call_t &call = map_op->get_call();
 
   assert(call.args.find("map") != call.args.end());
@@ -1844,13 +1843,13 @@ bool get_map_coalescing_data_from_map_op(
   addr_t obj = kutil::expr_addr_to_obj_addr(obj_expr);
 
   const Context &ctx = ep->get_ctx();
-  std::optional<map_coalescing_data_t> data = ctx.get_coalescing_data(obj);
+  std::optional<map_coalescing_objs_t> data = ctx.get_map_coalescing_objs(obj);
 
   if (!data.has_value()) {
     return false;
   }
 
-  coalescing_data = data.value();
+  map_objs = data.value();
   return true;
 }
 

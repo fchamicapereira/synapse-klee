@@ -175,7 +175,7 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
   const Context &ctx = ep->get_ctx();
   const TofinoContext *tofino_ctx = ctx.get_target_ctx<TofinoContext>();
   const DS *ds = tofino_ctx->get_ds_from_id(id);
-  assert(ds->type == DSType::CACHED_TABLE);
+  assert(ds->type == DSType::FCFS_CACHED_TABLE);
   const FCFSCachedTable *cached_table =
       static_cast<const FCFSCachedTable *>(ds);
 
@@ -203,7 +203,7 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
   const Context &ctx = ep->get_ctx();
   const TofinoContext *tofino_ctx = ctx.get_target_ctx<TofinoContext>();
   const DS *ds = tofino_ctx->get_ds_from_id(id);
-  assert(ds->type == DSType::CACHED_TABLE);
+  assert(ds->type == DSType::FCFS_CACHED_TABLE);
   const FCFSCachedTable *cached_table =
       static_cast<const FCFSCachedTable *>(ds);
 
@@ -231,39 +231,11 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
   const Context &ctx = ep->get_ctx();
   const TofinoContext *tofino_ctx = ctx.get_target_ctx<TofinoContext>();
   const DS *ds = tofino_ctx->get_ds_from_id(id);
-  assert(ds->type == DSType::CACHED_TABLE);
+  assert(ds->type == DSType::FCFS_CACHED_TABLE);
   const FCFSCachedTable *cached_table =
       static_cast<const FCFSCachedTable *>(ds);
 
   label_builder << "FCFS Cached Table Write\n";
-
-  label_builder << "obj=";
-  label_builder << obj;
-  label_builder << ", ";
-  label_builder << "size=";
-  label_builder << cached_table->cache_capacity;
-
-  std::string label = label_builder.str();
-  function_call(ep_node, bdd_node, target, label);
-}
-
-void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
-                         const tofino::FCFSCachedTableConditionalDelete *node) {
-  std::stringstream label_builder;
-
-  const bdd::Node *bdd_node = node->get_node();
-  TargetType target = node->get_target();
-  addr_t obj = node->get_obj();
-
-  tofino::DS_ID id = node->get_id();
-  const Context &ctx = ep->get_ctx();
-  const TofinoContext *tofino_ctx = ctx.get_target_ctx<TofinoContext>();
-  const DS *ds = tofino_ctx->get_ds_from_id(id);
-  assert(ds->type == DSType::CACHED_TABLE);
-  const FCFSCachedTable *cached_table =
-      static_cast<const FCFSCachedTable *>(ds);
-
-  label_builder << "FCFS Cached Table Conditional Delete\n";
 
   label_builder << "obj=";
   label_builder << obj;
@@ -287,7 +259,7 @@ void EPVisualizer::visit(const EP *ep, const EPNode *ep_node,
   const Context &ctx = ep->get_ctx();
   const TofinoContext *tofino_ctx = ctx.get_target_ctx<TofinoContext>();
   const DS *ds = tofino_ctx->get_ds_from_id(id);
-  assert(ds->type == DSType::CACHED_TABLE);
+  assert(ds->type == DSType::FCFS_CACHED_TABLE);
   const FCFSCachedTable *cached_table =
       static_cast<const FCFSCachedTable *>(ds);
 

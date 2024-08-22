@@ -85,20 +85,20 @@ protected:
       return std::nullopt;
     }
 
-    map_coalescing_data_t coalescing_data;
-    if (!get_map_coalescing_data_from_map_op(ep, map_get, coalescing_data)) {
+    map_coalescing_objs_t map_objs;
+    if (!get_map_coalescing_objs_from_map_op(ep, map_get, map_objs)) {
       return std::nullopt;
     }
 
-    if (!can_place_cached_table(ep, coalescing_data)) {
+    if (!can_place_fcfs_cached_table(ep, map_objs)) {
       return std::nullopt;
     }
 
-    cached_table_data_t cached_table_data =
-        get_cached_table_data(ep, map_get, future_map_puts);
+    fcfs_cached_table_data_t cached_table_data =
+        get_fcfs_cached_table_data(ep, map_get, future_map_puts);
 
     std::unordered_set<int> allowed_cache_capacities =
-        enumerate_cache_table_capacities(cached_table_data.num_entries);
+        enumerate_fcfs_cache_table_capacities(cached_table_data.num_entries);
 
     double chosen_success_estimation = 0;
     int chosen_cache_capacity = 0;
@@ -110,8 +110,9 @@ protected:
       double success_estimation = get_cache_success_estimation_rel(
           ep, node, cached_table_data.key, cache_capacity);
 
-      if (!can_get_or_build_cached_table(ep, node, cached_table_data,
-                                         chosen_cache_capacity)) {
+      if (!can_get_or_build_fcfs_cached_table(
+              ep, node, cached_table_data.obj, cached_table_data.key,
+              cached_table_data.num_entries, chosen_cache_capacity)) {
         continue;
       }
 
@@ -142,7 +143,7 @@ protected:
     new_ctx.scale_profiler(constraints, chosen_success_estimation);
 
     std::vector<const bdd::Node *> ignore_nodes =
-        get_nodes_to_speculatively_ignore(ep, map_get, coalescing_data,
+        get_nodes_to_speculatively_ignore(ep, map_get, map_objs,
                                           cached_table_data.key);
 
     speculation_t speculation(new_ctx);
@@ -170,27 +171,27 @@ protected:
       return products;
     }
 
-    map_coalescing_data_t coalescing_data;
-    if (!get_map_coalescing_data_from_map_op(ep, map_get, coalescing_data)) {
+    map_coalescing_objs_t map_objs;
+    if (!get_map_coalescing_objs_from_map_op(ep, map_get, map_objs)) {
       return products;
     }
 
-    if (!can_place_cached_table(ep, coalescing_data)) {
+    if (!can_place_fcfs_cached_table(ep, map_objs)) {
       return products;
     }
 
     symbol_t cache_write_failed = create_symbol("cache_write_failed", 32);
 
-    cached_table_data_t cached_table_data =
-        get_cached_table_data(ep, map_get, future_map_puts);
+    fcfs_cached_table_data_t cached_table_data =
+        get_fcfs_cached_table_data(ep, map_get, future_map_puts);
 
     std::unordered_set<int> allowed_cache_capacities =
-        enumerate_cache_table_capacities(cached_table_data.num_entries);
+        enumerate_fcfs_cache_table_capacities(cached_table_data.num_entries);
 
     for (int cache_capacity : allowed_cache_capacities) {
       std::optional<__generator_product_t> product =
           concretize_cached_table_cond_write(
-              ep, node, coalescing_data, cached_table_data, cache_write_failed,
+              ep, node, map_objs, cached_table_data, cache_write_failed,
               cache_capacity);
 
       if (product.has_value()) {
@@ -202,16 +203,23 @@ protected:
   }
 
 private:
+  struct fcfs_cached_table_data_t {
+    addr_t obj;
+    klee::ref<klee::Expr> key;
+    klee::ref<klee::Expr> read_value;
+    klee::ref<klee::Expr> write_value;
+    symbol_t map_has_this_key;
+    int num_entries;
+  };
+
   std::optional<__generator_product_t> concretize_cached_table_cond_write(
       const EP *ep, const bdd::Node *node,
-      const map_coalescing_data_t &coalescing_data,
-      const cached_table_data_t &cached_table_data,
+      const map_coalescing_objs_t &map_objs,
+      const fcfs_cached_table_data_t &fcfs_cached_table_data,
       const symbol_t &cache_write_failed, int cache_capacity) const {
-    std::unordered_set<DS_ID> deps;
-    bool already_exists;
-
-    FCFSCachedTable *cached_table = get_or_build_cached_table(
-        ep, node, cached_table_data, cache_capacity, already_exists, deps);
+    FCFSCachedTable *cached_table = build_or_reuse_fcfs_cached_table(
+        ep, node, fcfs_cached_table_data.obj, fcfs_cached_table_data.key,
+        fcfs_cached_table_data.num_entries, cache_capacity);
 
     if (!cached_table) {
       return std::nullopt;
@@ -224,10 +232,10 @@ private:
         build_cache_write_success_condition(cache_write_failed);
 
     Module *module = new FCFSCachedTableReadOrWrite(
-        node, cached_table->id, byproducts, cached_table_data.obj,
-        cached_table_data.key, cached_table_data.read_value,
-        cached_table_data.write_value, cached_table_data.map_has_this_key,
-        cache_write_failed);
+        node, cached_table->id, byproducts, fcfs_cached_table_data.obj,
+        fcfs_cached_table_data.key, fcfs_cached_table_data.read_value,
+        fcfs_cached_table_data.write_value,
+        fcfs_cached_table_data.map_has_this_key, cache_write_failed);
     EPNode *cached_table_cond_write_node = new EPNode(module);
 
     EP *new_ep = new EP(*ep);
@@ -237,8 +245,8 @@ private:
     std::optional<constraints_t> deleted_branch_constraints;
 
     bdd::BDD *new_bdd = branch_bdd_on_cache_write_success(
-        new_ep, node, cached_table_data, cache_write_success_condition,
-        coalescing_data, on_cache_write_success, on_cache_write_failed,
+        new_ep, node, fcfs_cached_table_data, cache_write_success_condition,
+        map_objs, on_cache_write_success, on_cache_write_failed,
         deleted_branch_constraints);
 
     symbols_t symbols = get_dataplane_state(ep, node);
@@ -266,7 +274,7 @@ private:
     send_to_controller_node->set_prev(else_node);
 
     double cache_write_success_estimation_rel =
-        get_cache_success_estimation_rel(ep, node, cached_table_data.key,
+        get_cache_success_estimation_rel(ep, node, fcfs_cached_table_data.key,
                                          cache_capacity);
 
     new_ep->update_node_constraints(then_node, else_node,
@@ -288,9 +296,7 @@ private:
     // ProfilerVisualizer::visualize(new_bdd, new_ep->get_ctx().get_profiler(),
     //                               true);
 
-    if (!already_exists) {
-      place_cached_table(new_ep, coalescing_data, cached_table, deps);
-    }
+    place_fcfs_cached_table(new_ep, node, map_objs, cached_table);
 
     EPLeaf on_cache_write_success_leaf(then_node, on_cache_write_success);
     EPLeaf on_cache_write_failed_leaf(send_to_controller_node,
@@ -369,10 +375,10 @@ private:
     return byproducts;
   }
 
-  cached_table_data_t
-  get_cached_table_data(const EP *ep, const bdd::Call *map_get,
-                        std::vector<const bdd::Call *> future_map_puts) const {
-    cached_table_data_t cached_table_data;
+  fcfs_cached_table_data_t get_fcfs_cached_table_data(
+      const EP *ep, const bdd::Call *map_get,
+      std::vector<const bdd::Call *> future_map_puts) const {
+    fcfs_cached_table_data_t cached_table_data;
 
     assert(!future_map_puts.empty());
     const bdd::Call *map_put = future_map_puts.front();
@@ -442,15 +448,15 @@ private:
                                 new_on_cache_write_failed);
   }
 
-  std::vector<const bdd::Node *> get_nodes_to_speculatively_ignore(
-      const EP *ep, const bdd::Node *on_success,
-      const map_coalescing_data_t &coalescing_data,
-      klee::ref<klee::Expr> key) const {
+  std::vector<const bdd::Node *>
+  get_nodes_to_speculatively_ignore(const EP *ep, const bdd::Node *on_success,
+                                    const map_coalescing_objs_t &map_objs,
+                                    klee::ref<klee::Expr> key) const {
     std::vector<const bdd::Node *> nodes_to_ignore;
 
     const bdd::BDD *bdd = ep->get_bdd();
     std::vector<const bdd::Call *> coalescing_nodes =
-        get_coalescing_nodes_from_key(bdd, on_success, key, coalescing_data);
+        get_coalescing_nodes_from_key(bdd, on_success, key, map_objs);
 
     for (const bdd::Call *coalescing_node : coalescing_nodes) {
       nodes_to_ignore.push_back(coalescing_node);
@@ -487,10 +493,10 @@ private:
 
   void delete_coalescing_nodes_on_success(
       const EP *ep, bdd::BDD *bdd, bdd::Node *on_success,
-      const map_coalescing_data_t &coalescing_data, klee::ref<klee::Expr> key,
+      const map_coalescing_objs_t &map_objs, klee::ref<klee::Expr> key,
       std::optional<constraints_t> &deleted_branch_constraints) const {
     const std::vector<const bdd::Call *> targets =
-        get_coalescing_nodes_from_key(bdd, on_success, key, coalescing_data);
+        get_coalescing_nodes_from_key(bdd, on_success, key, map_objs);
 
     for (const bdd::Node *target : targets) {
       const bdd::Call *call_target = static_cast<const bdd::Call *>(target);
@@ -535,10 +541,10 @@ private:
 
   bdd::BDD *branch_bdd_on_cache_write_success(
       const EP *ep, const bdd::Node *map_get,
-      const cached_table_data_t &cached_table_data,
+      const fcfs_cached_table_data_t &fcfs_cached_table_data,
       klee::ref<klee::Expr> cache_write_success_condition,
-      const map_coalescing_data_t &coalescing_data,
-      bdd::Node *&on_cache_write_success, bdd::Node *&on_cache_write_failed,
+      const map_coalescing_objs_t &map_objs, bdd::Node *&on_cache_write_success,
+      bdd::Node *&on_cache_write_failed,
       std::optional<constraints_t> &deleted_branch_constraints) const {
     const bdd::BDD *old_bdd = ep->get_bdd();
     bdd::BDD *new_bdd = new bdd::BDD(*old_bdd);
@@ -558,7 +564,7 @@ private:
         ep, new_bdd, cache_write_branch, on_cache_write_failed);
 
     delete_coalescing_nodes_on_success(ep, new_bdd, on_cache_write_success,
-                                       coalescing_data, cached_table_data.key,
+                                       map_objs, fcfs_cached_table_data.key,
                                        deleted_branch_constraints);
 
     return new_bdd;

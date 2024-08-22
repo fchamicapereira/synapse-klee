@@ -15,7 +15,6 @@ struct HeuristicCfg {
   HeuristicCfg(const std::string &_name) : name(_name) {}
 
   virtual Score get_score(const EP *e) const = 0;
-  virtual bool terminate_on_first_solution() const = 0;
 
   virtual bool operator()(const EP *e1, const EP *e2) const {
     return get_score(e1) > get_score(e2);
@@ -30,9 +29,10 @@ protected:
   HCfg configuration;
   std::multiset<const EP *, HCfg> execution_plans;
   typename std::set<const EP *, HCfg>::iterator best_it;
+  bool terminate_on_first_solution;
 
 public:
-  Heuristic() {}
+  Heuristic() : terminate_on_first_solution(true) {}
 
   ~Heuristic() {
     for (const EP *ep : execution_plans) {
@@ -132,9 +132,7 @@ private:
     auto it = best_it;
     assert(it != execution_plans.end());
 
-    const HeuristicCfg *cfg = static_cast<const HeuristicCfg *>(&configuration);
-
-    if (cfg->terminate_on_first_solution() && !(*it)->get_next_node()) {
+    if (terminate_on_first_solution && !(*it)->get_next_node()) {
       return execution_plans.end();
     }
 

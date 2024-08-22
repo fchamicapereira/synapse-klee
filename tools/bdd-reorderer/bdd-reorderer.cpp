@@ -368,6 +368,10 @@ static bool map_can_reorder(const BDD *bdd, const Node *anchor,
     return false;
   }
 
+  if (between->get_type() != NodeType::CALL) {
+    return true;
+  }
+
   if (!check_obj(between, candidate, "map")) {
     return true;
   }
@@ -426,6 +430,10 @@ static bool dchain_can_reorder(const BDD *bdd, const Node *anchor,
     return false;
   }
 
+  if (between->get_type() != NodeType::CALL) {
+    return true;
+  }
+
   return !check_obj(between, candidate, "dchain");
 }
 
@@ -439,6 +447,10 @@ static bool vector_can_reorder(const BDD *bdd, const Node *anchor,
   // Has side effects, but we encountered a branch condition in between.
   if (between->get_type() == NodeType::BRANCH) {
     return false;
+  }
+
+  if (between->get_type() != NodeType::CALL) {
+    return true;
   }
 
   if (!check_obj(between, candidate, "vector")) {

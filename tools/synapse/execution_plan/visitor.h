@@ -40,7 +40,6 @@ class VectorRegisterUpdate;
 class FCFSCachedTableRead;
 class FCFSCachedTableReadOrWrite;
 class FCFSCachedTableWrite;
-class FCFSCachedTableConditionalDelete;
 class FCFSCachedTableDelete;
 } // namespace tofino
 
@@ -142,7 +141,6 @@ public:
   VISIT_NOP(tofino::FCFSCachedTableRead)
   VISIT_NOP(tofino::FCFSCachedTableReadOrWrite)
   VISIT_NOP(tofino::FCFSCachedTableWrite)
-  VISIT_NOP(tofino::FCFSCachedTableConditionalDelete)
   VISIT_NOP(tofino::FCFSCachedTableDelete)
   VISIT_NOP(tofino::Recirculate)
 

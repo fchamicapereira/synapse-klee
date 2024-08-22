@@ -116,26 +116,25 @@ get_future_vector_return(const bdd::Call *vector_borrow);
 // Get the data associated with this address.
 klee::ref<klee::Expr> get_expr_from_addr(const EP *ep, addr_t addr);
 
-struct map_coalescing_data_t {
+struct map_coalescing_objs_t {
   addr_t map;
   addr_t dchain;
   addr_t vector_key;
   objs_t vectors_values;
 };
 
-bool get_map_coalescing_data(const bdd::BDD *bdd, addr_t obj,
-                             map_coalescing_data_t &data);
-bool get_map_coalescing_data_from_dchain_op(
-    const EP *ep, const bdd::Call *dchain_op,
-    map_coalescing_data_t &coalescing_data);
-bool get_map_coalescing_data_from_map_op(
-    const EP *ep, const bdd::Call *map_op,
-    map_coalescing_data_t &coalescing_data);
+bool get_map_coalescing_objs_from_bdd(const bdd::BDD *bdd, addr_t obj,
+                                      map_coalescing_objs_t &data);
+bool get_map_coalescing_objs_from_dchain_op(const EP *ep,
+                                            const bdd::Call *dchain_op,
+                                            map_coalescing_objs_t &map_objs);
+bool get_map_coalescing_objs_from_map_op(const EP *ep, const bdd::Call *map_op,
+                                         map_coalescing_objs_t &map_objs);
 
 std::vector<const bdd::Call *>
 get_coalescing_nodes_from_key(const bdd::BDD *bdd, const bdd::Node *node,
                               klee::ref<klee::Expr> key,
-                              const map_coalescing_data_t &data);
+                              const map_coalescing_objs_t &data);
 
 klee::ref<klee::Expr> get_chunk_from_borrow(const bdd::Node *node);
 bool borrow_has_var_len(const bdd::Node *node);

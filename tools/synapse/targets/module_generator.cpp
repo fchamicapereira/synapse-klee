@@ -128,7 +128,7 @@ ModuleGenerator::generate(const EP *ep, const bdd::Node *node,
     for (EP *reordered_ep : reordered) {
       Context &ctx = reordered_ep->get_mutable_ctx();
       ctx.update_throughput_estimates(reordered_ep);
-      products.emplace_back(reordered_ep, product.description + " [R]");
+      products.emplace_back(reordered_ep, product.description, true);
     }
   }
 

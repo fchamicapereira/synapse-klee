@@ -78,39 +78,23 @@ protected:
                               const std::unordered_set<DS *> &regs,
                               const std::unordered_set<DS_ID> &deps) const;
 
-  struct cached_table_data_t {
-    addr_t obj;
-    klee::ref<klee::Expr> key;
-    klee::ref<klee::Expr> read_value;
-    klee::ref<klee::Expr> write_value;
-    symbol_t map_has_this_key;
-    int num_entries;
-  };
-
-  FCFSCachedTable *build_cached_table(const EP *ep, const bdd::Node *node,
-                                      const cached_table_data_t &data,
-                                      int cache_capacity,
-                                      std::unordered_set<DS_ID> &deps) const;
-  FCFSCachedTable *get_cached_table(const EP *ep, const bdd::Node *node,
-                                    const cached_table_data_t &data,
-                                    std::unordered_set<DS_ID> &deps) const;
+  FCFSCachedTable *get_fcfs_cached_table(const EP *ep, const bdd::Node *node,
+                                         addr_t obj) const;
   FCFSCachedTable *
-  get_or_build_cached_table(const EP *ep, const bdd::Node *node,
-                            const cached_table_data_t &data, int cache_capacity,
-                            bool &already_exists,
-                            std::unordered_set<DS_ID> &deps) const;
-  bool can_get_or_build_cached_table(const EP *ep, const bdd::Node *node,
-                                     const cached_table_data_t &data,
-                                     int cache_capacity) const;
-
-  bool
-  can_place_cached_table(const EP *ep,
-                         const map_coalescing_data_t &coalescing_data) const;
-  void place_cached_table(EP *ep, const map_coalescing_data_t &coalescing_data,
-                          FCFSCachedTable *ds,
-                          const std::unordered_set<DS_ID> &deps) const;
+  build_or_reuse_fcfs_cached_table(const EP *ep, const bdd::Node *node,
+                                   addr_t obj, klee::ref<klee::Expr> key,
+                                   int num_entries, int cache_capacity) const;
+  bool can_get_or_build_fcfs_cached_table(const EP *ep, const bdd::Node *node,
+                                          addr_t obj, klee::ref<klee::Expr> key,
+                                          int num_entries,
+                                          int cache_capacity) const;
+  bool can_place_fcfs_cached_table(const EP *ep,
+                                   const map_coalescing_objs_t &map_objs) const;
+  void place_fcfs_cached_table(EP *ep, const bdd::Node *node,
+                               const map_coalescing_objs_t &map_objs,
+                               FCFSCachedTable *ds) const;
   std::unordered_set<int>
-  enumerate_cache_table_capacities(int num_entries) const;
+  enumerate_fcfs_cache_table_capacities(int num_entries) const;
 };
 
 } // namespace tofino

@@ -170,6 +170,35 @@ void TofinoContext::parser_reject(const EP *ep, const bdd::Node *node) {
   tna.parser.log_debug();
 }
 
+static const EPNode *get_ep_node_from_bdd_node(const EP *ep,
+                                               const bdd::Node *node) {
+  std::vector<EPLeaf> leaves = ep->get_leaves();
+  std::vector<const EPNode *> ep_nodes;
+
+  for (const EPLeaf &leaf : leaves) {
+    ep_nodes.push_back(leaf.node);
+  }
+
+  while (!ep_nodes.empty()) {
+    const EPNode *ep_node = ep_nodes[0];
+    ep_nodes.erase(ep_nodes.begin());
+
+    const Module *module = ep_node->get_module();
+    assert(module);
+
+    if (module->get_node() == node) {
+      return ep_node;
+    }
+
+    const EPNode *prev = ep_node->get_prev();
+    if (prev) {
+      ep_nodes.push_back(prev);
+    }
+  }
+
+  return nullptr;
+}
+
 static const EPNode *
 get_ep_node_leaf_from_future_bdd_node(const EP *ep, const bdd::Node *node) {
   const std::vector<EPLeaf> &leaves = ep->get_leaves();
@@ -191,7 +220,11 @@ std::unordered_set<DS_ID>
 TofinoContext::get_stateful_deps(const EP *ep, const bdd::Node *node) const {
   std::unordered_set<DS_ID> deps;
 
-  const EPNode *ep_node = get_ep_node_leaf_from_future_bdd_node(ep, node);
+  const EPNode *ep_node = get_ep_node_from_bdd_node(ep, node);
+
+  if (!ep_node) {
+    ep_node = get_ep_node_leaf_from_future_bdd_node(ep, node);
+  }
 
   if (!ep_node) {
     return deps;

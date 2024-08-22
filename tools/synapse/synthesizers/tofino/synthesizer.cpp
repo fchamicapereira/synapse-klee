@@ -587,13 +587,6 @@ void TofinoSynthesizer::visit(const EP *ep, const EPNode *ep_node,
   assert(false && "TODO");
 }
 
-void TofinoSynthesizer::visit(
-    const EP *ep, const EPNode *ep_node,
-    const tofino::FCFSCachedTableConditionalDelete *node) {
-  // TODO:
-  assert(false && "TODO");
-}
-
 void TofinoSynthesizer::visit(const EP *ep, const EPNode *ep_node,
                               const tofino::FCFSCachedTableDelete *node) {
   // TODO:
